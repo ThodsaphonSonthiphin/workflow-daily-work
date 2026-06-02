@@ -6,7 +6,7 @@
     "email": "thodsaphon.sonthipin@cartagena.no"
   },
   "description": "Daily-work automation toolkit. Turn any findings source into an Azure DevOps backlog, safely and traceably.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "plugins": [
     {
       "name": "ado-backlog",
@@ -22,6 +22,21 @@
       "license": "MIT",
       "category": "development",
       "keywords": ["azure-devops", "ado", "backlog", "work-items", "triage"]
+    },
+    {
+      "name": "dev-workflows",
+      "source": "./plugins/dev-workflows",
+      "description": "General-purpose development workflow skills. Ships grill-then-plan (domain-aware grilling that hands off to the superpowers planning pipeline) and problem-description (interactive step-by-step HTML walkthroughs of complex technical problems).",
+      "version": "0.2.0",
+      "author": {
+        "name": "ThodsaphonSonthiphin",
+        "url": "https://github.com/ThodsaphonSonthiphin"
+      },
+      "homepage": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+      "repository": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+      "license": "MIT",
+      "category": "development",
+      "keywords": ["workflow", "grilling", "planning", "design-spec", "superpowers", "walkthrough", "visualization"]
     }
   ]
 }

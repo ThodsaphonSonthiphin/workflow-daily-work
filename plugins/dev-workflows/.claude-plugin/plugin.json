@@ -1,0 +1,15 @@
+{
+  "name": "dev-workflows",
+  "displayName": "Dev Workflows",
+  "version": "0.2.0",
+  "description": "General-purpose development workflow skills. Ships grill-then-plan (domain-aware grilling that sharpens terminology, captures decisions inline as CONTEXT.md/ADRs, then hands off to the superpowers planning pipeline) and problem-description (generate interactive step-by-step HTML walkthroughs that explain a complex technical problem with concrete data). More skills to come.",
+  "author": {
+    "name": "ThodsaphonSonthiphin",
+    "email": "thodsaphon.sonthipin@cartagena.no",
+    "url": "https://github.com/ThodsaphonSonthiphin"
+  },
+  "homepage": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+  "repository": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+  "license": "MIT",
+  "keywords": ["workflow", "grilling", "planning", "design-spec", "superpowers", "walkthrough", "visualization", "diagram", "daily-work"]
+}
