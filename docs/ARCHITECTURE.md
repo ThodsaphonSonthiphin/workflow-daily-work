@@ -90,8 +90,8 @@ config cache. Planned files: `resolve-ado-target.ps1` (dot-sourceable entry),
 `AdoTarget.psm1` (helper module), `AdoTarget.Tests.ps1` (Pester tests).
 
 See the plan
-[docs/superpowers/plans/2026-06-02-az-ado-target-discovery.md](plans/2026-06-02-az-ado-target-discovery.md)
-and [docs/adr/0002-az-org-project-discovery.md](adr/0002-az-org-project-discovery.md).
+[2026-06-02-az-ado-target-discovery.md](superpowers/plans/2026-06-02-az-ado-target-discovery.md)
+and [ADR 0002 — az org/project discovery](../plugins/ado-backlog/docs/adr/0002-az-org-project-discovery.md).
 
 ## Adding a new skill (worked recipe)
 
