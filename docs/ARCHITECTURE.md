@@ -12,8 +12,9 @@ This repo is a **Claude Code plugin marketplace** (`workflow-daily-work`) declar
 ships one **plugin**, `ado-backlog`, defined by
 [plugins/ado-backlog/.claude-plugin/plugin.json](../plugins/ado-backlog/.claude-plugin/plugin.json).
 
-The plugin is decomposed into **one skill per pipeline step**, plus a small number of
-helper **scripts** and thin **commands**. The decomposition is deliberate: each step is
+The plugin is decomposed into **one skill per pipeline step**, plus two standalone
+skills (`ado-auth` for authentication and `my-work` for listing assigned items), a few
+helper **scripts**, and thin **commands**. The decomposition is deliberate: each step is
 reusable on its own, and the steps communicate only through small JSON files, so any
 step can be run, tested, or replaced in isolation.
 
@@ -35,24 +36,41 @@ its source row. The canonical shapes live in
 that file is the single source of truth; this document does not restate the schemas.
 
 ```
-                 findings.json          backlog_input.json        backlog_result.json
-                 ┌──────────┐           ┌──────────────┐          ┌────────────────┐
- source  ──▶ extract ──▶    │ ──▶ triage ──▶ classify ──▶         │ ──▶ create ──▶  │ ──▶ write-back ──▶ source
-                 └──────────┘  (filter)  └──────────────┘  (gate)  └────────────────┘   (spreadsheets only)
-                                                              dry-run + approval
+ source
+   │  extract-findings
+   ▼
+ findings.json
+   │  triage-findings          (filters in memory — produces no new file)
+   ▼
+ (scoped findings)
+   │  classify-work-items
+   ▼
+ backlog_input.json
+   │  ado-create-work-items    (dry-run validates → on approval, creates)
+   ▼
+ backlog_result.json
+   │  ado-writeback-tracking   (spreadsheets only)
+   ▼
+ source  (ticket IDs/URLs written back beside each row)
 ```
+
+The gate per step is in the table below; triage filters the findings in memory and does
+**not** persist a fourth file.
 
 | Step | Owning skill | Reads | Writes | Gate |
 |------|--------------|-------|--------|------|
+| Pre-flight: Auth | `ado-auth` | — | env: Entra token / `AZDO_*` | — |
 | Extract | `extract-findings` | source file / pasted text | `findings.json` | confirm column mapping with user |
-| Triage | `triage-findings` | `findings.json` | scoped subset of findings | — (recommends Critical+confirmed first) |
+| Triage | `triage-findings` | `findings.json` | scoped findings (in memory) | — (recommends Critical+confirmed first) |
 | Classify | `classify-work-items` | scoped findings | `backlog_input.json` | estimates gate (show hours, get OK) |
 | Dry run | `ado-create-work-items` | `backlog_input.json` | validation PASS/FAIL list | dry-run creates nothing |
 | Create | `ado-create-work-items` | `backlog_input.json` | `backlog_result.json` | **explicit user approval required** |
 | Write-back | `ado-writeback-tracking` | `backlog_result.json` | updated source spreadsheet | back up the source first |
 
-The **orchestrator** skill, `findings-to-ado-backlog`, sequences all six steps and
-enforces the gates. It is the teachable happy path; `/ado-backlog:run` wraps it.
+The **orchestrator** skill, `findings-to-ado-backlog`, sequences these six sibling
+skills (auth → extract → triage → classify → create → write-back) and enforces the
+gates. It is the teachable happy path; `/ado-backlog:run` wraps it. `my-work` is a
+standalone query skill outside this pipeline.
 
 ## Design principles
 
@@ -69,7 +87,10 @@ enforces the gates. It is the teachable happy path; `/ado-backlog:run` wraps it.
 ## Scripts (exist today)
 
 All scripts live in `plugins/ado-backlog/scripts/`. Skills reference them via
-`${CLAUDE_PLUGIN_ROOT}/scripts/<name>`.
+`${CLAUDE_PLUGIN_ROOT}/scripts/<name>` (`${CLAUDE_PLUGIN_ROOT}` is injected by the
+plugin runtime and resolves to the plugin's installed root). The `.cs` scripts run as
+file-based apps via `dotnet run <file>.cs` — a .NET 10 feature, hence the .NET 10 SDK
+prerequisite.
 
 | Script | Purpose | Invocation |
 |--------|---------|------------|
@@ -138,5 +159,5 @@ should not need to read existing source first.
    dry-run path before a real run.
 
 8. **Bump versions in sync.** Update `version` in
-   `plugins/ado-backlog/.claude-plugin/plugin.json`, and the matching plugin entry in
-   `.claude-plugin/marketplace.json`. They are both `0.2.0` today and must not drift.
+   `plugins/ado-backlog/.claude-plugin/plugin.json` and the matching plugin entry in
+   `.claude-plugin/marketplace.json` together — they must always report the same version.
