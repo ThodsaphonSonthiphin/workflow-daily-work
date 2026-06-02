@@ -1,0 +1,15 @@
+{
+  "name": "github-backlog",
+  "displayName": "GitHub Backlog Toolkit",
+  "version": "0.1.0",
+  "description": "Turn findings from any input into GitHub Issues: extract -> triage -> classify (labels + milestone) -> visual dry-run -> create -> write issue links back. Composable: each step is its own skill, plus a one-shot orchestrator.",
+  "author": {
+    "name": "ThodsaphonSonthiphin",
+    "email": "thodsaphon.sonthipin@cartagena.no",
+    "url": "https://github.com/ThodsaphonSonthiphin"
+  },
+  "homepage": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+  "repository": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+  "license": "MIT",
+  "keywords": ["github", "issues", "backlog", "work-items", "triage", "spreadsheet", "daily-work"]
+}
