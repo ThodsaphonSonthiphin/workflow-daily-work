@@ -12,9 +12,9 @@ This repo is a **Claude Code plugin marketplace** (`workflow-daily-work`) declar
 ships one **plugin**, `ado-backlog`, defined by
 [plugins/ado-backlog/.claude-plugin/plugin.json](../plugins/ado-backlog/.claude-plugin/plugin.json).
 
-The plugin is decomposed into **one skill per pipeline step**, plus two standalone
-skills (`ado-auth` for authentication and `my-work` for listing assigned items), a few
-helper **scripts**, and thin **commands**. The decomposition is deliberate: each step is
+The plugin is decomposed into **one skill per pipeline step** (with `ado-auth` as the
+optional pre-flight Step 0), plus the standalone `my-work` query skill, a few helper
+**scripts**, and thin **commands**. The decomposition is deliberate: each step is
 reusable on its own, and the steps communicate only through small JSON files, so any
 step can be run, tested, or replaced in isolation.
 
@@ -110,8 +110,7 @@ setup by discovering them from the Azure CLI, with a layered fallback and a self
 config cache. Planned files: `resolve-ado-target.ps1` (dot-sourceable entry),
 `AdoTarget.psm1` (helper module), `AdoTarget.Tests.ps1` (Pester tests).
 
-See the plan
-[2026-06-02-az-ado-target-discovery.md](superpowers/plans/2026-06-02-az-ado-target-discovery.md)
+See the [az-ado-target-discovery plan](superpowers/plans/2026-06-02-az-ado-target-discovery.md)
 and [ADR 0002 — az org/project discovery](../plugins/ado-backlog/docs/adr/0002-az-org-project-discovery.md).
 
 ## Adding a new skill (worked recipe)
@@ -161,3 +160,5 @@ should not need to read existing source first.
 8. **Bump versions in sync.** Update `version` in
    `plugins/ado-backlog/.claude-plugin/plugin.json` and the matching plugin entry in
    `.claude-plugin/marketplace.json` together — they must always report the same version.
+   (The *top-level* `version` in `marketplace.json` is the marketplace's own version,
+   separate from any plugin's; bump it when you add or remove a plugin.)
