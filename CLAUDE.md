@@ -20,7 +20,8 @@ CONTEXT.md                        glossary — domain + architecture terms
 README.md                         end-user overview + install
 docs/
   ARCHITECTURE.md                 how it's built + how to extend
-  superpowers/{specs,plans}/      design specs + implementation plans
+  superpowers/specs/              design specs
+  superpowers/plans/              implementation plans
 plugins/ado-backlog/
   .claude-plugin/plugin.json      the plugin manifest
   skills/<name>/SKILL.md          one capability per pipeline step
@@ -38,14 +39,15 @@ The plugin is a pipeline; each step is a skill; state flows through three JSON *
 contracts** joined by a stable `key`:
 
 ```
-extract → triage → classify → dry-run → create → write-back
-  findings.json → backlog_input.json → backlog_result.json
+extract → triage (in-memory) → classify → create (dry-run gated) → write-back
+  findings.json               → backlog_input.json → backlog_result.json
 ```
 
-The orchestrator skill `findings-to-ado-backlog` sequences the steps and enforces the
-safety gates. `ado-auth` (authentication) and `my-work` (list assigned items) are
-standalone skills outside the pipeline. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-for the step-by-step detail and an add-a-skill recipe.
+The orchestrator skill `findings-to-ado-backlog` sequences these steps and enforces the
+safety gates; `ado-auth` is the optional pre-flight (Step 0) it delegates to before
+extract. `my-work` (list assigned items) is a standalone query skill outside the
+pipeline. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the step-by-step detail
+and an add-a-skill recipe.
 
 ## Conventions (do not violate)
 
@@ -62,12 +64,14 @@ for the step-by-step detail and an add-a-skill recipe.
 
 ## Key commands
 
+Run these from a shell at the repo root (repo-relative paths). Inside a skill's
+SKILL.md, reference scripts via `${CLAUDE_PLUGIN_ROOT}/scripts/<name>` instead.
+
 ```powershell
 # Verify prerequisites (az login, .NET >= 10, Python + openpyxl, org/project)
 powershell -ExecutionPolicy Bypass -File "plugins/ado-backlog/scripts/setup_check.ps1"
 
-# Dry run — validates against ADO, creates nothing
-$env:AZDO_DRY_RUN = "true"
+# Dry run — validates against ADO, creates nothing (this is the DEFAULT)
 dotnet run "plugins/ado-backlog/scripts/create-backlog.cs" -- "<workdir>/backlog_input.json"
 
 # Real run — only after explicit user approval of the dry-run result
