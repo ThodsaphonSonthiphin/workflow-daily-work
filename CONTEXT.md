@@ -18,3 +18,37 @@ A project inside an Organization (e.g. `GlassHull`), referenced by name (exact c
 A work item type is only valid relative to the project's **process** (Agile, Scrum,
 Basic, CMMI). Carried as `AZDO_PROJECT`.
 _Avoid_: team project, board, repo.
+
+## Repo architecture terms
+
+**Marketplace**:
+The repo as a whole — a Claude Code plugin marketplace declared in
+`.claude-plugin/marketplace.json`. It _lists_ plugins; it is not a plugin itself.
+_Avoid_: repo (ambiguous), package.
+
+**Plugin**:
+A self-contained unit a colleague installs (e.g. `ado-backlog`), defined by its own
+`.claude-plugin/plugin.json`. Bundles skills, commands, scripts, and references.
+
+**Skill**:
+A single reusable capability under `skills/<name>/SKILL.md`, model-invoked by its
+`description` triggers. One pipeline step = one skill.
+_Avoid_: command (a command is a thin user-typed entry point, not the capability).
+
+**Command**:
+A user-typed `/ado-backlog:<name>` entry point under `commands/<name>.md`; a thin
+wrapper that hands off to a skill. Not where logic lives.
+
+**Orchestrator**:
+The one skill (`findings-to-ado-backlog`) that sequences the other skills end-to-end
+and enforces the safety gates. A skill, but the conductor — not a peer step.
+
+**Data contract**:
+One of the three JSON files (`findings.json`, `backlog_input.json`,
+`backlog_result.json`) that carry state between steps, joined by a stable `key`.
+Canonical shapes live in `references/data-contracts.md` — that file is the source of
+truth; nothing else redefines them.
+
+**Safety gate**:
+A deliberate stop before an irreversible action: dry-run before real create, explicit
+user approval before any write, back up the source before write-back.
