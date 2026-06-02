@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "workflow-daily-work",
+  "owner": {
+    "name": "ThodsaphonSonthiphin",
+    "email": "thodsaphon.sonthipin@cartagena.no"
+  },
+  "description": "Daily-work automation toolkit. Turn any findings source into an Azure DevOps backlog, safely and traceably.",
+  "version": "0.2.0",
+  "plugins": [
+    {
+      "name": "ado-backlog",
+      "source": "./plugins/ado-backlog",
+      "description": "Turn findings from any input (spreadsheet, doc, pasted text) into an Azure DevOps backlog: extract, triage, classify by your project's process, create with a dry-run gate, and write ticket links back to the source.",
+      "version": "0.2.0",
+      "author": {
+        "name": "ThodsaphonSonthiphin",
+        "url": "https://github.com/ThodsaphonSonthiphin"
+      },
+      "homepage": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+      "repository": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+      "license": "MIT",
+      "category": "development",
+      "keywords": ["azure-devops", "ado", "backlog", "work-items", "triage"]
+    }
+  ]
+}

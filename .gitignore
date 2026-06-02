@@ -1,0 +1,10 @@
+# .NET build output (from running create-backlog.cs)
+bin/
+obj/
+.vs/
+*.user
+
+# runtime working files produced by a run (not part of the plugin)
+findings.json
+backlog_input.json
+backlog_result.json

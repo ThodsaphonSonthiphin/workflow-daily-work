@@ -1,0 +1,15 @@
+{
+  "name": "ado-backlog",
+  "displayName": "ADO Backlog Toolkit",
+  "version": "0.2.0",
+  "description": "Turn findings from any input into an Azure DevOps backlog: extract -> triage -> classify (by your project's process) -> create (dry-run gated) -> write ticket links back. Composable: each step is its own skill, plus a one-shot orchestrator.",
+  "author": {
+    "name": "ThodsaphonSonthiphin",
+    "email": "thodsaphon.sonthipin@cartagena.no",
+    "url": "https://github.com/ThodsaphonSonthiphin"
+  },
+  "homepage": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+  "repository": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+  "license": "MIT",
+  "keywords": ["azure-devops", "ado", "backlog", "work-items", "triage", "spreadsheet", "daily-work"]
+}

@@ -1,0 +1,56 @@
+{
+  "org": "Cartagena365",
+  "project": "GlassHull",
+  "parent": {
+    "type": "Feature",
+    "fields": {
+      "System.Title": "Naming Alignment (sample)",
+      "System.Tags": "sample; naming-audit",
+      "Microsoft.VSTS.Common.Priority": 1
+    }
+  },
+  "items": [
+    {
+      "key": "1",
+      "type": "Bug",
+      "fields": {
+        "System.Title": "Quote status \"Pending\" should read \"Draft\"",
+        "Microsoft.VSTS.Common.Priority": 1,
+        "System.Tags": "sample; naming-audit; review-confirmed",
+        "Microsoft.VSTS.TCM.ReproSteps": "<b>Current:</b> Pending<br><b>Expected:</b> Draft<br><b>Why:</b> 'Pending' implies awaiting approval; 'Draft' implies work-in-progress."
+      }
+    },
+    {
+      "key": "2",
+      "type": "Bug",
+      "fields": {
+        "System.Title": "Navigation \"My Fleet\" should read \"Makes\"",
+        "Microsoft.VSTS.Common.Priority": 1,
+        "System.Tags": "sample; naming-audit; review-confirmed",
+        "Microsoft.VSTS.TCM.ReproSteps": "<b>Current:</b> My Fleet<br><b>Expected:</b> Makes<br><b>Why:</b> Portal label maps to the CRM 'Makes' entity."
+      }
+    },
+    {
+      "key": "4",
+      "type": "User Story",
+      "fields": {
+        "System.Title": "Add \"Military\" flag to the Quote form (compliance)",
+        "Microsoft.VSTS.Common.Priority": 1,
+        "System.Tags": "sample; naming-audit; review-confirmed",
+        "System.Description": "<b>Gap:</b> the portal Quote form has no Military flag present in CRM.",
+        "Microsoft.VSTS.Common.AcceptanceCriteria": "<ul><li>Military (Yes/No) field added to the Quote form</li><li>Submits to the corresponding CRM field</li></ul>"
+      },
+      "estimate": {
+        "hours": 8,
+        "task": {
+          "fields": {
+            "System.Title": "Implement: Add \"Military\" flag to the Quote form",
+            "Microsoft.VSTS.Scheduling.OriginalEstimate": 8,
+            "Microsoft.VSTS.Scheduling.RemainingWork": 8,
+            "System.Description": "<b>Estimate breakdown</b><ul><li>Add Military (Yes/No) field to the Quote form (UI): 2h</li><li>Wire submit to the CRM field: 2h</li><li>Validation + default + conditional display: 1.5h</li><li>Compliance check + test cases: 1.5h</li><li>Unit/e2e test + PR: 1h</li></ul><b>Total: 8h</b>"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+#,Section,Current,Expected,Kind,Severity,Status,Recommendation,Notes
+1,Quote Status Values,Pending,Draft,rename,Critical,confirmed,Rename to: Draft,"Pending implies awaiting approval; Draft implies work-in-progress. Different meanings."
+2,Navigation,My Fleet,Makes,rename,Critical,confirmed,Rename to: Makes,Portal "My Fleet" maps to the CRM "Makes" entity.
+3,Quote Form Fields,ETA,Estimated Shipping Date,rename,Medium,needs-review,Rename to: Estimated Shipping Date,ETA = arrival; this field is about departure.
+4,Missing Fields,(not in portal),Military flag,missing,Critical,confirmed,Add Military (Yes/No) to the Quote form,Regulatory/compliance implications for military cargo.
