@@ -52,3 +52,25 @@ truth; nothing else redefines them.
 **Safety gate**:
 A deliberate stop before an irreversible action: dry-run before real create, explicit
 user approval before any write, back up the source before write-back.
+
+## GitHub terms (github-backlog plugin)
+
+**GitHub Owner**:
+The org or user name segment of a GitHub repo URL (e.g. `Cartagena365`). Carried as
+`GH_OWNER`. It is **not** a URL. Mirrors `AZDO_ORG` from the ADO side.
+_Avoid_: org URL, full repo path.
+
+**GitHub Repo**:
+The repository name (e.g. `GlassHull`). Carried as `GH_REPO`. Mirrors `AZDO_PROJECT`.
+_Avoid_: repo URL, full path.
+
+**Tracking Issue**:
+A GitHub Issue whose body contains a task list (`- [ ] #N title`) linking all issues
+created in a batch. GitHub renders it as a progress bar. The GitHub equivalent of an
+ADO Feature/Epic parent item.
+_Avoid_: epic issue (ambiguous), parent issue (not a GitHub term).
+
+**Size label**:
+A `size:XS` / `size:S` / `size:M` / `size:L` / `size:XL` label on a GitHub Issue
+encoding the effort estimate for that item. Maps from raw hours during classification.
+_Avoid_: story points (different concept), estimate label.

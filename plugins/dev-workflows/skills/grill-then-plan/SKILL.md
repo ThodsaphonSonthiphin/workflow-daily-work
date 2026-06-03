@@ -75,10 +75,12 @@ can be answered by exploring the codebase, explore the codebase instead of askin
   a glossary only; no implementation detail. Create it lazily on the first
   resolved term if it doesn't exist. Use the format in
   [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md).
-- **Offer ADRs sparingly** — only when all three are true: (1) hard to reverse,
-  (2) surprising without context, (3) the result of a real trade-off. Create
-  `docs/adr/` lazily on the first ADR. Use the format in
-  [ADR-FORMAT.md](./ADR-FORMAT.md).
+- **Always create an ADR for every design decision** — one ADR per decision, the
+  moment the decision is made. Do not batch or defer. Create `docs/adr/` lazily
+  on the first ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md). A
+  decision qualifies if the user chose one option over another — architectural
+  shape, technology choice, naming, scope boundary, safety mechanism. When in
+  doubt, write the ADR. A short ADR is better than a missing one.
 
 ## Step 5 — Write the design spec
 
