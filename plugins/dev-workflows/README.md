@@ -10,6 +10,7 @@ more skills will be added over time.
 |---|---|
 | `grill-then-plan` | A domain-aware **grilling session**: interviews you one question at a time, challenges your plan against the project glossary, sharpens fuzzy terms, and captures decisions inline (`CONTEXT.md` + ADRs). Writes a design spec, then **hands off to `superpowers:writing-plans`** to produce the implementation plan. |
 | `problem-description` | Generate a self-contained **interactive HTML walkthrough** that explains a complex technical problem (DB error, race condition, design issue) with concrete data and manual step-through navigation. Two modes: **diagram** (boxes + data flow) and **tables** (grid state changes). |
+| `management-talk` | Reshape engineer-to-engineer content for **engineering-org leadership** (VPs, directors, PMs, release managers) and **shape it for the channel** — JIRA comment, Slack post, async standup line, email, or meeting talking-points. Keeps product names/tickets/PRs, strips code identifiers, translates mechanism into plain cause-and-effect. |
 
 Each is invoked automatically by its trigger phrases, or explicitly via the `Skill` tool.
 
@@ -49,7 +50,24 @@ Ships two starter templates the skill reads and adapts:
 [`skills/problem-description/template-diagram.html`](skills/problem-description/template-diagram.html)
 and [`skills/problem-description/template.html`](skills/problem-description/template.html).
 
+## management-talk
+
+Use when engineering work needs to flow **up the org or sideways into product/release** —
+a status update for leadership, not for the team.
+
+- **Audience:** engineering-savvy non-engineers. They read product names, JIRA keys, and
+  PR numbers; they do not read code.
+- **Channel-shaped:** the same diagnosis becomes a full structured JIRA comment, a tight
+  Slack post, a one-line standup note, an exec email, or spoken meeting bullets — you pick
+  the channel and it formats to fit.
+- **Translates, doesn't dumb down:** keeps concept-level vocabulary (race, regression,
+  uninitialized buffer), strips function names / file paths / SHAs, and turns mechanism into
+  plain cause-and-effect — without promoting a speculation to a finding.
+- Print-only by default; it never posts to Slack/email, and only back-posts to JIRA on
+  explicit approval.
+
 ## Prerequisites
 
 - `grill-then-plan` → the **superpowers** plugin (auto-checked).
 - `problem-description` → none. Output is a single static HTML file you open in any browser.
+- `management-talk` → none.

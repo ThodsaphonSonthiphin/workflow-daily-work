@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>management-talk — how it works</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 20px;
+    background: #0a0e14; color: #e0e6ed;
+    font-family: 'Segoe UI', 'Sukhumvit Set', 'Tahoma', sans-serif;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+  h1 { color: #5fb4ff; font-size: 22px; margin: 0 0 4px; }
+  h2 { color: #b8c4cf; font-size: 13px; font-weight: 400; margin: 0 0 18px; }
+  code { background: #1a2330; padding: 1px 5px; border-radius: 3px;
+         font-family: 'Consolas', monospace; color: #ffd479; font-size: 0.9em; }
+  del { color: #ff8888; text-decoration: line-through; }
+  ins { color: #a3e8b9; text-decoration: none; }
+
+  .step-progress { display: flex; gap: 4px; justify-content: center;
+                   margin: 12px 0 14px; flex-wrap: wrap; }
+  .step-dot { width: 22px; height: 22px; border-radius: 50%;
+              background: #1a2330; color: #6b7785;
+              display: flex; align-items: center; justify-content: center;
+              font-size: 10px; font-weight: 700; transition: all 0.3s; }
+  .step-dot.done    { background: #1a3a5f; color: #5fb4ff; }
+  .step-dot.current { background: #5fb4ff; color: #0a0e14; transform: scale(1.2); }
+
+  .narration {
+    background: #1a2330; padding: 12px 18px; border-radius: 6px;
+    border-left: 3px solid #5fb4ff; margin-bottom: 16px;
+    font-size: 14.5px; line-height: 1.65; min-height: 60px;
+  }
+  .narration.warn    { border-color: #ffaa00; background: #2a2018; }
+  .narration.error   { border-color: #ff5757; background: #2a1818; }
+  .narration.success { border-color: #4ade80; background: #182a1f; }
+  .narration.magic   { border-color: #b070ff; background: #1f1830; }
+  .narration .step-title { color: #5fb4ff; font-weight: 700; font-size: 16px;
+                           display: block; margin-bottom: 6px; }
+  .narration.warn    .step-title { color: #ffd479; }
+  .narration.error   .step-title { color: #ff8888; }
+  .narration.success .step-title { color: #a3e8b9; }
+  .narration.magic   .step-title { color: #d4a4ff; }
+  .ex { background: #0f1419; border: 1px solid #2a3441; border-radius: 6px;
+        padding: 10px 14px; margin-top: 10px; font-size: 13.5px; line-height: 1.55; }
+  .ex .ex-lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+                text-transform: uppercase; color: #6b7785; display: block; margin-bottom: 5px; }
+
+  .diagram-wrapper { background: #0f1419; border: 1px solid #1a2330;
+                     border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+  svg.diagram { width: 100%; height: auto; display: block; }
+
+  .comp rect { fill: #1a2330; stroke: #2a3441; stroke-width: 2; transition: all 0.4s; }
+  .comp .comp-title { font-family: 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700;
+                      fill: #b8c4cf; transition: fill 0.4s; }
+  .comp .comp-sub { font-family: 'Consolas', monospace; font-size: 11px; fill: #6b7785; transition: fill 0.4s; }
+  .comp .comp-val { font-family: 'Consolas', monospace; font-size: 11.5px; fill: #ffd479; transition: fill 0.4s; }
+
+  .comp.active rect { fill: #1a3a5f; stroke: #5fb4ff; stroke-width: 3; filter: drop-shadow(0 0 8px #5fb4ff88); }
+  .comp.active .comp-title { fill: #7ed4ff; }
+  .comp.active .comp-sub   { fill: #b8c4cf; }
+
+  .comp.firing rect { fill: #2a2818; stroke: #ffd479; stroke-width: 3;
+                      filter: drop-shadow(0 0 8px #ffd47988); animation: pulse-fire 1.2s ease-in-out infinite; }
+  .comp.firing .comp-title { fill: #ffd479; }
+  @keyframes pulse-fire { 0%,100% { filter: drop-shadow(0 0 8px #ffd47988); } 50% { filter: drop-shadow(0 0 16px #ffd479dd); } }
+
+  .comp.locked rect { fill: #2a1a3a; stroke: #b070ff; stroke-width: 3; filter: drop-shadow(0 0 10px #b070ff88); }
+  .comp.locked .comp-title { fill: #d4a4ff; }
+  .comp.locked .comp-val   { fill: #d4a4ff; }
+
+  .comp.done rect { fill: #18301f; stroke: #4ade80; stroke-width: 2; }
+  .comp.done .comp-title { fill: #a3e8b9; }
+  .comp.done .comp-val   { fill: #a3e8b9; }
+
+  .comp.error rect { fill: #2a1818; stroke: #ff5757; stroke-width: 3; filter: drop-shadow(0 0 10px #ff575788); }
+  .comp.error .comp-title { fill: #ff8888; }
+  .comp.error .comp-val   { fill: #ff8888; }
+
+  .comp.dimmed { opacity: 0.3; }
+
+  .arrow { fill: none; stroke: #3d4a5f; stroke-width: 2; transition: stroke 0.3s, stroke-width 0.3s; }
+  .arrow.active { stroke: #5fb4ff; stroke-width: 3; stroke-dasharray: 8 4; animation: flow 1.8s linear infinite; }
+  .arrow.magic { stroke: #b070ff; stroke-width: 3.5; filter: drop-shadow(0 0 4px #b070ff); stroke-dasharray: 8 4; animation: flow 1.8s linear infinite; }
+  .arrow.done  { stroke: #4ade80; stroke-width: 2.5; }
+  .arrow.error { stroke: #ff5757; stroke-width: 3; }
+  .arrow.dimmed { opacity: 0.2; }
+  @keyframes flow { to { stroke-dashoffset: -24; } }
+
+  .flow-label { fill: #ffd479; font-family: 'Consolas', monospace; font-size: 11px; font-weight: 700; pointer-events: none; }
+  .flow-label-bg { fill: #2a2818; stroke: #ffd479; stroke-width: 1.5; }
+  .flow-label-group { opacity: 0; transition: opacity 0.3s; }
+  .flow-label-group.show { opacity: 1; }
+  .flow-label-group.magic .flow-label    { fill: #d4a4ff; }
+  .flow-label-group.magic .flow-label-bg { fill: #1f1830; stroke: #b070ff; }
+  .flow-label-group.error .flow-label    { fill: #ff8888; }
+  .flow-label-group.error .flow-label-bg { fill: #2a1818; stroke: #ff5757; }
+  .flow-label-group.done .flow-label    { fill: #a3e8b9; }
+  .flow-label-group.done .flow-label-bg { fill: #182a1f; stroke: #4ade80; }
+
+  .controls { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+  button { background: #5fb4ff; color: #0a0e14; border: none; padding: 10px 22px; border-radius: 6px;
+           font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.1s; }
+  button:hover:not(:disabled)  { background: #7ec3ff; }
+  button:active:not(:disabled) { transform: scale(0.97); }
+  button.tertiary { background: #2a3441; color: #e0e6ed; }
+  button.tertiary:hover:not(:disabled) { background: #3a4451; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .step-badge { background: #5fb4ff; color: #0a0e14; padding: 3px 10px; border-radius: 12px;
+                font-size: 12px; font-weight: 700; display: inline-block; margin-right: 8px; }
+
+  .extra-panel { background: #1a2330; border-radius: 6px; padding: 14px 18px; margin-bottom: 16px; font-size: 14px; line-height: 1.6; }
+  .extra-panel.race    { background: #2a1818; border: 2px solid #ff5757; }
+  .extra-panel.summary { background: #182a1f; border: 2px solid #4ade80; }
+  .extra-panel.question { background: #1f1830; border: 2px solid #b070ff; }
+  .extra-panel .ep-title { font-weight: 700; margin-bottom: 6px; }
+  .extra-panel.race .ep-title    { color: #ff8888; }
+  .extra-panel.summary .ep-title { color: #a3e8b9; }
+  .extra-panel.question .ep-title { color: #d4a4ff; }
+  .extra-panel ul { margin: 6px 0 0; padding-left: 20px; }
+  .extra-panel li { margin-bottom: 5px; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>management-talk — รับ engineer update เข้า แล้วปั้นออกเป็น "ภาษาผู้บริหาร" ตาม channel</h1>
+  <h2>กด <strong>ถัดไป →</strong> ดูทีละ step: text ของ engineer วิ่งผ่าน 3 กฎ (KEEP / STRIP / TRANSLATE) → ได้ core เดียว → ปั้นรูปตาม channel. ตัวอย่างจริงคือ Bug #6084.</h2>
+
+  <div class="step-progress" id="stepProgress"></div>
+
+  <div class="narration" id="narration">
+    <span class="step-badge" id="stepBadge">Step 0 / 0</span>
+    <span class="step-title" id="sceneTitle">เริ่มต้น</span>
+    <div id="narrationBody"></div>
+  </div>
+
+  <div class="diagram-wrapper">
+    <svg class="diagram" viewBox="0 0 1240 540" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrowhead"        markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#3d4a5f"/></marker>
+        <marker id="arrowhead-active" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#5fb4ff"/></marker>
+        <marker id="arrowhead-magic"  markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#b070ff"/></marker>
+        <marker id="arrowhead-done"   markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#4ade80"/></marker>
+        <marker id="arrowhead-error"  markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#ff5757"/></marker>
+      </defs>
+
+      <!-- INPUT -->
+      <g class="comp" id="compSrc">
+        <rect x="30" y="205" width="250" height="130" rx="10"/>
+        <text class="comp-title" x="155" y="245" text-anchor="middle">👩‍💻 Engineer update</text>
+        <text class="comp-sub"   x="155" y="268" text-anchor="middle">Bug #6084 — raw comment</text>
+        <text class="comp-val"   x="155" y="298" text-anchor="middle" id="srcVal">ToString(), .cs, SHA</text>
+      </g>
+
+      <!-- THREE RULE FILTERS -->
+      <g class="comp" id="compKeep">
+        <rect x="360" y="55" width="260" height="95" rx="10"/>
+        <text class="comp-title" x="490" y="92" text-anchor="middle">📌 KEEP</text>
+        <text class="comp-sub"   x="490" y="114" text-anchor="middle">names · tickets · PRs</text>
+        <text class="comp-val"   x="490" y="136" text-anchor="middle" id="keepVal">the cross-ref bridge</text>
+      </g>
+      <g class="comp" id="compStrip">
+        <rect x="360" y="200" width="260" height="95" rx="10"/>
+        <text class="comp-title" x="490" y="237" text-anchor="middle">✂️ STRIP</text>
+        <text class="comp-sub"   x="490" y="259" text-anchor="middle">code identifiers</text>
+        <text class="comp-val"   x="490" y="281" text-anchor="middle" id="stripVal">fn · path · SHA</text>
+      </g>
+      <g class="comp" id="compTranslate">
+        <rect x="360" y="345" width="260" height="95" rx="10"/>
+        <text class="comp-title" x="490" y="382" text-anchor="middle">🔁 TRANSLATE</text>
+        <text class="comp-sub"   x="490" y="404" text-anchor="middle">mechanism → plain</text>
+        <text class="comp-val"   x="490" y="426" text-anchor="middle" id="transVal">cause &amp; effect</text>
+      </g>
+
+      <!-- CORE -->
+      <g class="comp" id="compCore">
+        <rect x="700" y="200" width="250" height="135" rx="10"/>
+        <text class="comp-title" x="825" y="238" text-anchor="middle">🎯 Leadership core</text>
+        <text class="comp-sub"   x="825" y="261" text-anchor="middle">channel-neutral facts</text>
+        <text class="comp-val"   x="825" y="293" text-anchor="middle" id="coreVal">—</text>
+        <text class="comp-sub"   x="825" y="315" text-anchor="middle" id="coreAud">audience: leadership</text>
+      </g>
+
+      <!-- OUTPUT -->
+      <g class="comp" id="compOut">
+        <rect x="1010" y="200" width="200" height="135" rx="10"/>
+        <text class="comp-title" x="1110" y="238" text-anchor="middle">📤 Output</text>
+        <text class="comp-sub"   x="1110" y="261" text-anchor="middle" id="outChannel">channel: —</text>
+        <text class="comp-val"   x="1110" y="293" text-anchor="middle" id="outVal">—</text>
+      </g>
+
+      <!-- arrows: src -> 3 rules -->
+      <path class="arrow" id="arrSK" d="M 280 250 C 320 250 320 102 360 102" marker-end="url(#arrowhead)"/>
+      <path class="arrow" id="arrSS" d="M 280 268 L 360 256" marker-end="url(#arrowhead)"/>
+      <path class="arrow" id="arrST" d="M 280 290 C 320 290 320 392 360 392" marker-end="url(#arrowhead)"/>
+      <!-- arrows: 3 rules -> core -->
+      <path class="arrow" id="arrKC" d="M 620 102 C 660 102 660 250 700 250" marker-end="url(#arrowhead)"/>
+      <path class="arrow" id="arrSC" d="M 620 248 L 700 262" marker-end="url(#arrowhead)"/>
+      <path class="arrow" id="arrTC" d="M 620 392 C 660 392 660 290 700 290" marker-end="url(#arrowhead)"/>
+      <!-- arrow: core -> out -->
+      <path class="arrow" id="arrCO" d="M 950 267 L 1010 267" marker-end="url(#arrowhead)"/>
+
+      <!-- flow labels -->
+      <g class="flow-label-group" id="lblSK"><rect class="flow-label-bg" x="286" y="150" width="150" height="20" rx="5"/><text class="flow-label" x="361" y="164" text-anchor="middle">#6084 #6081 Portal</text></g>
+      <g class="flow-label-group" id="lblSS"><rect class="flow-label-bg" x="290" y="280" width="160" height="20" rx="5"/><text class="flow-label" x="370" y="294" text-anchor="middle">ToCrmLabel .cs 02452af</text></g>
+      <g class="flow-label-group" id="lblST"><rect class="flow-label-bg" x="286" y="318" width="160" height="20" rx="5"/><text class="flow-label" x="366" y="332" text-anchor="middle">ToString()=enum id</text></g>
+      <g class="flow-label-group" id="lblKC"><rect class="flow-label-bg" x="628" y="150" width="92" height="20" rx="5"/><text class="flow-label" x="674" y="164" text-anchor="middle">kept as-is</text></g>
+      <g class="flow-label-group" id="lblSC"><rect class="flow-label-bg" x="624" y="282" width="86" height="20" rx="5"/><text class="flow-label" x="667" y="296" text-anchor="middle">✂ removed</text></g>
+      <g class="flow-label-group" id="lblTC"><rect class="flow-label-bg" x="624" y="318" width="100" height="20" rx="5"/><text class="flow-label" x="674" y="332" text-anchor="middle">plain English</text></g>
+      <g class="flow-label-group" id="lblCO"><rect class="flow-label-bg" x="940" y="238" width="120" height="20" rx="5"/><text class="flow-label" x="1000" y="252" text-anchor="middle">shaped to channel</text></g>
+    </svg>
+  </div>
+
+  <div class="extra-panel question hidden" id="questionPanel">
+    <div class="ep-title">💡 คำถามสำคัญ — หยุดคิดก่อนกดต่อ</div>
+    เรามี <strong>core เดียว</strong> (ข้อเท็จจริงระดับผู้บริหาร) แล้ว. แต่ Slack ping, standup line, และ exec email
+    <em>ไม่ใช่รูปแบบเดียวกัน</em> — เนื้อหาเดิม แต่เปลือกต่างกัน.<br>
+    <strong>อะไรที่ต้องเปลี่ยนระหว่าง channel?</strong> (ความยาว? bolded labels? มี TL;DR ไหม? ทักทาย/ลงท้าย?)
+    กดต่อเพื่อดู core เดียวกันถูกปั้นเป็น 3 channel.
+  </div>
+
+  <div class="extra-panel race hidden" id="racePanel">
+    <div class="ep-title">⚠️ ถ้า "แค่ตัดให้สั้น" โดยไม่มีกฎ — มันพังยังไง</div>
+    <ul>
+      <li><strong>Strip ไม่พอ:</strong> ทิ้ง <code>QuoteDetailService.cs</code> / <code>02452af</code> ไว้ → ผู้บริหารเอาไปทำอะไรต่อไม่ได้ เป็น noise.</li>
+      <li><strong>Translate มากไป (over-strip):</strong> เปลี่ยน "race condition" เป็น "timing issue", "regression" เป็น "small problem" → ดูถูกคนอ่าน และบิดความจริง. กฎคือ <em>แปลโดยไม่โกหก</em>.</li>
+      <li><strong>มั่ว owner:</strong> เดาเจ้าของงานจาก <code>git blame</code> → ผิดคน. กฎคือ <em>อย่าแต่ง owner เอง</em> ถ้าไม่รู้ให้ถาม.</li>
+      <li><strong>เลื่อนระดับข้อเท็จจริง:</strong> "น่าจะแก้ได้" กลายเป็น "แก้แล้ว" เพื่อให้เล่าสวย → ห้ามเด็ดขาด.</li>
+    </ul>
+  </div>
+
+  <div class="extra-panel summary hidden" id="summaryPanel">
+    <div class="ep-title">📐 สรุป — management-talk ทำอะไร</div>
+    <strong>1 diagnosis → 3 กฎ → core เดียว → ปั้นตาม channel.</strong>
+    <ul>
+      <li><strong>KEEP</strong> product names, JIRA/ADO keys, PR numbers — สะพานให้ผู้บริหาร cross-reference.</li>
+      <li><strong>STRIP</strong> function names, file paths, SHAs, struct fields — ไม่ actionable.</li>
+      <li><strong>TRANSLATE</strong> กลไก → cause-and-effect ภาษาคน — โดยไม่ลดทอนศัพท์ระดับ concept (race, regression) และไม่โกหก.</li>
+      <li><strong>Channel shape:</strong> JIRA = บล็อกเต็มมี label · Slack = TL;DR + bullets สั้น · standup = บรรทัดเดียว · email = subject + ย่อหน้า · meeting = bullets พูด.</li>
+    </ul>
+    <strong>Trade-off / ขอบเขต:</strong> มันคือ <em>status update ไม่ใช่ข้อเสนอแนะ</em> · ไม่แต่งข้อเท็จจริง/owner · print-only เป็นค่าเริ่มต้น (โพสต์ขึ้น JIRA เฉพาะเมื่อได้ OK; ไม่โพสต์ Slack/email ให้เอง).
+  </div>
+
+  <div class="controls">
+    <button id="prevBtn" class="tertiary" disabled>← ย้อนกลับ</button>
+    <button id="nextBtn">ถัดไป →</button>
+    <button id="resetBtn" class="tertiary">↻ เริ่มใหม่</button>
+  </div>
+</div>
+
+<script>
+const COMPONENTS = ['compSrc','compKeep','compStrip','compTranslate','compCore','compOut'];
+const ARROWS     = ['arrSK','arrSS','arrST','arrKC','arrSC','arrTC','arrCO'];
+const LABELS     = ['lblSK','lblSS','lblST','lblKC','lblSC','lblTC','lblCO'];
+
+function setComp(id, state) {
+  const el = document.getElementById(id);
+  if (el) el.setAttribute('class', 'comp' + (state ? ' ' + state : ''));
+}
+function setArrow(id, state) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.setAttribute('class', 'arrow' + (state ? ' ' + state : ''));
+  const markerMap = { '':'url(#arrowhead)','dimmed':'url(#arrowhead)','active':'url(#arrowhead-active)',
+                      'magic':'url(#arrowhead-magic)','done':'url(#arrowhead-done)','error':'url(#arrowhead-error)' };
+  el.setAttribute('marker-end', markerMap[state] || 'url(#arrowhead)');
+}
+function setLabel(id, show, variant) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.setAttribute('class', 'flow-label-group' + (variant ? ' ' + variant : '') + (show ? ' show' : ''));
+}
+function setText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+function setNarration(cls, title, body) {
+  const n = document.getElementById('narration');
+  n.className = 'narration' + (cls ? ' ' + cls : '');
+  document.getElementById('sceneTitle').textContent = title;
+  document.getElementById('narrationBody').innerHTML = body;
+}
+function clearAllStates() {
+  COMPONENTS.forEach(c => setComp(c, ''));
+  ARROWS.forEach(a => setArrow(a, ''));
+  LABELS.forEach(l => setLabel(l, false));
+  setText('srcVal', 'ToString(), .cs, SHA');
+  setText('keepVal', 'the cross-ref bridge');
+  setText('stripVal', 'fn · path · SHA');
+  setText('transVal', 'cause & effect');
+  setText('coreVal', '—');
+  setText('coreAud', 'audience: leadership');
+  setText('outChannel', 'channel: —');
+  setText('outVal', '—');
+  document.querySelectorAll('.extra-panel').forEach(el => el.classList.add('hidden'));
+}
+
+const scenes = [
+
+  // 0 — Overview
+  () => {
+    setNarration('', 'ภาพรวม — pipeline ของ management-talk', `
+      management-talk ไม่ใช่ "ตัดให้สั้น" เฉยๆ. มันคือ <strong>pipeline</strong>: เอา update ที่ engineer เขียน
+      → ผ่าน 3 กฎ <code>KEEP</code> / <code>STRIP</code> / <code>TRANSLATE</code> (เล็งกลุ่มผู้อ่าน = ผู้บริหารสายเทคนิค)
+      → ได้ <strong>core เดียว</strong> ที่เป็นกลางไม่ผูก channel → แล้วค่อยปั้นรูปตาม channel ปลายทาง.
+      <br>ทุก box ตอนนี้ idle. กด <strong>ถัดไป →</strong> เพื่อเริ่ม. ตัวอย่างที่ใช้คือ Bug #6084 (คอลัมน์ Cargo Segment) จริงจาก session นี้.
+    `);
+  },
+
+  // 1 — Input (engineer text)
+  () => {
+    setNarration('warn', 'Step 1 — INPUT: สิ่งที่ engineer เขียน', `
+      นี่คือ comment แบบ engineer-to-engineer. แม่นยำสำหรับทีม dev — แต่ผู้บริหารอ่านแล้ว <em>เอาไปทำอะไรต่อไม่ได้</em>.
+      <div class="ex"><span class="ex-lbl">Engineer version (raw)</span>
+      <code>QuoteDetailService.GetQuoteItems</code> map <code>CtG_AutoCargoCategory.Value.ToString()</code>
+      → คืน .NET enum identifier ไม่ใช่ CRM label. แก้ที่ <code>QuoteDetailService.cs:231-234</code> เป็น
+      <code>.ToCrmLabel()</code> (commit <code>02452af</code>); เพิ่ม xUnit; <code>tsc -b</code> + <code>vite build</code> ผ่าน.</div>
+    `);
+    setComp('compSrc', 'firing');
+    setText('srcVal', 'raw eng comment');
+  },
+
+  // 2 — Audience targeting
+  () => {
+    setNarration('', 'Step 2 — เล็งกลุ่มผู้อ่าน: leadership ไม่ใช่ทีม dev', `
+      ก่อนแปลง ต้องรู้ก่อนว่า <strong>ใครอ่าน</strong>: VP, director, PM, release manager — คน "สายเทคนิคแต่ไม่อ่านโค้ด".
+      เขาอยากรู้ <em>สถานะ / กระทบลูกค้ายังไง / ใครดูแล / ต่อไปทำอะไร</em> — ไม่ใช่กลไกระดับ function.
+      กฎทั้ง 3 ที่จะ fire ต่อไปนี้ ออกแบบมาเพื่อผู้อ่านกลุ่มนี้.
+    `);
+    setComp('compSrc', 'active');
+    setComp('compCore', 'dimmed');
+    setComp('compOut', 'dimmed');
+  },
+
+  // 3 — KEEP
+  () => {
+    setNarration('', 'Step 3 — กฎ KEEP: เก็บชื่อ product, ticket, PR', `
+      กฎแรก: <strong>เก็บ</strong> ชื่อ product/component, เลข ticket (#6084, #6081), เลข PR.
+      พวกนี้คือ <em>สะพาน</em> ที่ผู้บริหารใช้ cross-reference กับระบบ tracking — ห้ามตัดทิ้งตอนทำให้อ่านง่าย.
+      <div class="ex"><span class="ex-lbl">kept</span><ins>#6084, #6081, "Quote Detail page", "Cargos grid", "CRM"</ins></div>
+    `);
+    setComp('compSrc', 'active');
+    setArrow('arrSK', 'active'); setLabel('lblSK', true);
+    setComp('compKeep', 'firing');
+  },
+
+  // 4 — STRIP
+  () => {
+    setNarration('warn', 'Step 4 — กฎ STRIP: ตัด identifier ของโค้ดออก', `
+      กฎสอง: <strong>ตัด</strong> ชื่อ function, file path, commit SHA, ชื่อ field/struct, env var, เลขบรรทัด.
+      สำหรับผู้บริหารพวกนี้ <em>ไม่ actionable</em> — เป็น noise ล้วนๆ.
+      <div class="ex"><span class="ex-lbl">stripped</span>
+      <del>QuoteDetailService.GetQuoteItems</del> · <del>CtG_AutoCargoCategory.Value.ToString()</del> ·
+      <del>.ToCrmLabel()</del> · <del>QuoteDetailService.cs:231-234</del> · <del>02452af</del> · <del>tsc -b / vite build</del></div>
+    `);
+    setComp('compSrc', 'active');
+    setArrow('arrSS', 'active'); setLabel('lblSS', true, 'error');
+    setComp('compStrip', 'firing');
+  },
+
+  // 5 — TRANSLATE (the key transform)
+  () => {
+    setNarration('magic', 'Step 5 — กฎ TRANSLATE: กลไก → ภาษาคน (ห้ามโกหก)', `
+      กฎสาม (หัวใจ): <strong>แปล</strong> กลไกเป็น cause-and-effect ภาษาคน — โดย <em>ไม่</em> ลดทอนศัพท์ระดับ concept และไม่บิดความจริง.
+      <div class="ex"><span class="ex-lbl">engineer → leadership</span>
+      <del>".ToString() คืน enum identifier (PascalCase ตัดวรรค)"</del><br>
+      <ins>→ "หน้าจอโชว์ <strong>รหัสภายในระบบ</strong> แทนที่จะเป็น <strong>ชื่อจริงจาก CRM</strong> — เช่น <em>BoatsYachts</em> แทน <em>Boats &amp; Yachts</em>"</ins></div>
+      regression ยังเป็น regression, race ยังเป็น race — แค่เล่าให้เห็นภาพ.
+    `);
+    setComp('compSrc', 'active');
+    setArrow('arrST', 'magic'); setLabel('lblST', true, 'magic');
+    setComp('compTranslate', 'locked');
+  },
+
+  // 6 — Core assembled
+  () => {
+    setNarration('success', 'Step 6 — ได้ CORE เดียว (เป็นกลาง ไม่ผูก channel)', `
+      3 กฎรวมกันได้ <strong>core message</strong> เดียวที่ถูกต้องสำหรับผู้บริหาร — ยังไม่ผูกว่าจะไปลง channel ไหน.
+      <div class="ex"><span class="ex-lbl">leadership core</span>
+      <strong>สถานะ:</strong> แก้ในโค้ดแล้ว รอ merge + ตรวจตา · <strong>กระทบ:</strong> หน้า Quote โชว์รหัสภายในแทนชื่อ cargo จริง (ไม่ตรง CRM) ·
+      <strong>ทำอะไร:</strong> Auto / High &amp; Heavy / Condition โชว์ชื่อ CRM ถูกต้อง, ใช้วิธีเดียวกับ #6081 ·
+      <strong>เจ้าของ:</strong> Thodsaphon · <strong>ต่อไป:</strong> merge → ตรวจ → ปิด</div>
+    `);
+    setComp('compSrc', 'done');
+    setArrow('arrSK', 'done'); setArrow('arrSS', 'done'); setArrow('arrST', 'done');
+    setComp('compKeep', 'done'); setComp('compStrip', 'done'); setComp('compTranslate', 'done');
+    setArrow('arrKC', 'done'); setLabel('lblKC', true, 'done');
+    setArrow('arrSC', 'done'); setLabel('lblSC', true, 'done');
+    setArrow('arrTC', 'done'); setLabel('lblTC', true, 'done');
+    setComp('compCore', 'active');
+    setText('coreVal', 'status·impact·owner·next');
+  },
+
+  // 7 — KEY QUESTION
+  () => {
+    setNarration('magic', 'Step 7 — คำถามสำคัญ: channel เปลี่ยนอะไร?', `
+      core พร้อมแล้ว. แต่ "เปลือก" ของแต่ละ channel ไม่เหมือนกัน. อ่านกล่องม่วงข้างล่าง แล้วลองตอบในใจก่อนกดต่อ.
+    `);
+    setComp('compCore', 'done');
+    setText('coreVal', 'status·impact·owner·next');
+    setComp('compOut', 'active');
+    setArrow('arrCO', 'active'); setLabel('lblCO', true);
+    show('questionPanel');
+  },
+
+  // 8 — Channel: JIRA / work-item
+  () => {
+    setNarration('', 'Step 8 — ปั้นเป็น: JIRA / work-item comment', `
+      channel นี้ = <strong>บล็อกเต็ม มี bolded labels</strong> สแกนจากหน้า ticket ได้. ใส่ครบทุกส่วน.
+      <div class="ex"><span class="ex-lbl">JIRA comment shape</span>
+      <strong>Status:</strong> Fixed in code, pending merge + visual check.<br>
+      <strong>Impact:</strong> Quote Detail showed internal codes instead of real CRM cargo names...<br>
+      <strong>Done / Tested / Owner / Next:</strong> ... (ทุก block)</div>
+    `);
+    setComp('compCore', 'done');
+    setArrow('arrCO', 'active'); setLabel('lblCO', true);
+    setComp('compOut', 'active');
+    setText('outChannel', 'channel: JIRA');
+    setText('outVal', 'full block + labels');
+  },
+
+  // 9 — Channel: Slack
+  () => {
+    setNarration('', 'Step 9 — ปั้นเป็น: Slack post (core เดิม เปลือกใหม่)', `
+      <strong>เนื้อเดิมเป๊ะ</strong> แต่ Slack ต้องการ: 1 TL;DR ตัวหนา + 2-4 bullets สั้น, link เดียว, ไม่มีทักทาย/ลงท้าย, &lt; ~80 คำ.
+      <div class="ex"><span class="ex-lbl">Slack shape</span>
+      <strong>Cargo-segment columns showing internal codes — fixed, pending merge (#6084)</strong><br>
+      • Showed <em>BoatsYachts</em> instead of <em>Boats &amp; Yachts</em>; now pulls real CRM names<br>
+      • Owner: Thodsaphon · #6085 · &nbsp;• Next: merge + quick check</div>
+    `);
+    setComp('compCore', 'done');
+    setArrow('arrCO', 'active'); setLabel('lblCO', true);
+    setComp('compOut', 'firing');
+    setText('outChannel', 'channel: Slack');
+    setText('outVal', 'TL;DR + 3 bullets');
+  },
+
+  // 10 — Channel: standup
+  () => {
+    setNarration('', 'Step 10 — ปั้นเป็น: standup line (เปลือกสั้นสุด)', `
+      core เดิมอีกครั้ง — standup สแกน 10 อันใน 30 วิ. เอา verb ขึ้นหน้า, 1-3 บรรทัด, ไม่มี label.
+      <div class="ex"><span class="ex-lbl">standup shape</span>
+      Fixed Cargo-segment columns showing internal codes instead of CRM names (#6084 / #6085).
+      Pending merge + visual check.</div>
+      (email / meeting points ก็คือ core เดิมเปลี่ยนเปลือกอีกแบบ — subject+ย่อหน้า / bullets พูด.)
+    `);
+    setComp('compCore', 'done');
+    setArrow('arrCO', 'active'); setLabel('lblCO', true);
+    setComp('compOut', 'firing');
+    setText('outChannel', 'channel: standup');
+    setText('outVal', 'one line');
+  },
+
+  // 11 — Counter-example
+  () => {
+    setNarration('error', 'Step 11 — ถ้าทำผิด (ไม่มีกฎ) จะพังยังไง', `
+      เทียบให้เห็น: "ตัดสั้น" เฉยๆ ไม่ใช่ management-talk. กล่องแดงข้างล่างคือ 4 กับดักที่กฎช่วยกัน.
+    `);
+    setComp('compSrc', 'done');
+    setComp('compKeep', 'done'); setComp('compStrip', 'done'); setComp('compTranslate', 'done');
+    setComp('compCore', 'done');
+    setComp('compOut', 'error');
+    setText('outChannel', 'channel: wrong');
+    setText('outVal', 'noise / lie / patronize');
+    show('racePanel');
+  },
+
+  // 12 — Summary
+  () => {
+    setNarration('success', 'Step 12 — สรุป + ขอบเขต', `
+      1 diagnosis → KEEP / STRIP / TRANSLATE → core เดียว → ปั้นตาม channel. อ่านกล่องเขียวข้างล่างเป็นบทสรุป.
+    `);
+    setComp('compSrc', 'done');
+    setComp('compKeep', 'done'); setComp('compStrip', 'done'); setComp('compTranslate', 'done');
+    setArrow('arrSK', 'done'); setArrow('arrSS', 'done'); setArrow('arrST', 'done');
+    setArrow('arrKC', 'done'); setArrow('arrSC', 'done'); setArrow('arrTC', 'done');
+    setComp('compCore', 'done'); setText('coreVal', 'status·impact·owner·next');
+    setArrow('arrCO', 'done'); setLabel('lblCO', true, 'done');
+    setComp('compOut', 'done');
+    setText('outChannel', 'channel: any');
+    setText('outVal', 'same core, new shell');
+    show('summaryPanel');
+  }
+];
+
+const TOTAL = scenes.length - 1;
+
+let currentStep = 0;
+function buildProgressDots() {
+  const progress = document.getElementById('stepProgress');
+  progress.innerHTML = '';
+  for (let i = 0; i <= TOTAL; i++) {
+    const d = document.createElement('div');
+    d.className = 'step-dot'; d.textContent = i; d.id = 'dot' + i;
+    progress.appendChild(d);
+  }
+}
+function render(step) {
+  clearAllStates();
+  if (scenes[step]) scenes[step]();
+  for (let i = 0; i <= TOTAL; i++) {
+    const d = document.getElementById('dot' + i);
+    if (!d) continue;
+    d.classList.remove('done', 'current');
+    if (i < step)  d.classList.add('done');
+    if (i === step) d.classList.add('current');
+  }
+  document.getElementById('stepBadge').textContent = `Step ${step} / ${TOTAL}`;
+  document.getElementById('prevBtn').disabled = step === 0;
+  document.getElementById('nextBtn').disabled = step === TOTAL;
+}
+document.getElementById('prevBtn').onclick  = () => { if (currentStep > 0)     { currentStep--; render(currentStep); } };
+document.getElementById('nextBtn').onclick  = () => { if (currentStep < TOTAL) { currentStep++; render(currentStep); } };
+document.getElementById('resetBtn').onclick = () => { currentStep = 0; render(0); };
+
+buildProgressDots();
+render(0);
+</script>
+</body>
+</html>
