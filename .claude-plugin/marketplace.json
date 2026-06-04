@@ -26,8 +26,8 @@
     {
       "name": "dev-workflows",
       "source": "./plugins/dev-workflows",
-      "description": "General-purpose development workflow skills. Ships grill-then-plan (domain-aware grilling that hands off to the superpowers planning pipeline), problem-description (interactive step-by-step HTML walkthroughs of complex technical problems), and management-talk (reshape engineer-to-engineer updates for engineering-org leadership across JIRA, Slack, standup, email, or meeting channels).",
-      "version": "0.3.0",
+      "description": "General-purpose development workflow skills. Ships grill-then-plan (domain-aware grilling that hands off to the superpowers planning pipeline), problem-description (interactive step-by-step HTML walkthroughs of complex technical problems), management-talk (reshape engineer-to-engineer updates for engineering-org leadership across JIRA, Slack, standup, email, or meeting channels), and fit-gap-analysis (evidence-first comparison of a spec/vision/competitor against a system as actually built — capability matrix + user-journey comparison verified against the live system, clustered into decisions).",
+      "version": "0.4.0",
       "author": {
         "name": "ThodsaphonSonthiphin",
         "url": "https://github.com/ThodsaphonSonthiphin"
@@ -36,7 +36,7 @@
       "repository": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
       "license": "MIT",
       "category": "development",
-      "keywords": ["workflow", "grilling", "planning", "design-spec", "superpowers", "walkthrough", "visualization", "status-update", "leadership"]
+      "keywords": ["workflow", "grilling", "planning", "design-spec", "superpowers", "walkthrough", "visualization", "status-update", "leadership", "fit-gap", "gap-analysis", "comparison"]
     },
     {
       "name": "github-backlog",
