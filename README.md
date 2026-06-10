@@ -11,7 +11,9 @@ A Claude Code **plugin marketplace** for daily-work automation. It currently shi
 
 ## Install (each colleague, once)
 
-**Prerequisite:** [Claude Code](https://code.claude.com)
+**Prerequisite:** [Claude Code](https://code.claude.com). Additional requirements depend
+on the plugin you install (for example `ado-backlog` needs Azure CLI, .NET 10 SDK, and
+Python 3 + `openpyxl`; see each plugin README for details).
 
 ```text
 # in Claude Code:
@@ -20,11 +22,11 @@ A Claude Code **plugin marketplace** for daily-work automation. It currently shi
 /plugin install github-backlog@workflow-daily-work
 /plugin install dev-workflows@workflow-daily-work
 
-# if you use ado-backlog:
+# if you use ADO Backlog:
 az login
 /ado-backlog:setup-check
 
-# if you use github-backlog:
+# if you use GitHub Backlog:
 /github-backlog:setup-check
 ```
 
