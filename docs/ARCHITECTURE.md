@@ -1,16 +1,22 @@
 # Architecture — workflow-daily-work
 
-How this repo is built and how to extend it. For *using* the plugin, see the
-[plugin README](../plugins/ado-backlog/README.md) and
-[QUICKSTART](../plugins/ado-backlog/QUICKSTART.md). For term definitions, see
+How this repo is built and how to extend it. For *using* plugins, see:
+[`plugins/ado-backlog/README.md`](../plugins/ado-backlog/README.md),
+[`plugins/github-backlog/README.md`](../plugins/github-backlog/README.md), and
+[`plugins/dev-workflows/README.md`](../plugins/dev-workflows/README.md). For term definitions, see
 [CONTEXT.md](../CONTEXT.md).
 
 ## Overview
 
 This repo is a **Claude Code plugin marketplace** (`workflow-daily-work`) declared in
-[.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json). It currently
-ships one **plugin**, `ado-backlog`, defined by
-[plugins/ado-backlog/.claude-plugin/plugin.json](../plugins/ado-backlog/.claude-plugin/plugin.json).
+[.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json). It currently ships
+three plugins:
+
+- `ado-backlog` — Azure DevOps backlog pipeline
+- `github-backlog` — GitHub Issues backlog pipeline
+- `dev-workflows` — general development workflow skills
+
+The step-by-step pipeline details in this document describe the `ado-backlog` plugin.
 
 The plugin is decomposed into **one skill per pipeline step** (with `ado-auth` as the
 optional pre-flight Step 0), plus the standalone `my-work` query skill, a few helper

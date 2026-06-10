@@ -1,8 +1,8 @@
-# ADO Backlog Toolkit
+# Workflow Daily Work Context
 
-A Claude Code plugin that turns findings (audits, spreadsheets, pasted lists) into
-Azure DevOps work items, and surfaces a person's assigned work — authenticating to
-Azure DevOps and pointing every step at the right place to read and write.
+Glossary and core terms for this Claude Code plugin marketplace. The repository contains
+multiple plugins, including ADO backlog automation, GitHub backlog automation, and
+general development workflow skills.
 
 ## Language
 
