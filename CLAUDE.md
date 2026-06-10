@@ -7,10 +7,15 @@ install/use, see [README.md](README.md). For deeper internals, see
 
 ## What this is
 
-A Claude Code **plugin marketplace** (`workflow-daily-work`). It currently ships one
-**plugin**, `ado-backlog`, which turns findings (an audit spreadsheet, a doc, a review,
-a pasted list of issues) into an Azure DevOps backlog of linked work items, and surfaces
-a person's assigned work.
+A Claude Code **plugin marketplace** (`workflow-daily-work`). It currently ships three
+plugins:
+
+- `ado-backlog` — Azure DevOps backlog pipeline
+- `github-backlog` — GitHub Issues backlog pipeline
+- `dev-workflows` — general development workflow skills
+
+Most conventions in this file focus on `ado-backlog`, which is the most automation-heavy
+pipeline in the repository.
 
 ## Repo layout
 
@@ -31,6 +36,8 @@ plugins/ado-backlog/
   docs/adr/                       accepted design decisions (ADRs)
   examples/                       sample fixtures for testing
   README.md, QUICKSTART.md        user docs
+plugins/github-backlog/           GitHub Issues backlog pipeline plugin
+plugins/dev-workflows/            general development workflow skills plugin
 ```
 
 ## Mental model
