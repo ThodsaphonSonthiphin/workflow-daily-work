@@ -8,3 +8,6 @@ obj/
 findings.json
 backlog_input.json
 backlog_result.json
+
+# ticket-trace test workspace — fixture repos with embedded .git dirs; never commit
+plugins/dev-workflows/skills/ticket-trace-workspace/
