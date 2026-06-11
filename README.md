@@ -52,7 +52,7 @@ See [`plugins/ado-backlog/README.md`](plugins/ado-backlog/README.md) for the ful
 ## Repo layout
 
 ```
-.claude-plugin/marketplace.json        # this marketplace (lists ado-backlog)
+.claude-plugin/marketplace.json        # this marketplace (lists all three plugins)
 plugins/ado-backlog/
 ├── .claude-plugin/plugin.json
 ├── skills/                            # 7 skills (each invocable as /ado-backlog:<name>)
