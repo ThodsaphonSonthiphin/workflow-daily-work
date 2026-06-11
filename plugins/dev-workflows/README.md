@@ -13,6 +13,15 @@ more skills will be added over time.
 | `management-talk` | Reshape engineer-to-engineer content for **engineering-org leadership** (VPs, directors, PMs, release managers) and **shape it for the channel** — JIRA comment, Slack post, async standup line, email, or meeting talking-points. Keeps product names/tickets/PRs, strips code identifiers, translates mechanism into plain cause-and-effect. |
 | `fit-gap-analysis` | Compare a **target** (spec, product vision, competitor, RFP, "to-be") against a **system as actually built**. Produces an evidence-first **capability matrix** + step-by-step **user-journey comparison**, verified against the **live system** (schema + code, not docs), rolled up into **decisions**. Stack-agnostic. |
 | `study-design-verify` | Evidence-grounded **advisory pipeline** for *"how should this work?"* questions about any real system. **Study** (parallel readers → structured, citable findings; live access read-only with an evidence trail) → **Design** (3 independent designers with conflicting value systems) → **Verify** (an adversarial reviewer attacks every design against the live schema, code, and usage data) → a **phased recommendation** with explicit "what NOT to do" entries. |
+| `daily` | **The one command to remember.** Hybrid router into the daily arc: bare `/daily` shows the 5-station menu (start / work / file / report / wrap); `/daily <station>` jumps straight there. Routes to the right skill and never errors on unknown input. |
+| `debug-mantra` | Four-mantra **debugging discipline** — reproduce, trace the fail path, falsify the hypothesis, cross-reference every breadcrumb — applied in order before proposing any fix. |
+| `post-mortem` | Write the **canonical engineering record of a fixed bug** — root cause, mechanism, fix, validation, and how it slipped through. Engineer-audience; run after a debug session lands a fix. |
+| `scrutinize` | **Outsider-perspective review** of a plan, PR, or change: first questions intent and simpler alternatives, then traces the actual code path to verify the change does what it claims. |
+| `dual-verifier` | **Independent verification** of completed work: two subagents run the same checks independently; findings are merged, deduplicated, and ranked by severity and confidence. |
+| `drive-to-legacy` | Systematic exploration of an **unfamiliar legacy codebase** — for studying, documenting, onboarding, or preparing a port/migration. |
+| `invoice-generator` | Read git commits across workspace repos into a **daily work summary**, then always reshape it for the target channel via `management-talk` (Tribletext entry, Slack, standup, email, JIRA, talking-points). |
+| `naming-audit` | Verify a list of claimed labels/values/mappings **against the authoritative system of record**, item by item — verdict card + the exact app/code path to check. Source-of-truth wins. |
+| `ticket-trace` | Two-way **commit ↔ ticket traceability**: commits always carry their ticket number, and "why was this changed?" walks `git blame` → commit → ticket → tracker (incl. attached images). |
 
 Each is invoked automatically by its trigger phrases, or explicitly via the `Skill` tool.
 
