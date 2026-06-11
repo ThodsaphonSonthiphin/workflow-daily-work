@@ -26,8 +26,8 @@
     {
       "name": "dev-workflows",
       "source": "./plugins/dev-workflows",
-      "description": "General-purpose development workflow skills. Ships grill-then-plan (domain-aware grilling that hands off to the superpowers planning pipeline), problem-description (interactive step-by-step HTML walkthroughs of complex technical problems), management-talk (reshape engineer-to-engineer updates for engineering-org leadership across JIRA, Slack, standup, email, or meeting channels), fit-gap-analysis (evidence-first comparison of a spec/vision/competitor against a system as actually built — capability matrix + user-journey comparison verified against the live system, clustered into decisions), and naming-audit (verify a source list of labels/values/mappings against a system's authoritative source of record item-by-item — trace each label to its bound field, compare wording against the live system, source-of-truth wins; fixed per-item card with verdict + app/code path).",
-      "version": "0.5.0",
+      "description": "General-purpose development workflow skills. Ships grill-then-plan (domain-aware grilling that hands off to the superpowers planning pipeline), problem-description (interactive step-by-step HTML walkthroughs of complex technical problems), management-talk (reshape engineer-to-engineer updates for engineering-org leadership across JIRA, Slack, standup, email, or meeting channels), fit-gap-analysis (evidence-first comparison of a spec/vision/competitor against a system as actually built — capability matrix + user-journey comparison verified against the live system, clustered into decisions), naming-audit (verify a source list of labels/values/mappings against a system's authoritative source of record item-by-item — trace each label to its bound field, compare wording against the live system, source-of-truth wins; fixed per-item card with verdict + app/code path), and ticket-trace (two-way commit-ticket traceability — commits always carry their ticket number, and 'why was this changed?' is answered by walking git blame -> commit -> ticket -> tracker incl. attached images; optional commit-msg enforcement hook).",
+      "version": "0.6.0",
       "author": {
         "name": "ThodsaphonSonthiphin",
         "url": "https://github.com/ThodsaphonSonthiphin"
@@ -36,7 +36,7 @@
       "repository": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
       "license": "MIT",
       "category": "development",
-      "keywords": ["workflow", "grilling", "planning", "design-spec", "superpowers", "walkthrough", "visualization", "status-update", "leadership", "fit-gap", "gap-analysis", "comparison", "naming-audit", "label-audit", "terminology", "source-of-truth", "field-naming"]
+      "keywords": ["workflow", "grilling", "planning", "design-spec", "superpowers", "walkthrough", "visualization", "status-update", "leadership", "fit-gap", "gap-analysis", "comparison", "naming-audit", "label-audit", "terminology", "source-of-truth", "field-naming", "ticket-trace", "traceability", "commit-hygiene", "change-archaeology", "git-blame"]
     },
     {
       "name": "github-backlog",
