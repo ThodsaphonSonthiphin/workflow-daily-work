@@ -25,6 +25,7 @@ docs/
   ARCHITECTURE.md                 how it's built + how to extend
   superpowers/specs/              design specs
   superpowers/plans/              implementation plans
+  adr/                            marketplace-level ADRs (daily arc, playbook, router)
 plugins/ado-backlog/
   .claude-plugin/plugin.json      the plugin manifest
   skills/<name>/SKILL.md          one capability per pipeline step
@@ -56,12 +57,12 @@ and an add-a-skill recipe.
 
 ## Conventions (do not violate)
 
-- **Skills** live in `plugins/ado-backlog/skills/<name>/SKILL.md` with YAML frontmatter
+- **Skills** live in `plugins/<plugin>/skills/<name>/SKILL.md` with YAML frontmatter
   (`name` + a trigger-rich `description`). Reference bundled files via
   `${CLAUDE_PLUGIN_ROOT}` — never hard-code paths.
-- **Commands** are thin wrappers in `plugins/ado-backlog/commands/<name>.md`
+- **Commands** are thin wrappers in `plugins/<plugin>/commands/<name>.md`
   (`description` + `argument-hint` frontmatter) that hand off to a skill via
-  `$ARGUMENTS`. Logic lives in the skill, not the command.
+  `$ARGUMENTS` and are invocable as `/<plugin>:<name>`. Logic lives in the skill, not the command.
 - **Data-contract schemas are defined only** in
   `plugins/ado-backlog/references/data-contracts.md`. Never redefine them elsewhere.
 - **Keep versions in sync:** each plugin's `.claude-plugin/plugin.json` and its entry
@@ -113,6 +114,7 @@ The `findings-to-ado-backlog` orchestrator owns the canonical wording of these g
 
 - [CONTEXT.md](CONTEXT.md) — glossary (Organization, Project, Skill, Orchestrator, …)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — internals + add-a-skill recipe
+- [docs/adr/](docs/adr/) — marketplace-level design decisions (daily-arc/playbook/router ADRs 0001–0004)
 - [plugins/ado-backlog/docs/adr/](plugins/ado-backlog/docs/adr/) — accepted design decisions (ADRs)
 - [plugins/ado-backlog/README.md](plugins/ado-backlog/README.md) /
   [QUICKSTART.md](plugins/ado-backlog/QUICKSTART.md) — user docs

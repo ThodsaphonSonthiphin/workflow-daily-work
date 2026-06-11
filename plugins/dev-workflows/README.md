@@ -44,7 +44,7 @@ explore context → grill one question at a time → capture terms/ADRs inline
 > The skill does a preflight check and offers to install it if missing — the final handoff to
 > `superpowers:writing-plans` cannot run without it.
 >
-> If you only want the grilling/docs *without* a plan, use `grill-with-docs` instead.
+> If you only want the grilling/docs *without* a plan, stop after the design-spec step — the spec, CONTEXT.md updates, and ADRs are already written by then.
 
 ## problem-description
 

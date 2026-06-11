@@ -26,6 +26,8 @@ The only command to memorize is `/daily`.
 # in Claude Code:
 /plugin marketplace add ThodsaphonSonthiphin/workflow-daily-work
 /plugin install ado-backlog@workflow-daily-work
+/plugin install github-backlog@workflow-daily-work
+/plugin install dev-workflows@workflow-daily-work
 
 # then sign in to Azure DevOps and check your setup:
 az login
@@ -55,8 +57,8 @@ See [`plugins/ado-backlog/README.md`](plugins/ado-backlog/README.md) for the ful
 .claude-plugin/marketplace.json        # this marketplace (lists all three plugins)
 plugins/ado-backlog/
 ├── .claude-plugin/plugin.json
-├── skills/                            # 7 skills (each invocable as /ado-backlog:<name>)
-├── commands/                          # /ado-backlog:run, /ado-backlog:setup-check
+├── skills/                            # 8 skills (each invocable as /ado-backlog:<name>)
+├── commands/                          # /ado-backlog:run, /ado-backlog:setup-check, /ado-backlog:my-work
 ├── scripts/                           # create-backlog.cs, read_source.py, tracking.py, setup_check.ps1
 ├── references/data-contracts.md       # the JSON shapes that connect the steps
 ├── examples/                          # sample findings + backlog_input
