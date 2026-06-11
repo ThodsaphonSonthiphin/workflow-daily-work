@@ -7,16 +7,19 @@ install/use, see [README.md](README.md). For deeper internals, see
 
 ## What this is
 
-A Claude Code **plugin marketplace** (`workflow-daily-work`). It currently ships one
-**plugin**, `ado-backlog`, which turns findings (an audit spreadsheet, a doc, a review,
-a pasted list of issues) into an Azure DevOps backlog of linked work items, and surfaces
-a person's assigned work.
+A Claude Code **plugin marketplace** (`workflow-daily-work`). It ships three
+**plugins**: `ado-backlog` (findings → Azure DevOps backlog, plus the assigned-work
+view), `github-backlog` (the same pipeline against GitHub Issues), and
+`dev-workflows` (the daily-work arc: the `/daily` router plus design, debugging,
+review, study, and communication skills). [PLAYBOOK.md](PLAYBOOK.md) maps the whole
+arc — when to reach for what.
 
 ## Repo layout
 
 ```
 .claude-plugin/marketplace.json   the marketplace (lists the plugins)
 CONTEXT.md                        glossary — domain + architecture terms
+PLAYBOOK.md                       the daily-arc map — when to reach for what
 README.md                         end-user overview + install
 docs/
   ARCHITECTURE.md                 how it's built + how to extend
@@ -31,6 +34,8 @@ plugins/ado-backlog/
   docs/adr/                       accepted design decisions (ADRs)
   examples/                       sample fixtures for testing
   README.md, QUICKSTART.md        user docs
+plugins/github-backlog/           same pipeline, GitHub Issues backend
+plugins/dev-workflows/            daily-work arc skills + the /daily router
 ```
 
 ## Mental model
@@ -59,8 +64,11 @@ and an add-a-skill recipe.
   `$ARGUMENTS`. Logic lives in the skill, not the command.
 - **Data-contract schemas are defined only** in
   `plugins/ado-backlog/references/data-contracts.md`. Never redefine them elsewhere.
-- **Keep versions in sync:** `plugins/ado-backlog/.claude-plugin/plugin.json` and the
-  plugin entry in `.claude-plugin/marketplace.json` must always report the same version.
+- **Keep versions in sync:** each plugin's `.claude-plugin/plugin.json` and its entry
+  in `.claude-plugin/marketplace.json` must always report the same version.
+- **Every new skill adds one row to [PLAYBOOK.md](PLAYBOOK.md)** — the playbook is the
+  discoverability map for the daily arc; a skill missing from it is invisible. Add the
+  row in the same commit that adds the skill.
 
 ## Key commands
 
