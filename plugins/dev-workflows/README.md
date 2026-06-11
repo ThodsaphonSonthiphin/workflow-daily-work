@@ -12,6 +12,7 @@ more skills will be added over time.
 | `problem-description` | Generate a self-contained **interactive HTML walkthrough** that explains a complex technical problem (DB error, race condition, design issue) with concrete data and manual step-through navigation. Two modes: **diagram** (boxes + data flow) and **tables** (grid state changes). |
 | `management-talk` | Reshape engineer-to-engineer content for **engineering-org leadership** (VPs, directors, PMs, release managers) and **shape it for the channel** — JIRA comment, Slack post, async standup line, email, or meeting talking-points. Keeps product names/tickets/PRs, strips code identifiers, translates mechanism into plain cause-and-effect. |
 | `fit-gap-analysis` | Compare a **target** (spec, product vision, competitor, RFP, "to-be") against a **system as actually built**. Produces an evidence-first **capability matrix** + step-by-step **user-journey comparison**, verified against the **live system** (schema + code, not docs), rolled up into **decisions**. Stack-agnostic. |
+| `study-design-verify` | Evidence-grounded **advisory pipeline** for *"how should this work?"* questions about any real system. **Study** (parallel readers → structured, citable findings; live access read-only with an evidence trail) → **Design** (3 independent designers with conflicting value systems) → **Verify** (an adversarial reviewer attacks every design against the live schema, code, and usage data) → a **phased recommendation** with explicit "what NOT to do" entries. |
 
 Each is invoked automatically by its trigger phrases, or explicitly via the `Skill` tool.
 
@@ -82,9 +83,42 @@ Use when comparing a **target** (spec, product vision, competitor, RFP, "to-be")
 - **Stack-agnostic:** adapts the "extract live ground truth" step to the platform — DB schema,
   OpenAPI, a metadata endpoint, running config, the deployed bundle, or live cloud state.
 
+## study-design-verify
+
+Use when the user wants a **recommendation that must survive scrutiny** about an existing
+system — *"how should A convert/map/migrate to B?"*, *"study my business, then advise"*,
+*"should we copy, link, or recalculate this data?"*. Works against any stack: codebase,
+database, CRM/ERP, SaaS, API, data pipeline.
+
+The core idea: separate three jobs that corrupt each other when one mind does them at once —
+**gathering facts**, **proposing designs**, and **attacking designs**.
+
+```
+Phase 0  scope inline: pin the question, verify current state, inventory evidence
+         sources, test live access (read-only)
+Phase 1  STUDY  — parallel readers (business docs / target schema / source schema /
+         usage data / comparison flow), each returns structured citable findings
+Phase 2  DESIGN — same digest to 3 designers with conflicting value systems
+         (fidelity-first / consumer-first / minimal-change), blind to each other
+Phase 3  VERIFY — adversarial reviewer re-checks primary sources and attacks every
+         design: nonexistent fields, broken consumers, unimplemented conventions
+Phase 4  synthesize a phased advisory: problems ranked by pain, quick wins first,
+         riskiest piece last and severable, plus explicit "what NOT to do, and why"
+```
+
+- **Live system over docs:** documented conventions are verified against reality before any
+  design may rely on them.
+- **Usage data settles arguments:** every number carries the query that produced it; raw
+  evidence is saved to disk for audit.
+- **Scales down:** without subagents the phases run sequentially solo — the discipline that
+  matters is never letting design start before the study is written down.
+- Ships `references/workflow-template.md` — a ready-to-adapt Claude Code `Workflow` script
+  with the three JSON schemas (findings / design / feasibility).
+
 ## Prerequisites
 
 - `grill-then-plan` → the **superpowers** plugin (auto-checked).
 - `problem-description` → none. Output is a single static HTML file you open in any browser.
 - `management-talk` → none.
 - `fit-gap-analysis` → none. Verifies against whatever live system you point it at (DB / API / metadata endpoint / running config); no fixed dependency.
+- `study-design-verify` → none required. Uses the Claude Code `Workflow`/subagent tools when available, degrades to a sequential solo discipline when not.
