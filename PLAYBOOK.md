@@ -50,6 +50,7 @@ flowchart TD
     WORK -- why does this exist? --> TT["ticket-trace"]
     WORK -- second opinion --> SC["scrutinize /<br/>dual-verifier"]
     WORK -- new legacy codebase --> DTL["drive-to-legacy"]
+    WORK -- new CRM / D365 org --> CA["crm-archaeology"]
 
     WORK -- 💥 something broke --> DM["debug-mantra<br/>(diagnose)"]
     DM --> Q{"fix involves a<br/>design choice?"}
@@ -70,6 +71,7 @@ flowchart TD
 | "why does this code/ticket exist?" | `ticket-trace` |
 | second opinion on a plan / PR / change | `scrutinize` / `dual-verifier` |
 | unfamiliar legacy codebase | `drive-to-legacy` |
+| unfamiliar Dynamics 365 / Dataverse org | `crm-archaeology` |
 
 ### The debug chain (ADR 0003)
 

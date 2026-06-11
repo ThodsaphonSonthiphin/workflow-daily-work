@@ -11,8 +11,8 @@ description: >-
   hands off to the right skill: ado-backlog:my-work, the situational toolbox
   (grill-then-plan, debug-mantra, study-design-verify, naming-audit,
   fit-gap-analysis, problem-description, ticket-trace, scrutinize, dual-verifier,
-  drive-to-legacy), findings-to-ado-backlog / findings-to-github-issues,
-  management-talk, or invoice-generator.
+  drive-to-legacy, crm-archaeology), findings-to-ado-backlog /
+  findings-to-github-issues, management-talk, or invoice-generator.
 ---
 
 # daily — the one command to remember
@@ -79,6 +79,7 @@ Ask ONE question — "What's happening?" — with these options, then hand off:
 | asking why code/a ticket exists | `ticket-trace` |
 | wanting a second opinion | `scrutinize` (plans/PRs) or `dual-verifier` (completed work) |
 | facing an unfamiliar legacy codebase | `drive-to-legacy` |
+| facing an unfamiliar Dynamics 365 / Dataverse org | `crm-archaeology` |
 
 **Debug chain (ADR 0003):** after `debug-mantra` produces a diagnosis, ask:
 *"Does the fix involve a design choice (multiple viable approaches with

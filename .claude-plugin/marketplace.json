@@ -26,8 +26,8 @@
     {
       "name": "dev-workflows",
       "source": "./plugins/dev-workflows",
-      "description": "The daily-work arc in one plugin, entered via /daily (hybrid router: bare = 5-station menu — start/work/file/report/wrap — argument jumps straight there; see PLAYBOOK.md at the marketplace repo root). Design & planning: grill-then-plan. Debug chain: debug-mantra -> (grill-then-plan when the fix involves a design choice) -> post-mortem -> management-talk. Review & verification: scrutinize, dual-verifier. System study: study-design-verify, fit-gap-analysis, naming-audit, drive-to-legacy, ticket-trace. Communication: management-talk, invoice-generator (Tribletext daily summary from git commits), problem-description (interactive HTML walkthroughs).",
-      "version": "0.9.0",
+      "description": "The daily-work arc in one plugin, entered via /daily (hybrid router: bare = 5-station menu — start/work/file/report/wrap — argument jumps straight there; see PLAYBOOK.md at the marketplace repo root). Design & planning: grill-then-plan. Debug chain: debug-mantra -> (grill-then-plan when the fix involves a design choice) -> post-mortem -> management-talk. Review & verification: scrutinize, dual-verifier. System study: study-design-verify, fit-gap-analysis, naming-audit, drive-to-legacy, crm-archaeology (Dynamics 365/Dataverse org study), ticket-trace. Communication: management-talk, invoice-generator (Tribletext daily summary from git commits), problem-description (interactive HTML walkthroughs).",
+      "version": "0.10.0",
       "author": {
         "name": "ThodsaphonSonthiphin",
         "url": "https://github.com/ThodsaphonSonthiphin"
@@ -36,7 +36,7 @@
       "repository": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
       "license": "MIT",
       "category": "development",
-      "keywords": ["workflow", "grilling", "planning", "design-spec", "superpowers", "walkthrough", "visualization", "status-update", "leadership", "fit-gap", "gap-analysis", "comparison", "naming-audit", "label-audit", "terminology", "source-of-truth", "field-naming", "ticket-trace", "traceability", "commit-hygiene", "change-archaeology", "git-blame"]
+      "keywords": ["workflow", "grilling", "planning", "design-spec", "superpowers", "walkthrough", "visualization", "status-update", "leadership", "fit-gap", "gap-analysis", "comparison", "naming-audit", "label-audit", "terminology", "source-of-truth", "field-naming", "ticket-trace", "traceability", "commit-hygiene", "change-archaeology", "git-blame", "crm-archaeology", "dynamics-365", "dataverse", "crm-study"]
     },
     {
       "name": "github-backlog",

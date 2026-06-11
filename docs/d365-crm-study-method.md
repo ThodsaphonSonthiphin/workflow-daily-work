@@ -305,6 +305,13 @@ no speculation — unclear behavior is marked unclear.
 
 ## Appendix — Turning this into a Claude skill
 
+> **Implemented:** this method ships as the `crm-archaeology` skill in the
+> `dev-workflows` plugin —
+> [plugins/dev-workflows/skills/crm-archaeology/SKILL.md](../plugins/dev-workflows/skills/crm-archaeology/SKILL.md),
+> with the verified queries in `references/extraction-queries.md` and the output
+> structure in `references/architecture-template.md`. The notes below record the
+> original design thinking.
+
 - **Scriptable (Steps 1–7):** Python scripts (per `dataverse` plugin conventions:
   SDK first, raw Web API only where listed) — `export_solution.ps1`,
   `dump_entities.py`, `dump_automation.py`, `dump_forms_js.py`, `dump_ribbon.py`,

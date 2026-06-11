@@ -19,6 +19,7 @@ more skills will be added over time.
 | `scrutinize` | **Outsider-perspective review** of a plan, PR, or change: first questions intent and simpler alternatives, then traces the actual code path to verify the change does what it claims. |
 | `dual-verifier` | **Independent verification** of completed work: two subagents run the same checks independently; findings are merged, deduplicated, and ranked by severity and confidence. |
 | `drive-to-legacy` | Systematic exploration of an **unfamiliar legacy codebase** — for studying, documenting, onboarding, or preparing a port/migration. |
+| `crm-archaeology` | Study a **live Dynamics 365 / Dataverse org** end-to-end and produce one ARCHITECTURE.md — pulls every customization to disk (entities, forms, JS/React web resources, PCF, workflows, plugins, flows, classic + modern commands, security), maps every business entity (standard AND custom), then traces business processes layer by layer. Read-only by design. The org-side sibling of `drive-to-legacy`. |
 | `invoice-generator` | Read git commits across workspace repos into a **daily work summary**, then always reshape it for the target channel via `management-talk` (Tribletext entry, Slack, standup, email, JIRA, talking-points). |
 | `naming-audit` | Verify a list of claimed labels/values/mappings **against the authoritative system of record**, item by item — verdict card + the exact app/code path to check. Source-of-truth wins. |
 | `ticket-trace` | Two-way **commit ↔ ticket traceability**: commits always carry their ticket number, and "why was this changed?" walks `git blame` → commit → ticket → tracker (incl. attached images). |
@@ -124,6 +125,31 @@ Phase 4  synthesize a phased advisory: problems ranked by pain, quick wins first
 - Ships `references/workflow-template.md` — a ready-to-adapt Claude Code `Workflow` script
   with the three JSON schemas (findings / design / feasibility).
 
+## crm-archaeology
+
+Use when facing an existing Dynamics 365 / Dataverse org you did not build —
+onboarding to a customer's CRM, documenting an undocumented system, or scoping a
+migration. The core idea: a live org is unreadable in the browser, but almost
+everything in it can be **pulled to disk as plain text** — then it's a normal
+legacy-code study.
+
+```
+EXTRACT (solution export/unpack + verified Web API queries → fragments/)
+   → STUDY (verify static maps against the running app, trace lifecycles)
+   → DOCUMENT (assemble one ARCHITECTURE.md, every entry with a Why row)
+```
+
+- **Every business entity**, not just custom ones: union of app components,
+  sitemap, customized standard tables, and record counts/usage.
+- **Both command-bar generations**: classic RibbonDiffXml (incl. the
+  Application Ribbons component) and modern `appaction` commands (Power Fx from
+  the command component library `.msapp`).
+- **Two depths:** quick pass (entity map + automation inventory) or full study.
+- **Resumable + drift-aware:** per-step fragments in a git workspace —
+  re-export later and `git diff` answers "what changed in the org?".
+- Ships `references/extraction-queries.md` (every command/query, verified
+  against Microsoft Learn) and `references/architecture-template.md`.
+
 ## Prerequisites
 
 - `grill-then-plan` → the **superpowers** plugin (auto-checked).
@@ -131,3 +157,4 @@ Phase 4  synthesize a phased advisory: problems ranked by pain, quick wins first
 - `management-talk` → none.
 - `fit-gap-analysis` → none. Verifies against whatever live system you point it at (DB / API / metadata endpoint / running config); no fixed dependency.
 - `study-design-verify` → none required. Uses the Claude Code `Workflow`/subagent tools when available, degrades to a sequential solo discipline when not.
+- `crm-archaeology` → the **Power Platform CLI** (`pac`) and admin/customizer access to the target environment (prefer a sandbox). The **dataverse** plugin is optional but recommended — its `dv-connect` skill owns auth/setup.
