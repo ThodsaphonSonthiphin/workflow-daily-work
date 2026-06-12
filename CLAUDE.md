@@ -70,6 +70,10 @@ and an add-a-skill recipe.
 - **Every new skill adds one row to [PLAYBOOK.md](PLAYBOOK.md)** — the playbook is the
   discoverability map for the daily arc; a skill missing from it is invisible. Add the
   row in the same commit that adds the skill.
+- **Document skills follow the diagram convention** — every skill-generated Markdown
+  document opens with one overview Mermaid diagram; ADRs carry a small decision diagram.
+  Canonical wording lives only in
+  `plugins/dev-workflows/references/diagram-convention.md` (ADRs 0005–0009).
 
 ## Key commands
 

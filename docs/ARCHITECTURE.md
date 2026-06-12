@@ -157,7 +157,12 @@ should not need to read existing source first.
    `sample-backlog_input.json`). For anything that writes to ADO, validate via the
    dry-run path before a real run.
 
-8. **Bump versions in sync.** Update `version` in
+8. **If the skill generates Markdown documents**, point it at the diagram convention —
+   `plugins/dev-workflows/references/diagram-convention.md` (one overview Mermaid
+   diagram at the top, type-matched diagrams per section, ask-gate for destinations
+   that don't render Mermaid). See marketplace ADRs 0005–0009.
+
+9. **Bump versions in sync.** Update `version` in
    `plugins/ado-backlog/.claude-plugin/plugin.json` and the matching plugin entry in
    `.claude-plugin/marketplace.json` together — they must always report the same version.
    (The *top-level* `version` in `marketplace.json` is the marketplace's own version,
