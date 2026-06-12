@@ -4,10 +4,10 @@
 - **Date:** 2026-06-02
 
 ```mermaid
-graph TD
+flowchart TD
     F["Feature"] --> B["Bug / User Story<br/>(no uniform hours field on Story)"]
     B --> T["child Task<br/>OriginalEstimate = RemainingWork = hours<br/>detailed breakdown in Description"]
-    T -.user confirms estimates before create.-> R["uniform roll-up across all item types"]
+    T -. user confirms estimates before create .-> R["uniform roll-up across all item types"]
 ```
 
 ## Context

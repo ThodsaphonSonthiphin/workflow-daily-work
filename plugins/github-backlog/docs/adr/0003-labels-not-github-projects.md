@@ -10,7 +10,7 @@ graph TD
     I --> S["size label: XS–XL (raw hours kept in body)"]
     I --> M["milestone = the batch"]
     I --> TR["tracking issue = parent (task list in body)"]
-    X["rejected: GitHub Projects v2 custom fields<br/>(per-repo setup; non-goal for v1)"] -.-> I
+    I -.-> X["rejected: GitHub Projects v2 custom fields<br/>(per-repo setup; non-goal for v1)"]
 ```
 
 ## Context

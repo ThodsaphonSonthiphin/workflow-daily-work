@@ -6,7 +6,7 @@
 ```mermaid
 flowchart TD
     NEED["same pipeline, GitHub Issues target"] --> Q{structure?}
-    Q -->|chosen| SEP["separate github-backlog plugin<br/>(mirrored pipeline, self-contained;<br/>extract/triage duplicated — YAGNI until backend #3)"]
+    Q -->|chosen| SEP["separate github-backlog plugin<br/>(mirrored pipeline, self-contained;<br/>extract/triage duplicated — YAGNI until a third backend)"]
     Q -->|rejected| MULTI["multi-backend ado-backlog<br/>(ADO concepts leak into GitHub installs)"]
     Q -->|rejected| GEN["one generic backlog plugin"]
 ```
