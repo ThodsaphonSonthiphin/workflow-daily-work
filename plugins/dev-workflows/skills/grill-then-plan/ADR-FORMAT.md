@@ -19,7 +19,8 @@ flowchart TD
 ````
 
 Every ADR opens with one small Mermaid decision diagram (see
-`${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md`, Rule 3).
+`${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md`, Rule 3). Add one
+`|rejected|` branch per alternative considered.
 
 That's it. An ADR can be a single paragraph. The value is in recording *that* a decision was made and *why* — not in filling out sections.
 

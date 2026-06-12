@@ -79,7 +79,7 @@ can be answered by exploring the codebase, explore the codebase instead of askin
   moment the decision is made. Do not batch or defer. Create `docs/adr/` lazily
   on the first ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md). Every
   ADR opens with a small Mermaid decision diagram (chosen vs rejected paths) —
-  see `${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md`. A
+  see `${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md`, Rule 3. A
   decision qualifies if the user chose one option over another — architectural
   shape, technology choice, naming, scope boundary, safety mechanism. When in
   doubt, write the ADR. A short ADR is better than a missing one.
