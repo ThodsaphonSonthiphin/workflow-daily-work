@@ -96,10 +96,10 @@ If there are no action items, write *"None — the fix is sufficient and no clas
 
 A post-mortem is a Markdown document — follow the diagram convention in
 `${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md`. In practice: one
-overview diagram at the top (usually a `flowchart TD` of root cause → mechanism
-→ symptom → fix), and a `sequenceDiagram` in **Why it produced the symptom**
-when the cause chain crosses components. If the destination (step 2 of the
-output flow) is a JIRA comment, apply the convention's ask-gate before posting.
+overview diagram at the top, before section 1 (Summary) — usually a
+`flowchart TD` of root cause → mechanism → symptom → fix — and a
+`sequenceDiagram` in **Why it produced the symptom** when the cause chain
+crosses components.
 
 ## Tone
 
@@ -119,7 +119,8 @@ This is engineer-to-engineer. Different from `management-talk`:
 3. **Produce the draft** as a single chat block, diagrams included (see
    Diagrams above). If the destination doesn't render Mermaid (JIRA comment),
    ask: keep the raw block, drop the diagrams, or split — `.md` file keeps
-   diagrams, the comment gets prose.
+   diagrams, the comment gets prose. (This is a formatting choice, not the
+   posting sign-off — step 4 handles that separately.)
 4. **Sign-off before posting.** If posting back to JIRA, show the exact ADF payload, wait for explicit *"post it"* / *"go ahead"* / *"yes,"* then `POST /rest/api/3/issue/<KEY>/comment`. Print-only output needs no approval.
 5. **Offer the management-talk handoff:** *"Want a leadership-flavored version? I can hand this to `management-talk`."* Don't do it automatically.
 
