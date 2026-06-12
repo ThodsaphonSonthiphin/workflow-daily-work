@@ -1,7 +1,7 @@
 # Design Spec — Mermaid diagram convention for skill-generated documents
 
 **Date:** 2026-06-12
-**Status:** Draft — awaiting approval
+**Status:** Approved — implemented (dev-workflows 0.11.0)
 **Topic:** Every document a skill generates carries Mermaid diagrams that make it easy to understand
 **ADRs:** [0005](../../adr/0005-mermaid-diagrams-in-generated-documents.md), [0006](../../adr/0006-diagrams-always-ask-gate-for-non-rendering-destinations.md), [0007](../../adr/0007-overview-diagram-plus-type-matched-sections.md), [0008](../../adr/0008-diagram-convention-single-reference-file.md), [0009](../../adr/0009-adrs-carry-decision-diagrams-glossary-exempt.md)
 

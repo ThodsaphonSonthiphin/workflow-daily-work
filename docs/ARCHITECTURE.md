@@ -8,9 +8,10 @@ How this repo is built and how to extend it. For *using* the plugin, see the
 ## Overview
 
 This repo is a **Claude Code plugin marketplace** (`workflow-daily-work`) declared in
-[.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json). It currently
-ships one **plugin**, `ado-backlog`, defined by
-[plugins/ado-backlog/.claude-plugin/plugin.json](../plugins/ado-backlog/.claude-plugin/plugin.json).
+[.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json). It ships three
+**plugins** — `ado-backlog`, `github-backlog`, and `dev-workflows` — each defined by its
+own `.claude-plugin/plugin.json`. This document details the `ado-backlog` pipeline,
+which the other plugins mirror or build on.
 
 The plugin is decomposed into **one skill per pipeline step** (with `ado-auth` as the
 optional pre-flight Step 0), plus the standalone `my-work` query skill, a few helper
