@@ -3,6 +3,14 @@
 - **Status:** Accepted
 - **Date:** 2026-06-11
 
+```mermaid
+flowchart TD
+    DAILY["/daily"] --> ARG{argument given?}
+    ARG -->|none| MENU["5-station menu<br/>(teaches its own shortcuts)"]
+    ARG -->|"start / work / file / report / wrap"| JUMP["jump straight to the station"]
+    ARG -->|unrecognized| MENU
+```
+
 ## Context
 
 ADR 0001 ships a `/daily` router as the single memorized entry point into the daily

@@ -3,6 +3,14 @@
 - **Status:** Accepted
 - **Date:** 2026-06-11
 
+```mermaid
+flowchart TD
+    B["something broke"] --> DM["debug-mantra (diagnose)"]
+    DM --> Q{fix involves a design choice?}
+    Q -->|"no — mechanical"| FIX1["fix"] --> PM1["post-mortem"] --> MT1["management-talk"]
+    Q -->|yes| GTP["grill-then-plan<br/>(capture the decision first)"] --> FIX2["fix"] --> PM2["post-mortem"] --> MT2["management-talk"]
+```
+
 ## Context
 
 The daily arc's WORKING phase chains the debugging skills:

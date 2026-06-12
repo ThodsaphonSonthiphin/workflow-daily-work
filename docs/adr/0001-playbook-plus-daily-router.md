@@ -3,6 +3,14 @@
 - **Status:** Accepted
 - **Date:** 2026-06-11
 
+```mermaid
+flowchart TD
+    P["24+ skills — owner can't recall them<br/>(stale README proves docs alone fail)"] --> Q{how to make them discoverable?}
+    Q -->|chosen| BOTH["PLAYBOOK.md map + /daily router<br/>+ CLAUDE.md sync convention"]
+    Q -->|rejected| DOC["document only — goes stale unread"]
+    Q -->|rejected| ORCH["orchestrator only — can't route situational skills"]
+```
+
 ## Context
 
 The marketplace has grown to 3 plugins / 24 skills. The owner can no longer recall
