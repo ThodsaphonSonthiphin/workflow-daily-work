@@ -3,6 +3,14 @@
 - **Status:** Accepted
 - **Date:** 2026-06-02
 
+```mermaid
+flowchart TD
+    GATE["safety gate before creating issues"] --> HAS{API has validateOnly?}
+    HAS -->|"ADO: yes"| API["API dry-run (validateOnly=true)"]
+    HAS -->|"GitHub: no"| VIS["visual dry-run: render the full item table,<br/>user reads and explicitly approves"]
+    VIS --> CREATE["create_github_issues.py runs"]
+```
+
 ## Context
 
 The `ado-backlog` pipeline enforces a safety gate before any irreversible write by

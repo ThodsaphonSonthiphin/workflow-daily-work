@@ -3,6 +3,14 @@
 - **Status:** Accepted
 - **Date:** 2026-06-02
 
+```mermaid
+flowchart TD
+    NEED["same pipeline, GitHub Issues target"] --> Q{structure?}
+    Q -->|chosen| SEP["separate github-backlog plugin<br/>(mirrored pipeline, self-contained;<br/>extract/triage duplicated — YAGNI until backend #3)"]
+    Q -->|rejected| MULTI["multi-backend ado-backlog<br/>(ADO concepts leak into GitHub installs)"]
+    Q -->|rejected| GEN["one generic backlog plugin"]
+```
+
 ## Context
 
 The `ado-backlog` plugin turns findings into Azure DevOps work items. The user wants

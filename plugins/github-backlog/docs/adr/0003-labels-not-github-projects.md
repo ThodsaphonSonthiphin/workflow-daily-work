@@ -3,6 +3,16 @@
 - **Status:** Accepted
 - **Date:** 2026-06-02
 
+```mermaid
+graph TD
+    I["GitHub Issue"] --> T["type label: bug / enhancement / task / documentation"]
+    I --> P["priority label: P0–P3"]
+    I --> S["size label: XS–XL (raw hours kept in body)"]
+    I --> M["milestone = the batch"]
+    I --> TR["tracking issue = parent (task list in body)"]
+    X["rejected: GitHub Projects v2 custom fields<br/>(per-repo setup; non-goal for v1)"] -.-> I
+```
+
 ## Context
 
 GitHub Issues are flat — they have title, body, labels, assignees, and milestone.

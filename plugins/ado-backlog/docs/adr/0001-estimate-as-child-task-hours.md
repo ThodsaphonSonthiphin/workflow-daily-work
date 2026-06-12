@@ -3,6 +3,13 @@
 - **Status:** Accepted
 - **Date:** 2026-06-02
 
+```mermaid
+graph TD
+    F["Feature"] --> B["Bug / User Story<br/>(no uniform hours field on Story)"]
+    B --> T["child Task<br/>OriginalEstimate = RemainingWork = hours<br/>detailed breakdown in Description"]
+    T -.user confirms estimates before create.-> R["uniform roll-up across all item types"]
+```
+
 ## Context
 
 The workflow must attach a **time estimate** to each work item it creates, and the user wants

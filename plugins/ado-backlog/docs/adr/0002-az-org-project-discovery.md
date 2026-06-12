@@ -3,6 +3,17 @@
 - **Status:** Accepted
 - **Date:** 2026-06-02
 
+```mermaid
+flowchart TD
+    NEED["skill needs AZDO_ORG / AZDO_PROJECT"] --> E1{env var set?}
+    E1 -->|yes| USE["use it (session override)"]
+    E1 -->|no| E2{az devops configure default?}
+    E2 -->|yes| USE
+    E2 -->|no| REST["REST enumerate via az token<br/>one → auto-select · many → ask · none → error"]
+    REST --> USE
+    USE --> VAL["validate with one cheap REST call<br/>fail → rediscover + re-persist"]
+```
+
 ## Context
 
 Every ado-* skill needs a **target**: an Azure DevOps **Organization** (bare name, e.g.
