@@ -53,6 +53,24 @@ truth; nothing else redefines them.
 A deliberate stop before an irreversible action: dry-run before real create, explicit
 user approval before any write, back up the source before write-back.
 
+**Document skill**:
+A skill whose output is a durable Markdown artifact (ARCHITECTURE.md, post-mortem,
+design spec, audit, trace). Always includes Mermaid diagrams (ADR 0005/0006).
+_Avoid_: study skill (narrower), doc generator.
+
+**Channel output**:
+Skill output shaped for a delivery channel (Slack, JIRA comment, email, standup line,
+Tribletext) rather than a repo document. Exempt from the diagram convention; a document
+skill posting to a channel asks before stripping diagrams (ADR 0006).
+_Avoid_: chat output, message.
+
+**Diagram convention**:
+The rule that every skill-generated Markdown document opens with one overview Mermaid
+diagram, adds type-matched diagrams per section (sequence = flow, er = data,
+flowchart = decision, graph = hierarchy), and that ADRs carry a small decision diagram
+(ADRs 0005–0009). Canonical wording: `plugins/dev-workflows/references/diagram-convention.md`.
+_Avoid_: UML rule (it's the Mermaid family, not strict UML class diagrams).
+
 ## GitHub terms (github-backlog plugin)
 
 **GitHub Owner**:
