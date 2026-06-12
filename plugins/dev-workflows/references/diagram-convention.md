@@ -36,12 +36,17 @@ gets a diagram of the matching type:
 
 No forced diagrams: a pure table/list section stays prose.
 
+Tie-breaker: `sequenceDiagram` is time-ordered (who sends what to whom);
+`graph TD` is structural (what connects to what). If the arrows would carry
+messages or events, use `sequenceDiagram`; if they connect boxes in a
+hierarchy or pipeline, use `graph TD`.
+
 ## Rule 3 — ADRs carry a small decision diagram
 
 Every ADR opens with one small Mermaid diagram of the decision — typically a
 `flowchart TD` of the chosen path vs the rejected alternatives, or the
 structure the decision creates. The glossary (CONTEXT.md) is the only exempt
-document type.
+Markdown document.
 
 ## Rule 4 — Ask before a non-rendering destination
 
@@ -53,7 +58,7 @@ strip, never silently post raw fences:
 flowchart TD
     D["document ready, has diagrams"] --> Q{destination renders Mermaid?}
     Q -->|"yes (.md file, GitHub, VS Code)"| GO["deliver as-is"]
-    Q -->|"no (JIRA comment, Slack, email)"| ASK["ask: keep raw block / drop diagrams /<br/>split (.md keeps diagrams, channel gets prose)"]
+    Q -->|"no (JIRA comment, Slack, email)"| ASK["ask:<br/>keep raw block / drop diagrams /<br/>split (.md keeps diagrams, channel gets prose)"]
 ```
 
 ## Authoring guidance
