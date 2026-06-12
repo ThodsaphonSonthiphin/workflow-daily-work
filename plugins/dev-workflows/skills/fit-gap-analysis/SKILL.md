@@ -49,7 +49,7 @@ Then a **global/cross-cutting pass** — these belong to no single screen and ar
 
 **8 · Cluster + size.** Add a **Cluster** axis (*what kind of work*: Reuse / Rework / Build-new / Mixed), distinct from the verdict (*does it exist*); then **Effort (S/M/L)** + risk/dependency. Cluster collapses many rows into few decisions.
 
-**9 · Produce multi-lens, self-explaining artifacts** — matrix + journeys + actors/access + impact/effort + open `[D]` items, with a **legend** so any reader decodes it without you. Land it where it compounds (a living doc) *and* as a working tracker (spreadsheet).
+**9 · Produce multi-lens, self-explaining artifacts** — matrix + journeys + actors/access + impact/effort + open `[D]` items, with a **legend** so any reader decodes it without you. Land it where it compounds (a living doc) *and* as a working tracker (spreadsheet). The living doc follows the diagram convention (`${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md`): one overview diagram up top; `sequenceDiagram` for traced journeys, `graph TD` for cluster/dependency views.
 
 **10 · Frame as decisions, not a feature list.** Group gaps into the few choices the meeting can make; sequence by independence (greenfield + quick-wins before big rework); decide **if** before **how**.
 
@@ -86,6 +86,7 @@ You verified everything *on the list*; now attack the list. Re-scan the source a
 - [ ] Key **journeys** traced (Target vs Actual); **Layer + Cluster + Effort** on each row
 - [ ] **Source fidelity** flagged; missing screens/states requested
 - [ ] **Completeness gate** run (second adversarial look); **legend** included; gaps → **decisions**
+- [ ] **Diagram convention** followed in the living doc (overview diagram + type-matched sections)
 
 ## Optional dimensions (include if relevant; else mark *out of scope* so the choice is conscious)
 - **Lifecycle / state-transitions** — per entity, statuses + the actions driving transitions; verify each transition the target implies, not just the initial state.
