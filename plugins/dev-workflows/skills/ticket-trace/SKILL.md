@@ -65,6 +65,14 @@ When the user questions a piece of code (a weird label, a hardcode, a removed fe
 - **Closed ticket ≠ fully implemented.** Compare what the ticket asked against the code; surface gaps as findings ("the ticket also says hide X, but X still renders").
 - **No ticket found anywhere** — say so plainly and fall back to commit message, PR, and asking the author. Don't speculate dressed as evidence.
 
+## If the output is requested as a document
+
+The default output is an evidence-chain answer in chat — no diagrams. But if
+the user asks for the trace as a Markdown report file, follow the diagram
+convention in `${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md` (the
+overview diagram is the chain itself: `file:line` → commit → ticket, as a
+`flowchart TD`).
+
 ## When NOT to use
 
 Pure code-mechanics questions ("what does this function do") need no ticket. Turning findings into new tickets is `ado-backlog`/`github-backlog`. Auditing label wording against a system of record is `naming-audit` (but when naming-audit flags a suspicious hardcode, THIS skill answers whether it was intentional).

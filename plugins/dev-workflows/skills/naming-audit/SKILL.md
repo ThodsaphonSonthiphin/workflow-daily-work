@@ -70,6 +70,14 @@ Always include the **Where to check** block — the user verifies in the running
 ## Recording dispositions back to the source
 If the source is a spreadsheet, write each item's outcome back to it (don't overwrite the original claim columns — use/added columns): a reviewed flag, a verdict flag (e.g. matched / not-in-impl / fixed), and a short reason citing the bound field + live authoritative value. If the file is open/locked, ask the user to close it, then write. Keep reasons short and plain unless asked for code-level detail.
 
+## If the output is requested as a document
+
+The default output is per-item cards in chat plus spreadsheet write-back —
+no diagrams. But if the user asks for the audit as a Markdown report file,
+follow the diagram convention in
+`${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md` (overview diagram of
+verdict counts per area; the cards stay as-is).
+
 ## After the audit
 The 🔧 fixes are real change requests. Hand them off — apply directly for small label edits (then typecheck/build), or route the batch into the backlog plugins (`ado-backlog` / `github-backlog`) to create tickets. Keep ⚪ and ❓ items distinct from real fixes so the count of genuine work stays honest.
 
