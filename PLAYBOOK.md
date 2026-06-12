@@ -17,7 +17,7 @@ flowchart TD
     subgraph CIRCLE [" the daily circle "]
         START["☀️ 1. START<br/><b>ado-backlog:my-work</b><br/>what's on my plate"]
         WORK["🔧 2. WORKING<br/><b>situational toolbox</b><br/>(see router below)"]
-        FILE["📋 3. FILING<br/><b>findings-to-ado-backlog</b><br/><b>findings-to-github-issues</b>"]
+        FILE["📋 3. FILING<br/><b>findings-to-ado-backlog</b> (batch)<br/><b>ado-create-work-items</b> (direct)"]
         REPORT["📣 4. REPORTING<br/><b>management-talk</b>"]
         WRAP["🌙 5. WRAP-UP<br/><b>invoice-generator</b><br/>Tribletext from commits"]
 
@@ -33,7 +33,7 @@ flowchart TD
 |---|---|---|
 | 1. START | `/daily start` | `ado-backlog:my-work` — ADO task hub (GitHub view on request) |
 | 2. WORKING | `/daily work` | the situational router below |
-| 3. FILING | `/daily file` | `findings-to-ado-backlog` or `findings-to-github-issues` |
+| 3. FILING | `/daily file` | `findings-to-ado-backlog` (batch) or `ado-create-work-items` (direct) — GitHub twins on request |
 | 4. REPORTING | `/daily report` | `management-talk` |
 | 5. WRAP-UP | `/daily wrap` | `invoice-generator` — run it every day; it builds from commits |
 

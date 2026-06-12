@@ -11,8 +11,9 @@ description: >-
   hands off to the right skill: ado-backlog:my-work, the situational toolbox
   (grill-then-plan, debug-mantra, study-design-verify, naming-audit,
   fit-gap-analysis, problem-description, ticket-trace, scrutinize, dual-verifier,
-  drive-to-legacy, crm-archaeology), findings-to-ado-backlog /
-  findings-to-github-issues, management-talk, or invoice-generator.
+  drive-to-legacy, crm-archaeology), findings-to-ado-backlog or
+  ado-create-work-items (github-backlog twins on request), management-talk, or
+  invoice-generator.
 ---
 
 # daily — the one command to remember
@@ -90,8 +91,18 @@ trade-offs)?"*
 
 ### 3. FILE
 
-Ask ONE question — "ADO or GitHub?" — then invoke `findings-to-ado-backlog`
-(ado-backlog plugin) or `findings-to-github-issues` (github-backlog plugin).
+Get work into the tracker. Two shapes — pick by what the user has:
+
+| The user has… | Hand off to |
+|---|---|
+| a batch of findings (audit / spreadsheet / review / pasted list) | `findings-to-ado-backlog` — the extract → triage → classify → create pipeline |
+| specific item(s) to create directly (one bug, a few stories, a ready list) | `ado-create-work-items` — files them straight into ADO |
+
+Ask ONE question only if the shape is unclear: *"A batch of findings, or specific
+tickets to create directly?"* Default tracker is **ADO**; if the user wants GitHub,
+use the github-backlog twins — `findings-to-github-issues` or `github-create-issues`.
+Either route keeps the safety gates: a dry-run before any real create, and explicit
+approval before writing to the org.
 
 ### 4. REPORT
 
