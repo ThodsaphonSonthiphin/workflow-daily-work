@@ -76,7 +76,7 @@ The default output is per-item cards in chat plus spreadsheet write-back —
 no diagrams. But if the user asks for the audit as a Markdown report file,
 follow the diagram convention in
 `${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md` (overview diagram of
-verdict counts per area; the cards stay as-is).
+verdict counts per area, as a `graph TD`; the cards stay as-is).
 
 ## After the audit
 The 🔧 fixes are real change requests. Hand them off — apply directly for small label edits (then typecheck/build), or route the batch into the backlog plugins (`ado-backlog` / `github-backlog`) to create tickets. Keep ⚪ and ❓ items distinct from real fixes so the count of genuine work stays honest.

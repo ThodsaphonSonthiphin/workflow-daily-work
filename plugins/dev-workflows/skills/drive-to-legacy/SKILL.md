@@ -173,6 +173,8 @@ The final document should follow this reading order (user stories first — they
 
 ## Table of Contents (clickable anchor links)
 
+(overview Mermaid diagram here — the convention's mandatory document thumbnail)
+
 ## Part 1: User Stories
   - One subsection per story with sequence diagrams
 

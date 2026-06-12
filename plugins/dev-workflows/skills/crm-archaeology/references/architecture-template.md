@@ -14,6 +14,8 @@ taxonomy), not invented ones.
 ## Table of Contents
 (clickable anchors; avoid `&`, `--`, `/`, `*`, `()` in headings — they break anchors)
 
+(overview Mermaid diagram here — the convention's mandatory document thumbnail)
+
 ---
 ## Part 1 — User Stories                          ← from fragments/09-processes.md
 One subsection per persona (≈ security role) and key process:

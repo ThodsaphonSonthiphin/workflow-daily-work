@@ -37,6 +37,7 @@ plugins/ado-backlog/
   README.md, QUICKSTART.md        user docs
 plugins/github-backlog/           same pipeline, GitHub Issues backend
 plugins/dev-workflows/            daily-work arc skills + the /daily router
+  references/diagram-convention.md   canonical diagram convention (ADRs 0005-0009)
 ```
 
 ## Mental model

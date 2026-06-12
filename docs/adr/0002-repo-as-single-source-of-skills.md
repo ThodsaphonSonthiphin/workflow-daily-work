@@ -8,6 +8,7 @@ flowchart TD
     L1["this repo"] & L2["~/.claude/skills"] & L3["dev-playbook plugin"] --> Q{single source of truth?}
     Q -->|chosen| REPO["copy the 5 daily-arc skills into dev-workflows;<br/>playbook documents the repo only"]
     Q -->|rejected| MAP["document all three layers<br/>with a 'lives in' column"]
+    Q -->|rejected| SPLIT["new separate plugin<br/>for the copied skills"]
     REPO --> EXCL["excluded: power-bi-*, seed-dataverse-data,<br/>react-structure, grill-with-docs, brainstorm-reviewer"]
 ```
 
