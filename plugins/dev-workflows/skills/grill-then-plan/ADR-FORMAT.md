@@ -6,11 +6,20 @@ Create the `docs/adr/` directory lazily — only when the first ADR is needed.
 
 ## Template
 
-```md
+````md
 # {Short title of the decision}
 
-{1-3 sentences: what's the context, what did we decide, and why.}
+```mermaid
+flowchart TD
+    Q{the question} -->|chosen| A["what we decided"]
+    Q -->|rejected| B["the alternative, and why not"]
 ```
+
+{1-3 sentences: what's the context, what did we decide, and why.}
+````
+
+Every ADR opens with one small Mermaid decision diagram (see
+`${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md`, Rule 3).
 
 That's it. An ADR can be a single paragraph. The value is in recording *that* a decision was made and *why* — not in filling out sections.
 

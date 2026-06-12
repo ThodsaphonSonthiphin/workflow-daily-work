@@ -77,7 +77,9 @@ can be answered by exploring the codebase, explore the codebase instead of askin
   [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md).
 - **Always create an ADR for every design decision** — one ADR per decision, the
   moment the decision is made. Do not batch or defer. Create `docs/adr/` lazily
-  on the first ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md). A
+  on the first ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md). Every
+  ADR opens with a small Mermaid decision diagram (chosen vs rejected paths) —
+  see `${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md`. A
   decision qualifies if the user chose one option over another — architectural
   shape, technology choice, naming, scope boundary, safety mechanism. When in
   doubt, write the ADR. A short ADR is better than a missing one.
@@ -86,7 +88,10 @@ can be answered by exploring the codebase, explore the codebase instead of askin
 
 Once understanding is shared, write the design to
 `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` (`<topic>` is a
-lowercase-kebab slug). Run a self-review for placeholders, internal consistency,
+lowercase-kebab slug). The spec is a Markdown document — follow the diagram
+convention in `${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md` (one
+overview Mermaid diagram at the top; type-matched diagrams per section).
+Run a self-review for placeholders, internal consistency,
 scope, and ambiguity; fix inline. Ask the user to review the spec and approve
 before proceeding. If they do NOT approve, return to Step 2 and grill on the
 disputed points, then revise the spec — do not proceed to handoff until approved.
