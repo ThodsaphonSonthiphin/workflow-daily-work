@@ -137,6 +137,8 @@ nature — it needs all the fragments.
 
 Build `ARCHITECTURE.md` from the fragments following
 `${CLAUDE_PLUGIN_ROOT}/skills/crm-archaeology/references/architecture-template.md`.
+The template implements the marketplace diagram convention
+(`${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md`).
 The template's reading order puts user stories first (they answer "why does
 this org exist") and enforces the one rule that makes the doc useful: **every
 automation, API, and command entry carries a Why row** — what breaks without

@@ -87,7 +87,10 @@ generation a button is, only what it does.
    not the technical trigger. Test: "what breaks or becomes impossible without
    this?" If the answer isn't written, the entry is incomplete.
 2. **Mermaid everywhere** — sequenceDiagram for lifecycles, erDiagram for data,
-   flowchart TD for decision logic, graph TD for hierarchies.
+   flowchart TD for decision logic, graph TD for hierarchies. Implements the
+   marketplace diagram convention
+   (`${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md`), including its
+   mandatory overview diagram at the top of ARCHITECTURE.md.
 3. **No speculation.** Only what the extracted files and queries showed.
    Unclear behavior is documented as *unclear*, with what was checked.
 4. **Tables for scannable facts, prose for meaning.** Option-set values,
