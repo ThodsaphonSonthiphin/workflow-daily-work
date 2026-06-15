@@ -15,6 +15,32 @@ Four-step discipline for any debug session. Recite verbatim, then apply in order
 > 3. **Question your hypothesis.** What would disprove it?
 > 4. **Every run is a breadcrumb.** Cross-reference all of them.
 
+Then, in that same first response, emit this process diagram **verbatim** inside
+a fenced code block — it is fixed text, part of the recital; do not re-author,
+paraphrase, or reflow it:
+
+```
+DEBUG MANTRA — four steps, strictly in order
+─────────────────────────────────────────────
+
+  ① REPRODUCE
+  │   reliable repro?  ·  flaky → raise the rate
+  │   no repro at all → ■ STOP (don't hypothesise)
+  ▼
+  ② FAIL PATH   (escalate only when the prior fails)
+  │   1. attach a debugger
+  │   2. source trace + knob enumeration
+  │   3. in-code instrumentation
+  ▼
+  ③ FALSIFY
+  │   3–5 ranked hypotheses  ·  run the DISPROOF first
+  ▼
+  ④ BREADCRUMBS
+  │   ledger every run  ·  cross-reference all of them
+  │
+  └─▶ contradiction with a past run?  ──  back to ③
+```
+
 Then begin work.
 
 ---
@@ -65,7 +91,8 @@ Maintain a running **ledger** of every experiment in this session. Each entry: w
 
 - Recite the mantra block **once** per debug session, in your first response. Do not re-recite mid-session.
 - Recite **verbatim**. Never paraphrase, shorten, or skip lines of the recital.
-- If the user says "skip the mantra" → skip the recital but still apply the four steps silently.
+- Emit the **process diagram verbatim** right after the recital, in that same first response — it is part of the recital. Never re-author, paraphrase, or reflow it.
+- If the user says "skip the mantra" → skip the recital **and the diagram** but still apply the four steps silently.
 - Apply the four steps **in order**:
   - Do not propose a fix before #1 is satisfied (reliable repro exists).
   - Do not start testing hypotheses before #2 has narrowed the fail path.
@@ -73,3 +100,8 @@ Maintain a running **ledger** of every experiment in this session. Each entry: w
   - Do not declare a hypothesis correct until #4 confirms it against every prior breadcrumb.
 - If you catch yourself proposing a fix without a reliable repro, stop and return to step 1.
 - The mantra is a constraint **you** carry through the session — not advice to deliver back to the user.
+
+---
+
+This skill follows the **terminal-diagram** convention — canonical wording in
+`${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md`.
