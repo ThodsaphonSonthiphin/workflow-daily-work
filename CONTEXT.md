@@ -69,8 +69,8 @@ The rule that every skill-generated Markdown document opens with one overview Me
 diagram, adds type-matched diagrams per section (sequence = flow, er = data,
 flowchart = decision, graph = hierarchy), and that ADRs carry a small decision diagram
 (ADRs 0005–0009). Governs **Markdown-document** output only; an interactive skill whose
-output is a live terminal session follows the sibling **Terminal diagram** rule instead.
-Canonical wording: `plugins/dev-workflows/references/diagram-convention.md`.
+output is a live terminal session follows the sibling **Terminal diagram** rule instead
+(ADR 0010). Canonical wording: `plugins/dev-workflows/references/diagram-convention.md`.
 _Avoid_: UML rule (it's the Mermaid family, not strict UML class diagrams).
 
 **Terminal diagram**:

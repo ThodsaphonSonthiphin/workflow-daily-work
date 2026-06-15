@@ -59,4 +59,4 @@ the recital (never replacing it):
   ledger (already the "live state" mechanism) and adds mid-session state to
   maintain.
 - **Horizontal 4-box layout** — rejected: ~77 cols wide, wraps on narrow
-  terminals; vertical stays ≲ 50 cols.
+  terminals; vertical stays ≲ 55 cols.
