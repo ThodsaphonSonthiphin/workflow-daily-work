@@ -68,8 +68,20 @@ _Avoid_: chat output, message.
 The rule that every skill-generated Markdown document opens with one overview Mermaid
 diagram, adds type-matched diagrams per section (sequence = flow, er = data,
 flowchart = decision, graph = hierarchy), and that ADRs carry a small decision diagram
-(ADRs 0005–0009). Canonical wording: `plugins/dev-workflows/references/diagram-convention.md`.
+(ADRs 0005–0009). Governs **Markdown-document** output only; an interactive skill whose
+output is a live terminal session follows the sibling **Terminal diagram** rule instead.
+Canonical wording: `plugins/dev-workflows/references/diagram-convention.md`.
 _Avoid_: UML rule (it's the Mermaid family, not strict UML class diagrams).
+
+**Terminal diagram**:
+A text / box-drawing diagram authored to read in a monospace **terminal** session, used by
+an **interactive skill** whose output is a live chat session rather than a `.md` document
+(e.g. debug-mantra's four-step process diagram). Unicode box-drawing, vertical layout,
+emitted inside a fenced code block. The terminal sibling of the **Diagram convention** —
+introduced because Mermaid fences don't render in a terminal (ADR 0010). Canonical wording
+lives alongside the Mermaid rules in
+`plugins/dev-workflows/references/diagram-convention.md`.
+_Avoid_: ASCII art (too generic), UML diagram (not class-diagram UML), Mermaid diagram.
 
 ## GitHub terms (github-backlog plugin)
 
