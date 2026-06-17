@@ -50,6 +50,26 @@ Read the codebase, recent commits, and existing docs: `CONTEXT.md` /
 the repo has multiple contexts — infer which one the topic relates to (ask if
 unclear).
 
+### Step 1a — Verify the cause first when planning a fix
+
+If the plan exists **to fix something that currently misbehaves** — a bug, a
+failure, wrong output, "it keeps breaking" — and the **root cause is not yet
+verified**, do not start grilling. Grilling a fix design on top of an unverified
+guess about *why* it breaks plans on sand. Hand off to **debug-mantra** to
+establish the confirmed cause first, then return here and grill the fix design
+against that verified truth.
+
+Skip this guard — proceed straight to Step 2 — when **either** holds:
+
+- The work is new (feature, refactor, redesign) with no malfunction behind it.
+- The cause is **already verified** — e.g. you completed debug-mantra and it
+  confirmed the cause (do not re-diagnose). Merely *entering* debug-mantra without
+  a confirmed cause does not exempt you.
+
+This is the symmetric partner to the forward debug chain (ADR 0003):
+grill-then-plan verifies the cause first when planning a fix (ADR 0011). Either
+way the invariant holds — *never plan a fix on an unverified cause.*
+
 ## Step 2 — Grill relentlessly, one question at a time
 
 Interview the user about every aspect of the plan until you reach shared

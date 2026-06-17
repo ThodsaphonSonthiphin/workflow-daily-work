@@ -82,12 +82,17 @@ Ask ONE question — "What's happening?" — with these options, then hand off:
 | facing an unfamiliar legacy codebase | `drive-to-legacy` |
 | facing an unfamiliar Dynamics 365 / Dataverse org | `crm-archaeology` |
 
-**Debug chain (ADR 0003):** after `debug-mantra` produces a diagnosis, ask:
+**Debug chain (ADRs 0003 + 0011):** after `debug-mantra` produces a diagnosis, ask:
 *"Does the fix involve a design choice (multiple viable approaches with
 trade-offs)?"*
 - **No (mechanical fix)** → fix → `post-mortem` → offer `management-talk`.
 - **Yes** → `grill-then-plan` to capture the decision FIRST → fix →
   `post-mortem` → offer `management-talk`.
+
+It runs both ways: if a user enters `grill-then-plan` directly to design a fix for
+a current malfunction whose cause isn't verified yet, it hands off to `debug-mantra`
+first, then grills against the confirmed cause (ADR 0011). The invariant either
+way: *never plan a fix on an unverified cause.*
 
 ### 3. FILE
 

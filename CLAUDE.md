@@ -119,7 +119,7 @@ The `findings-to-ado-backlog` orchestrator owns the canonical wording of these g
 
 - [CONTEXT.md](CONTEXT.md) — glossary (Organization, Project, Skill, Orchestrator, …)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — internals + add-a-skill recipe
-- [docs/adr/](docs/adr/) — marketplace-level design decisions (daily-arc/playbook/router ADRs 0001–0004)
+- [docs/adr/](docs/adr/) — marketplace-level design decisions (daily-arc/playbook/router ADRs 0001–0004, 0011)
 - [plugins/ado-backlog/docs/adr/](plugins/ado-backlog/docs/adr/) — accepted design decisions (ADRs)
 - [plugins/ado-backlog/README.md](plugins/ado-backlog/README.md) /
   [QUICKSTART.md](plugins/ado-backlog/QUICKSTART.md) — user docs

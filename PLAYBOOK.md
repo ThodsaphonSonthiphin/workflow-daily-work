@@ -73,7 +73,7 @@ flowchart TD
 | unfamiliar legacy codebase | `drive-to-legacy` |
 | unfamiliar Dynamics 365 / Dataverse org | `crm-archaeology` |
 
-### The debug chain (ADR 0003)
+### The debug chain (ADRs 0003 + 0011)
 
 ```
 something broke → debug-mantra (diagnose)
@@ -84,6 +84,11 @@ something broke → debug-mantra (diagnose)
 
 The chain flows into REPORTING by itself: post-mortem's output is what
 management-talk reshapes for the channel.
+
+**It runs both ways.** If you enter `grill-then-plan` directly to design a fix
+for something that misbehaves but the cause isn't verified yet, it hands off to
+`debug-mantra` first, then grills against the confirmed cause (ADR 0011). One
+invariant guards both entry points: **never plan a fix on an unverified cause.**
 
 ## /daily usage
 
