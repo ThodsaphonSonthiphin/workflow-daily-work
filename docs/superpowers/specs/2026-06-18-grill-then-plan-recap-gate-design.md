@@ -50,7 +50,7 @@ The repo's diagram convention can't be applied naively here: the grilling runs i
 | 3 | Trigger | A **confirmation gate**: emit the recap, ask "does this capture the design?", and only proceed to Step 5 on confirmation. |
 | 4 | Mandatory content | A **flowchart** of the grilled decisions — always present (every grilling produces decisions). |
 | 5 | Optional content | A **sequence diagram** of the runtime interaction — shown only when the design has a genuine ≥2-actor interaction; omitted otherwise (no forced diagram). |
-| 6 | Scope of the change | **ADR + convention note** — record an ADR (0012) and add one line to the convention's terminal section, matching how ADR 0011 recorded the last behavior change to this skill. |
+| 6 | Scope of the change | **ADR + convention note + version sync** — record a root ADR (0012), add one line to the convention's terminal section, and bump the dev-workflows version in lockstep (`plugin.json` + `marketplace.json`), matching how ADR 0011 and commit `c64ca3b` handled the last behavior change to this skill. |
 
 ## Step 4.5 — Recap & confirm (behavior)
 
@@ -141,7 +141,13 @@ flowchart shows.
   interaction). No change to the Mermaid Rule 2 palette.
 - **`docs/adr/0012-grill-then-plan-recap-gate.md`** — new marketplace ADR recording
   the recap-gate decision, opening with a small decision diagram (Rule 3), in the
-  style of ADR 0011.
+  style of ADR 0011. Root (not plugin) because the new line amends a root-level
+  convention (ADR 0010), which spans interactive skills.
+- **`plugins/dev-workflows/.claude-plugin/plugin.json`** — bump `version` `0.13.0`
+  → `0.14.0` (a behavior change to a shipped skill).
+- **`.claude-plugin/marketplace.json`** — bump the dev-workflows entry's `version`
+  `0.13.0` → `0.14.0` to stay identical to `plugin.json` (CLAUDE.md version-sync
+  rule).
 
 ## Rejected alternatives
 
@@ -174,3 +180,5 @@ flowchart shows.
 - The Unicode recap stays ≲ 50 columns and renders cleanly in a monospace terminal.
 - `grill-then-plan`'s PLAYBOOK row still describes the skill accurately (the recap is
   an internal step, not a new skill — no new PLAYBOOK row needed).
+- `plugin.json` and the `marketplace.json` dev-workflows entry report the **same**
+  bumped version (`0.14.0`).
