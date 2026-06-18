@@ -26,6 +26,7 @@ DEBUG MANTRA — four steps, strictly in order
   ① REPRODUCE
   │   reliable repro?  ·  flaky → raise the rate
   │   no repro at all → ■ STOP (don't hypothesise)
+  │   got repro? → what changed?  git diff / blame / bisect
   ▼
   ② FAIL PATH   (escalate only when the prior fails)
   │   1. attach a debugger
@@ -54,6 +55,8 @@ Build a runnable repro before anything else.
 - **No repro at all** → stop. Say so explicitly. Ask the user for env access, captured artifacts (HAR, log dump, core), or permission to instrument. Do **not** proceed to hypothesise.
 
 Target: a fast (1–5 s), deterministic pass/fail signal. Pin time, seed the RNG, freeze network, isolate filesystem.
+
+Once a reliable repro exists, ask **what changed**. Most bugs are regressions — `git log` / `diff` / `blame` the suspect area, and if the repro is scriptable, `git bisect` it against that pass/fail signal to pin the exact commit. The offending diff is often the whole answer.
 
 ## 2. Know the fail path
 
