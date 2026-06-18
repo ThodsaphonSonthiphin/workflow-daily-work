@@ -1,7 +1,7 @@
 # Diagram convention
 
-Canonical wording of the marketplace diagram convention (ADRs 0005–0010 at the
-marketplace repo root). Skills point here; nothing else restates these rules.
+Canonical wording of the marketplace diagram convention (ADRs 0005–0010, 0012 at
+the marketplace repo root). Skills point here; nothing else restates these rules.
 To change the convention, change THIS file only.
 
 ## Two render targets
