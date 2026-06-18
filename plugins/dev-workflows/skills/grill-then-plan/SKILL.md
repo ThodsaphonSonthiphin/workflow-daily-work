@@ -104,6 +104,32 @@ can be answered by exploring the codebase, explore the codebase instead of askin
   shape, technology choice, naming, scope boundary, safety mechanism. When in
   doubt, write the ADR. A short ADR is better than a missing one.
 
+## Step 4.5 — Recap & confirm
+
+When grilling converges, **before writing the spec**, play the design back as a
+**terminal recap** so the user can confirm it is captured correctly. Render it as a
+terminal diagram per the *Terminal diagrams* family in
+`${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md` (Unicode box-drawing,
+vertical, ≲ 50 columns, inside a fenced block — never Mermaid, which does not render
+live in a terminal):
+
+- **Emit a flowchart of the grilled decisions — mandatory.** One box per decision in
+  the order they were resolved, showing the chosen option, connected top-to-bottom.
+  Every grilling session produces decisions, so this diagram always appears.
+- **Emit a sequence of the runtime interaction — optional.** Show it only when the
+  design has a genuine interaction (≥ 2 actors exchanging messages). Omit it for a
+  pure data-model or config design — never force a one-actor diagram.
+
+Then ask: **"Does this capture the design?"**
+
+- If the user **confirms**, continue to Step 5.
+- If the user **corrects** anything, return to Step 2, grill the disputed point, then
+  re-run this recap. Loop until confirmed.
+
+This is a cheap checkpoint on the *decision set* before the spec exists; it is
+distinct from Step 5's gate, which approves the *written spec*. Do not write the spec
+until the recap is confirmed.
+
 ## Step 5 — Write the design spec
 
 Once understanding is shared, write the design to
