@@ -96,6 +96,10 @@ a monospace terminal.
 An interactive skill MAY carry one terminal diagram of its process when prose
 alone is hard to scan. It is optional per skill, not mandatory like Rule 1.
 
+A skill MAY also mandate one for itself: when it does, type-match it the same way
+Rule 2 does — a flowchart of its decisions is mandatory, a sequence of its
+interaction is optional.
+
 ### Style
 
 - **Unicode box-drawing** characters (`┌ ─ │ ▼ ▶ ① ■`), not Mermaid, not raw ASCII art.
