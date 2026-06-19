@@ -33,6 +33,7 @@ Dependency: PyYAML (import name `yaml`).
 """
 
 import argparse
+import copy
 import json
 import os
 import subprocess
@@ -213,7 +214,7 @@ def upsert_state(existing, station=None, status=None, ticket=None, topic=None,
     repeated --blocker values into one list). `now` is injectable for tests;
     defaults to the current local time in ISO-8601.
     """
-    state = dict(existing) if existing else {}
+    state = copy.deepcopy(existing) if existing else {}
 
     state["type"] = "daily-state"
     state["schema_version"] = SCHEMA_VERSION
@@ -341,7 +342,7 @@ def machine_json(frontmatter):
     fm.setdefault("status", None)
     focus = dict(fm.get("focus") or {})
     focus.setdefault("topic", None)
-    focus.setdefault("ticket", focus.get("ticket"))
+    focus.setdefault("ticket", None)
     fm["focus"] = focus
     nxt = dict(fm.get("next") or {})
     nxt.setdefault("action", None)

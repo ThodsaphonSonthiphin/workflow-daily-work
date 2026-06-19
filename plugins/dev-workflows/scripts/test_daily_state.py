@@ -140,6 +140,18 @@ def test_upsert_does_not_mutate_input():
     assert json.dumps(first, sort_keys=True) == snapshot
 
 
+def test_upsert_does_not_alias_nested_focus_or_next():
+    first = ds.upsert_state(None, station="work", ticket="6125", topic="cargo-group status",
+                            next_action="grill-then-plan", now="2026-06-19T17:40:00+07:00")
+    # change ONLY status -> focus/next branches are not taken
+    second = ds.upsert_state(first, status="blocked", now="2026-06-19T18:00:00+07:00")
+    # mutating the result's nested dicts must not bleed back into `first`
+    second["focus"]["topic"] = "MUTATED"
+    second["next"]["action"] = "MUTATED"
+    assert first["focus"]["topic"] == "cargo-group status"
+    assert first["next"]["action"] == "grill-then-plan"
+
+
 def test_upsert_replaces_blockers_list():
     first = ds.upsert_state(None, status="blocked", topic="x", next_action="y",
                             blockers=["waiting on QA"], now="2026-06-19T17:40:00+07:00")
