@@ -168,11 +168,11 @@ Adapt these insertion zones:
 
 ### Phase 4.5 — Save and report
 
-Default save path:
+**Save the artifact INSIDE the project, in a dedicated folder** — never scatter walkthroughs into a personal machine path. Default save path:
 
-- **For a specific project:** `<workspace-root>/docs/YYYY-MM-DD-<topic>-walkthrough.html` (diagram mode) or `<workspace-root>/docs/<topic>-explained.html` (tables mode)
-- **For ad-hoc explanations on this user's machine:** `c:/Repo2/t/<topic>-walkthrough.html`
-- **If the user specified a path:** use it
+- **In a project (default):** `<workspace-root>/docs/walkthroughs/YYYY-MM-DD-<topic>-walkthrough.html` (diagram mode) or `<workspace-root>/docs/walkthroughs/<topic>-explained.html` (tables mode). **Create `docs/walkthroughs/` if it does not exist** (e.g. `mkdir -p`) — keeping walkthrough HTML in its own folder so it does not mix with specs, ADRs, and plans in the `docs/` root.
+- **If the user specified a path:** use it.
+- **No project / no repo at all** (a throwaway question with nowhere to put it): use the session scratchpad directory and tell the user the absolute path. Do **not** default to a hard-coded personal path like `c:/Repo2/t/`.
 
 Report back:
 - The absolute path of the generated file

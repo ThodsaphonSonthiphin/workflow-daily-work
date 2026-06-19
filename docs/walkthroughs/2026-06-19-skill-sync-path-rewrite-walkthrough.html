@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>ทำไม ~/.claude/skills ถึง "ต่าง" จาก repo — path-rewrite drift</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 20px; background: #0a0e14; color: #e0e6ed;
+         font-family: 'Segoe UI', 'Sukhumvit Set', 'Tahoma', sans-serif; }
+  .container { max-width: 1400px; margin: 0 auto; }
+  h1 { color: #5fb4ff; font-size: 22px; margin: 0 0 4px; }
+  h2 { color: #b8c4cf; font-size: 13px; font-weight: 400; margin: 0 0 18px; }
+  code { background: #1a2330; padding: 1px 5px; border-radius: 3px;
+         font-family: 'Consolas', monospace; color: #ffd479; font-size: 0.9em; }
+  .step-progress { display: flex; gap: 4px; justify-content: center; margin: 12px 0 14px; flex-wrap: wrap; }
+  .step-dot { width: 22px; height: 22px; border-radius: 50%; background: #1a2330; color: #6b7785;
+              display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; transition: all 0.3s; }
+  .step-dot.done    { background: #1a3a5f; color: #5fb4ff; }
+  .step-dot.current { background: #5fb4ff; color: #0a0e14; transform: scale(1.2); }
+  .narration { background: #1a2330; padding: 12px 18px; border-radius: 6px; border-left: 3px solid #5fb4ff;
+               margin-bottom: 16px; font-size: 14.5px; line-height: 1.65; min-height: 64px; }
+  .narration.warn    { border-color: #ffaa00; background: #2a2018; }
+  .narration.error   { border-color: #ff5757; background: #2a1818; }
+  .narration.success { border-color: #4ade80; background: #182a1f; }
+  .narration.magic   { border-color: #b070ff; background: #1f1830; }
+  .narration .step-title { color: #5fb4ff; font-weight: 700; font-size: 16px; display: block; margin-bottom: 6px; }
+  .narration.warn    .step-title { color: #ffd479; }
+  .narration.error   .step-title { color: #ff8888; }
+  .narration.success .step-title { color: #a3e8b9; }
+  .narration.magic   .step-title { color: #d4a4ff; }
+  .diagram-wrapper { background: #0f1419; border: 1px solid #1a2330; border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+  svg.diagram { width: 100%; height: auto; display: block; }
+  .comp rect { fill: #1a2330; stroke: #2a3441; stroke-width: 2; transition: all 0.4s; }
+  .comp .comp-title { font-family: 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; fill: #b8c4cf; transition: fill 0.4s; }
+  .comp .comp-sub { font-family: 'Consolas', monospace; font-size: 11px; fill: #6b7785; transition: fill 0.4s; }
+  .comp .comp-val { font-family: 'Consolas', monospace; font-size: 12px; fill: #ffd479; transition: fill 0.4s; }
+  .comp.active rect { fill: #1a3a5f; stroke: #5fb4ff; stroke-width: 3; filter: drop-shadow(0 0 8px #5fb4ff88); }
+  .comp.active .comp-title { fill: #7ed4ff; } .comp.active .comp-sub { fill: #b8c4cf; }
+  .comp.firing rect { fill: #2a2818; stroke: #ffd479; stroke-width: 3; filter: drop-shadow(0 0 8px #ffd47988); animation: pulse-fire 1.2s ease-in-out infinite; }
+  .comp.firing .comp-title { fill: #ffd479; }
+  @keyframes pulse-fire { 0%,100% { filter: drop-shadow(0 0 8px #ffd47988); } 50% { filter: drop-shadow(0 0 16px #ffd479dd); } }
+  .comp.locked rect { fill: #2a1a3a; stroke: #b070ff; stroke-width: 3; filter: drop-shadow(0 0 10px #b070ff88); }
+  .comp.locked .comp-title { fill: #d4a4ff; } .comp.locked .comp-val { fill: #d4a4ff; }
+  .comp.blocked rect { fill: #2a1f10; stroke: #ffaa00; stroke-width: 2; animation: blink-block 1s ease-in-out infinite alternate; }
+  .comp.blocked .comp-title { fill: #ffaa44; }
+  @keyframes blink-block { from { opacity: 0.55; } to { opacity: 0.9; } }
+  .comp.done rect { fill: #18301f; stroke: #4ade80; stroke-width: 2; }
+  .comp.done .comp-title { fill: #a3e8b9; } .comp.done .comp-val { fill: #a3e8b9; }
+  .comp.error rect { fill: #2a1818; stroke: #ff5757; stroke-width: 3; filter: drop-shadow(0 0 10px #ff575788); }
+  .comp.error .comp-title { fill: #ff8888; } .comp.error .comp-val { fill: #ff8888; }
+  .comp.dimmed { opacity: 0.32; }
+  .arrow { fill: none; stroke: #3d4a5f; stroke-width: 2; transition: stroke 0.3s, stroke-width 0.3s; }
+  .arrow.active { stroke: #5fb4ff; stroke-width: 3; stroke-dasharray: 8 4; animation: flow 1.8s linear infinite; }
+  .arrow.magic { stroke: #b070ff; stroke-width: 3.5; filter: drop-shadow(0 0 4px #b070ff); stroke-dasharray: 8 4; animation: flow 1.8s linear infinite; }
+  .arrow.done  { stroke: #4ade80; stroke-width: 2.5; }
+  .arrow.error { stroke: #ff5757; stroke-width: 3; stroke-dasharray: 6 4; }
+  .arrow.dimmed { opacity: 0.18; }
+  @keyframes flow { to { stroke-dashoffset: -24; } }
+  .flow-label { fill: #ffd479; font-family: 'Consolas', monospace; font-size: 12px; font-weight: 700; pointer-events: none; }
+  .flow-label-bg { fill: #2a2818; stroke: #ffd479; stroke-width: 1.5; }
+  .flow-label-group { opacity: 0; transition: opacity 0.3s; }
+  .flow-label-group.show { opacity: 1; }
+  .flow-label-group.magic .flow-label { fill: #d4a4ff; } .flow-label-group.magic .flow-label-bg { fill: #1f1830; stroke: #b070ff; }
+  .flow-label-group.error .flow-label { fill: #ff8888; } .flow-label-group.error .flow-label-bg { fill: #2a1818; stroke: #ff5757; }
+  .controls { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+  button { background: #5fb4ff; color: #0a0e14; border: none; padding: 10px 22px; border-radius: 6px;
+           font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.1s; }
+  button:hover:not(:disabled) { background: #7ec3ff; } button:active:not(:disabled) { transform: scale(0.97); }
+  button.tertiary { background: #2a3441; color: #e0e6ed; } button.tertiary:hover:not(:disabled) { background: #3a4451; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .step-badge { background: #5fb4ff; color: #0a0e14; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; display: inline-block; margin-right: 8px; }
+  .extra-panel { background: #1a2330; border-radius: 6px; padding: 14px 18px; margin-bottom: 16px; font-size: 14px; line-height: 1.6; }
+  .extra-panel.race { background: #2a1818; border: 2px solid #ff5757; }
+  .extra-panel.summary { background: #182a1f; border: 2px solid #4ade80; }
+  .extra-panel.question { background: #1f1830; border: 2px solid #b070ff; }
+  .extra-panel .ep-title { font-weight: 700; margin-bottom: 6px; }
+  .extra-panel.race .ep-title { color: #ff8888; } .extra-panel.summary .ep-title { color: #a3e8b9; } .extra-panel.question .ep-title { color: #d4a4ff; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>ทำไม <code>~/.claude/skills/</code> ถึง "ต่าง" จาก repo — เรื่องของ path-rewrite ที่หลอกตา</h1>
+  <h2>กด <strong>ถัดไป →</strong> ไล่ดูทีละ step ว่า diff หลอกยังไง และสาเหตุจริงคือ sync rewrite path ไม่ทั่วทุก skill</h2>
+
+  <div class="step-progress" id="stepProgress"></div>
+
+  <div class="narration" id="narration">
+    <span class="step-badge" id="stepBadge">Step 0 / 0</span>
+    <span class="step-title" id="sceneTitle">เริ่มต้น</span>
+    <div id="narrationBody"></div>
+  </div>
+
+  <div class="diagram-wrapper">
+    <svg class="diagram" viewBox="0 0 1120 620" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrowhead"        markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#3d4a5f"/></marker>
+        <marker id="arrowhead-active" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#5fb4ff"/></marker>
+        <marker id="arrowhead-magic"  markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#b070ff"/></marker>
+        <marker id="arrowhead-done"   markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#4ade80"/></marker>
+        <marker id="arrowhead-error"  markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#ff5757"/></marker>
+      </defs>
+
+      <!-- arrows first (under boxes) -->
+      <path class="arrow" id="arrRepoSync" d="M 290 300 L 418 300" marker-end="url(#arrowhead)"/>
+      <path class="arrow" id="arrSyncNA"   d="M 640 278 Q 748 150 848 118" marker-end="url(#arrowhead)"/>
+      <path class="arrow" id="arrSyncGTP"  d="M 640 300 L 848 298" marker-end="url(#arrowhead)"/>
+      <path class="arrow" id="arrSyncPM"   d="M 640 322 Q 748 472 848 478" marker-end="url(#arrowhead)"/>
+      <path class="arrow" id="arrCpPM"     d="M 160 362 Q 520 600 848 500" marker-end="url(#arrowhead)"/>
+      <path class="arrow" id="arrNAConv"   d="M 850 152 Q 560 300 545 428" marker-end="url(#arrowhead)"/>
+      <path class="arrow" id="arrGTPConv"  d="M 850 330 Q 660 400 638 430" marker-end="url(#arrowhead)"/>
+
+      <!-- components -->
+      <g class="comp" id="compRepo">
+        <rect x="40" y="240" width="250" height="120" rx="10"/>
+        <text class="comp-title" x="165" y="282" text-anchor="middle">📦 repo (source of truth)</text>
+        <text class="comp-sub"   x="165" y="306" text-anchor="middle">dev-workflows/skills/&lt;skill&gt;</text>
+        <text class="comp-val"   x="165" y="332" text-anchor="middle" id="repoPtr">ptr → plugin path</text>
+      </g>
+      <g class="comp" id="compSync">
+        <rect x="420" y="250" width="220" height="100" rx="10"/>
+        <text class="comp-title" x="530" y="288" text-anchor="middle">🔁 personal-skills sync</text>
+        <text class="comp-sub"   x="530" y="310" text-anchor="middle">copy + rewrite</text>
+        <text class="comp-val"   x="530" y="333" text-anchor="middle" id="syncState">idle</text>
+      </g>
+      <g class="comp" id="compNA">
+        <rect x="850" y="70" width="250" height="95" rx="10"/>
+        <text class="comp-title" x="975" y="104" text-anchor="middle">📁 naming-audit</text>
+        <text class="comp-sub"   x="975" y="126" text-anchor="middle">~/.claude/skills/</text>
+        <text class="comp-val"   x="975" y="150" text-anchor="middle" id="naPtr">ptr → ?</text>
+      </g>
+      <g class="comp" id="compGTP">
+        <rect x="850" y="250" width="250" height="95" rx="10"/>
+        <text class="comp-title" x="975" y="284" text-anchor="middle">📁 grill-then-plan</text>
+        <text class="comp-sub"   x="975" y="306" text-anchor="middle">~/.claude/skills/</text>
+        <text class="comp-val"   x="975" y="330" text-anchor="middle" id="gtpPtr">ptr → ?</text>
+      </g>
+      <g class="comp" id="compPM">
+        <rect x="850" y="430" width="250" height="95" rx="10"/>
+        <text class="comp-title" x="975" y="464" text-anchor="middle">📁 post-mortem</text>
+        <text class="comp-sub"   x="975" y="486" text-anchor="middle">~/.claude/skills/</text>
+        <text class="comp-val"   x="975" y="510" text-anchor="middle" id="pmPtr">ptr → ?</text>
+      </g>
+      <g class="comp" id="compConv">
+        <rect x="420" y="428" width="250" height="92" rx="10"/>
+        <text class="comp-title" x="545" y="462" text-anchor="middle" style="font-size:13px">📄 diagram-convention.md</text>
+        <text class="comp-sub"   x="545" y="484" text-anchor="middle">~/.claude/skills/ (มีจริง)</text>
+        <text class="comp-val"   x="545" y="508" text-anchor="middle">shared reference</text>
+      </g>
+
+      <!-- flow labels -->
+      <g class="flow-label-group" id="lblRepoSync"><rect class="flow-label-bg" x="312" y="278" width="92" height="22" rx="5"/><text class="flow-label" x="358" y="294" text-anchor="middle">skill files</text></g>
+      <g class="flow-label-group" id="lblSyncNA"><rect class="flow-label-bg" x="700" y="150" width="96" height="22" rx="5"/><text class="flow-label" x="748" y="166" text-anchor="middle">rewrite ✓</text></g>
+      <g class="flow-label-group" id="lblSyncGTP"><rect class="flow-label-bg" x="686" y="270" width="120" height="22" rx="5"/><text class="flow-label" x="746" y="286" text-anchor="middle">no rewrite ✗</text></g>
+      <g class="flow-label-group" id="lblCpPM"><rect class="flow-label-bg" x="430" y="556" width="196" height="22" rx="5"/><text class="flow-label" x="528" y="572" text-anchor="middle">raw cp — ข้าม sync</text></g>
+    </svg>
+  </div>
+
+  <div class="extra-panel question hidden" id="questionPanel">
+    <div class="ep-title">💡 คำถามสำคัญ — ตอบในใจก่อนกดต่อ</div>
+    ถ้าไฟล์ต่างกัน <b>แค่ 1 บรรทัด</b> (path ของ diagram-convention) — แล้ว <b>ใคร</b> เป็นคนเขียน path ใหม่?
+    มันคือ "งานที่หาย/ยังไม่ commit" จริงไหม หรือเป็น sync ที่ทำงานถูกต้อง? และทำไม <code>grill-then-plan</code> ถึง
+    <b>ไม่</b> ต่างจาก repo เลย ทั้งที่ผ่าน sync ตัวเดียวกัน?
+  </div>
+
+  <div class="extra-panel race hidden" id="racePanel">
+    <div class="ep-title">⚠️ ถ้า "แก้" แบบผิด: เอา repo ไปทับ local ทุก skill</div>
+    ตอนแรกผมเกือบเสนอให้ reconcile โดยมองว่า "local คือ source ที่ใหม่กว่า" — ถ้าทำกลับด้าน (เอา repo
+    ทับ local ทุกอัน) จะ <b>ทับ rewrite ที่ถูกต้อง</b> ของ <code>naming-audit</code>/<code>study-design-verify</code> ทิ้ง
+    → ทุก skill กลายเป็น <code>${CLAUDE_PLUGIN_ROOT}</code> ที่ resolve ไม่ได้ → <b>dead pointer ทั้งกระดาน</b> แย่กว่าเดิม
+  </div>
+
+  <div class="extra-panel summary hidden" id="summaryPanel">
+    <div class="ep-title">📐 สรุป + trade-off</div>
+    <b>แก้ทันที (ทำแล้ว):</b> normalize pointer ใน personal copies → <code>~/.claude/skills/diagram-convention.md</code>
+    (post-mortem ที่ผมเผลอทับ + grill-then-plan + debug-mantra) — verify เหลือ 0 ไฟล์ที่ยังชี้ plugin path<br/>
+    <b>แก้ถาวร:</b> เขียน sync script ที่ copy + rewrite <b>แบบ deterministic ทุกไฟล์</b> (ไม่ใช่ทำมือทีละอัน) → กัน rewrite หลุด + กัน raw-cp ทับ<br/>
+    <b>Trade-off ที่ต้องรับ:</b> repo คงรูปแบบ <code>${CLAUDE_PLUGIN_ROOT}/references/…</code> ไว้ (ถูกต้องสำหรับการแจกแบบ plugin)
+    → repo กับ personal จะต่างกัน <b>1 บรรทัดนี้เสมอโดยตั้งใจ</b> → <code>diff</code> ดิบจะ flag เสมอ <b>อย่าตกใจซ้ำ</b>
+  </div>
+
+  <div class="controls">
+    <button id="prevBtn" class="tertiary" disabled>← ย้อนกลับ</button>
+    <button id="nextBtn">ถัดไป →</button>
+    <button id="resetBtn" class="tertiary">↻ เริ่มใหม่</button>
+  </div>
+</div>
+
+<script>
+const COMPONENTS = ['compRepo','compSync','compNA','compGTP','compPM','compConv'];
+const ARROWS     = ['arrRepoSync','arrSyncNA','arrSyncGTP','arrSyncPM','arrCpPM','arrNAConv','arrGTPConv'];
+const LABELS     = ['lblRepoSync','lblSyncNA','lblSyncGTP','lblCpPM'];
+
+function setComp(id, state){ const el=document.getElementById(id); if(el) el.setAttribute('class','comp'+(state?' '+state:'')); }
+function setArrow(id, state){ const el=document.getElementById(id); if(!el) return;
+  el.setAttribute('class','arrow'+(state?' '+state:''));
+  const m={'':'url(#arrowhead)','dimmed':'url(#arrowhead)','active':'url(#arrowhead-active)','magic':'url(#arrowhead-magic)','done':'url(#arrowhead-done)','error':'url(#arrowhead-error)'};
+  el.setAttribute('marker-end', m[state]||'url(#arrowhead)'); }
+function setLabel(id, show, variant){ const el=document.getElementById(id); if(!el) return;
+  el.setAttribute('class','flow-label-group'+(variant?' '+variant:'')+(show?' show':'')); }
+function setText(id, text){ const el=document.getElementById(id); if(el) el.textContent=text; }
+function show(id){ document.getElementById(id).classList.remove('hidden'); }
+function hide(id){ document.getElementById(id).classList.add('hidden'); }
+function setNarration(cls, title, body){ const n=document.getElementById('narration');
+  n.className='narration'+(cls?' '+cls:''); document.getElementById('sceneTitle').textContent=title;
+  document.getElementById('narrationBody').innerHTML=body; }
+
+function clearAllStates(){
+  COMPONENTS.forEach(c=>setComp(c,'')); ARROWS.forEach(a=>setArrow(a,'')); LABELS.forEach(l=>setLabel(l,false));
+  setText('repoPtr','ptr → plugin path'); setText('syncState','idle');
+  setText('naPtr','ptr → ?'); setText('gtpPtr','ptr → ?'); setText('pmPtr','ptr → ?');
+  document.querySelectorAll('.extra-panel').forEach(el=>el.classList.add('hidden'));
+}
+
+const scenes = [
+  // 0 — overview
+  () => {
+    setNarration('', 'เริ่มต้น — ภาพรวม', `
+      <code>repo</code> (workflow-daily-work / dev-workflows) คือ <b>source of truth</b> ของ skill.
+      มี <b>sync</b> คัดลอก skill ไปไว้ที่ <code>~/.claude/skills/</code> — ที่ที่ session โหลด skill จริง.
+      และมีไฟล์ร่วม <code>diagram-convention.md</code> อยู่ที่ <code>~/.claude/skills/</code>.
+      <br/>กด <b>ถัดไป →</b> เพื่อดูว่าทำไม <code>diff</code> ถึงทำให้ผมเข้าใจผิดตอนแรก.`);
+  },
+  // 1 — symptom
+  () => {
+    setNarration('warn', 'Step 1 — อาการที่เห็น', `
+      ผมรัน <code>diff</code> ระหว่าง repo กับ <code>~/.claude/skills/naming-audit</code> →
+      ต่างกัน <b>170 บรรทัด</b> และ mtime ของ local = <b>Jun 18</b> ใหม่กว่า commit ล่าสุดของ repo = <b>Jun 12</b>.
+      ดูเหมือน local มีของที่ repo ไม่มี.`);
+    setComp('compRepo','active'); setComp('compNA','active');
+    setText('repoPtr','85 บรรทัด · Jun 12'); setText('naPtr','85 บรรทัด · Jun 18');
+  },
+  // 2 — hypothesis 1
+  () => {
+    setNarration('warn', 'Step 2 — สมมติฐาน 1: "local ใหม่กว่า มีงานที่ยังไม่ commit"', `
+      สัญชาตญาณแรก (และที่ผมเผลอเตือนคุณไป): local ถูกแก้ทีหลัง มีงานที่ยังไม่ได้ commit กลับ repo —
+      <b>อาจมีงานหาย!</b> อิงจาก mtime ที่ใหม่กว่า + diff ที่ใหญ่. <i>นี่คือกับดัก.</i>`);
+    setComp('compNA','error'); setText('naPtr','งานใหม่? หาย?');
+    setComp('compRepo','active');
+  },
+  // 3 — falsify H1
+  () => {
+    setNarration('error', 'Step 3 — Falsify สมมติฐาน 1', `
+      แต่ line count = <b>85 / 85 เท่ากันเป๊ะ</b>. ถ้าเนื้อหาต่างจริงจำนวนบรรทัดมักไม่เท่า.
+      <code>170 = 85 + 85</code> → diff นับ <b>ทุกบรรทัด</b> เป็นทั้งลบและเพิ่ม. และ mtime = เวลาที่ <b>เขียนไฟล์</b>
+      ไม่ใช่ <b>อายุของเนื้อหา</b>. → H1 ตาย.`);
+    setComp('compRepo','active'); setComp('compNA','active');
+    setText('repoPtr','85 บรรทัด'); setText('naPtr','85 บรรทัด (เท่ากัน!)');
+  },
+  // 4 — hypothesis 2
+  () => {
+    setNarration('warn', 'Step 4 — สมมติฐาน 2: line endings (CRLF vs LF)', `
+      "ทุกบรรทัดต่าง + จำนวนเท่ากัน" = ลายเซ็นคลาสสิกของ <b>line-ending</b> ต่างกัน (CRLF ↔ LF).
+      ถ้าใช่ ก็เป็นแค่ noise ไม่ใช่เนื้อหา.`);
+    setComp('compRepo','active'); setComp('compNA','active');
+  },
+  // 5 — falsify H2
+  () => {
+    setNarration('error', 'Step 5 — Falsify สมมติฐาน 2', `
+      เช็ค CR: <code>grep -c $'\\r'</code> = <b>0 / 0</b> (ทั้งคู่เป็น LF). และ
+      <code>diff --strip-trailing-cr</code> (ตัด CR ทิ้ง) <b>ยังต่าง 1 hunk</b>. → ไม่ใช่ line ending. H2 ตาย.
+      เหลือความจริง: ต่างกันจริงแค่ <b>1 บรรทัด</b>.`);
+    setComp('compRepo','active'); setComp('compNA','active');
+  },
+  // 6 — the real diff
+  () => {
+    setNarration('magic', 'Step 6 — ความจริง: ต่างแค่ path เดียว', `
+      บรรทัดเดียวที่ต่างคือ <b>path ของ diagram-convention</b>:<br/>
+      repo: <code>\${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md</code><br/>
+      local: <code>~/.claude/skills/diagram-convention.md</code><br/>
+      ค่านี้วิ่งจาก repo ผ่าน sync แล้ว <b>ถูกเขียนใหม่</b>.`);
+    setComp('compRepo','active'); setArrow('arrRepoSync','magic'); setLabel('lblRepoSync',true,'magic');
+    setComp('compSync','locked'); setText('syncState','copy + rewrite');
+    setText('repoPtr','ptr → plugin path'); setComp('compNA','active'); setText('naPtr','ptr → ~/.claude ✓');
+  },
+  // 7 — key question
+  () => {
+    setNarration('magic', 'Step 7 — คำถามสำคัญ', `
+      หยุดคิดก่อน: ใครเขียน path ใหม่? เป็นงานหาย หรือ sync ทำงาน <b>ถูกต้อง</b>?
+      และทำไม <code>grill-then-plan</code> ถึงไม่ต่างจาก repo เลย? (ดูกล่องคำถามด้านล่าง)`);
+    setComp('compSync','locked'); setText('syncState','copy + rewrite'); show('questionPanel');
+  },
+  // 8 — mechanism reveal
+  () => {
+    setNarration('success', 'Step 8 — กลไก: sync rewrite path ให้ resolve ได้', `
+      sync ไม่ได้ copy เฉยๆ — มัน <b>เขียน path ใหม่</b> จาก <code>\${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md</code>
+      → <code>~/.claude/skills/diagram-convention.md</code> เพื่อให้ pointer <b>resolve ได้</b> ใน personal env
+      (ที่ไม่มี <code>\${CLAUDE_PLUGIN_ROOT}</code>). → "drift" ของ naming-audit = <b>sync ทำงานถูก ไม่มีงานหาย</b>.`);
+    setComp('compRepo','done'); setArrow('arrRepoSync','done');
+    setComp('compSync','locked'); setText('syncState','rewrite ✓');
+    setArrow('arrSyncNA','active'); setLabel('lblSyncNA',true);
+    setComp('compNA','done'); setText('naPtr','ptr → ~/.claude ✓');
+    setArrow('arrNAConv','done'); setComp('compConv','active');
+  },
+  // 9 — the inconsistency
+  () => {
+    setNarration('error', 'Step 9 — ปัญหาจริงข้อ 1: rewrite ไม่ทั่ว', `
+      sync ทำ rewrite ให้ <code>naming-audit</code> + <code>study-design-verify</code> แต่ <b>ไม่ทำ</b> กับ
+      <code>grill-then-plan</code> + <code>debug-mantra</code> → สองตัวนี้เหลือ <code>\${CLAUDE_PLUGIN_ROOT}</code>
+      ที่ <b>resolve ไม่ได้</b> ใน personal env = <b>dead pointer</b> (ไม่พังตอนรัน เพราะเป็นแค่ตัวชี้เอกสาร ไม่ได้ถูกอ่านตอนโหลด).`);
+    setComp('compSync','active'); setText('syncState','rewrite ไม่ทั่ว');
+    setComp('compNA','done'); setText('naPtr','ptr → ~/.claude ✓'); setArrow('arrNAConv','done'); setComp('compConv','active');
+    setArrow('arrSyncGTP','active'); setLabel('lblSyncGTP',true);
+    setComp('compGTP','error'); setText('gtpPtr','ptr → plugin path ✗'); setArrow('arrGTPConv','error');
+  },
+  // 10 — my clobber
+  () => {
+    setNarration('error', 'Step 10 — ปัญหาจริงข้อ 2: raw cp ของผมเองทับ pointer', `
+      ตอน sync งานนี้ ผมใช้ <code>cp</code> ดิบ copy <code>post-mortem</code> จาก repo → personal <b>ข้าม sync</b>
+      → ทับ pointer ที่เคยถูกของ post-mortem กลับเป็น <code>\${CLAUDE_PLUGIN_ROOT}</code> form.
+      เป็น regression ที่ <b>ผมก่อเอง</b> ในเซสชันนี้.`);
+    setComp('compRepo','active'); setArrow('arrCpPM','error'); setLabel('lblCpPM',true,'error');
+    setArrow('arrSyncPM','dimmed'); setComp('compSync','dimmed');
+    setComp('compPM','error'); setText('pmPtr','plugin path ✗ (โดนทับ)');
+  },
+  // 11 — counter-example
+  () => {
+    setNarration('warn', 'Step 11 — ถ้า "แก้" แบบผิดทาง', `
+      ถ้าเชื่อสมมติฐานแรก แล้ว "reconcile" โดยเอา repo ทับ local ทุก skill → จะ <b>ทับ rewrite ที่ถูกของ
+      naming-audit/SDV ทิ้ง</b> ด้วย → ทุกตัวกลายเป็น dead pointer = <b>แย่กว่าเดิม</b>. (ดูกล่องแดงด้านล่าง)`);
+    setComp('compNA','error'); setText('naPtr','จะโดนทับ ✗');
+    setComp('compGTP','error'); setText('gtpPtr','✗'); setComp('compPM','error'); setText('pmPtr','✗');
+    setArrow('arrGTPConv','error'); show('racePanel');
+  },
+  // 12 — resolution + trade-off
+  () => {
+    setNarration('success', 'Step 12 — ทางแก้ + trade-off', `
+      แก้ทันที (ทำแล้ว): normalize pointer ของ post-mortem + grill-then-plan + debug-mantra →
+      <code>~/.claude/skills/diagram-convention.md</code> (verify เหลือ 0 ไฟล์ที่ชี้ plugin path).
+      แก้ถาวร: sync script ที่ rewrite <b>ทุกไฟล์แบบ deterministic</b>. Trade-off: repo คง
+      <code>\${CLAUDE_PLUGIN_ROOT}</code> ไว้ → diff ดิบจะต่าง 1 บรรทัดนี้ <b>เสมอโดยตั้งใจ</b> — อย่าตกใจซ้ำ.`);
+    setComp('compRepo','done'); setArrow('arrRepoSync','done'); setComp('compSync','done'); setText('syncState','rewrite ทุกไฟล์');
+    setArrow('arrSyncNA','done'); setArrow('arrSyncGTP','done'); setArrow('arrSyncPM','done');
+    setComp('compNA','done'); setText('naPtr','ptr → ~/.claude ✓');
+    setComp('compGTP','done'); setText('gtpPtr','ptr → ~/.claude ✓');
+    setComp('compPM','done'); setText('pmPtr','ptr → ~/.claude ✓');
+    setArrow('arrNAConv','done'); setArrow('arrGTPConv','done'); setComp('compConv','done');
+    show('summaryPanel');
+  }
+];
+
+const TOTAL = scenes.length - 1;
+let currentStep = 0;
+function buildProgressDots(){ const p=document.getElementById('stepProgress'); p.innerHTML='';
+  for(let i=0;i<=TOTAL;i++){ const d=document.createElement('div'); d.className='step-dot'; d.textContent=i; d.id='dot'+i; p.appendChild(d); } }
+function render(step){ clearAllStates(); if(scenes[step]) scenes[step]();
+  for(let i=0;i<=TOTAL;i++){ const d=document.getElementById('dot'+i); if(!d) continue; d.classList.remove('done','current'); if(i<step) d.classList.add('done'); if(i===step) d.classList.add('current'); }
+  document.getElementById('stepBadge').textContent=`Step ${step} / ${TOTAL}`;
+  document.getElementById('prevBtn').disabled = step===0; document.getElementById('nextBtn').disabled = step===TOTAL; }
+document.getElementById('prevBtn').onclick  = () => { if(currentStep>0){ currentStep--; render(currentStep); } };
+document.getElementById('nextBtn').onclick  = () => { if(currentStep<TOTAL){ currentStep++; render(currentStep); } };
+document.getElementById('resetBtn').onclick = () => { currentStep=0; render(0); };
+buildProgressDots(); render(0);
+</script>
+</body>
+</html>
