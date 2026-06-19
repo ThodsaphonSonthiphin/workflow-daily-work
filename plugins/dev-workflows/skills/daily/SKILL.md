@@ -34,10 +34,38 @@ station words and synonyms:
 | FILE | `file`, `filing`, `findings`, `tickets` |
 | REPORT | `report`, `status`, `update` |
 | WRAP | `wrap`, `done`, `end`, `finish`, `invoice` |
+| SAVE | `save`, `pause`, `checkpoint` |
 
-- **Match** → jump straight to that station (no menu).
+- **Match a station word** → jump straight to that station (no menu).
+- **Match a SAVE word** → run the **Save state** flow (below). SAVE is NOT a
+  numbered station and never shows the menu; it captures the resume-point and
+  returns.
 - **No argument, or no match** → show the menu. An unrecognized word is NEVER an
   error; show the menu with a one-line note ("didn't recognize '<word>'").
+
+## Welcome back (read state, before the menu)
+
+On **bare `/daily`** and on **`/daily start`**, BEFORE showing the menu or handing
+off to START, read the saved work-state. Run from any cwd inside the project:
+
+```bash
+python "${CLAUDE_PLUGIN_ROOT}/scripts/daily-state.py" show --json
+```
+
+- If the output is the literal text `no state yet` (a string, NOT JSON — it is
+  printed under both plain and `--json` modes), **skip silently** and go straight
+  to the menu / START. Never announce "no state."
+- Otherwise `json.loads` the output and read `updated`, `station`, `status`,
+  `focus`, and `next`. Compute the relative age yourself from `updated` (e.g.
+  "2h ago") — it is NOT stored in the file. Then print one **welcome-back** line,
+  the station in CAPS with its emoji, ticket if present:
+
+  > *Last session (2h ago): 🔧 WORK on #6125 — cause confirmed. Suggested next → grill-then-plan.*
+
+  Station emoji: ☀️ START · 🔧 WORK · 📋 FILE · 📣 REPORT · 🌙 WRAP.
+
+Then continue to the normal menu / START handoff. This is a read only — it never
+writes or commits.
 
 ## The menu (bare /daily)
 
@@ -53,18 +81,24 @@ Where are you in your day?
   5. 🌙  Wrapping up          — daily summary from my commits
 
 (Next time: /daily start · work · file · report · wrap)
+💾 Save state anytime: /daily save "<note>"
 ```
 
-The last line teaches the shortcuts — that is how users graduate from menu to
-argument.
+The `Next time` line teaches the station shortcuts; the 💾 line teaches the save
+accelerator — both graduate users from the menu. Save is a footer, not a sixth
+option: the circle stays five stations (ADR 0004).
 
 ## Stations
 
 ### 1. START
 
-Invoke the **`my-work`** skill from the ado-backlog plugin (`ado-backlog:my-work`).
-Mention the GitHub equivalent (`github-backlog`'s `github-my-work`) ONLY if the
-user asks for GitHub.
+First run the **Welcome back** read above (`daily-state.py show --json`) and, if
+state exists, print the one-line welcome-back BEFORE the handoff — so the user sees
+where they left off, then their board. Skip silently if there's no state.
+
+Then invoke the **`my-work`** skill from the ado-backlog plugin
+(`ado-backlog:my-work`). Mention the GitHub equivalent (`github-backlog`'s
+`github-my-work`) ONLY if the user asks for GitHub.
 
 ### 2. WORK
 
@@ -119,6 +153,66 @@ Invoke `management-talk`.
 Invoke `invoice-generator`. Run it every day — it builds the summary from git
 commits, so a day without invoicing still yields a Tribletext-ready record.
 
+After `invoice-generator` finishes, write the end-of-day snapshot. Ask the user (in
+one turn) for `station`, `status`, the active `focus` (topic, ticket if any), and
+the `next` step, then call:
+
+```bash
+python "${CLAUDE_PLUGIN_ROOT}/scripts/daily-state.py" set \
+  --station wrap --status <in-progress|blocked|paused|done> \
+  --topic "<what you were on>" --next-action "<next step>" \
+  [--ticket <id>] [--next-reason "<why>"] [--blocker "<text>" ...] \
+  --note "<end-of-day note>"
+```
+
+Then run the **Commit offer** below. This is the resume-point the next session
+reads on `/daily start`.
+
+## Save state (the `save` action)
+
+Reached by `/daily save`, `/daily pause`, or `/daily checkpoint` (see the argument
+table) — and surfaced as the 💾 menu footer. NOT a station: it captures the
+resume-point and returns; it never shows the menu or hands off to a station skill.
+
+1. **Find where it writes** — show the user the resolved path so there are no
+   surprises:
+   ```bash
+   python "${CLAUDE_PLUGIN_ROOT}/scripts/daily-state.py" resolve-path
+   ```
+   The script resolves `--path` flag → `DAILY_STATE_FILE` env → git root
+   (`git rev-parse --show-toplevel`). If the script reports it is **not in a git
+   repo**, ASK the user where to write (or to use cwd) and pass it via `--path`;
+   never fail.
+
+2. **Write the state** — pass only the fields you know; unset fields are preserved
+   (read-modify-write), and `updated` is stamped by the script:
+   ```bash
+   python "${CLAUDE_PLUGIN_ROOT}/scripts/daily-state.py" set \
+     --station <start|work|file|report|wrap> \
+     --status <in-progress|blocked|paused|done> \
+     --topic "<active work>" --next-action "<next step>" \
+     [--ticket <id>] [--next-reason "<why>"] [--blocker "<text>" ...] \
+     --note "<the note the user passed to /daily save>"
+   ```
+   `--topic` and `--next-action` are the required fields; the rest are optional.
+   The note from `/daily save "<note>"` goes in `--note` (appended to the body).
+
+3. **Offer commit** (see below), then return to whatever the user was doing.
+
+## Commit offer (assisted, never automatic)
+
+After ANY write (`save` or `wrap`), the skill writes the file first, then
+**explicitly asks** — it never commits on its own:
+
+> *Commit & push so the next session/machine sees it? (y/n)*
+
+- **No / declined** → leave the file on disk uncommitted. Done. (For a same-machine
+  resume this is usually fine — the file is already there.)
+- **Yes** → stage **only** `daily-state.md` (never other files), commit, and push.
+  Git lives in the skill, never in the script. Respect this workspace's git rules:
+  if the resolved path is a non-repo root or one of several sub-repos, confirm the
+  target repo with the user before committing.
+
 ## Graceful degradation
 
 Stations 1 and 3 route to skills in OTHER plugins. If the target plugin is not
@@ -135,6 +229,12 @@ ado-backlog is not installed. Install it with:
 
 - At most two questions before handoff (station + the one station question).
 - Never do the destination skill's job inline.
-- Unknown argument → menu, never an error.
+- Unknown argument → menu, never an error. `save`/`pause`/`checkpoint` route to
+  the Save flow, not a station.
+- The work-state file is read on bare `/daily` and `/daily start`, and written on
+  `/daily save` and `/daily wrap`. `daily-state.py` owns ALL YAML; the skill owns
+  git. Reads never write; writes always offer commit and never commit unprompted.
+- If `daily-state.py show` prints `no state yet`, skip the welcome-back silently —
+  it is never an error.
 - The full map lives in PLAYBOOK.md at the marketplace repo root — for humans;
   this skill is self-contained and never needs to read it.
