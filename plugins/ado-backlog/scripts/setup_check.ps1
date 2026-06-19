@@ -34,7 +34,7 @@ if (-not $dotnet) {
 # --- Python + openpyxl ---
 $py = (Get-Command python -ErrorAction SilentlyContinue)
 if (-not $py) {
-    Line "FAIL" "Python" "not found. Install Python 3.x and 'pip install openpyxl'"; $ok = $false
+    Line "FAIL" "Python" "not found. Install Python 3.x and 'pip install openpyxl pyyaml'"; $ok = $false
 } else {
     $v = python --version
     try {
@@ -42,6 +42,12 @@ if (-not $py) {
         if ($?) { Line "PASS" "Python + openpyxl" "$v, openpyxl ok" }
         else { Line "WARN" "openpyxl" "missing. Run: python -m pip install openpyxl" }
     } catch { Line "WARN" "openpyxl" "missing. Run: python -m pip install openpyxl" }
+    # --- PyYAML (daily-state.py frontmatter parse/emit) ---
+    try {
+        python -c "import yaml" 2>$null
+        if ($?) { Line "PASS" "PyYAML" "installed (daily-state.py)" }
+        else { Line "WARN" "PyYAML" "missing. Run: python -m pip install pyyaml" }
+    } catch { Line "WARN" "PyYAML" "missing. Run: python -m pip install pyyaml" }
 }
 
 # --- Claude Code CLI ---

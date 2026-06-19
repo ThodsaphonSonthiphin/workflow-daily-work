@@ -198,7 +198,8 @@ For a same-machine resume, committing is usually unnecessary — the file is alr
 6. Outside a git repo, the skill asks for a location instead of erroring.
 7. `references/daily-state-contract.md` documents every field in the example.
 8. dev-workflows version is identical in plugin.json and marketplace.json.
-9. PyYAML missing → `setup_check.ps1` reports it as a failed prerequisite.
+9. PyYAML missing → `setup_check.ps1` reports it (WARN, matching the openpyxl
+   convention — non-blocking, since the check lives in the ado-backlog plugin).
 
 ## Follow-ups (out of scope)
 
