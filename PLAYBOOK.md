@@ -96,10 +96,18 @@ invariant guards both entry points: **never plan a fix on an unverified cause.**
 
 ## /daily usage
 
-- **`/daily`** — shows the 5-station menu. Pick a number.
+- **`/daily`** — shows the 5-station menu. Pick a number. If a `daily-state.md`
+  exists at the repo root, `/daily` first prints a one-line **welcome-back** (where
+  you left off + the suggested next step) before the menu.
 - **`/daily <station>`** — jumps straight there: `start` · `work` · `file` ·
   `report` · `wrap` (synonyms accepted: `morning`, `stuck`, `findings`, `status`,
   `done`). An unrecognized word falls back to the menu — never an error.
+- **`/daily save "<note>"`** (synonyms `pause` · `checkpoint`) — the resume
+  accelerator, NOT a sixth station. Captures your circle position + the explicit
+  next step into `daily-state.md` (one per repo, at the git root) and offers to
+  commit. `/daily wrap` writes the same snapshot at end of day. The next session's
+  `/daily start` reads it back. Helper: `scripts/daily-state.py` owns the YAML;
+  git stays in the skill, assisted and never automatic (ADR 0014).
 
 ## Maintenance rule
 
