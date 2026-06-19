@@ -59,6 +59,9 @@ flowchart TD
     GTP2 --> FIX
     FIX --> PM["post-mortem"]
     PM --> MT["management-talk"]
+    WORK -- need a test-case suite --> GTC["generating-test-cases"]
+    PM -. regression case .-> GTC
+    GTC -. fails/TBD .-> FILEHINT["findings-to-ado-backlog"]
 ```
 
 | When… | Reach for |
@@ -72,14 +75,15 @@ flowchart TD
 | second opinion on a plan / PR / change | `scrutinize` / `dual-verifier` |
 | unfamiliar legacy codebase | `drive-to-legacy` |
 | unfamiliar Dynamics 365 / Dataverse org | `crm-archaeology` |
+| need a repeatable test-case suite (feature / change / fixed bug) | `generating-test-cases` |
 
 ### The debug chain (ADRs 0003 + 0011)
 
 ```
 something broke → debug-mantra (diagnose)
-   ├─ fix is mechanical/obvious   → fix → post-mortem → management-talk
+   ├─ fix is mechanical/obvious   → fix → post-mortem → generating-test-cases → management-talk
    └─ fix involves a design choice → grill-then-plan (document the decision FIRST)
-                                     → fix → post-mortem → management-talk
+                                     → fix → post-mortem → generating-test-cases → management-talk
 ```
 
 The chain flows into REPORTING by itself: post-mortem's output is what

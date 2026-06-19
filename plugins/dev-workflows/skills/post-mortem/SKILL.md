@@ -166,3 +166,4 @@ What this post-mortem does that the management-talk version didn't:
 - **State validation coverage honestly.** If you only tested one config, say so. Implying broader coverage is the failure mode that breeds repeat regressions.
 - **Get sign-off before posting to JIRA.** Print-only output needs no approval. Never post to non-JIRA destinations from this skill.
 - **One iteration is normal, three is a smell.** If the user is still revising on the third pass, ask what specific section is wrong — don't keep tweaking blindly.
+- **Offer a regression test case.** After a fixed-and-validated bug, hand off to `generating-test-cases` to capture a regression case from this fix (which can then flow to the backlog). The post-mortem records *what broke and why*; the regression case is what keeps it from breaking again.

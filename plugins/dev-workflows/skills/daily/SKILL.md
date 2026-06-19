@@ -11,7 +11,7 @@ description: >-
   hands off to the right skill: ado-backlog:my-work, the situational toolbox
   (grill-then-plan, debug-mantra, study-design-verify, naming-audit,
   fit-gap-analysis, problem-description, ticket-trace, scrutinize, dual-verifier,
-  drive-to-legacy, crm-archaeology), findings-to-ado-backlog or
+  drive-to-legacy, crm-archaeology, generating-test-cases), findings-to-ado-backlog or
   ado-create-work-items (github-backlog twins on request), management-talk, or
   invoice-generator.
 ---
@@ -81,13 +81,14 @@ Ask ONE question — "What's happening?" — with these options, then hand off:
 | wanting a second opinion | `scrutinize` (plans/PRs) or `dual-verifier` (completed work) |
 | facing an unfamiliar legacy codebase | `drive-to-legacy` |
 | facing an unfamiliar Dynamics 365 / Dataverse org | `crm-archaeology` |
+| wanting a repeatable test-case suite (feature / change / fixed bug) | `generating-test-cases` |
 
 **Debug chain (ADRs 0003 + 0011):** after `debug-mantra` produces a diagnosis, ask:
 *"Does the fix involve a design choice (multiple viable approaches with
 trade-offs)?"*
-- **No (mechanical fix)** → fix → `post-mortem` → offer `management-talk`.
+- **No (mechanical fix)** → fix → `post-mortem` → offer `generating-test-cases` (regression case) → `management-talk`.
 - **Yes** → `grill-then-plan` to capture the decision FIRST → fix →
-  `post-mortem` → offer `management-talk`.
+  `post-mortem` → offer `generating-test-cases` (regression case) → `management-talk`.
 
 It runs both ways: if a user enters `grill-then-plan` directly to design a fix for
 a current malfunction whose cause isn't verified yet, it hands off to `debug-mantra`
