@@ -52,6 +52,21 @@
       "license": "MIT",
       "category": "development",
       "keywords": ["github", "issues", "backlog", "work-items", "triage"]
+    },
+    {
+      "name": "react-workflows",
+      "source": "./plugins/react-workflows",
+      "description": "Frontend structure conventions for React/TSX work. Ships react-structure: per-component file separation (UI .tsx / hook .ts / type.ts / optional Redux slice), a TypeScript + Redux Toolkit + MUI + DataGridPremium stack, and a planning flowchart before code. Opt-in — install only when working on a React project so it does not trigger during backend/CRM work.",
+      "version": "0.1.0",
+      "author": {
+        "name": "ThodsaphonSonthiphin",
+        "url": "https://github.com/ThodsaphonSonthiphin"
+      },
+      "homepage": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+      "repository": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+      "license": "MIT",
+      "category": "development",
+      "keywords": ["react", "tsx", "frontend", "component-structure", "hooks", "mui", "redux-toolkit", "datagrid"]
     }
   ]
 }
