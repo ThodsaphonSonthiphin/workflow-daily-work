@@ -64,4 +64,22 @@ plugins/ado-backlog/
 ├── examples/                          # sample findings + backlog_input
 ├── README.md
 └── QUICKSTART.md
+scripts/sync-personal-skills.ps1       # mirror dev-workflows skills into ~/.claude/skills
 ```
+
+## Maintaining a personal `~/.claude/skills/` mirror (optional)
+
+If you keep dev-workflows skills as personal copies under `~/.claude/skills/`
+(instead of, or alongside, the marketplace install), run the sync after pulling.
+It mirrors each skill you already have personally and rewrites the
+`${CLAUDE_PLUGIN_ROOT}/...` references to their personal paths so they resolve
+(e.g. `${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md` →
+`~/.claude/skills/diagram-convention.md`):
+
+```text
+pwsh ./scripts/sync-personal-skills.ps1            # sync
+pwsh ./scripts/sync-personal-skills.ps1 -DryRun    # preview, write nothing
+```
+
+It only touches skills that exist in **both** the repo and your personal dir,
+never adds or removes skills sourced from other plugins, and is idempotent.
