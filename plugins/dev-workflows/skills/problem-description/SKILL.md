@@ -16,6 +16,34 @@ Generate a self-contained HTML page that explains a technical problem using:
 
 **Core principle:** The reader should be able to point to any specific element at each step and say *"yes I understand why this is in this state right now."*
 
+## Output location — REQUIRED (do this, don't default elsewhere)
+
+The finished `.html` **must** land inside the **project/workspace the user has open in their
+editor**. Identify that project from the workspace the user is working in — **not** from your
+own current working directory, which on some harnesses (e.g. Antigravity) is an agent
+scratch/sandbox dir that is *different* from the user's project. Save it to:
+
+> **`<project-root>/docs/problem-description/<name>.html`** — where `<project-root>` is the
+> user's open project. Create `docs/problem-description/` if missing (`mkdir -p`). `<name>` =
+> `YYYY-MM-DD-<topic>-walkthrough` (diagram) or `<topic>-explained` (tables).
+
+This is the rule most often dropped on a long read, and the one harnesses get wrong:
+- **Do NOT write it to your agent scratch/sandbox/working directory** (e.g. Antigravity's
+  `~/.gemini/antigravity/brain/<id>/scratch/`). That hides the file from the user.
+- **Do NOT drop it in the project root** or under a generic name like `walkthrough.html`.
+- Resolve `<project-root>` to the **actual open project** (e.g.
+  `C:\Repo2\my-app\docs\problem-description\…`), never a literal `<project-root>` placeholder.
+
+**Verify-and-move — mandatory final action.** Harnesses often ignore a "save here" instruction
+and write to their own default location anyway. So after writing the file, **get its absolute
+path and check it is inside the open project's `docs/problem-description/`.** If it landed
+anywhere else — a scratch/sandbox/temp dir, the project root, or a generic filename — **move it**
+to `<project-root>/docs/problem-description/<name>.html` now (create the folder first).
+**Exception:** if the user specified an explicit path, honor *that* path and skip the move. The
+skill is **not done** until the file is in the right place; then report its final absolute path.
+(If no project is open, *or* your harness genuinely cannot write into the project, save to the
+session scratchpad, report the absolute path, and tell the user to move it.)
+
 ## Two Visualization Modes
 
 This skill has **two modes**. Pick the right one for the problem.
@@ -31,9 +59,9 @@ Boxes positioned spatially with arrows showing data flow between them. At each s
 - Workflow + sub-component interaction (the actual code path)
 - Anything where "what's connected to what" matters more than "what row changed"
 
-**Canonical reference:** `c:/Repo/glasshull repo/glasshull/docs/2026-05-28-polaris-booking-number-diagram.html` — 22-step explanation of Polaris's classic-workflow + CodeActivity + counter-entity architecture, including a 3-transaction concurrency demo.
+**Canonical reference** (author's local example — may not exist on your machine; the bundled template above is the scaffold to use): `c:/Repo/glasshull repo/glasshull/docs/2026-05-28-polaris-booking-number-diagram.html` — 22-step explanation of Polaris's classic-workflow + CodeActivity + counter-entity architecture, including a 3-transaction concurrency demo.
 
-**Template:** `skills/problem-description/template-diagram.html`
+**Template:** `template-diagram.html`
 
 ### Mode B — TABLES (for row-state problems)
 
@@ -44,9 +72,9 @@ Database tables rendered as styled HTML tables. At each step, specific rows high
 - Same table re-visited with different highlights to show conflicts
 - Cardinality / relationship-driven scenarios
 
-**Canonical reference:** `c:/Repo2/t/cascade-paths-explained.html` — 7-step SQL Server error 1785 walkthrough using "ครอบครัวสมศรี" budget data.
+**Canonical reference** (author's local example — may not exist on your machine; the bundled template above is the scaffold to use): `c:/Repo2/t/cascade-paths-explained.html` — 7-step SQL Server error 1785 walkthrough using "ครอบครัวสมศรี" budget data.
 
-**Template:** `skills/problem-description/template.html`
+**Template:** `template.html`
 
 ### How to choose
 
@@ -152,7 +180,7 @@ Each step has:
 
 ### Phase 4 — Generate the HTML
 
-**Mode A (diagram):** Read `skills/problem-description/template-diagram.html`. The template ships with a 3-step demo (Client → Server → DB) so you can verify the scaffold works in a browser before adapting it.
+**Mode A (diagram):** Read `template-diagram.html`. The template ships with a 3-step demo (Client → Server → DB) so you can verify the scaffold works in a browser before adapting it.
 
 Adapt these insertion zones:
 1. **SVG component groups** — one `<g class="comp">` per component, positioned absolutely in the SVG coordinate space
@@ -162,17 +190,19 @@ Adapt these insertion zones:
 5. **Scenes JS array** — one function per step, fully describing DOM state
 6. **Extra panels** — `questionPanel`, `racePanel`, `summaryPanel` (declared once, shown by scenes)
 
-**Mode B (tables):** Read `skills/problem-description/template.html`. Adapt the table grid, rules panel, `ID_LIST`, scenes, and `keyQuestion` panel.
+**Mode B (tables):** Read `template.html`. Adapt the table grid, rules panel, `ID_LIST`, scenes, and `keyQuestion` panel.
 
 **Critical rule** (both modes): every scene must fully describe DOM state from scratch. Never `appendChild` from a scene. All optional panels (key-question, race demo, summary) declared upfront with `class="hidden"`, toggled per scene via `show()`/`hide()`.
 
 ### Phase 4.5 — Save and report
 
-**Save the artifact INSIDE the project, in a dedicated folder** — never scatter walkthroughs into a personal machine path. Default save path:
+**Save the artifact INSIDE the open project, in a dedicated folder** (see the Output-location contract near the top). Resolve the project root to a real absolute path, never a placeholder. Save path, in priority order:
 
-- **In a project (default):** `<workspace-root>/docs/walkthroughs/YYYY-MM-DD-<topic>-walkthrough.html` (diagram mode) or `<workspace-root>/docs/walkthroughs/<topic>-explained.html` (tables mode). **Create `docs/walkthroughs/` if it does not exist** (e.g. `mkdir -p`) — keeping walkthrough HTML in its own folder so it does not mix with specs, ADRs, and plans in the `docs/` root.
-- **If the user specified a path:** use it.
-- **No project / no repo at all** (a throwaway question with nowhere to put it): use the session scratchpad directory and tell the user the absolute path. Do **not** default to a hard-coded personal path like `c:/Repo2/t/`.
+- **The user specified a path** → use it exactly.
+- **A project/workspace is open (the normal case)** → `<project-root>/docs/problem-description/YYYY-MM-DD-<topic>-walkthrough.html` (diagram mode) or `<project-root>/docs/problem-description/<topic>-explained.html` (tables mode), where `<project-root>` is the user's open project/workspace — **not** your agent working/scratch directory, which may differ. **Create `docs/problem-description/` if it does not exist** (`mkdir -p`) so it does not mix with specs, ADRs, and plans in the `docs/` root. **Never** write it to your agent scratch/sandbox directory (e.g. `~/.gemini/antigravity/brain/<id>/scratch/`) when a project is open — that hides the file from the user.
+- **Only when there is genuinely no open project** (a throwaway question with nowhere to put it): use the session scratchpad directory and tell the user the absolute path. Do **not** default to a hard-coded personal path like `c:/Repo2/t/`. This branch is the exception, not the default — if a project is open, the bullet above wins.
+
+**Then run the verify-and-move check (mandatory)** — see the Output-location contract near the top: get the file's absolute path, confirm it is inside `<project-root>/docs/problem-description/`, and if the harness wrote it elsewhere (scratch/sandbox/temp, project root, generic name), move it there before reporting — **unless the user specified an explicit path (bullet 1), in which case honor that path**. The skill is not done until the file is in the right place.
 
 Report back:
 - The absolute path of the generated file
@@ -290,6 +320,11 @@ If you need to "add" a panel mid-walkthrough, declare it once in the initial HTM
 | Flying-label rect too small / clipped text | Measure your label text length; widen the `<rect>` to fit comfortably. |
 
 ## Reference Examples
+
+These are the author's local example files for structural inspiration — they live on the
+author's machine and **may not exist on yours or on another harness**. The bundled
+`template-diagram.html` / `template.html` (in this skill's folder) are the real,
+always-present scaffolds; skip any example path below that isn't there.
 
 - **`c:/Repo/glasshull repo/glasshull/docs/2026-05-28-polaris-booking-number-diagram.html`** — DIAGRAM MODE canonical. 22 steps explaining how a classic workflow + CodeActivity + counter entity collaborate to assign sequential booking numbers, including a 3-transaction concurrency demo and a race-condition counter-example. Mixed Thai/English narration. Use this as the structural reference for any architecture/flow walkthrough.
 - **`c:/Repo2/t/cascade-paths-explained.html`** — TABLES MODE canonical. 7 steps explaining SQL Server error 1785 (multiple cascade paths) using "ครอบครัวสมศรี" budget transactions. Use this for any row-state walkthrough.
