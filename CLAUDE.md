@@ -60,7 +60,15 @@ and an add-a-skill recipe.
 
 - **Skills** live in `plugins/<plugin>/skills/<name>/SKILL.md` with YAML frontmatter
   (`name` + a trigger-rich `description`). Reference bundled files via
-  `${CLAUDE_PLUGIN_ROOT}` — never hard-code paths.
+  `${CLAUDE_PLUGIN_ROOT}` — never hard-code paths. For a skill's **own** files use a
+  skill-relative path (`references/x.md`), not `${CLAUDE_PLUGIN_ROOT}/skills/<name>/…`.
+- **Skills must stay harness-neutral (Claude Code + Antigravity).** Name *actions*,
+  not one harness's tool/command (say "load the skill via your harness's mechanism",
+  not "call the Skill tool"; give install commands for both harnesses). Use
+  `${CLAUDE_PLUGIN_ROOT}` only in the three shapes the Antigravity installer rewrites —
+  `/references/…`, `/scripts/…`, `/skills/…` (see
+  `plugins/dev-workflows/.antigravity/`). A new shape means updating
+  `install-antigravity.py`'s `rewrite_plugin_root()`.
 - **Commands** are thin wrappers in `plugins/<plugin>/commands/<name>.md`
   (`description` + `argument-hint` frontmatter) that hand off to a skill via
   `$ARGUMENTS` and are invocable as `/<plugin>:<name>`. Logic lives in the skill, not the command.

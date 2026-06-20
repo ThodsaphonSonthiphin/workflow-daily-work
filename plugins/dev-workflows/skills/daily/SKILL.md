@@ -216,14 +216,17 @@ After ANY write (`save` or `wrap`), the skill writes the file first, then
 ## Graceful degradation
 
 Stations 1 and 3 route to skills in OTHER plugins. If the target plugin is not
-installed, say so explicitly and print the install command — never fail silently:
+installed, say so explicitly and print the install command for the user's harness —
+never fail silently:
 
 ```
 ado-backlog is not installed. Install it with:
-/plugin install ado-backlog@workflow-daily-work
+- Claude Code:  /plugin install ado-backlog@workflow-daily-work
+- Antigravity:  stage the ado-backlog skills into your skills dir
+                (see the plugin's .antigravity/INSTALL.md)
 ```
 
-(Same pattern for `github-backlog@workflow-daily-work`.)
+(Same pattern for `github-backlog`.)
 
 ## Rules
 

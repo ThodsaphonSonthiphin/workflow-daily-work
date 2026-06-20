@@ -27,9 +27,8 @@ EXTRACT (steps 1–7: org → files + fragments)  →  STUDY (steps 8–9: conne
 layers into business processes)  →  DOCUMENT (step 10: one ARCHITECTURE.md)
 ```
 
-Every command and query this skill relies on is in
-`${CLAUDE_PLUGIN_ROOT}/skills/crm-archaeology/references/extraction-queries.md`
-(verified against Microsoft Learn, June 2026). Read the relevant section of that
+Every command and query this skill relies on is in this skill's
+`references/extraction-queries.md` (verified against Microsoft Learn, June 2026). Read the relevant section of that
 file when you reach each step — do not improvise queries from memory; Dataverse
 metadata endpoints have non-obvious casing, casting, and join-key rules that the
 reference encodes.
@@ -135,8 +134,8 @@ nature — it needs all the fragments.
 
 ## Step 10 — Assemble the document
 
-Build `ARCHITECTURE.md` from the fragments following
-`${CLAUDE_PLUGIN_ROOT}/skills/crm-archaeology/references/architecture-template.md`.
+Build `ARCHITECTURE.md` from the fragments following this skill's
+`references/architecture-template.md`.
 The template implements the marketplace diagram convention
 (`${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md`).
 The template's reading order puts user stories first (they answer "why does

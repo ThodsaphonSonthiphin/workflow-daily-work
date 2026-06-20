@@ -4,6 +4,17 @@ General-purpose **development workflow skills** — the reusable, non-domain-spe
 helpers that support day-to-day engineering work. This plugin is a growing collection;
 more skills will be added over time.
 
+## Installing
+
+Runs on **both Claude Code and Antigravity** from this one source tree.
+
+- **Claude Code** — via the marketplace: `/plugin install dev-workflows@workflow-daily-work`.
+- **Antigravity** (IDE or CLI) — run the installer: `python .antigravity/install-antigravity.py`.
+  It stages a working copy into Antigravity's skills directory and rewrites the
+  plugin-relative paths that Claude expands via `${CLAUDE_PLUGIN_ROOT}` (Antigravity
+  does not). The source is untouched, so Claude Code keeps working. See
+  [.antigravity/INSTALL.md](.antigravity/INSTALL.md).
+
 ## Skills
 
 | Skill | What it does |
@@ -24,7 +35,8 @@ more skills will be added over time.
 | `naming-audit` | Verify a list of claimed labels/values/mappings **against the authoritative system of record**, item by item — verdict card + the exact app/code path to check. Source-of-truth wins. |
 | `ticket-trace` | Two-way **commit ↔ ticket traceability**: commits always carry their ticket number, and "why was this changed?" walks `git blame` → commit → ticket → tracker (incl. attached images). |
 
-Each is invoked automatically by its trigger phrases, or explicitly via the `Skill` tool.
+Each is invoked automatically by its trigger phrases (Claude Code loads it via the
+`Skill` tool; Antigravity semantic-matches the `description` and loads the `SKILL.md`).
 
 ## grill-then-plan
 

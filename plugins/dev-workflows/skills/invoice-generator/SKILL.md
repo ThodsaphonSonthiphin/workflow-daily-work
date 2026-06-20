@@ -96,10 +96,12 @@ do not present the raw 4-line summary as the final answer.
    async standup, email, JIRA comment, or meeting talking-points), use it. If they
    did not, ask which channel — defaulting to a **Tribletext daily entry** when the
    trigger was invoice/timesheet/Tribletext-related.
-2. **Invoke management-talk.** Call the Skill tool with skill `management-talk`
-   (fully qualified: `dev-workflows:management-talk`), passing the per-day summary
-   from Step 3 as the content to rewrite, along with the chosen channel. management-talk
-   owns the audience translation and channel formatting.
+2. **Invoke management-talk.** Load the `management-talk` skill (fully qualified:
+   `dev-workflows:management-talk`) via your harness's skill-loading mechanism
+   (Claude Code: the Skill tool; Antigravity: read its `SKILL.md` when it applies),
+   passing the per-day summary from Step 3 as the content to rewrite, along with the
+   chosen channel. management-talk owns the audience translation and channel
+   formatting.
 3. **Output the reshaped result** that management-talk returns as the final
    deliverable. If useful, you may keep the raw per-day summary available as an
    appendix, but the leadership/channel version is the headline output.
