@@ -12,7 +12,8 @@ A Claude Code **plugin marketplace** for daily-work automation. It ships three p
   (grill-then-plan), debugging (debug-mantra → post-mortem), review (scrutinize,
   dual-verifier), system study (study-design-verify, fit-gap-analysis, naming-audit,
   drive-to-legacy, ticket-trace), and communication (management-talk, invoice-generator,
-  problem-description) skills.
+  problem-description) skills. **Also installable on Google Antigravity** — see
+  [dev-workflows on Antigravity](#dev-workflows-on-antigravity).
 
 **Start here: [PLAYBOOK.md](PLAYBOOK.md)** — the one-page map of when to reach for what.
 The only command to memorize is `/daily`.
@@ -37,6 +38,41 @@ az login
 > CLI equivalents: `claude plugin marketplace add ThodsaphonSonthiphin/workflow-daily-work` and
 > `claude plugin install ado-backlog@workflow-daily-work`.
 > For team-wide install, add `--scope project` (writes to `.claude/settings.json`).
+> Installing mid-session? run `/reload-plugins` to activate without restarting.
+
+### dev-workflows on Antigravity
+
+The `dev-workflows` skills also run on **Google Antigravity** (IDE or CLI). Antigravity
+does not read the Claude Code marketplace and resolves bundled-file paths *relative to each
+skill directory* (no `${CLAUDE_PLUGIN_ROOT}` expansion), so install via the bundled script:
+it stages the skills into Antigravity's skills directory and rewrites those paths to
+absolute. **The source tree stays Claude-native, so the marketplace install above is
+unaffected.**
+
+**Prerequisites:** `git`, **Python 3.9+**, and Antigravity installed.
+
+```bash
+git clone https://github.com/ThodsaphonSonthiphin/workflow-daily-work.git
+cd workflow-daily-work/plugins/dev-workflows/.antigravity
+python install-antigravity.py          # default: ~/.gemini/config/skills  (IDE global)
+# --scope cli                          ->  ~/.gemini/antigravity-cli/skills
+# --scope project --project <repo>     ->  <repo>/.agents/skills
+```
+
+Then **reload Antigravity** so it rediscovers the skills. A clean run ends with
+`rewrote N ${CLAUDE_PLUGIN_ROOT} reference(s)` and no warning (the exact count isn't
+load-bearing). Verify the staged script runs:
+
+```bash
+python "$HOME/.gemini/config/skills/.dev-workflows-shared/scripts/daily-state.py" --help
+```
+
+- Only `dev-workflows` ships an Antigravity installer; `ado-backlog` / `github-backlog`
+  are Claude-Code-only for now.
+- `grill-then-plan` hands off to `superpowers:writing-plans`, so it also needs a
+  **superpowers skills port** installed on Antigravity.
+- Whether skills trigger live in the Antigravity IDE must be confirmed on your own
+  machine. Details: [`plugins/dev-workflows/.antigravity/INSTALL.md`](plugins/dev-workflows/.antigravity/INSTALL.md).
 
 ## Use it
 
