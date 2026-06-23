@@ -19,6 +19,10 @@ Subcommands:
       [--next-action A] [--next-reason R] [--blocker TXT ...] [--note TXT] [--path P]
       Upsert frontmatter (unset fields preserved), stamp updated=now, optionally
       append --note to the body. Creates the file (with header) if missing.
+  log <message> [--path P]
+      Append a timestamped line to the ## Log section (e.g. a commit message).
+      Stamps updated=now and ensures minimal frontmatter, but does NOT touch
+      station/status/focus/next. Creates the file if missing.
   resolve-path [--path P]
       Print the resolved file path (override order: --path > DAILY_STATE_FILE
       env > git-root). Exits non-zero with a message when not in a git repo and
@@ -416,6 +420,24 @@ def cmd_set(args):
     print(f"wrote {path} (updated={state['updated']})")
 
 
+def cmd_log(args):
+    """Append a single timestamped line to the ## Log body (commit echo).
+
+    Unlike `set`, this never touches station/status/focus/next — it only ensures
+    minimal frontmatter (type/schema_version/updated) and appends the note. Used
+    by the commit-log hook so every commit lands a line in ## Log.
+    """
+    path = _resolved_or_die(args.path)
+    existing, body = read_document(path)
+    if body is None:
+        body = DEFAULT_BODY
+    now = _now_iso()
+    state = upsert_state(existing, now=now)  # stamps type/schema/updated, preserves the rest
+    body = append_note(body, args.message, now=now)
+    write_document(path, state, body)
+    print(f"logged to {path} (updated={state['updated']})")
+
+
 def cmd_resolve_path(args):
     print(_resolved_or_die(args.path))
 
@@ -443,6 +465,14 @@ def build_parser():
     s_set.add_argument("--note", help="append a timestamped note to the body")
     s_set.add_argument("--path")
     s_set.set_defaults(func=cmd_set)
+
+    s_log = sub.add_parser(
+        "log",
+        help="append a timestamped line to ## Log (commit echo); does not touch frontmatter state",
+    )
+    s_log.add_argument("message", help="the log line text (e.g. a commit message)")
+    s_log.add_argument("--path")
+    s_log.set_defaults(func=cmd_log)
 
     s_rp = sub.add_parser("resolve-path", help="print the resolved file path")
     s_rp.add_argument("--path")

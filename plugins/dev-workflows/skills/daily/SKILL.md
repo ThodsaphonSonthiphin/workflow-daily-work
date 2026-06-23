@@ -64,8 +64,26 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/daily-state.py" show --json
 
   Station emoji: ☀️ START · 🔧 WORK · 📋 FILE · 📣 REPORT · 🌙 WRAP.
 
-Then continue to the normal menu / START handoff. This is a read only — it never
-writes or commits.
+Then continue: on bare `/daily` go to **Auto board** (below) before the menu; on
+`/daily start` hand off to START. This is a read only — it never writes or commits.
+
+## Auto board (bare `/daily`, after welcome-back)
+
+On **bare `/daily`** only, after the welcome-back line (or after skipping it when
+there is no state), **auto-render the work board as a supplement** before the menu —
+so the user sees their resume-point AND their open work in one glance, without
+picking a station. Invoke the **`my-work`** skill (`ado-backlog:my-work`; the
+`github-backlog` twin `github-my-work` only if the project is GitHub-context or the
+user asks).
+
+- If the board cannot load (not logged in / offline / `ado-backlog` not installed),
+  print a single line — *"board unavailable: <reason>"* — and continue. **A board
+  failure must never block `/daily`**: the local log still shows. This is the
+  local-first / board-as-a-component property — the resume-point is always available,
+  even offline.
+
+Then show the menu below. (`/daily start` already renders the board as its station,
+so it is unchanged; this only adds the board to the bare, no-argument path.)
 
 ## The menu (bare /daily)
 
@@ -237,6 +255,11 @@ ado-backlog is not installed. Install it with:
 - The work-state file is read on bare `/daily` and `/daily start`, and written on
   `/daily save` and `/daily wrap`. `daily-state.py` owns ALL YAML; the skill owns
   git. Reads never write; writes always offer commit and never commit unprompted.
+- A bundled **PreToolUse hook** (`hooks/commit-log.py`, registered in
+  `hooks/hooks.json`) also appends every `git commit` message to `daily-state.md`
+  `## Log` (via `daily-state.py log`) — active automatically on plugin enable,
+  best-effort, and it never blocks a commit. So `## Log` is fed both by `--note` on
+  save/wrap AND automatically by each commit.
 - If `daily-state.py show` prints `no state yet`, skip the welcome-back silently —
   it is never an error.
 - The full map lives in PLAYBOOK.md at the marketplace repo root — for humans;

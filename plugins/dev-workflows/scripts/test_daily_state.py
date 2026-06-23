@@ -245,3 +245,48 @@ def test_cli_set_with_note_appends_body(tmp_path, monkeypatch, capsys):
     text = state_file.read_text(encoding="utf-8")
     assert "## Log" in text
     assert "cause confirmed — POL null" in text
+
+
+# ---------- log subcommand (commit echo) ----------
+def test_cli_log_creates_file_with_minimal_frontmatter(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("DAILY_STATE_FILE", raising=False)
+    state_file = tmp_path / "daily-state.md"
+    ds.main(["log", "fix(cargo): pass real contactId #6053", "--path", str(state_file)])
+    capsys.readouterr()
+    assert state_file.exists()
+    text = state_file.read_text(encoding="utf-8")
+    assert "type: daily-state" in text          # minimal frontmatter stamped
+    assert "## Log" in text
+    assert "fix(cargo): pass real contactId #6053" in text
+
+
+def test_cli_log_does_not_touch_state_fields(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("DAILY_STATE_FILE", raising=False)
+    state_file = tmp_path / "daily-state.md"
+    # establish real work-state first
+    ds.main(["set", "--station", "work", "--ticket", "6125", "--topic", "cargo-group status",
+             "--next-action", "grill-then-plan", "--path", str(state_file)])
+    capsys.readouterr()
+    # a commit echo must append to ## Log but NOT change station/focus/next
+    ds.main(["log", "wip commit", "--path", str(state_file)])
+    capsys.readouterr()
+    ds.main(["show", "--json", "--path", str(state_file)])
+    blob = json.loads(capsys.readouterr().out)
+    assert blob["station"] == "work"
+    assert blob["focus"]["ticket"] == "6125"
+    assert blob["focus"]["topic"] == "cargo-group status"
+    assert blob["next"]["action"] == "grill-then-plan"
+    assert "wip commit" in state_file.read_text(encoding="utf-8")
+
+
+def test_cli_log_appends_into_single_log_section(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("DAILY_STATE_FILE", raising=False)
+    state_file = tmp_path / "daily-state.md"
+    ds.main(["log", "first commit", "--path", str(state_file)])
+    capsys.readouterr()
+    ds.main(["log", "second commit", "--path", str(state_file)])
+    capsys.readouterr()
+    text = state_file.read_text(encoding="utf-8")
+    assert text.count("## Log") == 1
+    assert "first commit" in text
+    assert "second commit" in text

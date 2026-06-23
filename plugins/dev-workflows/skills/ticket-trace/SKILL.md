@@ -38,6 +38,10 @@ chmod +x <repo>/.git/hooks/commit-msg   # not needed on Windows
 
 The hook rejects commits whose message has no ticket reference (default pattern `(#|\b)[0-9]{3,6}\b`, override with `git config ticket.pattern '<regex>'`; bypass once with `--no-verify`). It must not clobber an existing `commit-msg` hook — if one exists, show it to the user and merge manually.
 
+### Auto commit-log (daily-state `## Log`)
+
+Separately, dev-workflows ships a **PreToolUse hook** (`hooks/commit-log.py`, registered in `hooks/hooks.json`) that fires on every `git commit` and echoes the commit message into that repo's `daily-state.md` `## Log` (via `daily-state.py log`). It is **active automatically when the plugin is enabled** — no install step, "just works" for everyone — and **never blocks a commit** (best-effort; any failure is swallowed). This is the running-worklog half of the chain: the ticket number keeps a commit traceable to its *reason*; the daily-state `## Log` keeps a human-readable record of *what happened when*, at the repo root, independent of git history. The two are complementary — the commit-log hook does **not** check or enforce the ticket number (that is this skill's job, above).
+
 ## Operation B — Answer "why was this changed?"
 
 When the user questions a piece of code (a weird label, a hardcode, a removed feature, a magic number), do NOT answer from the code alone. Walk the chain:
