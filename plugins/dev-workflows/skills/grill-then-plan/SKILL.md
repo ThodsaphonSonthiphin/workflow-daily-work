@@ -94,6 +94,21 @@ can be answered by exploring the codebase, explore the codebase instead of askin
 - **Cross-reference with code.** When the user states how something works, check
   the code agrees; surface any contradiction.
 
+## Step 3.5 — Mock the UI when seeing would change the answer
+
+Some grilling questions are about a UI surface — layout, where an element sits,
+what's on screen, the flow between states. Words agree falsely here: you and the
+user both think you understand each other and picture different screens, because
+neither saw it. When a question can only be resolved by looking, **make the mockup
+the question** — render it from the UI decisions resolved so far, in the project's
+own design language, and ask the user to confirm or correct, then loop. If the
+project has no design system, first have the user establish a minimal design
+baseline (you propose the starter) — never wireframe ad-hoc, or the mockups and the
+build drift apart. Skip this entirely for designs with no visual surface. Full
+mechanism — when to render vs not, how, the harness fallback to a self-contained
+`.html`, and carrying it to the spec — is in
+`${CLAUDE_PLUGIN_ROOT}/references/ui-mockup.md`.
+
 ## Step 4 — Capture inline as decisions crystallize
 
 - **Update CONTEXT.md inline** the moment a term resolves — don't batch. Keep it
@@ -124,6 +139,9 @@ live in a terminal):
 - **Emit a sequence of the runtime interaction — optional.** Show it only when the
   design has a genuine interaction (≥ 2 actors exchanging messages). Omit it for a
   pure data-model or config design — never force a one-actor diagram.
+- **Point to the UI mockup if one exists.** If Step 3.5 produced a confirmed mockup,
+  include its artifact URL / `.html` path in the recap, so the decision set and the
+  screen are confirmed together.
 
 Then ask: **"Does this capture the design?"**
 
@@ -142,6 +160,9 @@ Once understanding is shared, write the design to
 lowercase-kebab slug). The spec is a Markdown document — follow the diagram
 convention in `${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md` (one
 overview Mermaid diagram at the top; type-matched diagrams per section).
+If a UI mockup was produced in Step 3.5, reference its final artifact URL / `.html`
+path in the spec, so the plan and the implementer work from the same screen you
+confirmed — one source of truth.
 Run a self-review for placeholders, internal consistency,
 scope, and ambiguity; fix inline. Ask the user to review the spec and approve
 before proceeding. If they do NOT approve, return to Step 2 and grill on the
