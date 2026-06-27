@@ -217,6 +217,7 @@
   .extra-panel.summary .ep-title { color: #a3e8b9; }
   .extra-panel.question .ep-title { color: #d4a4ff; }
 
+  /* term drill-down: inline §CSS from references/term-drilldown.html at generation */
   .hidden { display: none !important; }
 </style>
 </head>
@@ -321,6 +322,8 @@
     <button id="nextBtn">ถัดไป →</button>
     <button id="resetBtn" class="tertiary">↻ เริ่มใหม่</button>
   </div>
+
+  <!-- term drill-down: inline §HTML from references/term-drilldown.html just before this container closes (at generation) -->
 </div>
 
 <script>
@@ -376,6 +379,9 @@ function setNarration(cls, title, body) {
   document.getElementById('narrationBody').innerHTML = body;
 }
 
+/* term drill-down: inline §JS from references/term-drilldown.html here (at generation),
+   then add closeDrawer() as the FIRST line of render(step). Author a GLOSSARY and mark
+   drillable terms with .term spans whose data-term matches a GLOSSARY key. See SKILL.md Phase 4. */
 function clearAllStates() {
   COMPONENTS.forEach(c => setComp(c, ''));
   ARROWS.forEach(a => setArrow(a, ''));
