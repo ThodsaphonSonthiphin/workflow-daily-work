@@ -112,11 +112,18 @@ Before generating ~500 lines of HTML, ask:
 
 ### Phase 1 — Identify the core misunderstanding AND pick the mode
 
-Articulate three things in one sentence each:
+Articulate these in one sentence each:
 
 1. **The ONE concept** the reader should grasp by the end (e.g., "the UPDATE-on-ctg_name trick is what acquires the row-level write lock")
 2. **The misunderstanding** they have now (e.g., "they think the workflow and the counter entity are two unrelated things")
 3. **The prerequisites** they already have (e.g., "they know Dataverse entities and that workflows trigger on Create")
+4. **The unfamiliar terms** — list the terms the narration will use that fall *beyond*
+   the prerequisites (domain jargon, schema names, project concepts). These become
+   **drillable terms** (Phase 4). Read the project's `CONTEXT.md` (or the mapped context
+   via `CONTEXT-MAP.md`) and pull the definition for each term that exists there; for a
+   beyond-prerequisite term **not** in the glossary, write a one-line definition yourself.
+   A term the reader already knows is **not** made drillable — over-marking turns the
+   narration into a sea of dotted underlines.
 
 Then pick the mode using the "How to choose" rule above. Tell the user which mode you're using in your first message.
 
@@ -192,6 +199,34 @@ Adapt these insertion zones:
 
 **Mode B (tables):** Read `template.html`. Adapt the table grid, rules panel, `ID_LIST`, scenes, and `keyQuestion` panel.
 
+**Term drill-down (both modes).** The drawer primitive lives in one place —
+`references/term-drilldown.html` — which is also a runnable demo. To add drill-down to
+the walkthrough you are generating:
+
+1. Inline its three sections into your output: copy `§CSS` into `<style>` (before the
+   `.hidden` rule), `§HTML` just before the `</div>` that closes `.container`, and `§JS`
+   into `<script>` after the DOM helpers. Do **not** copy anything marked `DEMO ONLY`.
+2. In your `render(step)`, add `closeDrawer()` as the **first** line so stepping closes
+   the drawer.
+3. Replace the demo `GLOSSARY` with your terms. Each entry:
+
+   ```js
+   'glasshull-scope': {
+     term:    'glasshull scope',                              // drawer header
+     short:   'the records a workflow may touch in one transaction',  // CONTEXT.md wording or authored
+     seeAlso: ['row-lock', 'transaction'],                    // other GLOSSARY keys to hop to
+     source:  'CONTEXT.md'                                    // or 'authored' for a fallback
+   }
+   ```
+
+4. Mark each drillable term in narration: `<span class="term" data-term="glasshull-scope">glasshull scope</span>`.
+
+Rules: `source: 'CONTEXT.md'` must quote the glossary; use `'authored'` only when the
+term is absent (and consider offering to add it to `CONTEXT.md`). The drawer is
+**framework, not a scene** — never call `openTerm`/`closeDrawer`/`GLOSSARY` from a scene
+function; the no-`createElement`-in-scenes rule does **not** apply to the drawer's own
+code (the templates carry only a marker pointing here).
+
 **Critical rule** (both modes): every scene must fully describe DOM state from scratch. Never `appendChild` from a scene. All optional panels (key-question, race demo, summary) declared upfront with `class="hidden"`, toggled per scene via `show()`/`hide()`.
 
 ### Phase 4.5 — Save and report
@@ -224,6 +259,16 @@ Run the self-test checklist:
 - [ ] `↻ Reset` returns to step 0 with no residual highlights, badges, or visible panels
 - [ ] No `appendChild` / `createElement` inside any scene function
 - [ ] **No identifier collision:** sequence numbers in the output don't conflict with element IDs (e.g., don't use `cargo-1` when booking numbers `00001` will appear)
+- [ ] **Drill-down referential integrity:** every `data-term="X"` has a `GLOSSARY[X]`
+      entry, and every `seeAlso` key resolves to a `GLOSSARY` entry
+- [ ] **Grounding:** every `GLOSSARY` entry marked `source: 'CONTEXT.md'` matches the
+      glossary wording; `'authored'` is used only for terms absent from `CONTEXT.md`
+- [ ] **Drawer is orthogonal:** no scene references the drawer
+      (`openTerm`/`closeDrawer`/`termDrawer`/`GLOSSARY`); `clearAllStates()` does not
+      touch it; `render()` calls `closeDrawer()` first; `Next`/`Prev`/`Reset` close the
+      drawer and leave no residue
+- [ ] **See-also hops:** clicking a see-also chip swaps the drawer; `← back` restores the
+      prior term; with no `CONTEXT.md`, drillable terms still work via `authored` defs
 
 If any item fails — fix before reporting done.
 
@@ -318,6 +363,11 @@ If you need to "add" a panel mid-walkthrough, declare it once in the initial HTM
 | `← Previous` leaves stale state | Scene functions must fully describe state, not deltas. |
 | Same element never highlighted in the conflict step | Pick concrete data so at least one element is hit by every problematic path. |
 | Flying-label rect too small / clipped text | Measure your label text length; widen the `<rect>` to fit comfortably. |
+| Invented term definitions instead of CONTEXT.md | Source from the project glossary; author a fallback only when the term is absent (ADR 0017). |
+| Over-marking — every other word is drillable | Mark only terms *beyond* the reader's stated prerequisites. |
+| Copying the drawer code into the template | The primitive lives once in `references/term-drilldown.html`; inline it at generation (ADR 0019). |
+| A scene opens/closes/reads the drawer | The drawer is reader-driven framework, never scene state. Keep scenes pure. |
+| `data-term` with no `GLOSSARY` entry (drawer no-ops) | Every `data-term` and `seeAlso` key must resolve to a `GLOSSARY` entry. |
 
 ## Reference Examples
 
