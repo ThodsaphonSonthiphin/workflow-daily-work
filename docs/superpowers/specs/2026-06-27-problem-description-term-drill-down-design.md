@@ -12,8 +12,9 @@ scope** here.
 ```mermaid
 flowchart TD
     subgraph AUTHOR [authoring time]
-        CTX["project CONTEXT.md<br/>glossary"] -->|read + inline| GEN["skill generates HTML"]
-        GEN --> HTML["self-contained .html<br/>+ inlined GLOSSARY data"]
+        REF["references/term-drilldown.html<br/>(single source: CSS/HTML/JS)"] -->|inline sections| GEN["skill generates HTML"]
+        CTX["project CONTEXT.md<br/>glossary"] -->|read + inline defs| GEN
+        GEN --> HTML["self-contained .html<br/>(drawer inlined + GLOSSARY data)"]
     end
     subgraph READ [read time]
         HTML --> NARR["narration with<br/>drillable terms"]
@@ -36,6 +37,9 @@ Three decisions frame this design:
   is grounded in `CONTEXT.md`, inlined at authoring time, short-first.
 - **[ADR 0018](../../adr/0018-drill-down-is-side-drawer-with-see-also-hops.md)** — the
   container is a side drawer with see-also hops, not a tooltip.
+- **[ADR 0019](../../adr/0019-drill-down-primitive-single-reference-inlined.md)** — the
+  primitive lives in **one** reference file (`references/term-drilldown.html`), inlined at
+  generation; templates carry markers, not copies (DRY; refines 0018's implementation).
 
 The canonical term is **Term drill-down** ([CONTEXT.md](../../../CONTEXT.md)).
 
@@ -149,20 +153,33 @@ that exist in `CONTEXT.md` (grounded); for a beyond-prerequisite term not in the
 glossary, author a fallback `short` (§1). A term the reader is assumed to know is **not**
 marked — over-marking turns the narration into a sea of dotted underlines.
 
-## Changes to the templates
+## Single source + template markers (ADR 0019)
 
-Both [`template.html`](../../../plugins/dev-workflows/skills/problem-description/template.html)
-and
-[`template-diagram.html`](../../../plugins/dev-workflows/skills/problem-description/template-diagram.html)
-gain the same self-contained drawer block:
+To keep the primitive DRY while every generated walkthrough stays self-contained, the
+drawer code lives in **one** new file, not in both templates:
 
-- A hidden `<aside id="termDrawer" class="drawer hidden">` with title, short-def, see-also
-  region, and `← back` / `✕ close` controls.
-- `.term` CSS and the `GLOSSARY` object (seeded with the template's demo term so the
-  scaffold is verifiable in a browser, matching how the templates already ship a runnable
-  demo).
-- `openTerm()`, `closeDrawer()`, the back-stack, and the delegated click handler.
-- The render loop's existing step-change path calls `closeDrawer()`.
+**New: `references/term-drilldown.html`** — the single source of truth, which doubles as a
+standalone runnable demo (open it in a browser to see the drawer work). It contains, in
+clearly-delimited copyable sections:
+- `§CSS` — `.term` affordance + `.drawer*` styles (uses the shared `.hidden` toggle).
+- `§HTML` — the hidden `<aside id="termDrawer">` with title, short-def, see-also region,
+  and `← back` / `✕ close` controls.
+- `§JS` — `GLOSSARY` (an authoring stub), `openTerm()` / `hopTerm()` / `backTerm()` /
+  `closeDrawer()` / `renderTerm()` + back-stack, and the delegated click handler.
+- A note: in the walkthrough's `render(step)`, add `closeDrawer()` as the first line.
+- A `DEMO ONLY` harness (a GLOSSARY + narration with `data-term` spans + a sim button)
+  so the file runs standalone — marked do-not-copy.
+
+**Both templates** ([`template.html`](../../../plugins/dev-workflows/skills/problem-description/template.html),
+[`template-diagram.html`](../../../plugins/dev-workflows/skills/problem-description/template-diagram.html))
+gain only a **short marker comment** at each of the three insertion points (in `<style>`,
+before `</container>`, and in `<script>`) pointing at `references/term-drilldown.html`.
+The templates carry no drawer code and no `GLOSSARY`, so their existing stepping demo
+keeps working unchanged (no dangling `closeDrawer()`/`GLOSSARY` references).
+
+**At generation time** the skill inlines the reference's `§CSS`/`§HTML`/`§JS` sections
+into the walkthrough it produces, authors the `GLOSSARY`, adds `closeDrawer()` to
+`render()`, and marks drillable terms — yielding one self-contained file.
 
 ## Changes to SKILL.md
 
@@ -170,8 +187,10 @@ gain the same self-contained drawer block:
 
 - **Phase 1** — add a step: identify beyond-prerequisite terms and read `CONTEXT.md`
   (or the mapped context) to source their definitions.
-- **Phase 4** — document the drawer insertion zone and the `GLOSSARY` authoring rule
-  (grounded-first, authored fallback, offer-to-add-to-CONTEXT.md).
+- **Phase 4** — document inlining the `references/term-drilldown.html` sections
+  (`§CSS`/`§HTML`/`§JS`) into the generated walkthrough, adding `closeDrawer()` to
+  `render()`, and the `GLOSSARY` authoring rule (grounded-first, authored fallback,
+  offer-to-add-to-CONTEXT.md).
 - **Phase 5 self-test** — add checklist items (below).
 - **Common Mistakes** — add: ungrounded invented definitions; over-marking terms; a
   scene touching the drawer; a `data-term` with no `GLOSSARY` entry.
@@ -180,7 +199,10 @@ No PLAYBOOK row is added — this enhances an existing skill rather than adding 
 
 ## Verification / acceptance criteria
 
-A walkthrough built with the new primitive passes when:
+Verified two ways: referential/idempotency checks on `references/term-drilldown.html`
+itself, and an end-to-end check on a **sample walkthrough assembled** (in scratchpad) by
+following the Phase-4 inline steps on a copy of a template — proving the reference +
+SKILL instructions compose into a working self-contained file. The criteria:
 
 - [ ] Every `data-term` in the narration has a matching `GLOSSARY` key.
 - [ ] Every `seeAlso` key resolves to a `GLOSSARY` entry.

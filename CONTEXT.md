@@ -89,7 +89,9 @@ unfamiliar term in the narration to open a **side drawer** showing a short defin
 sourced from this repo's `CONTEXT.md` glossary and inlined into the self-contained HTML
 at authoring time (ADR 0017) — with **see-also** links that hop to related terms,
 swapping the drawer per hop. Cross-cutting: it applies to every walkthrough mode, not a
-mode of its own (ADRs 0016, 0018). Makes a walkthrough *glossary-aware*.
+mode of its own (ADRs 0016, 0018). The drawer code is kept DRY in one reference file
+(`references/term-drilldown.html`) and inlined at generation (ADR 0019). Makes a
+walkthrough *glossary-aware*.
 _Avoid_: tooltip (narrower — can't hop), glossary popup, nested sub-walkthrough.
 
 ## GitHub terms (github-backlog plugin)
