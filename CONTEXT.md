@@ -83,6 +83,15 @@ lives alongside the Mermaid rules in
 `plugins/dev-workflows/references/diagram-convention.md`.
 _Avoid_: ASCII art (too generic), UML diagram (not class-diagram UML), Mermaid diagram.
 
+**Term drill-down**:
+A mechanism in a `problem-description` walkthrough by which the reader clicks an
+unfamiliar term in the narration to open a **side drawer** showing a short definition —
+sourced from this repo's `CONTEXT.md` glossary and inlined into the self-contained HTML
+at authoring time (ADR 0017) — with **see-also** links that hop to related terms,
+swapping the drawer per hop. Cross-cutting: it applies to every walkthrough mode, not a
+mode of its own (ADRs 0016, 0018). Makes a walkthrough *glossary-aware*.
+_Avoid_: tooltip (narrower — can't hop), glossary popup, nested sub-walkthrough.
+
 ## GitHub terms (github-backlog plugin)
 
 **GitHub Owner**:
