@@ -65,14 +65,18 @@ Use when an interactive artifact would explain a problem better than prose — t
 controls the pace (`Next →` / `← Previous` / `↻ Reset`) and can point at any element and
 understand why it is in its current state.
 
-- **Mode A — diagram** (default): components positioned spatially, arrows fire between them
-  with flying value labels. Best for architecture, data flow, concurrency, locking.
-- **Mode B — tables**: a grid whose cells change state per step. Best for row/record-level
-  problems, query results, state machines.
+- **diagram** (default): components positioned spatially, arrows fire between them with
+  flying value labels. Best for architecture, data flow, concurrency, locking.
+- **tables**: a grid whose cells change state per step. Best for row/record-level problems,
+  query results, FK cascades.
+- **state-machine**: one entity's legal state transitions, where an illegal/stuck transition
+  is the conflict. Best for lifecycles (D365 statecode/statuscode, BPF stages).
 
-Ships two starter templates the skill reads and adapts:
-[`skills/problem-description/template-diagram.html`](skills/problem-description/template-diagram.html)
-and [`skills/problem-description/template.html`](skills/problem-description/template.html).
+A walkthrough is assembled from single-source references — one shared engine
+([`skills/problem-description/references/walkthrough-engine.html`](skills/problem-description/references/walkthrough-engine.html))
+plus one mode pack (`references/mode-<name>.html`) plus the drill-down drawer — into one
+self-contained file via [`scripts/assemble-walkthrough.py`](skills/problem-description/scripts/assemble-walkthrough.py),
+validated by `scripts/check-walkthrough.py`. Adding a mode is a new pack — zero engine edits.
 
 ## management-talk
 

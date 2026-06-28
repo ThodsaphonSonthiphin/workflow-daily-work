@@ -44,44 +44,42 @@ skill is **not done** until the file is in the right place; then report its fina
 (If no project is open, *or* your harness genuinely cannot write into the project, save to the
 session scratchpad, report the absolute path, and tell the user to move it.)
 
-## Two Visualization Modes
+## Architecture — one engine, plug-in mode packs
 
-This skill has **two modes**. Pick the right one for the problem.
+A generated walkthrough is **assembled at generation time** from single-source references
+into ONE self-contained `.html` (no build, no external assets):
 
-### Mode A — DIAGRAM (default for most problems)
+```
+walkthrough.html  =  references/walkthrough-engine.html   (§ the shared engine)
+                  +  references/mode-<name>.html           (§ ONE chosen mode pack)
+                  +  references/term-drilldown.html        (§ the drawer, optional)
+                  +  authored scenes[] + GLOSSARY          (the bootstrap)
+```
 
-Boxes positioned spatially with arrows showing data flow between them. At each step, certain boxes light up and certain arrows fire, with "flying" labels showing the values being passed.
+- **The engine** owns the step loop, navigation, `:root` palette tokens, the canonical
+  nested narration, the 5 SVG markerheads, `RENDER_HOOKS`, and `modeRenderers`. Never edit
+  it to add a mode.
+- **A mode pack** registers exactly one renderer — `modeRenderers['<name>'] =
+  {registry, clear, <setters>, assertRegistryComplete}` — plus its content DOM and state
+  CSS. Each pack is verified by **assembly**, not by opening it raw.
+- **Assembly is a script:** `scripts/assemble-walkthrough.py` does the splice
+  deterministically; `scripts/check-walkthrough.py` is the mandatory post-assembly
+  self-test (the no-build safety net).
 
-**Use this when** the problem is about:
-- Architecture / data flow between components
-- Process steps where a value moves A → B → C → D
-- Concurrency, locking, message passing
-- Workflow + sub-component interaction (the actual code path)
-- Anything where "what's connected to what" matters more than "what row changed"
+### Pick the mode — flat decision table
 
-**Canonical reference** (author's local example — may not exist on your machine; the bundled template above is the scaffold to use): `c:/Repo/glasshull repo/glasshull/docs/2026-05-28-polaris-booking-number-diagram.html` — 22-step explanation of Polaris's classic-workflow + CodeActivity + counter-entity architecture, including a 3-transaction concurrency demo.
+Ask **"what is the problem ABOUT?"** (one distinct noun per row) and read across:
 
-**Template:** `template-diagram.html`
+| Mode | Problem is ABOUT… | NOT when → use | Pack |
+|---|---|---|---|
+| **diagram** | data flow between components (A→B→C) | rows changing state → tables | `references/mode-diagram.html` |
+| **tables** | rows changing state under FK/cascade rules | one entity's lifecycle → state-machine | `references/mode-tables.html` |
+| **state-machine** | one entity's legal state transitions; an illegal/stuck transition | many rows mutating → tables | `references/mode-state-machine.html` |
 
-### Mode B — TABLES (for row-state problems)
-
-Database tables rendered as styled HTML tables. At each step, specific rows highlight, badges (DELETE / SET NULL / CONFLICT) appear, fixed rows turn green, deleted rows go gray.
-
-**Use this when** the problem is about:
-- Rows in tables changing state due to FK rules, cascades, triggers
-- Same table re-visited with different highlights to show conflicts
-- Cardinality / relationship-driven scenarios
-
-**Canonical reference** (author's local example — may not exist on your machine; the bundled template above is the scaffold to use): `c:/Repo2/t/cascade-paths-explained.html` — 7-step SQL Server error 1785 walkthrough using "ครอบครัวสมศรี" budget data.
-
-**Template:** `template.html`
-
-### How to choose
-
-> If you're explaining **"what happens to row X"** → Mode B (tables).
-> If you're explaining **"what flows from A to B to C"** → Mode A (diagram).
-
-When in doubt: **Mode A (diagram) is the better default** — most technical problems involve component interaction, and the diagram view scales to concurrency and message-passing scenarios that tables can't show cleanly.
+Sharp disambiguators: **state-machine** = "ONE entity's status transitions" (*not* "many
+rows mutating" → tables); a future **timeline** = "WHEN it happened / ordering" (*not* "what
+connects to what" → diagram). Tie-break: **when in doubt → diagram**. Every new mode row
+must name its nearest neighbour in the "NOT when" column.
 
 ## When to Use This Skill
 
@@ -185,49 +183,43 @@ Each step has:
 - **Narration** — 2-5 sentences answering WHY (not just WHAT). Why does this fire? Why is the value chosen? Why does this matter to the reader?
 - **Visual change** — light up the active component/row, fire the active arrow, show the flying-value label, highlight the active rule
 
-### Phase 4 — Generate the HTML
+### Phase 4 — Author the bootstrap, then assemble
 
-**Mode A (diagram):** Read `template-diagram.html`. The template ships with a 3-step demo (Client → Server → DB) so you can verify the scaffold works in a browser before adapting it.
+You write **only the bootstrap** (the per-walkthrough content); the engine + mode pack +
+drawer are inlined by the assembler.
 
-Adapt these insertion zones:
-1. **SVG component groups** — one `<g class="comp">` per component, positioned absolutely in the SVG coordinate space
-2. **SVG arrows** — `<path class="arrow">` between component anchor points
-3. **Flow labels** — `<g class="flow-label-group">` for data flying along arrows
-4. **`COMPONENTS`, `ARROWS`, `LABELS` arrays** — every id used in scenes (drives `clearAllStates()`)
-5. **Scenes JS array** — one function per step, fully describing DOM state
-6. **Extra panels** — `questionPanel`, `racePanel`, `summaryPanel` (declared once, shown by scenes)
-
-**Mode B (tables):** Read `template.html`. Adapt the table grid, rules panel, `ID_LIST`, scenes, and `keyQuestion` panel.
-
-**Term drill-down (both modes).** The drawer primitive lives in one place —
-`references/term-drilldown.html` — which is also a runnable demo. To add drill-down to
-the walkthrough you are generating:
-
-1. Inline its three sections into your output: copy `§CSS` into `<style>` (before the
-   `.hidden` rule), `§HTML` just before the `</div>` that closes `.container`, and `§JS`
-   into `<script>` after the DOM helpers. Do **not** copy anything marked `DEMO ONLY`.
-2. In your `render(step)`, add `closeDrawer()` as the **first** line so stepping closes
-   the drawer.
-3. Replace the demo `GLOSSARY` with your terms. Each entry:
-
-   ```js
-   'glasshull-scope': {
-     term:    'glasshull scope',                              // drawer header
-     short:   'the records a workflow may touch in one transaction',  // CONTEXT.md wording or authored
-     seeAlso: ['row-lock', 'transaction'],                    // other GLOSSARY keys to hop to
-     source:  'CONTEXT.md'                                    // or 'authored' for a fallback
-   }
+1. **Read the chosen mode pack** (`references/mode-<name>.html`) to learn its renderer's
+   setters and its content-DOM ids (e.g. state-machine: `setNode`/`setEdge` over
+   `NODE_LIST`/`EDGE_LIST`; diagram: `setComp`/`setArrow`/`setLabel`/`setText`; tables:
+   `setRowClass`/`setBadge`/`setCell`/`setRule`). If the pack's built-in content DOM doesn't
+   fit your problem, edit a COPY of the pack's `§HTML` (its registry ids must match).
+2. **Write a bootstrap** (a `.js` snippet) with, in order:
+   - `MODE = '<name>';`
+   - `const { setNode, setEdge } = modeRenderers[MODE];` — alias the pack's setters to flat
+     names so scenes read like `setNode('stDraft','done')`.
+   - `const GLOSSARY = { … };` — your drillable terms (only if using the drawer). Each entry
+     `{term, short, seeAlso, source}` with `source: 'CONTEXT.md'` (quote the glossary) or
+     `'authored'` (a fallback for a term absent from `CONTEXT.md`; consider offering to add it).
+     Mark terms in narration: `<span class="term" data-term="key">…</span>`.
+   - `const scenes = [ … ];` — one function per step, each fully describing DOM state via the
+     flat setters + `setNarration(cls, title, bodyHTML)` + `show()/hide()` on `.wt-panel`s.
+   - `TOTAL = scenes.length - 1; buildProgressDots(); render(0);`
+3. **Assemble:**
    ```
+   python scripts/assemble-walkthrough.py --engine references/walkthrough-engine.html \
+     --mode references/mode-<name>.html --drawer references/term-drilldown.html \
+     --out <project-root>/docs/problem-description/<name>.html --bootstrap your-bootstrap.js
+   ```
+   Drop `--drawer` if the walkthrough has no drillable terms.
+4. **Self-test (mandatory):** `python scripts/check-walkthrough.py <out>.html` — it must pass.
 
-4. Mark each drillable term in narration: `<span class="term" data-term="glasshull-scope">glasshull scope</span>`.
+**The drawer is framework, not a scene** — never call `openTerm`/`closeDrawer`/`GLOSSARY`
+from a scene; it self-registers into `RENDER_HOOKS` so stepping closes it for free.
 
-Rules: `source: 'CONTEXT.md'` must quote the glossary; use `'authored'` only when the
-term is absent (and consider offering to add it to `CONTEXT.md`). The drawer is
-**framework, not a scene** — never call `openTerm`/`closeDrawer`/`GLOSSARY` from a scene
-function; the no-`createElement`-in-scenes rule does **not** apply to the drawer's own
-code (the templates carry only a marker pointing here).
-
-**Critical rule** (both modes): every scene must fully describe DOM state from scratch. Never `appendChild` from a scene. All optional panels (key-question, race demo, summary) declared upfront with `class="hidden"`, toggled per scene via `show()`/`hide()`.
+**Critical rule:** every scene must fully describe DOM state from scratch. Never
+`createElement`/`appendChild` from a scene. Declare every panel up front (`.wt-panel hidden`)
+and toggle with `show()/hide()`. The engine runs `RENDER_HOOKS` → the mode's
+`clear(registry)` → `scenes[step]()` on every render.
 
 ### Phase 4.5 — Save and report
 
@@ -254,7 +246,7 @@ Run the self-test checklist:
 - [ ] The resolution / summary step explicitly names side-effects and trade-offs
 - [ ] `scenes.length - 1 === TOTAL` in JS (step 0 is included; TOTAL is the index of the last step)
 - [ ] Every `getElementById(id)` call has a matching `id` attribute in the HTML
-- [ ] `COMPONENTS` / `ARROWS` / `LABELS` (diagram mode) or `ID_LIST` (tables mode) contains every id used in scenes
+- [ ] The mode pack's registry arrays contain every id used in scenes (`assertRegistryComplete()` would pass)
 - [ ] Going `← Previous` from any step returns clean state (idempotent scene rule)
 - [ ] `↻ Reset` returns to step 0 with no residual highlights, badges, or visible panels
 - [ ] No `appendChild` / `createElement` inside any scene function
@@ -264,64 +256,40 @@ Run the self-test checklist:
 - [ ] **Grounding:** every `GLOSSARY` entry marked `source: 'CONTEXT.md'` matches the
       glossary wording; `'authored'` is used only for terms absent from `CONTEXT.md`
 - [ ] **Drawer is orthogonal:** no scene references the drawer
-      (`openTerm`/`closeDrawer`/`termDrawer`/`GLOSSARY`); `clearAllStates()` does not
-      touch it; `render()` calls `closeDrawer()` first; `Next`/`Prev`/`Reset` close the
-      drawer and leave no residue
+      (`openTerm`/`closeDrawer`/`termDrawer`/`GLOSSARY`); the mode's `clear()` does not
+      touch it; `render()` runs `RENDER_HOOKS` first (the drawer self-registers
+      `closeDrawer`); `Next`/`Prev`/`Reset` close the drawer and leave no residue
 - [ ] **See-also hops:** clicking a see-also chip swaps the drawer; `← back` restores the
       prior term; with no `CONTEXT.md`, drillable terms still work via `authored` defs
+- [ ] **Post-assembly self-test passes:** `python scripts/check-walkthrough.py <out>.html`
+      reports OK (self-contained, `MODE`+renderer ok, `RENDER_HOOKS`-first, scenes clean, order ok)
 
 If any item fails — fix before reporting done.
 
-## Diagram Mode — Design Decisions
+## Design Decisions — engine + mode packs
 
-The diagram template encodes proven choices:
+**Color tokens live once in the engine's `:root`** (`walkthrough-engine.html`); never
+introduce a new hex. The semantic core: `--accent #5fb4ff` (info/active),
+`--amber #ffd479` (firing), `--magic #b070ff` (locked/key), `--warn #ffaa00`,
+`--success #4ade80` (done), `--error #ff5757` (error/conflict), `--bg #0a0e14`,
+`--panel #1a2330`. SVG marker fills come from the engine's fixed 5 markerheads
+(`arrowhead`/`-active`/`-magic`/`-done`/`-error`), or `var(--token)` — never a raw hex.
 
-**Color tokens** (don't change — proven for readability):
-
-- `#5fb4ff` — info / accent / active (blue)
-- `#ffd479` — firing / value-in-flight (amber)
-- `#b070ff` — locked / magic / "this is the key step" (purple)
-- `#ffaa00` — blocked / warn (orange)
-- `#4ade80` — done / success (green)
-- `#ff5757` — error / conflict (red)
-- `#0a0e14` — background, `#1a2330` — panel background
-
-**Component states** (set via `setComp(id, state)`):
-
-- `''` — idle (default gray border, dim text)
-- `active` — lit cyan, current focus
-- `firing` — pulsing amber, just got triggered
-- `locked` — purple with glow, holds an exclusive lock
-- `blocked` — orange, dimmed, blinking — waiting on someone else
-- `done` — green, completed
-- `error` — red glow
-- `dimmed` — 35% opacity, fades into background
-
-**Arrow states** (set via `setArrow(id, state)`):
-
-- `''` — idle gray
-- `active` — bright cyan with dashed flow animation
-- `magic` — purple, "the special arrow" (lock acquisition, etc.)
-- `done` — green, traversed
-- `error` — red
-
-**Flow labels** (set via `setLabel(id, show, variant)`) — pre-positioned along each arrow's midpoint, toggled per scene. Variant `'magic'` or `'error'` recolors for those states.
-
-## Tables Mode — Design Decisions
-
-(Inherited from the original tables template — unchanged.)
-
-**State classes** on row elements: `.target-delete`, `.target-setnull`, `.target-conflict`, `.fixed`, `.deleted`.
-
-**Badge classes**: `.badge.delete`, `.badge.setnull`, `.badge.conflict`.
-
-**Single source of truth for rows:**
+**The renderer contract** every mode pack implements:
 
 ```js
-const ID_LIST = ['F1', 'C1', 'C2', 'A1', 'T1', 'T2', 'T3'];
+modeRenderers['<name>'] = {
+  registry: { /* one+ flat id-arrays */ },
+  clear(reg) { /* reset every registry id to idle; hide .wt-panel; restore [data-default] */ },
+  /* replace-only setters, e.g. setNode(id,state) */
+  assertRegistryComplete() { /* throw if a DOM id is absent from the registry */ },
+};
 ```
 
-`clearAllStates()` iterates this list to reset rows + badges.
+**Each pack documents its own states** (in the pack file's comments) — don't duplicate them here:
+- `references/mode-diagram.html` — `setComp`/`setArrow`/`setLabel`/`setText`; comp states `active/firing/locked/blocked/done/error/dimmed`; arrow states `active/magic/done/error/dimmed`.
+- `references/mode-tables.html` — `setRowClass`/`setBadge`/`setCell`/`setRule`; row states `target-delete/target-setnull/target-conflict/fixed/deleted`; badges `delete/setnull/conflict`.
+- `references/mode-state-machine.html` — `setNode`/`setEdge`; node states `current/passed/illegal/stuck/key/dimmed`; the illegal/stuck transition IS the conflict step.
 
 ## Idempotent Scenes — The One Rule (both modes)
 
@@ -333,9 +301,9 @@ How:
 
 1. Declare every possible UI element in the initial HTML, hidden with `.hidden` class (or with default content for live-text fields)
 2. Scenes call `show('panelId')` / `hide('panelId')` to toggle visibility
-3. Scenes call `setComp(id, state)` / `setArrow(id, state)` / `setLabel(id, show)` / `setBadge(id, html)` — these REPLACE state, never append
-4. Scenes call `setText(id, text)` to update live-text fields
-5. The render loop calls `clearAllStates()` first, then runs ONLY the current scene function
+3. Scenes call the mode's replace-only setters (e.g. `setNode`/`setEdge`, `setComp`/`setArrow`, `setRowClass`/`setBadge`) — these REPLACE state, never append
+4. Scenes call `setText`/`setCell` to update live-text fields
+5. The engine's `render()` runs `RENDER_HOOKS` (e.g. the drawer's `closeDrawer`) → the mode's `clear(registry)` → ONLY the current scene function
 
 **No scene function ever does:**
 
@@ -350,7 +318,7 @@ If you need to "add" a panel mid-walkthrough, declare it once in the initial HTM
 
 | Mistake | Fix |
 |---|---|
-| Wrong mode picked — tables for a flow problem | Use the "How to choose" rule. Flow → diagram. Row state → tables. |
+| Wrong mode picked — tables for a flow problem | Use the flat selection table. Flow → diagram. Row state → tables. One entity's transitions → state-machine. |
 | Auto-playing animation that races past the reader | Manual `Next →` only. Reader controls pace. |
 | Abstract names (`A`, `B`, `Table1`, `Customer1`) | Real, domain-flavored, culturally appropriate names. |
 | IDs collide with output sequence numbers (`cargo-1` vs booking `00001`) | Use letter IDs (`cargo-A`) or source-tagged labels (`cargo (Portal)`). |
@@ -365,16 +333,24 @@ If you need to "add" a panel mid-walkthrough, declare it once in the initial HTM
 | Flying-label rect too small / clipped text | Measure your label text length; widen the `<rect>` to fit comfortably. |
 | Invented term definitions instead of CONTEXT.md | Source from the project glossary; author a fallback only when the term is absent (ADR 0017). |
 | Over-marking — every other word is drillable | Mark only terms *beyond* the reader's stated prerequisites. |
-| Copying the drawer code into the template | The primitive lives once in `references/term-drilldown.html`; inline it at generation (ADR 0019). |
+| Copying the drawer/engine code into a mode pack | The primitive lives once; inline via the assembler (`--drawer`, engine §). A pack is verified by assembly, not raw. (ADRs 0019, 0020) |
 | A scene opens/closes/reads the drawer | The drawer is reader-driven framework, never scene state. Keep scenes pure. |
 | `data-term` with no `GLOSSARY` entry (drawer no-ops) | Every `data-term` and `seeAlso` key must resolve to a `GLOSSARY` entry. |
+| Editing `walkthrough-engine.html` to add a mode | A mode is a pack registering one renderer — adding a mode is **zero engine edits** (ADR 0020). |
+| Hand-splicing the assembled `.html` | Use `scripts/assemble-walkthrough.py`, then `scripts/check-walkthrough.py` — a bad manual splice yields a self-contained-but-broken file. |
+| Introducing a new color hex | Reuse `:root` tokens / the 5 markerheads; the checker + review reject new tokens (ADR 0022). |
 
-## Reference Examples
+## Reference files (the always-present scaffolds)
 
-These are the author's local example files for structural inspiration — they live on the
-author's machine and **may not exist on yours or on another harness**. The bundled
-`template-diagram.html` / `template.html` (in this skill's folder) are the real,
-always-present scaffolds; skip any example path below that isn't there.
+Build every walkthrough from these bundled files in this skill's folder:
 
-- **`c:/Repo/glasshull repo/glasshull/docs/2026-05-28-polaris-booking-number-diagram.html`** — DIAGRAM MODE canonical. 22 steps explaining how a classic workflow + CodeActivity + counter entity collaborate to assign sequential booking numbers, including a 3-transaction concurrency demo and a race-condition counter-example. Mixed Thai/English narration. Use this as the structural reference for any architecture/flow walkthrough.
-- **`c:/Repo2/t/cascade-paths-explained.html`** — TABLES MODE canonical. 7 steps explaining SQL Server error 1785 (multiple cascade paths) using "ครอบครัวสมศรี" budget transactions. Use this for any row-state walkthrough.
+- `references/walkthrough-engine.html` — the shared engine (also a standalone runnable demo).
+- `references/mode-diagram.html` · `references/mode-tables.html` · `references/mode-state-machine.html` — the mode packs (each runs its own demo via assembly).
+- `references/term-drilldown.html` — the term drill-down drawer.
+- `scripts/assemble-walkthrough.py` — the deterministic generation splice.
+- `scripts/check-walkthrough.py` — the mandatory post-assembly self-test.
+
+Author's local examples (structural inspiration only — **may not exist** on your machine; skip if absent):
+
+- `c:/Repo/glasshull repo/glasshull/docs/2026-05-28-polaris-booking-number-diagram.html` — a 22-step diagram-mode concurrency walkthrough.
+- `c:/Repo2/t/cascade-paths-explained.html` — a 7-step tables-mode SQL 1785 cascade walkthrough.
