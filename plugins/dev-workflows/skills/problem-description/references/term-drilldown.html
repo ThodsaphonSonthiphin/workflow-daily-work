@@ -82,26 +82,10 @@
 <script>
 /* ===== §JS  (copy into the walkthrough's <script>, after the DOM helper functions) ===== */
 
-/* GLOSSARY — inlined from CONTEXT.md at authoring time. REPLACE these demo entries.
-     key:'slug'  referenced via the data-term attribute and in seeAlso arrays
-     term:       header shown in the drawer
-     short:      CONTEXT.md wording, or an authored one-liner fallback
-     seeAlso:    array of other GLOSSARY keys to hop to (optional)
-     source:     'CONTEXT.md' | 'authored'                                            */
-const GLOSSARY = {
-  'idempotent': {
-    term: 'idempotent',
-    short: 'an operation that lands on the same state no matter how many times it runs — the rule every scene in a walkthrough follows.',
-    seeAlso: ['demo-key'],
-    source: 'authored'
-  },
-  'demo-key': {
-    term: 'demo key',
-    short: 'the lookup key the demo DB stores its value under.',
-    seeAlso: [],
-    source: 'CONTEXT.md'
-  }
-};
+/* GLOSSARY is provided by the generated walkthrough's authored bootstrap (inlined from
+   CONTEXT.md at authoring time): an object keyed by slug -> {term, short, seeAlso, source}
+   where source is 'CONTEXT.md' | 'authored'. The §JS below only READS it; the standalone
+   demo declares a demo GLOSSARY in its DEMO-ONLY block at the bottom of this file. */
 
 let drawerStack = [];   // GLOSSARY keys visited this open, for ← back
 
@@ -162,10 +146,18 @@ document.addEventListener('click', (e) => {
 });
 document.getElementById('drawerClose').onclick = closeDrawer;
 document.getElementById('drawerBack').onclick  = backTerm;
-/* ===== end §JS =====
-   Reminder: in the walkthrough's render(step), add closeDrawer() as the FIRST line. */
 
-/* DEMO ONLY — the sim button calls closeDrawer() to mimic render() on a step change. */
+// Self-register with the walkthrough engine so stepping closes the drawer
+// (Phase 2 RENDER_HOOKS model). Guarded so this file still runs standalone.
+if (typeof RENDER_HOOKS !== 'undefined' && RENDER_HOOKS.indexOf(closeDrawer) === -1) RENDER_HOOKS.push(closeDrawer);
+/* ===== end §JS ===== */
+
+/* DEMO ONLY — a demo GLOSSARY (the real one is authored in the walkthrough bootstrap) +
+   the sim button that mimics render() closing the drawer on a step change. */
+const GLOSSARY = {
+  'idempotent': { term: 'idempotent', short: 'an operation that lands on the same state no matter how many times it runs — the rule every scene in a walkthrough follows.', seeAlso: ['demo-key'], source: 'authored' },
+  'demo-key':   { term: 'demo key', short: 'the lookup key the demo DB stores its value under.', seeAlso: [], source: 'CONTEXT.md' },
+};
 document.getElementById('simNext').onclick = closeDrawer;
 </script>
 </body></html>
