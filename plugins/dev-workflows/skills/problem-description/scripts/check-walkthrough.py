@@ -29,12 +29,18 @@ def main(path):
         if not m.group(3).startswith('data:'):
             errs.append(f'external resource not allowed: <{m.group(1)} {m.group(2)}="{m.group(3)}">')
 
-    # B. MODE + renderer registration
+    # B. MODE + renderer registration (+ the renderer satisfies the registry/clear contract)
     mm = re.search(r"\bMODE\s*=\s*'([\w-]+)'", src)
     if not mm:
         errs.append("MODE is not set (expected MODE = '<mode>')")
-    elif not re.search(r"modeRenderers\[\s*'" + re.escape(mm.group(1)) + r"'\s*\]\s*=", src):
-        errs.append(f"modeRenderers['{mm.group(1)}'] is not registered")
+    else:
+        rm0 = re.search(r"modeRenderers\[\s*'" + re.escape(mm.group(1)) + r"'\s*\]\s*=", src)
+        if not rm0:
+            errs.append(f"modeRenderers['{mm.group(1)}'] is not registered")
+        else:
+            window = src[rm0.start():rm0.start() + 5000]
+            if 'registry' not in window or not re.search(r'\bclear\s*\(', window):
+                errs.append(f"modeRenderers['{mm.group(1)}'] is missing registry/clear (renderer contract)")
 
     # C. render runs RENDER_HOOKS first
     if not re.search(r'function render\s*\([^)]*\)\s*\{\s*RENDER_HOOKS\b', src):
@@ -59,14 +65,29 @@ def main(path):
                     if k not in keys:
                         errs.append(f'seeAlso "{k}" has no GLOSSARY entry')
 
-    # E. scenes clean
+    # E. scenes clean — no DOM-building / drawer references inside scenes (call/usage-shaped
+    #    patterns, so narration text that merely mentions a name doesn't false-positive)
     sm = re.search(r'const scenes\s*=\s*\[(.*?)\];\s*TOTAL', src, re.S)
     if not sm:
         errs.append('could not locate `const scenes = [ ... ]; TOTAL`')
     else:
-        for bad in ('createElement', 'appendChild', 'openTerm', 'closeDrawer', 'termDrawer', 'GLOSSARY', 'drawerStack'):
-            if bad in sm.group(1):
-                errs.append(f'scene code references "{bad}" — must stay out of scenes')
+        scenes_body = sm.group(1)
+        for pat in (r'createElement\s*\(', r'appendChild\s*\(', r'\bopenTerm\s*\(',
+                    r'\bcloseDrawer\s*\(', r'\bhopTerm\s*\(', r'\bGLOSSARY\s*[\[.]',
+                    r'\bdrawerStack\b', r"getElementById\(\s*['\"]termDrawer"):
+            if re.search(pat, scenes_body):
+                errs.append(f'scene code matches /{pat}/ — DOM-building/drawer must stay out of scenes')
+
+        # F2. every id a scene setter targets must resolve to an id="" in the assembled DOM
+        #     (catches a typo'd id that would silently no-op). setRowClass/setBadge take a
+        #     logical id that maps to row<ID>/badge<ID>; all other setters use the literal id.
+        dom_ids = set(re.findall(r'\bid="([^"]+)"', src))
+        prefix = {'setRowClass': 'row', 'setBadge': 'badge'}
+        id_setters = r"(setNode|setEdge|setComp|setArrow|setLabel|setText|setRowClass|setBadge|setCell|setRule|show|hide)"
+        for setter, sid in re.findall(id_setters + r"""\s*\(\s*['"]([^'"]+)['"]""", scenes_body):
+            want = prefix.get(setter, '') + sid
+            if want not in dom_ids:
+                errs.append(f"scene {setter}('{sid}') targets id \"{want}\" with no matching id=\"\" in the DOM (silent no-op)")
 
     # F. source order
     decl = src.find('const modeRenderers')

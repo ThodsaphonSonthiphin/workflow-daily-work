@@ -48,7 +48,7 @@ def main():
     ap.add_argument('--drawer')
     ap.add_argument('--demo', action='store_true')
     ap.add_argument('--bootstrap')
-    ap.add_argument('--title', default='[INSERT: walkthrough title]')
+    ap.add_argument('--title', default=None)
     a = ap.parse_args()
 
     eng = pathlib.Path(a.engine).read_text(encoding='utf-8')
@@ -73,7 +73,9 @@ def main():
     # Process the engine §HTML: drop the DEMO-ONLY content block, insert the mode
     # pack's §HTML at the MODE CONTENT slot, and the drawer §HTML at its marker.
     html = re.sub(r'<!--\s*DEMO ONLY content.*?<!--\s*end DEMO ONLY\s*-->', '', eng_html, flags=re.S)
-    html = re.sub(r'(<!--\s*=====\s*MODE CONTENT[^\n]*?-->)', r'\1\n' + mode_html.replace('\\', r'\\'), html, count=1)
+    # Function replacement so mode_html is treated literally (a raw replacement string would
+    # interpret backslashes and \1/\g<> group refs and could corrupt a future pack's §HTML).
+    html = re.sub(r'(<!--\s*=====\s*MODE CONTENT[^\n]*?-->)', lambda m: m.group(1) + '\n' + mode_html, html, count=1)
     if draw_html:
         html = html.replace('<!-- term drill-down drawer §HTML inlined here at generation -->', draw_html)
 
@@ -88,7 +90,7 @@ def main():
 
     out = (
         '<!DOCTYPE html>\n<html lang="th"><head><meta charset="UTF-8">\n'
-        f'<title>{a.title}</title>\n<style>\n{css}\n</style></head>\n<body>\n'
+        f'<title>{a.title or pathlib.Path(a.out).stem}</title>\n<style>\n{css}\n</style></head>\n<body>\n'
         f'{html}\n<script>\n{js}\n</script>\n</body></html>\n'
     )
     pathlib.Path(a.out).write_text(out, encoding='utf-8')

@@ -203,7 +203,8 @@ drawer are inlined by the assembler.
      Mark terms in narration: `<span class="term" data-term="key">…</span>`.
    - `const scenes = [ … ];` — one function per step, each fully describing DOM state via the
      flat setters + `setNarration(cls, title, bodyHTML)` + `show()/hide()` on `.wt-panel`s.
-   - `TOTAL = scenes.length - 1; buildProgressDots(); render(0);`
+   - `TOTAL = scenes.length - 1; modeRenderers[MODE].assertRegistryComplete(); buildProgressDots(); render(0);`
+     — the `assertRegistryComplete()` call makes any DOM-id-not-in-registry drift throw at load.
 3. **Assemble:**
    ```
    python scripts/assemble-walkthrough.py --engine references/walkthrough-engine.html \
@@ -246,7 +247,7 @@ Run the self-test checklist:
 - [ ] The resolution / summary step explicitly names side-effects and trade-offs
 - [ ] `scenes.length - 1 === TOTAL` in JS (step 0 is included; TOTAL is the index of the last step)
 - [ ] Every `getElementById(id)` call has a matching `id` attribute in the HTML
-- [ ] The mode pack's registry arrays contain every id used in scenes (`assertRegistryComplete()` would pass)
+- [ ] Every id a scene targets resolves to an `id=""` in the DOM (the checker's scene-id pass), and `modeRenderers[MODE].assertRegistryComplete()` passes at load (DOM ids ⊆ registry)
 - [ ] Going `← Previous` from any step returns clean state (idempotent scene rule)
 - [ ] `↻ Reset` returns to step 0 with no residual highlights, badges, or visible panels
 - [ ] No `appendChild` / `createElement` inside any scene function

@@ -161,6 +161,7 @@ const scenes = [
   },
 ];
 TOTAL = scenes.length - 1;
+modeRenderers[MODE].assertRegistryComplete();   // DOM ids ⊆ registry (runtime contract self-check)
 buildProgressDots();
 render(0);
 /* ===== DEMO-BOOTSTRAP END ===== */
