@@ -27,7 +27,7 @@
       "name": "dev-workflows",
       "source": "./plugins/dev-workflows",
       "description": "The daily-work arc in one plugin, entered via /daily (hybrid router: bare = 5-station menu — start/work/file/report/wrap — argument jumps straight there; see PLAYBOOK.md at the marketplace repo root). Design & planning: grill-then-plan (verifies the cause via debug-mantra first when planning a fix). Debug chain (both ways): debug-mantra -> (grill-then-plan when the fix involves a design choice) -> post-mortem -> management-talk. Review & verification: scrutinize, dual-verifier. System study: study-design-verify, fit-gap-analysis, naming-audit, drive-to-legacy, crm-archaeology (Dynamics 365/Dataverse org study), ticket-trace. Communication: management-talk, invoice-generator (Tribletext daily summary from git commits), problem-description (interactive HTML walkthroughs).",
-      "version": "0.19.0",
+      "version": "0.20.0",
       "author": {
         "name": "ThodsaphonSonthiphin",
         "url": "https://github.com/ThodsaphonSonthiphin"
