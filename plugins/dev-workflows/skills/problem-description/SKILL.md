@@ -209,9 +209,12 @@ drawer are inlined by the assembler.
    ```
    python scripts/assemble-walkthrough.py --engine references/walkthrough-engine.html \
      --mode references/mode-<name>.html --drawer references/term-drilldown.html \
+     --title "<the walkthrough's on-screen heading>" \
      --out <project-root>/docs/problem-description/<name>.html --bootstrap your-bootstrap.js
    ```
-   Drop `--drawer` if the walkthrough has no drillable terms.
+   Drop `--drawer` if the walkthrough has no drillable terms. `--title` fills both the
+   browser-tab `<title>` and the on-screen `<h1>` (it falls back to the output filename stem,
+   so the placeholder never ships — but pass a real title).
 4. **Self-test (mandatory):** `python scripts/check-walkthrough.py <out>.html` — it must pass.
 
 **The drawer is framework, not a scene** — never call `openTerm`/`closeDrawer`/`GLOSSARY`

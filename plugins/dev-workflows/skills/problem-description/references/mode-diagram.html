@@ -125,8 +125,12 @@ modeRenderers['diagram'] = {
     const got = { comp: '.comp', arrow: '.arrow', flow: '.flow-label-group' };
     const lists = { comp: this.registry.COMPONENTS, arrow: this.registry.ARROWS, flow: this.registry.LABELS };
     const miss = [];
+    // DOM not in registry
     Object.keys(got).forEach(k => [].forEach.call(document.querySelectorAll(got[k]), e => { if (e.id && !lists[k].includes(e.id)) miss.push(e.id); }));
-    if (miss.length) throw new Error('diagram registry missing ids: ' + miss.join(', '));
+    // registry not in DOM (typo/orphan) — incl. the LIVE text fields
+    [].concat(this.registry.COMPONENTS, this.registry.ARROWS, this.registry.LABELS, Object.keys(this.registry.LIVE))
+      .forEach(id => { if (!document.getElementById(id)) miss.push(id); });
+    if (miss.length) throw new Error('diagram registry/DOM mismatch: ' + miss.join(', '));
     return true;
   },
 };

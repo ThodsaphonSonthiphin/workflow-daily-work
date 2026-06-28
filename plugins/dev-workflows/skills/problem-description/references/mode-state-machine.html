@@ -108,9 +108,11 @@ modeRenderers['state-machine'] = {
   assertRegistryComplete() {
     const nodes = [].map.call(document.querySelectorAll('.sm-node'), e => e.id);
     const edges = [].map.call(document.querySelectorAll('.sm-edge'), e => e.id);
-    const miss = nodes.filter(id => !this.registry.NODE_LIST.includes(id))
-                .concat(edges.filter(id => !this.registry.EDGE_LIST.includes(id)));
-    if (miss.length) throw new Error('state-machine registry missing ids: ' + miss.join(', '));
+    const all = this.registry.NODE_LIST.concat(this.registry.EDGE_LIST);
+    const miss = nodes.filter(id => !this.registry.NODE_LIST.includes(id))    // DOM not in registry
+                .concat(edges.filter(id => !this.registry.EDGE_LIST.includes(id)))
+                .concat(all.filter(id => !document.getElementById(id)));      // registry not in DOM (typo/orphan)
+    if (miss.length) throw new Error('state-machine registry/DOM mismatch: ' + miss.join(', '));
     return true;
   },
 };

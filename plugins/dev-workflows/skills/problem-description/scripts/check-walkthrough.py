@@ -29,6 +29,10 @@ def main(path):
         if not m.group(3).startswith('data:'):
             errs.append(f'external resource not allowed: <{m.group(1)} {m.group(2)}="{m.group(3)}">')
 
+    # A2. no unsubstituted authoring placeholder (the assembler fills the h1/title)
+    if '[INSERT' in src:
+        errs.append('unsubstituted "[INSERT…]" placeholder remains — pass --title to the assembler')
+
     # B. MODE + renderer registration (+ the renderer satisfies the registry/clear contract)
     mm = re.search(r"\bMODE\s*=\s*'([\w-]+)'", src)
     if not mm:
@@ -48,6 +52,8 @@ def main(path):
 
     # D. drawer composition (only if a drawer is present)
     if 'id="termDrawer"' in src:
+        if 'data-term="' not in src:
+            errs.append('drawer assembled but no data-term spans use it — drop --drawer or mark terms')
         if 'function closeDrawer' not in src:
             errs.append('drawer present but closeDrawer() not defined')
         if not re.search(r'RENDER_HOOKS\.push\s*\(\s*closeDrawer\s*\)', src):
@@ -64,6 +70,10 @@ def main(path):
                 for k in re.findall(r"'([\w-]+)'", arr):
                     if k not in keys:
                         errs.append(f'seeAlso "{k}" has no GLOSSARY entry')
+    elif re.search(r'data-term="', src):
+        # terms marked drillable but no drawer assembled: the .term styling and the click
+        # handler both live in the drawer pack, so the spans render as inert plain text.
+        errs.append('data-term spans present but no drawer assembled — pass --drawer or remove the spans')
 
     # E. scenes clean — no DOM-building / drawer references inside scenes (call/usage-shaped
     #    patterns, so narration text that merely mentions a name doesn't false-positive)

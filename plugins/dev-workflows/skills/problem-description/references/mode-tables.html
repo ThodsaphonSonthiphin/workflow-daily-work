@@ -102,8 +102,9 @@ modeRenderers['tables'] = {
   setRule(ruleId, active) { const r = document.getElementById(ruleId); if (!r) return; r.classList.toggle('active', !!active); },
   assertRegistryComplete() {
     const rows = [].map.call(document.querySelectorAll('.row-data'), e => e.id.replace(/^row/, ''));
-    const miss = rows.filter(id => !this.registry.ID_LIST.includes(id));
-    if (miss.length) throw new Error('tables registry missing ids: ' + miss.join(', '));
+    const miss = rows.filter(id => !this.registry.ID_LIST.includes(id))                  // DOM not in registry
+                .concat(this.registry.ID_LIST.filter(id => !document.getElementById('row' + id)));  // registry not in DOM
+    if (miss.length) throw new Error('tables registry/DOM mismatch: ' + miss.join(', '));
     return true;
   },
 };

@@ -79,6 +79,12 @@ def main():
     if draw_html:
         html = html.replace('<!-- term drill-down drawer §HTML inlined here at generation -->', draw_html)
 
+    # Fill BOTH the browser-tab <title> and the on-screen <h1>. The engine ships the h1 as a
+    # placeholder; --title (falling back to the out stem) is the single source for both, so a
+    # generated walkthrough never displays "[INSERT: walkthrough title]".
+    title = a.title or pathlib.Path(a.out).stem
+    html = html.replace('[INSERT: walkthrough title]', title)
+
     js_parts = [eng_js]
     if draw_js:
         js_parts.append(draw_js)
@@ -90,7 +96,7 @@ def main():
 
     out = (
         '<!DOCTYPE html>\n<html lang="th"><head><meta charset="UTF-8">\n'
-        f'<title>{a.title or pathlib.Path(a.out).stem}</title>\n<style>\n{css}\n</style></head>\n<body>\n'
+        f'<title>{title}</title>\n<style>\n{css}\n</style></head>\n<body>\n'
         f'{html}\n<script>\n{js}\n</script>\n</body></html>\n'
     )
     pathlib.Path(a.out).write_text(out, encoding='utf-8')
