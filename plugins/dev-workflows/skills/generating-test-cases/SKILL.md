@@ -9,10 +9,12 @@ Turn a feature, change, or fixed bug into a structured, **evidence-grounded** te
 
 The whole skill rests on one discipline you must not skip:
 
-> **🔒 Iron Law — No test case, no expected value, no test datum without a cited source.**
+> **🔒 Iron Law — No test case, no expected value, no test datum without a cited source — and no value left as a *category* when the test needs an *instance*.**
 > Every row points to where it came from: a doc, source code (`file:line`), git, or the **live system**. If a value can't be found in a real source, you do **not** write it — you mark it `TBD (needs confirmation)` and ask. Guessing is a defect, not a shortcut.
 
-**Violating the letter of this rule is violating its spirit.** A plausible-but-unsourced expected value is worse than a blank one: it looks verified and isn't.
+**Violating the letter of this rule is violating its spirit.** Two failure modes break it, not one:
+- **Fabrication** — a plausible-but-unsourced value. Worse than blank: it looks verified and isn't.
+- **Under-specification** — a value or precondition filled with the spec's *class* instead of a concrete *instance* (`an email with ≥1 attachment`, `a valid user`, `some cargo record`). It *is* "sourced" — you copied the spec — so it slips the source check, carries no hedge word, and can even cite an Evidence cell. But it's untestable. **A category is not a value.** Resolve it to the real instance (Step 2) or mark `TBD (needs confirmation)` and ask — never leave the abstraction.
 
 ## When to invoke
 
@@ -46,7 +48,7 @@ Walk every dimension so none is missed: happy · config/validation · integratio
 - Every fix-commit in the touched area → one regression case.
 - Mark Auto/Manual, map automated cases to the real test method, assign Priority, flag **hard gates** (must-pass before sign-off).
 
-**5. Make each case executable.** Numbered Steps; Expected = a **verifiable value from a real source** (`2026-06-18_14-03-22_screen.mp4`, `Total = 500,000 (NOT 0)`), never "works correctly". Can't source it → `TBD (needs confirmation)`, then ask.
+**5. Make each case executable.** Numbered Steps; Expected = a **verifiable value from a real source** (`2026-06-18_14-03-22_screen.mp4`, `Total = 500,000 (NOT 0)`), never "works correctly". **The same bar applies to Test Data and Preconditions — name the specific instance, not the class:** ✗ `an email with ≥1 attachment` → ✓ `email "Re: BL-2026-0042" from shipping@acme.com, 1 attachment BL-2026-0042.pdf (PDF, 31 KB)` (the concrete instance pulled live in Step 2). Can't source any of these → `TBD (needs confirmation)`, then ask.
 
 **6. ▶ ASK the user the destination — before rendering.** Do not assume a format.
 ```
@@ -61,6 +63,7 @@ Also: priority scheme? · include Tester/Date columns? · map automated cases to
 
 **8. Self-review gates** (all must pass before delivery):
 - Evidence present on **every** row; no `TBD` left unflagged; no "probably/assume/typically" in Steps/Expected/Test Data
+- **Concrete-instance check:** every **Test Data / Precondition** cell names a real instance (actual ID, name, value), not a class. Treat `some / any / a valid <noun>` and a quantifier used *as* the datum (`≥1`, `one or more`, `at least`) as smells to resolve — not a literal word-ban; a concrete value that merely contains "a"/"an" is fine.
 - Coverage: every requirement/ADR/diff-hunk/risk has a case; negative cases present; every P1 has an unambiguous pass/fail
 - Every fix-commit in the area has a regression case
 - Encoding check **by codepoint**, not by console rendering (avoids false "mojibake")
@@ -77,10 +80,12 @@ Also: priority scheme? · include Tester/Date columns? · map automated cases to
 | "Docs are old, I'll infer from the function name" | Docs vs code → code/live wins. Read the real thing. |
 | "The task said decide the format myself" | Decide *structure* yourself; the *destination* is the user's call — ask (Step 6). |
 | "git is overkill for tests" | git diff scopes the change; git log finds the regressions you'd otherwise miss. |
+| "The spec literally says 'an email with ≥1 attachment' — so it's sourced" | The spec gives the *class*; a test needs an *instance*. Pull the real email live (Step 2) or mark TBD. A category is not a value. |
 
 ## Red flags — STOP and go find the source
 
 - "probably / expected / typically / normally / assume / should be" in Steps, Expected, or Test Data
+- A value or precondition stated as a **class, not an instance** — `a / an / some / any / a valid <noun>`, or a quantifier standing in for data (`≥1`, `one or more`, `at least`). You can't run a test from a category.
 - An Expected Result with no Evidence cell filled
 - Picked a format without asking the user
 - Wrote device names / defaults / enum values without running or querying the live system
@@ -92,6 +97,7 @@ Also: priority scheme? · include Tester/Date columns? · map automated cases to
 - **Assuming xlsx** → Step 6 asks first; the canonical model (Steps 1–5) is format-blind so re-rendering to a second format is free.
 - **Re-implementing ADO/Jira creation** → delegate to the backlog plugins.
 - **Skipping the live system** → the single most common gap; the real values live there.
+- **Category instead of instance** → copying the spec's abstraction (`a valid X`, `≥1 Y`) into Test Data. It's "sourced" but untestable; resolve to a concrete instance from Step 2, or mark TBD + ask.
 
 ## Chain position
 
