@@ -10,8 +10,8 @@ description: >-
   file | report | wrap, synonyms accepted) it jumps straight to the station and
   hands off to the right skill: ado-backlog:my-work, the situational toolbox
   (grill-then-plan, debug-mantra, study-design-verify, naming-audit,
-  fit-gap-analysis, problem-description, ticket-trace, scrutinize, dual-verifier,
-  drive-to-legacy, crm-archaeology, generating-test-cases), findings-to-ado-backlog or
+  fit-gap-analysis, problem-description, ticket-trace, scrutinize, review-pr,
+  dual-verifier, drive-to-legacy, crm-archaeology, generating-test-cases), findings-to-ado-backlog or
   ado-create-work-items (github-backlog twins on request), management-talk, or
   invoice-generator.
 ---
@@ -130,7 +130,8 @@ Ask ONE question — "What's happening?" — with these options, then hand off:
 | auditing names / labels / mappings | `naming-audit` (or `fit-gap-analysis` for as-is vs to-be) |
 | explaining a complex problem | `problem-description` |
 | asking why code/a ticket exists | `ticket-trace` |
-| wanting a second opinion | `scrutinize` (plans/PRs) or `dual-verifier` (completed work) |
+| wanting a second opinion | `scrutinize` (plans/local diffs) or `dual-verifier` (completed work) |
+| reviewing a GitHub pull request | `review-pr` — context, safe workspace, scrutinize, then send-back / fix-it / chat-only |
 | facing an unfamiliar legacy codebase | `drive-to-legacy` |
 | facing an unfamiliar Dynamics 365 / Dataverse org | `crm-archaeology` |
 | wanting a repeatable test-case suite (feature / change / fixed bug) | `generating-test-cases` |
