@@ -117,6 +117,57 @@ def test_e6_duplicate_ids():
     assert any(rule == "E6" for rule, _ in r.errors), r.errors
 
 
+def test_e6_dangling_objective_problem():
+    m = base_model()
+    m["problem"]["objectives"][0]["problems"] = ["P-GHOST"]
+    r = validate(m)
+    assert any(rule == "E6" for rule, _ in r.errors), r.errors
+
+
+def test_e6_dangling_benefit_objective():
+    m = base_model()
+    m["problem"]["benefits"][0]["objectives"] = ["O-GHOST"]
+    r = validate(m)
+    assert any(rule == "E6" for rule, _ in r.errors), r.errors
+
+
+def test_e6_dangling_uc_objective():
+    m = base_model()
+    m["use_cases"][0]["objectives"] = ["O-GHOST"]
+    r = validate(m)
+    assert any(rule == "E6" for rule, _ in r.errors), r.errors
+
+
+def test_e6_dangling_uc_entity():
+    m = base_model()
+    m["use_cases"][0]["entities"] = ["ENT-GHOST"]
+    r = validate(m)
+    # E4 also uses `entities` for its allowed-fields set, so make sure the
+    # dangling-ref check still fires independently of whatever E4 does here.
+    assert any(rule == "E6" for rule, _ in r.errors), r.errors
+
+
+def test_e6_dangling_uc_screen():
+    m = base_model()
+    m["use_cases"][0]["screens"] = ["SCR-GHOST"]
+    r = validate(m)
+    assert any(rule == "E6" for rule, _ in r.errors), r.errors
+
+
+def test_e6_dangling_screen_uc():
+    m = base_model()
+    m["screens"][0]["use_cases"] = ["UC-GHOST"]
+    r = validate(m)
+    assert any(rule == "E6" for rule, _ in r.errors), r.errors
+
+
+def test_e6_dangling_transition_state():
+    m = base_model()
+    m["states"][0]["transitions"][0]["to"] = "ghost_state"
+    r = validate(m)
+    assert any(rule == "E6" for rule, _ in r.errors), r.errors
+
+
 def test_e3_fk_targets_missing_field():
     m = base_model()
     m["entities"][1]["fields"].append(
@@ -129,6 +180,13 @@ def test_e3_fk_targets_missing_field():
 def test_e4_step_field_not_on_entities():
     m = base_model()
     m["use_cases"][0]["main_flow"][0]["fields"] = ["ENT-PRODUCT.ghost_field"]
+    r = validate(m)
+    assert any(rule == "E4" for rule, _ in r.errors), r.errors
+
+
+def test_e4_extension_at_step_not_in_flow():
+    m = base_model()
+    m["use_cases"][0]["extensions"][0]["at_step"] = 999
     r = validate(m)
     assert any(rule == "E4" for rule, _ in r.errors), r.errors
 
@@ -156,7 +214,15 @@ def test_e5_transition_unknown_uc():
 
 def test_e7_plan_months_not_contiguous():
     m = base_model()
-    m["plan"]["phases"][1]["from"] = "2026-11"   # gap: Aug -> Nov
+    # from 2026-11 while to stays 2026-10 -> E7 fires (starts-after-ends and/or gap)
+    m["plan"]["phases"][1]["from"] = "2026-11"
+    r = validate(m)
+    assert any(rule == "E7" for rule, _ in r.errors), r.errors
+
+
+def test_e7_month_out_of_range():
+    m = base_model()
+    m["plan"]["phases"][0]["from"] = "2026-13"
     r = validate(m)
     assert any(rule == "E7" for rule, _ in r.errors), r.errors
 

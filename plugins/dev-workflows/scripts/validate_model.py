@@ -59,6 +59,66 @@ def _check_duplicate_ids(model, report):
             report.error("E6", f"duplicate id '{dup}' in {name}")
 
 
+def _check_dangling_refs(model, report):
+    """E6 — dangling id references anywhere (uniqueness is _check_duplicate_ids).
+
+    Deliberately excludes refs already validated elsewhere: actors (E1), scope
+    -> use_cases (E2), fk targets (E3), step field refs (E4), transition uc
+    (E5).
+    """
+    problem = model.get("problem") or {}
+    current_problem_ids = set(_ids(problem.get("current_problems")))
+    objective_ids = set(_ids(problem.get("objectives")))
+    entity_ids = set(_ids(model.get("entities")))
+    screen_ids = set(_ids(model.get("screens")))
+    use_case_ids = set(_ids(model.get("use_cases")))
+
+    for obj in problem.get("objectives") or []:
+        for p in obj.get("problems") or []:
+            if p not in current_problem_ids:
+                report.error("E6", f"objective {obj.get('id')} references "
+                                   f"unknown problem '{p}'")
+
+    for ben in problem.get("benefits") or []:
+        for o in ben.get("objectives") or []:
+            if o not in objective_ids:
+                report.error("E6", f"benefit {ben.get('id')} references "
+                                   f"unknown objective '{o}'")
+
+    for uc in model.get("use_cases") or []:
+        for o in uc.get("objectives") or []:
+            if o not in objective_ids:
+                report.error("E6", f"{uc.get('id')} references unknown "
+                                   f"objective '{o}'")
+        for e in uc.get("entities") or []:
+            if e not in entity_ids:
+                report.error("E6", f"{uc.get('id')} references unknown "
+                                   f"entity '{e}'")
+        for s in uc.get("screens") or []:
+            if s not in screen_ids:
+                report.error("E6", f"{uc.get('id')} references unknown "
+                                   f"screen '{s}'")
+
+    for sc in model.get("screens") or []:
+        for u in sc.get("use_cases") or []:
+            if u not in use_case_ids:
+                report.error("E6", f"screen {sc.get('id')} references "
+                                   f"unknown use case '{u}'")
+
+    for group in model.get("states") or []:
+        declared = set(group.get("states") or [])
+        for t in group.get("transitions") or []:
+            frm, to = t.get("from"), t.get("to")
+            if frm not in declared:
+                report.error("E6", f"transition references unknown state "
+                                   f"'{frm}' (not in {group.get('entity')}."
+                                   f"{group.get('field')} states)")
+            if to not in declared:
+                report.error("E6", f"transition references unknown state "
+                                   f"'{to}' (not in {group.get('entity')}."
+                                   f"{group.get('field')} states)")
+
+
 def _check_actor_refs(model, actors, report):
     """E1 — every referenced actor exists."""
     for uc in model.get("use_cases") or []:
@@ -112,7 +172,8 @@ def _check_fk_targets(model, report):
 
 
 def _check_step_field_refs(model, report):
-    """E4 — step field refs exist on the use case's entities."""
+    """E4 — step field refs exist on the use case's entities; extension
+    at_step anchors an existing main_flow step."""
     fields = _fields_by_entity(model)
     for uc in model.get("use_cases") or []:
         allowed = set()
@@ -124,6 +185,13 @@ def _check_step_field_refs(model, report):
                 if ref not in allowed:
                     report.error("E4", f"{uc.get('id')} references '{ref}' which "
                                        f"is not on its entities")
+        step_numbers = {s.get("step") for s in uc.get("main_flow") or []}
+        for ext in uc.get("extensions") or []:
+            at_step = ext.get("at_step")
+            if at_step not in step_numbers:
+                report.error("E4", f"{uc.get('id')} extension at_step "
+                                   f"{at_step!r} does not match any "
+                                   f"main_flow step")
 
 
 def _check_states(model, entities, use_cases, report):
@@ -152,7 +220,10 @@ def _check_states(model, entities, use_cases, report):
 
 def _month_index(ym):
     year, _, month = str(ym).partition("-")
-    return int(year) * 12 + int(month)
+    month = int(month)
+    if month < 1 or month > 12:
+        raise ValueError(f"month out of range 1-12: {month}")
+    return int(year) * 12 + month
 
 
 def _check_plan(model, report):
@@ -277,6 +348,7 @@ def validate(model):
     use_cases = {u.get("id") for u in model.get("use_cases") or []}
     entities = {e.get("id"): e for e in model.get("entities") or []}
     _check_duplicate_ids(model, report)
+    _check_dangling_refs(model, report)
     _check_actor_refs(model, actors, report)
     _check_scope_use_cases(model, use_cases, report)
     _check_fk_targets(model, report)

@@ -12,6 +12,7 @@ rendering finishes before printing. Missing browser degrades to HTML + advice,
 never a failure.
 """
 import argparse
+import html
 import json
 import pathlib
 import shutil
@@ -61,7 +62,7 @@ def build_html(md_text, title, marked_js, mermaid_js):
 <html>
 <head>
 <meta charset="utf-8">
-<title>{title}</title>
+<title>{html.escape(title)}</title>
 <style>{CSS}</style>
 </head>
 <body>

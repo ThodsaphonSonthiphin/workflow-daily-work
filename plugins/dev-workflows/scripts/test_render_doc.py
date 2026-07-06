@@ -35,6 +35,13 @@ def test_build_html_offline_inlines_scripts():
     assert "cdn.jsdelivr.net" not in html
 
 
+def test_build_html_escapes_title():
+    out = build_html(MD, "a<b>&c", None, None)
+    assert "<title>a<b>&c</title>" not in out
+    assert "&lt;b&gt;" in out
+    assert "&amp;" in out
+
+
 def test_cli_writes_html():
     with tempfile.TemporaryDirectory() as d:
         src = os.path.join(d, "doc.md")
