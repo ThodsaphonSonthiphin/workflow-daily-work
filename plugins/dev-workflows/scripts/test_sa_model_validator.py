@@ -224,7 +224,10 @@ def test_e7_month_out_of_range():
     m = base_model()
     m["plan"]["phases"][0]["from"] = "2026-13"
     r = validate(m)
-    assert any(rule == "E7" for rule, _ in r.errors), r.errors
+    # Assert on the message so this gates the bounds check specifically: without
+    # it, "2026-13" would still trip "starts after it ends" (a false pass).
+    assert any(rule == "E7" and "malformed month" in msg
+               for rule, msg in r.errors), r.errors
 
 
 def test_e8_professional_requires_security():
