@@ -51,6 +51,7 @@ flowchart TD
     WORK -- second opinion --> SC["scrutinize /<br/>dual-verifier"]
     WORK -- new legacy codebase --> DTL["drive-to-legacy"]
     WORK -- new CRM / D365 org --> CA["crm-archaeology"]
+    WORK -- need a full SA/design document --> SAD["sa-doc"]
 
     WORK -- 💥 something broke --> DM["debug-mantra<br/>(diagnose)"]
     DM --> Q{"fix involves a<br/>design choice?"}
@@ -75,6 +76,7 @@ flowchart TD
 | second opinion on a plan / PR / change | `scrutinize` / `dual-verifier` |
 | unfamiliar legacy codebase | `drive-to-legacy` |
 | unfamiliar Dynamics 365 / Dataverse org | `crm-archaeology` |
+| need a full SA&D document (use cases, diagrams, data dictionary) | `sa-doc` |
 | need a repeatable test-case suite (feature / change / fixed bug) | `generating-test-cases` |
 
 ### The debug chain (ADRs 0003 + 0011)

@@ -47,6 +47,7 @@ gets a diagram of the matching type:
 | data model / entity relationships | `erDiagram` |
 | decision logic / branching | `flowchart TD` |
 | hierarchy / pipeline / dependency / org structure | `graph TD` |
+| state lifecycle of an entity | `stateDiagram-v2` |
 
 No forced diagrams: a pure table/list section stays prose.
 
