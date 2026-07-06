@@ -53,6 +53,10 @@ def _script_tag(inline_body, cdn_url):
 
 
 def build_html(md_text, title, marked_js, mermaid_js):
+    # json.dumps() does not escape "/", so a literal "</script>" inside md_text
+    # would prematurely close this inline <script> block in the browser. Escaping
+    # "</" to "<\/" is valid JS/JSON and parses back to the identical string.
+    raw_json = json.dumps(md_text).replace("</", "<\\/")
     return f"""<!DOCTYPE html>
 <html>
 <head>
@@ -65,7 +69,7 @@ def build_html(md_text, title, marked_js, mermaid_js):
 {_script_tag(marked_js, MARKED_CDN)}
 {_script_tag(mermaid_js, MERMAID_CDN)}
 <script>
-const raw = {json.dumps(md_text)};
+const raw = {raw_json};
 document.getElementById("content").innerHTML = marked.parse(raw);
 document.querySelectorAll("pre code.language-mermaid").forEach(code => {{
   const div = document.createElement("div");
@@ -140,8 +144,13 @@ def main(argv):
                   "and print to PDF (Ctrl+P).")
         else:
             pdf_path = out_dir / f"{src.stem}.pdf"
-            print_pdf(browser, html_path, pdf_path)
-            print(f"PDF:  {pdf_path}")
+            try:
+                print_pdf(browser, html_path, pdf_path)
+                print(f"PDF:  {pdf_path}")
+            except (subprocess.CalledProcessError, OSError) as exc:
+                print(f"PDF generation failed ({exc}) - the HTML is ready at "
+                      f"{html_path}; open it in a browser and print to PDF "
+                      "manually (Ctrl+P).")
     return 0
 
 
