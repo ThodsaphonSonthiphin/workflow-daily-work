@@ -182,6 +182,95 @@ def _check_profile(model, report):
                            "security section")
 
 
+MONEY_HINTS = ("amount", "price", "total", "cost", "salary")
+TRIGGER_PREFIXES = ("กด", "คลิก", "ป้อน", "click", "press", "enter", "select")
+
+
+def _check_coverage(model, report):
+    """W1 — orphan use cases / uncovered objectives. W2 — screen coverage."""
+    scoped = {u for sc in model.get("scope") or [] for u in sc.get("use_cases") or []}
+    covered_objectives = {o for uc in model.get("use_cases") or []
+                          for o in uc.get("objectives") or []}
+    screens_with_uc = {s.get("id") for s in model.get("screens") or []
+                       if s.get("use_cases")}
+    ucs_with_screen = {u for s in model.get("screens") or []
+                       for u in s.get("use_cases") or []}
+    for uc in model.get("use_cases") or []:
+        if uc.get("id") not in scoped:
+            report.warn("W1", f"{uc.get('id')} has no scope capability pointing at it")
+        if uc.get("id") not in ucs_with_screen and not uc.get("screens"):
+            report.warn("W2", f"{uc.get('id')} has no screen")
+    for obj in (model.get("problem") or {}).get("objectives") or []:
+        if obj.get("id") not in covered_objectives:
+            report.warn("W1", f"objective {obj.get('id')} has no use case")
+    for s in model.get("screens") or []:
+        if s.get("id") not in screens_with_uc:
+            report.warn("W2", f"screen {s.get('id')} is linked to no use case")
+
+
+def _check_money_types(model, report):
+    """W3 — money-hinted fields must share one type."""
+    seen = {}
+    for ent in model.get("entities") or []:
+        for f in ent.get("fields") or []:
+            name = str(f.get("name", "")).lower()
+            if any(h in name for h in MONEY_HINTS):
+                seen[f"{ent.get('id')}.{f.get('name')}"] = str(f.get("type", "")).lower()
+    if len(set(seen.values())) > 1:
+        detail = ", ".join(f"{k}:{v}" for k, v in sorted(seen.items()))
+        report.warn("W3", f"money fields use inconsistent types ({detail})")
+
+
+def _check_postconditions(model, report):
+    """W4 — postconditions must be guarantees, not triggers."""
+    for uc in model.get("use_cases") or []:
+        posts = uc.get("postconditions") or []
+        if not posts:
+            report.warn("W4", f"{uc.get('id')} has no postcondition")
+        for p in posts:
+            if str(p).strip().lower().startswith(TRIGGER_PREFIXES):
+                report.warn("W4", f"{uc.get('id')} postcondition '{p}' is a "
+                                  f"trigger, not a guaranteed state")
+
+
+def _check_copy_paste(model, report):
+    """W5 — identical extension text across >= 3 use cases."""
+    seen = {}
+    for uc in model.get("use_cases") or []:
+        for ext in uc.get("extensions") or []:
+            key = str(ext.get("flow", "")).strip()
+            if key:
+                seen.setdefault(key, set()).add(uc.get("id"))
+    for text, ucs in seen.items():
+        if len(ucs) >= 3:
+            report.warn("W5", f"extension text repeated in {len(ucs)} use cases "
+                              f"({', '.join(sorted(ucs))}): '{text[:60]}...'")
+
+
+def _check_field_shapes(model, report):
+    """W6 — empty entities; sample values exceeding declared size."""
+    for ent in model.get("entities") or []:
+        if not ent.get("fields"):
+            report.warn("W6", f"entity {ent.get('id')} has zero fields")
+        for f in ent.get("fields") or []:
+            sample, size = f.get("sample"), f.get("size")
+            if (sample and size and "string" in str(f.get("type", "")).lower()
+                    and len(str(sample)) > int(size)):
+                report.warn("W6", f"{ent.get('id')}.{f.get('name')} sample is "
+                                  f"{len(str(sample))} chars but size is {size}")
+
+
+def _collect_tbds(node, path, out):
+    if isinstance(node, dict):
+        for k, v in node.items():
+            _collect_tbds(v, f"{path}.{k}" if path else str(k), out)
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            _collect_tbds(v, f"{path}[{i}]", out)
+    elif isinstance(node, str) and node.strip().lower() == "tbd":
+        out.append(path)
+
+
 def validate(model):
     report = Report()
     actors = {a.get("id") for a in model.get("actors") or []}
@@ -195,6 +284,12 @@ def validate(model):
     _check_states(model, entities, use_cases, report)
     _check_plan(model, report)
     _check_profile(model, report)
+    _check_coverage(model, report)
+    _check_money_types(model, report)
+    _check_postconditions(model, report)
+    _check_copy_paste(model, report)
+    _check_field_shapes(model, report)
+    _collect_tbds(model, "", report.tbds)
     return report
 
 

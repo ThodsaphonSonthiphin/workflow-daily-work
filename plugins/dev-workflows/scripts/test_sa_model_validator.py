@@ -168,6 +168,73 @@ def test_e8_professional_requires_security():
     assert any(rule == "E8" for rule, _ in r.errors), r.errors
 
 
+def test_w1_use_case_without_scope_and_objective_without_uc():
+    m = base_model()
+    m["use_cases"].append({
+        "id": "UC-ORPHAN", "name": "ลอย", "actors": ["ACT-SALE"],
+        "preconditions": [], "postconditions": ["x"], "main_flow": [],
+        "extensions": [], "special_reqs": [], "entities": [], "screens": []})
+    m["problem"]["objectives"].append({"id": "O2", "text": "ไม่มีใครทำ",
+                                       "problems": ["P1"]})
+    r = validate(m)
+    w = [rule for rule, _ in r.warnings]
+    assert w.count("W1") >= 2, r.warnings
+
+
+def test_w2_screen_coverage():
+    m = base_model()
+    m["screens"].append({"id": "SCR-ORPHAN", "name": "จอลอย", "use_cases": []})
+    r = validate(m)
+    assert any(rule == "W2" for rule, _ in r.warnings), r.warnings
+
+
+def test_w3_money_types_inconsistent():
+    m = base_model()
+    m["entities"][0]["fields"].append({"name": "unit_price", "type": "integer",
+                                       "size": 10, "desc": "ราคา"})
+    m["entities"][1]["fields"].append({"name": "total_price", "type": "decimal",
+                                       "size": 9, "desc": "ราคารวม"})
+    r = validate(m)
+    assert any(rule == "W3" for rule, _ in r.warnings), r.warnings
+
+
+def test_w4_trigger_shaped_postcondition():
+    m = base_model()
+    m["use_cases"][0]["postconditions"] = ["กดปุ่มยืนยันการแก้ไขข้อมูล"]
+    r = validate(m)
+    assert any(rule == "W4" for rule, _ in r.warnings), r.warnings
+
+
+def test_w5_copy_pasted_extensions():
+    m = base_model()
+    boiler = "ระบบขัดข้อง ให้ restart เครื่องแล้วเริ่มใหม่"
+    for i in range(3):
+        m["use_cases"].append({
+            "id": f"UC-C{i}", "name": f"c{i}", "actors": ["ACT-SALE"],
+            "preconditions": [], "postconditions": ["x"], "main_flow": [],
+            "extensions": [{"at_step": 1, "condition": "ขัดข้อง",
+                            "flow": boiler, "fields": []}],
+            "special_reqs": [], "entities": [], "screens": []})
+    r = validate(m)
+    assert any(rule == "W5" for rule, _ in r.warnings), r.warnings
+
+
+def test_w6_sample_exceeds_size_and_empty_entity():
+    m = base_model()
+    m["entities"][0]["fields"][0]["sample"] = "ศาสตร์การปฏิญาณเพื่อการบำบัดรักษา33"
+    m["entities"].append({"id": "ENT-EMPTY", "name": "ว่าง", "fields": []})
+    r = validate(m)
+    w = [rule for rule, _ in r.warnings]
+    assert w.count("W6") >= 2, r.warnings
+
+
+def test_tbd_inventory():
+    m = base_model()
+    m["architecture"]["deployment"] = "TBD"
+    r = validate(m)
+    assert any("deployment" in p for p in r.tbds), r.tbds
+
+
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 if __name__ == "__main__":
