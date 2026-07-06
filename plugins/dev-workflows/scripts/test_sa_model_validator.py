@@ -116,6 +116,58 @@ def test_e6_duplicate_ids():
     assert any(rule == "E6" for rule, _ in r.errors), r.errors
 
 
+def test_e3_fk_targets_missing_field():
+    m = base_model()
+    m["entities"][1]["fields"].append(
+        {"name": "payment_id", "type": "string", "size": 20,
+         "desc": "การชำระเงิน", "fk": "ENT-PAYMENT.payment_id"})
+    r = validate(m)
+    assert any(rule == "E3" for rule, _ in r.errors), r.errors
+
+
+def test_e4_step_field_not_on_entities():
+    m = base_model()
+    m["use_cases"][0]["main_flow"][0]["fields"] = ["ENT-PRODUCT.ghost_field"]
+    r = validate(m)
+    assert any(rule == "E4" for rule, _ in r.errors), r.errors
+
+
+def test_e5_boolean_field_cannot_hold_three_states():
+    m = base_model()
+    m["entities"][1]["fields"][2]["type"] = "boolean"
+    r = validate(m)
+    assert any(rule == "E5" for rule, _ in r.errors), r.errors
+
+
+def test_e5_states_field_missing():
+    m = base_model()
+    m["states"][0]["field"] = "ghost_status"
+    r = validate(m)
+    assert any(rule == "E5" for rule, _ in r.errors), r.errors
+
+
+def test_e5_transition_unknown_uc():
+    m = base_model()
+    m["states"][0]["transitions"][0]["uc"] = "UC-GHOST"
+    r = validate(m)
+    assert any(rule == "E5" for rule, _ in r.errors), r.errors
+
+
+def test_e7_plan_months_not_contiguous():
+    m = base_model()
+    m["plan"]["phases"][1]["from"] = "2026-11"   # gap: Aug -> Nov
+    r = validate(m)
+    assert any(rule == "E7" for rule, _ in r.errors), r.errors
+
+
+def test_e8_professional_requires_security():
+    m = base_model()
+    m["meta"]["profile"] = "professional"
+    m["security"] = []
+    r = validate(m)
+    assert any(rule == "E8" for rule, _ in r.errors), r.errors
+
+
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 if __name__ == "__main__":
