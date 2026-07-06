@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tests for validate_model.py. Run: python test_sa_model_validator.py"""
 import copy
+import os
 import sys
 
 from validate_model import validate
@@ -233,6 +234,54 @@ def test_tbd_inventory():
     m["architecture"]["deployment"] = "TBD"
     r = validate(m)
     assert any("deployment" in p for p in r.tbds), r.tbds
+
+
+FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures",
+                       "sa-model-bookstore.yaml")
+
+
+def _load_fixture():
+    from validate_model import load_model
+    return load_model(FIXTURE)
+
+
+def test_fixture_is_clean():
+    r = validate(_load_fixture())
+    assert r.ok, r.errors
+    assert not r.warnings, r.warnings
+
+
+def test_seeded_defects_are_caught():
+    """Each mutation = a real defect found in the Project SA.pdf review."""
+    # 1. scope capability with no use case (the forgotten forum feature)
+    m = _load_fixture()
+    m["scope"][1]["use_cases"] = []
+    assert any(rule == "E2" for rule, _ in validate(m).errors)
+
+    # 2. dangling FK (Order.payment_id -> field that does not exist)
+    m = _load_fixture()
+    m["entities"][1]["fields"].append(
+        {"name": "payment_id", "type": "string", "size": 20,
+         "desc": "การชำระเงิน", "fk": "ENT-PAYMENT.payment_id"})
+    assert any(rule == "E3" for rule, _ in validate(m).errors)
+
+    # 3. boolean deliver_status vs a 3+-state lifecycle
+    m = _load_fixture()
+    m["entities"][1]["fields"][3]["type"] = "boolean"
+    assert any(rule == "E5" for rule, _ in validate(m).errors)
+
+    # 4. identical boilerplate extension pasted across >= 3 use cases
+    m = _load_fixture()
+    boiler = "กรณีระบบขัดข้อง ให้ restart เครื่องคอมพิวเตอร์แล้ว login ใหม่"
+    for uc in m["use_cases"][:3]:
+        uc["extensions"].append({"at_step": 1, "condition": "ระบบขัดข้อง",
+                                 "flow": boiler, "fields": []})
+    assert any(rule == "W5" for rule, _ in validate(m).warnings)
+
+    # 5. String(20) product name vs the 33-char sample from the review
+    m = _load_fixture()
+    m["entities"][0]["fields"][1]["size"] = 20
+    assert any(rule == "W6" for rule, _ in validate(m).warnings)
 
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
