@@ -184,7 +184,12 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/daily-state.py" set \
   --note "<end-of-day note>"
 ```
 
-Then run the **Commit offer** below. This is the resume-point the next session
+After the snapshot, offer the optional **learn** beat that closes the arc:
+
+> *Harvest today's lessons into the workflow with /reflect? (y/n)*
+
+If the user accepts, hand off to the `reflect` skill; if they decline, skip
+silently. Then run the **Commit offer** below. This is the resume-point the next session
 reads on `/daily start`.
 
 ## Save state (the `save` action)
