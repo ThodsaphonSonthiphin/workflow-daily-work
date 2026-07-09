@@ -43,6 +43,9 @@ Scan the session for four signal types:
 | Skill failure | A skill was used but guided wrong/insufficiently, OR should have triggered and did not. |
 | Skill gap | A recurring workflow done ad-hoc that no skill covers. |
 
+These four are prompts to notice lessons, not an exhaustive partition — capture
+any recurring pain even if it does not fit a row cleanly.
+
 For each finding record: **what happened**, **evidence** (a concrete moment),
 **cost** (rework / time / tokens), **proposed lesson**.
 
@@ -79,8 +82,9 @@ Assign each finding exactly one route:
 | D | Auto-memory | Preference or single-project fact. |
 | E | Discard | One-off noise. |
 
-**Ownership guardrail:** Route A applies ONLY to owned skills — `dev-workflows`,
-`ado-backlog`, `~/.claude/skills`. Third-party skills (superpowers,
+**Ownership guardrail:** Route A applies ONLY to skills you own — any plugin in
+this repo (`dev-workflows`, `ado-backlog`, `github-backlog`, ...) and personal
+skills under `~/.claude/skills`. Third-party skills (superpowers,
 skill-creator, Microsoft plugins) are READ-ONLY; their lessons become a Route D
 memory or a Route C CLAUDE.md override instead.
 
@@ -92,12 +96,18 @@ never "improve X"). The user replies which numbers to apply (all / some / none).
 
 ## Stage 4 — Apply (approved items only)
 
-- **Route A (owned skill):** edit the skill SOURCE at `C:\Repo2\workflow daily
-  work` (never the installed cache); bump the plugin version in BOTH
-  `plugins/dev-workflows/.claude-plugin/plugin.json` and
-  `.claude-plugin/marketplace.json`. The edit will not load until the cache is
-  re-synced and Claude Code restarts — perform the file steps, then TELL the
-  user a restart is required (you cannot restart the session). See the
+- **Route A (owned skill):** edit the skill SOURCE, never the installed cache.
+  Then, by where the skill lives:
+    - **A plugin in this repo** (e.g. `dev-workflows`, `ado-backlog`,
+      `github-backlog`): edit under `C:\Repo2\workflow daily work` and bump the
+      OWNING plugin version in BOTH its own
+      `plugins/<plugin>/.claude-plugin/plugin.json` and its entry in the
+      repo-root `.claude-plugin/marketplace.json` (keep the two identical).
+    - **A personal skill under `~/.claude/skills`**: edit in place — there is
+      no plugin manifest or version to bump.
+  Either way the edit will not load until the cache is re-synced and Claude Code
+  restarts — perform the file steps, then TELL the user a restart is
+  required (you cannot restart the session). See the
   `claude-skills-resync-mechanism` memory for the copy + installed_plugins.json
   procedure.
 - **Route B (new skill):** hand off to `skill-creator` / `writing-skills` — do
