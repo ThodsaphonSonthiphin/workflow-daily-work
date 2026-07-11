@@ -44,7 +44,8 @@ gets a diagram of the matching type:
 | Content shape | Mermaid type |
 |---|---|
 | flow / lifecycle / interaction between actors | `sequenceDiagram` |
-| data model / entity relationships | `erDiagram` |
+| data model / entity relationships (database view) | `erDiagram` |
+| OO / domain model — classes, attributes, operations, associations | `classDiagram` |
 | decision logic / branching | `flowchart TD` |
 | hierarchy / pipeline / dependency / org structure | `graph TD` |
 | state lifecycle of an entity | `stateDiagram-v2` |
@@ -55,6 +56,12 @@ Tie-breaker: `sequenceDiagram` is time-ordered (who sends what to whom);
 `graph TD` is structural (what connects to what). If the arrows would carry
 messages or events, use `sequenceDiagram`; if they connect boxes in a
 hierarchy or pipeline, use `graph TD`.
+
+`classDiagram` vs `erDiagram`: both describe the data, so a document that needs
+both draws both — `classDiagram` is the OO/domain view (attributes **and**
+operations, generalization, aggregation/composition), `erDiagram` is the
+database view (tables, PK/FK, cardinality). Pick one only when the audience is
+clearly one or the other; an SA&D document usually shows both.
 
 ### Rule 3 — ADRs carry a small decision diagram
 

@@ -298,6 +298,140 @@ def test_w6_sample_exceeds_size_and_empty_entity():
     assert w.count("W6") >= 2, r.warnings
 
 
+def test_e9_missing_meta():
+    m = base_model()
+    del m["meta"]
+    r = validate(m)
+    assert any(rule == "E9" for rule, _ in r.errors), r.errors
+
+
+def test_e9_invalid_language():
+    m = base_model()
+    m["meta"]["language"] = "jp"
+    r = validate(m)
+    assert any(rule == "E9" for rule, _ in r.errors), r.errors
+
+
+def test_e9_misspelled_profile_does_not_slip_past_e8():
+    # 'profesional' is not 'professional', so E8's security gate never fires;
+    # E9 must catch the typo instead of letting a security-less doc generate.
+    m = base_model()
+    m["meta"]["profile"] = "profesional"
+    m["security"] = []
+    r = validate(m)
+    assert any(rule == "E9" for rule, _ in r.errors), r.errors
+
+
+def test_e9_missing_project():
+    m = base_model()
+    m["meta"]["project"] = ""
+    r = validate(m)
+    assert any(rule == "E9" for rule, _ in r.errors), r.errors
+
+
+def test_e10_relationship_unknown_entity():
+    m = base_model()
+    m["relationships"] = [{"from": "ENT-PRODUCT", "to": "ENT-GHOST",
+                           "type": "association"}]
+    r = validate(m)
+    assert any(rule == "E10" for rule, _ in r.errors), r.errors
+
+
+def test_e10_relationship_unknown_type():
+    m = base_model()
+    m["relationships"] = [{"from": "ENT-ORDER", "to": "ENT-PRODUCT",
+                           "type": "has-a-bunch-of"}]
+    r = validate(m)
+    assert any(rule == "E10" for rule, _ in r.errors), r.errors
+
+
+def test_e10_valid_relationship_passes():
+    m = base_model()
+    m["relationships"] = [{"from": "ENT-ORDER", "to": "ENT-PRODUCT",
+                           "type": "association", "from_card": "*",
+                           "to_card": "1", "label": "orders"}]
+    r = validate(m)
+    assert not any(rule == "E10" for rule, _ in r.errors), r.errors
+
+
+def test_e10_relationship_type_tbd_is_tolerated():
+    # TBD is a legal, inventoried value for any leaf — an undecided relationship
+    # type must not block generation, it must be reported as a TBD.
+    m = base_model()
+    m["relationships"] = [{"from": "ENT-ORDER", "to": "ENT-PRODUCT",
+                           "type": "TBD"}]
+    r = validate(m)
+    assert not any(rule == "E10" for rule, _ in r.errors), r.errors
+    assert any("type" in p for p in r.tbds), r.tbds
+
+
+def test_e9_non_string_language_reports_not_crashes():
+    # a scalar written as a one-element list is a common YAML slip; it must
+    # yield a clean E9, not a TypeError out of the gate.
+    m = base_model()
+    m["meta"]["language"] = ["th"]
+    r = validate(m)   # must not raise
+    assert any(rule == "E9" for rule, _ in r.errors), r.errors
+
+
+def test_e10_non_string_entity_ref_reports_not_crashes():
+    m = base_model()
+    m["relationships"] = [{"from": ["ENT-ORDER"], "to": "ENT-PRODUCT",
+                           "type": "association"}]
+    r = validate(m)   # must not raise on the unhashable ref
+    assert any(rule == "E10" for rule, _ in r.errors), r.errors
+
+
+def test_e6_dangling_nfr_objective():
+    m = base_model()
+    m["nfrs"][0]["objectives"] = ["O-GHOST"]
+    r = validate(m)
+    assert any(rule == "E6" for rule, _ in r.errors), r.errors
+
+
+def test_e6_dangling_security_use_case():
+    m = base_model()
+    m["meta"]["profile"] = "professional"
+    m["security"] = [{"id": "SEC-1", "concern": "ข้อมูลบัตร",
+                      "control": "ส่งต่อ gateway", "use_cases": ["UC-GHOST"]}]
+    r = validate(m)
+    assert any(rule == "E6" for rule, _ in r.errors), r.errors
+
+
+def test_e6_duplicate_scope_fr_ids():
+    m = base_model()
+    m["scope"][0]["id"] = "FR-1"
+    m["scope"].append({"id": "FR-1", "actor": "ACT-CUST",
+                       "capability": "อีกอย่าง", "use_cases": ["UC-ORDER"]})
+    r = validate(m)
+    assert any(rule == "E6" for rule, _ in r.errors), r.errors
+
+
+def test_w7_orphan_entity():
+    m = base_model()
+    m["entities"].append({"id": "ENT-LONELY", "name": "เหงา", "fields": [
+        {"name": "x_id", "type": "string", "size": 10, "desc": "x",
+         "pk": True}]})
+    r = validate(m)
+    assert any(rule == "W7" for rule, _ in r.warnings), r.warnings
+
+
+def test_w8_entity_without_primary_key():
+    m = base_model()
+    # strip the pk flag off ENT-PRODUCT's key field
+    m["entities"][0]["fields"][0].pop("pk")
+    r = validate(m)
+    assert any(rule == "W8" for rule, _ in r.warnings), r.warnings
+
+
+def test_w9_nfr_without_metric():
+    m = base_model()
+    m["nfrs"].append({"id": "NFR-2", "category": "usability",
+                      "requirement": "ใช้ง่าย", "metric": ""})
+    r = validate(m)
+    assert any(rule == "W9" for rule, _ in r.warnings), r.warnings
+
+
 def test_tbd_inventory():
     m = base_model()
     m["architecture"]["deployment"] = "TBD"

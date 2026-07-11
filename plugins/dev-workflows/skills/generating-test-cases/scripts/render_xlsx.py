@@ -90,7 +90,7 @@ def build(model, out_path):
         # Iron-Law visibility: flag missing evidence or guess-words.
         evid = str(c.get("Evidence", "")).strip()
         exp = str(c.get("Expected Result", ""))
-        if not evid or GUESS.search(exp) or GUESS.search(str(c.get("Steps", ""))):
+        if not evid or GUESS.search(exp) or GUESS.search(str(c.get("Steps", ""))) or GUESS.search(str(c.get("Test Data", ""))):
             ws.cell(r, EVID_COL).fill = FLAG_FILL
             ws.cell(r, EXP_COL).fill = FLAG_FILL
             flagged += 1

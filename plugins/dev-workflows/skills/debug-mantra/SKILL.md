@@ -11,7 +11,7 @@ Four-step discipline for any debug session. Recite verbatim, then apply in order
 
 > **Mantra:**
 > 1. **First is reproducibility.** Can the issue be reproduced reliably?
-> 2. **Know the fail path.** Debugger first; then source trace + knob enumeration; then in-code instrumentation.
+> 2. **Know the fail path.** Debugger first; then source trace + knob enumeration; then in-code instrumentation; then production telemetry (ask first).
 > 3. **Question your hypothesis.** What would disprove it?
 > 4. **Every run is a breadcrumb.** Cross-reference all of them.
 
@@ -32,6 +32,7 @@ DEBUG MANTRA — four steps, strictly in order
   │   1. attach a debugger
   │   2. source trace + knob enumeration
   │   3. in-code instrumentation
+  │   4. production telemetry / logs - ask the user first
   ▼
   ③ FALSIFY
   │   3–5 ranked hypotheses  ·  run the DISPROOF first
@@ -69,6 +70,8 @@ Once reproducible, find *where* the code breaks and *what stops it from breaking
    - timing, concurrency, build options
    Each knob is a candidate axis to flip in the differential. Flip one at a time.
 3. **In-code instrumentation.** If outside knobs can't move the failure, go inside: `printf` / log statements at the suspected fail site, dump the relevant internal state. Tag every probe with a unique prefix (e.g. `[DBG-a4f2]`) so cleanup is a single grep. Let the trace show where reality diverges from your model.
+
+4. **Production telemetry / log stores — ask first.** For a deployed system that emits telemetry (Application Insights / Log Analytics, centralised logs, an error tracker, APM traces), captured exceptions, failed dependencies, and request/result-code history are strong fail-path evidence — and often a reproduction substitute for intermittent or slow ("after an hour", "only in prod") bugs. But do NOT jump straight to it or silently query external log stores: run the normal tactics above first, then **ask the user whether to go look at the logs** — it is their system, their cost, their call. Query only once they say yes.
 
 ## 3. Falsify the hypothesis
 

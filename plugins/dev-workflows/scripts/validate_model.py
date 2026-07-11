@@ -49,6 +49,7 @@ def _check_duplicate_ids(model, report):
         "screens": model.get("screens"),
         "nfrs": model.get("nfrs"),
         "security": model.get("security"),
+        "scope": model.get("scope"),                # FR ids, when present
         "problem.current_problems": (model.get("problem") or {}).get("current_problems"),
         "problem.objectives": (model.get("problem") or {}).get("objectives"),
         "problem.benefits": (model.get("problem") or {}).get("benefits"),
@@ -105,6 +106,28 @@ def _check_dangling_refs(model, report):
                 report.error("E6", f"screen {sc.get('id')} references "
                                    f"unknown use case '{u}'")
 
+    # NFRs and security controls may optionally trace to the objectives and use
+    # cases they support (surfaced in the traceability matrix). Dangling refs
+    # here are the same cross-artifact rot E6 exists to catch.
+    for nfr in model.get("nfrs") or []:
+        for o in nfr.get("objectives") or []:
+            if o not in objective_ids:
+                report.error("E6", f"{nfr.get('id')} references unknown "
+                                   f"objective '{o}'")
+        for u in nfr.get("use_cases") or []:
+            if u not in use_case_ids:
+                report.error("E6", f"{nfr.get('id')} references unknown "
+                                   f"use case '{u}'")
+    for sec in model.get("security") or []:
+        for o in sec.get("objectives") or []:
+            if o not in objective_ids:
+                report.error("E6", f"{sec.get('id')} references unknown "
+                                   f"objective '{o}'")
+        for u in sec.get("use_cases") or []:
+            if u not in use_case_ids:
+                report.error("E6", f"{sec.get('id')} references unknown "
+                                   f"use case '{u}'")
+
     for group in model.get("states") or []:
         declared = set(group.get("states") or [])
         for t in group.get("transitions") or []:
@@ -150,6 +173,56 @@ def _check_scope_use_cases(model, use_cases, report):
 
 
 BOOL_TYPES = {"bool", "boolean", "bit"}
+VALID_LANGS = {"th", "en"}
+VALID_PROFILES = {"academic", "professional"}
+REL_TYPES = {"association", "aggregation", "composition",
+             "generalization", "dependency", "realization"}
+
+
+def _check_meta(model, report):
+    """E9 — meta present with a concrete, valid language and profile.
+
+    profile is what selects the professional security gate (E8) and the whole
+    template; a typo like 'profesional' used to slip through and silently
+    produce a professional document with no security section. language and
+    profile are decisions, not leaves — TBD is not acceptable for them.
+    """
+    meta = model.get("meta")
+    if not isinstance(meta, dict):
+        report.error("E9", "meta block is missing")
+        return
+    project = meta.get("project")
+    if not project or str(project).strip().lower() == "tbd":
+        report.error("E9", "meta.project is required (it names the output files)")
+    # isinstance guard first: a malformed scalar-as-list (language: [th]) would
+    # otherwise raise TypeError on the set membership and crash the gate whose
+    # whole job is to report bad meta cleanly.
+    lang = meta.get("language")
+    if not isinstance(lang, str) or lang not in VALID_LANGS:
+        report.error("E9", f"meta.language must be one of "
+                           f"{sorted(VALID_LANGS)}, got {lang!r}")
+    profile = meta.get("profile")
+    if not isinstance(profile, str) or profile not in VALID_PROFILES:
+        report.error("E9", f"meta.profile must be one of "
+                           f"{sorted(VALID_PROFILES)}, got {profile!r}")
+
+
+def _check_relationships(model, entity_ids, report):
+    """E10 — explicit class-model relationships reference real entities and use
+    a known UML relationship type."""
+    for rel in model.get("relationships") or []:
+        for end in ("from", "to"):
+            eid = rel.get(end)
+            if not isinstance(eid, str) or eid not in entity_ids:
+                report.error("E10", f"relationship '{end}' references unknown "
+                                    f"entity '{eid}'")
+        t = rel.get("type")
+        # TBD is a legal, inventoried value for any leaf (see the contract); an
+        # in-progress relationship type must not block generation.
+        if t and str(t).lower() != "tbd" and str(t).lower() not in REL_TYPES:
+            report.error("E10", f"relationship {rel.get('from')}->"
+                                f"{rel.get('to')} has unknown type '{t}' "
+                                f"(expected one of {sorted(REL_TYPES)})")
 
 
 def _fields_by_entity(model):
@@ -331,6 +404,37 @@ def _check_field_shapes(model, report):
                                   f"{len(str(sample))} chars but size is {size}")
 
 
+def _check_entity_coverage(model, report):
+    """W7 — an entity no use case touches is drawn in the ER/class diagram but
+    never appears in the traceability matrix: exactly the kind of orphan the
+    model is meant to make impossible."""
+    used = {e for uc in model.get("use_cases") or []
+            for e in uc.get("entities") or []}
+    for ent in model.get("entities") or []:
+        if ent.get("id") not in used:
+            report.warn("W7", f"entity {ent.get('id')} is touched by no use "
+                              f"case (orphan in the data/class model)")
+
+
+def _check_primary_keys(model, report):
+    """W8 — an entity with fields but no primary key cannot be keyed in the
+    data dictionary or drawn as a PK in the ER diagram."""
+    for ent in model.get("entities") or []:
+        fields = ent.get("fields") or []
+        if fields and not any(f.get("pk") for f in fields):
+            report.warn("W8", f"entity {ent.get('id')} has fields but no "
+                              f"primary key (mark one field pk: true)")
+
+
+def _check_nfr_metrics(model, report):
+    """W9 — a non-functional requirement with no metric cannot be verified;
+    the requirements section asks for a measurable target."""
+    for nfr in model.get("nfrs") or []:
+        metric = nfr.get("metric")
+        if metric is None or str(metric).strip() == "":
+            report.warn("W9", f"{nfr.get('id')} has no measurable metric")
+
+
 def _collect_tbds(node, path, out):
     if isinstance(node, dict):
         for k, v in node.items():
@@ -347,6 +451,7 @@ def validate(model):
     actors = {a.get("id") for a in model.get("actors") or []}
     use_cases = {u.get("id") for u in model.get("use_cases") or []}
     entities = {e.get("id"): e for e in model.get("entities") or []}
+    _check_meta(model, report)
     _check_duplicate_ids(model, report)
     _check_dangling_refs(model, report)
     _check_actor_refs(model, actors, report)
@@ -354,9 +459,13 @@ def validate(model):
     _check_fk_targets(model, report)
     _check_step_field_refs(model, report)
     _check_states(model, entities, use_cases, report)
+    _check_relationships(model, set(entities), report)
     _check_plan(model, report)
     _check_profile(model, report)
     _check_coverage(model, report)
+    _check_entity_coverage(model, report)
+    _check_primary_keys(model, report)
+    _check_nfr_metrics(model, report)
     _check_money_types(model, report)
     _check_postconditions(model, report)
     _check_copy_paste(model, report)
@@ -379,6 +488,12 @@ def print_report(report):
 
 
 def main(argv):
+    # error/warning messages quote Thai model text; force UTF-8 so a Windows
+    # cp1252 console does not crash while reporting a finding.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):  # pragma: no cover
+        pass
     if len(argv) != 2:
         print(__doc__)
         return 2

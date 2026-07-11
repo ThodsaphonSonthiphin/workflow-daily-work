@@ -23,10 +23,10 @@ actors:
   - {id: ACT-SHIP, name: พนักงานส่งสินค้า, desc: จัดส่ง}
 
 scope:
-  - {actor: ACT-CUST, capability: สั่งซื้อสินค้า, use_cases: [UC-ORDER]}
-  - {actor: ACT-CUST, capability: ตั้งกระทู้สอบถาม, use_cases: [UC-FORUM]}
-  - {actor: ACT-MGR, capability: ยืนยันการชำระเงิน, use_cases: [UC-PAY]}
-  - {actor: ACT-SHIP, capability: ยืนยันการส่งสินค้า, use_cases: [UC-SHIP]}
+  - {id: FR-1, actor: ACT-CUST, capability: สั่งซื้อสินค้า, use_cases: [UC-ORDER]}
+  - {id: FR-2, actor: ACT-CUST, capability: ตั้งกระทู้สอบถาม, use_cases: [UC-FORUM]}
+  - {id: FR-3, actor: ACT-MGR, capability: ยืนยันการชำระเงิน, use_cases: [UC-PAY]}
+  - {id: FR-4, actor: ACT-SHIP, capability: ยืนยันการส่งสินค้า, use_cases: [UC-SHIP]}
 
 use_cases:
   - id: UC-ORDER
@@ -105,6 +105,7 @@ entities:
       - {name: stock_qty, type: integer, size: 10, desc: จำนวนคงเหลือ}
   - id: ENT-ORDER
     name: ใบสั่งซื้อ
+    operations: ["calculateTotal()", "cancel()"]
     fields:
       - {name: order_id, type: string, size: 20, desc: เลขใบสั่งซื้อ, pk: true}
       - {name: product_id, type: string, size: 20, desc: สินค้า,
@@ -124,6 +125,12 @@ entities:
       - {name: topic_id, type: string, size: 20, desc: รหัสกระทู้, pk: true}
       - {name: title, type: string, size: 200, desc: หัวข้อกระทู้}
 
+relationships:
+  - {from: ENT-ORDER, to: ENT-PRODUCT, type: association,
+     from_card: "*", to_card: "1", label: อ้างถึงสินค้า}
+  - {from: ENT-PAYMENT, to: ENT-ORDER, type: association,
+     from_card: "1", to_card: "1", label: ชำระเงินให้}
+
 states:
   - entity: ENT-ORDER
     field: order_status
@@ -135,11 +142,14 @@ states:
       - {from: awaiting_payment, to: cancelled, trigger: เกิน 7 วันไม่ชำระ, uc: UC-PAY}
 
 nfrs:
-  - {id: NFR-1, category: performance, requirement: หน้า login ตอบสนอง, metric: <= 3 วินาที}
-  - {id: NFR-2, category: security, requirement: ไม่เก็บ CVV ในระบบ, metric: ตรวจ schema}
+  - {id: NFR-1, category: performance, requirement: หน้า login ตอบสนอง,
+     metric: <= 3 วินาที, objectives: [O1]}
+  - {id: NFR-2, category: security, requirement: ไม่เก็บ CVV ในระบบ,
+     metric: ตรวจ schema, use_cases: [UC-PAY]}
 
 security:
-  - {id: SEC-1, concern: ข้อมูลบัตรเครดิต, control: ส่งต่อให้ payment gateway ไม่เก็บเอง}
+  - {id: SEC-1, concern: ข้อมูลบัตรเครดิต,
+     control: ส่งต่อให้ payment gateway ไม่เก็บเอง, use_cases: [UC-PAY]}
 
 architecture:
   style: web client-server

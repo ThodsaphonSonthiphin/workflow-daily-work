@@ -7,7 +7,8 @@ import sys
 import tempfile
 
 import render_doc
-from render_doc import build_html, find_browser, main
+from render_doc import (build_html, find_browser, main,
+                        _apply_markers, _detect_lang)
 
 MD = """# ตัวอย่าง
 
@@ -17,6 +18,24 @@ flowchart TD
 ```
 
 ข้อความไทยพร้อม **ตัวหนา**
+"""
+
+MD_WITH_FURNITURE = """# รายงาน
+
+<!-- sa-doc:pagebreak -->
+<!-- sa-doc:toc -->
+<!-- sa-doc:pagebreak -->
+
+## 1. บทนำ
+
+| a | b |
+|---|---|
+| 1 | 2 |
+
+```mermaid
+flowchart TD
+    A --> B
+```
 """
 
 
@@ -65,6 +84,61 @@ def test_build_html_escapes_script_close():
     )
     assert "</script>" not in raw_line   # would prematurely close the <script> block
     assert "<\\/script>" in raw_line     # escaped form parses to the same JS string
+
+
+def test_detect_lang():
+    assert _detect_lang("มีภาษาไทย") == "th"
+    assert _detect_lang("only english here") == "en"
+
+
+def test_apply_markers_expands_furniture():
+    out = _apply_markers("x <!-- sa-doc:pagebreak --> y <!-- sa-doc:toc --> z")
+    assert '<div class="sa-pagebreak"></div>' in out
+    assert '<nav id="sa-toc"></nav>' in out
+    assert "sa-doc:" not in out          # every marker was consumed
+
+
+def test_build_html_no_markers_leaves_markdown_verbatim():
+    # documents without furniture markers must embed byte-for-byte (the escape
+    # of "</" is the only transform), so plain Markdown still renders.
+    assert json.dumps(MD) in build_html(MD, "t", None, None)
+
+
+def test_build_html_furniture_produces_toc_and_captions():
+    html = build_html(MD_WITH_FURNITURE, "รายงาน", None, None)
+    assert 'getElementById("sa-toc")' in html   # TOC builder wired to the mount
+    assert "sa-figcaption" in html              # figure numbering wired
+    assert "sa-tablecaption" in html            # table numbering wired
+    assert "รูปที่" in html and "ตารางที่" in html   # Thai captions (auto-detected)
+    assert "data-sa-render" in html             # render-completion flag
+
+
+def test_build_html_lang_override_switches_captions():
+    # captions are baked at build time, so only the chosen language appears
+    html = build_html(MD_WITH_FURNITURE, "t", None, None, lang="en")
+    assert "Figure" in html and "Table of Contents" in html
+    assert "รูปที่" not in html
+
+
+def test_print_pdf_page_numbers_toggles_header_footer():
+    calls = {}
+
+    def fake_run(cmd, **kwargs):
+        calls["cmd"] = cmd
+
+        class R:
+            pass
+        return R()
+
+    orig = render_doc.subprocess.run
+    render_doc.subprocess.run = fake_run
+    try:
+        render_doc.print_pdf("browser", "in.html", "out.pdf", page_numbers=False)
+        assert "--no-pdf-header-footer" in calls["cmd"]
+        render_doc.print_pdf("browser", "in.html", "out.pdf", page_numbers=True)
+        assert "--no-pdf-header-footer" not in calls["cmd"]
+    finally:
+        render_doc.subprocess.run = orig
 
 
 def test_cli_pdf_failure_degrades_gracefully():
