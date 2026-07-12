@@ -79,7 +79,7 @@ Assign each finding exactly one route:
 |---|---|---|
 | A | Update existing skill | An owned skill should have prevented this. |
 | B | New skill (hand to skill-creator) | Recurring workflow, no skill, no good external one to adopt. |
-| C | Project CLAUDE.md | This project's own convention or architecture (this repo only). |
+| C | Project CLAUDE.md | This project's own convention, architecture, or project-only gotcha (this repo only). |
 | D | Auto-memory | Personal preference or a single-project fact. |
 | E | Discard | One-off noise. |
 | F | Global gotcha (`~/.claude/GOTCHAS.md`) | A cross-project tooling / environment / harness trap. |
@@ -154,7 +154,12 @@ never "improve X"). The user replies which numbers to apply (all / some / none).
        `@import` line to your global CLAUDE.md so gotchas auto-load in every
        project — Claude Code will ask you to approve the import on next start,
        please approve it." Then append the line at end of file, written **plain**
-       (never inside backticks / a code fence, or it will not import).
+       (never inside backticks / a code fence, or it will not import). A newly
+       filed gotcha is **inert until the next session** — it loads only after a
+       restart and after the user approves that import; do NOT report the gotcha
+       as already live. If global gotchas ever stop loading, the import was
+       likely declined (Claude Code will not re-prompt) — re-enable it in Claude
+       Code settings.
 
 Note: writes into `C:\Repo2\workflow daily work` and other non-glasshull paths
 are blocked for the Write/Edit tools by the mobile-app write-guard hook — use

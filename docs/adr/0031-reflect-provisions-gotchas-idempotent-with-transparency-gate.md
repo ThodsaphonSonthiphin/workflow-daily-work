@@ -50,6 +50,6 @@ reflect provisions the wiring **lazily and idempotently** as part of Stage 4
   ("the first time Claude Code encounters external imports … it shows an approval
   dialog; if you decline, the imports stay disabled and the dialog does not
   appear again"). reflect's transparency announcement therefore also tells the
-  user to **approve that dialog** so the gotchas actually auto-load.
+  user to **approve that dialog** so the gotchas actually auto-load. A newly added import is inert until the next session (it loads only after the restart + approval), so reflect must not report the gotcha as already active.
 - `~/.claude/CLAUDE.md` loads in every session/working directory (Claude Code
   walks up the directory tree), which is what makes the gotchas cross-project.

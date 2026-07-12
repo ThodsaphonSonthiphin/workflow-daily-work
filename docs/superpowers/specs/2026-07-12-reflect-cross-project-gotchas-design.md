@@ -134,6 +134,9 @@ Rules:
 - **Announce before editing the personal global CLAUDE.md**, and tell the user
   to **approve the one-time import dialog** on next start (else the import stays
   disabled permanently).
+- A newly filed gotcha is **inert until the next session** — it loads only after
+  a restart and the approved import; reflect cannot verify activation, so it
+  must not report the gotcha as already live.
 - The import line is written **plain** — a backticked `@…` is treated as literal
   and never loads.
 
