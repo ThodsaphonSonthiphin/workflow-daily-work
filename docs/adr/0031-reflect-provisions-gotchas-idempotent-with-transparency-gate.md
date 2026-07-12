@@ -31,7 +31,7 @@ reflect provisions the wiring **lazily and idempotently** as part of Stage 4
   and the finding is already approved.
 - **Announce before editing the global CLAUDE.md** the first time — tell the
   user "adding one `@import` line to your global CLAUDE.md" and then add it
-  (append at end with a one-line comment). Editing a personal instruction file
+  (append at end of file). Editing a personal instruction file
   should be transparent, even when authorized.
 
 ## Consequences

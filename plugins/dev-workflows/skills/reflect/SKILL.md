@@ -165,8 +165,8 @@ PowerShell here-strings or Bash for those.
 - Append a terse block to `docs/reflections/YYYY-MM.md` in the plugin repo
   (create `docs/reflections/` on first use). One block per session: date,
   project, findings (one line each — tag the route, e.g.
-`[Route F · GOTCHAS.md] <title>` for a global gotcha), applied vs skipped, cited
-sources.
+  `[Route F · GOTCHAS.md] <title>` for a global gotcha), applied vs skipped, cited
+  sources.
   Short and greppable — not a narrative.
 - Run the commit offer (assisted, never automatic): write files first, then ask
   before staging/committing. Respect workspace git rules — confirm the target

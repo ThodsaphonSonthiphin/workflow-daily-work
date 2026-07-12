@@ -26,7 +26,7 @@ captured but routed where it could not fire again.
 Add **Route F — global gotcha** to reflect's routing table, destination
 `~/.claude/GOTCHAS.md` (ADR 0028). The selection test is a single question:
 
-> **"If I did this in a different project, would this same thing bite me?"**
+> **"If I did this in another project, would this same thing bite me?"**
 
 - **Yes** → Route F. Tooling quirks, harness/hook behaviors, cross-cutting
   environment traps, language/shell gotchas.

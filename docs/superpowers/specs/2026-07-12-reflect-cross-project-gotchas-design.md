@@ -1,4 +1,4 @@
-﻿# Design Spec — reflect files cross-project gotchas into a global, auto-loaded GOTCHAS.md
+# Design Spec — reflect files cross-project gotchas into a global, auto-loaded GOTCHAS.md
 
 - **Date:** 2026-07-12
 - **Skill:** `dev-workflows/reflect` (owned — Route A change)
@@ -56,7 +56,7 @@ itself, and the user can also re-read it on demand.
 
 Add **Route F** to reflect's routing table. Selection test:
 
-> **"If I did this in a different project, would this same thing bite me?"**
+> **"If I did this in another project, would this same thing bite me?"**
 
 - **Yes** → Route F (tooling quirks, harness/hook behaviors, shell/language
   traps, cross-cutting environment gotchas).
