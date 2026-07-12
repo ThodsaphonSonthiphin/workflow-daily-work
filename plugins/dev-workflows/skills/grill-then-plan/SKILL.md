@@ -93,6 +93,13 @@ can be answered by exploring the codebase, explore the codebase instead of askin
   about boundaries between concepts.
 - **Cross-reference with code.** When the user states how something works, check
   the code agrees; surface any contradiction.
+- **Blast radius of a new requirement.** When the design adds a *required* input, a
+  new validation, or otherwise tightens the contract of an **existing**
+  endpoint / tool / shared function, grill what happens to the callers and code
+  paths that don't use the new feature. Default to enforcing the requirement
+  **only where the new input is actually consumed** (validate lazily) rather than
+  globally/eagerly — eager enforcement silently regresses unrelated callers. Make
+  the global-vs-scoped choice explicit; don't let it default to global.
 
 ## Step 3.5 — Mock the UI when seeing would change the answer
 
