@@ -6,7 +6,8 @@ description: >-
   "retro", "retrospective", "improve our workflow", "how do we not repeat
   this", or after a painful debugging round. It captures the DELTA (what
   went wrong, what was slow, what got corrected) and routes each lesson to
-  where it will fire again: an owned skill, a project CLAUDE.md, or memory.
+  where it will fire again: an owned skill, a project CLAUDE.md, a cross-project
+  GOTCHAS.md file, or memory.
   NOT a what-was-done summary (that is invoice-generator) and NOT a single
   bug's root-cause record (that is post-mortem).
 ---
@@ -78,15 +79,29 @@ Assign each finding exactly one route:
 |---|---|---|
 | A | Update existing skill | An owned skill should have prevented this. |
 | B | New skill (hand to skill-creator) | Recurring workflow, no skill, no good external one to adopt. |
-| C | Project CLAUDE.md | Project-specific convention or gotcha. |
-| D | Auto-memory | Preference or single-project fact. |
+| C | Project CLAUDE.md | This project's own convention or architecture (this repo only). |
+| D | Auto-memory | Personal preference or a single-project fact. |
 | E | Discard | One-off noise. |
+| F | Global gotcha (`~/.claude/GOTCHAS.md`) | A cross-project tooling / environment / harness trap. |
+
+**F vs C vs D — one-line test.** Ask *"if I did this in another project, would
+this same thing bite me?"* **Yes → F** — it fires everywhere via the
+`@`-imported `~/.claude/GOTCHAS.md`. **No, it's this repo's own rule → C.** **A
+preference or one-project fact → D.** Route F explicitly reclaims the
+cross-project tooling/environment lessons that used to default to D (D's store
+is keyed by project directory, so they never surfaced in other projects).
 
 **Ownership guardrail:** Route A applies ONLY to skills you own — any plugin in
 this repo (`dev-workflows`, `ado-backlog`, `github-backlog`, ...) and personal
 skills under `~/.claude/skills`. Third-party skills (superpowers,
 skill-creator, Microsoft plugins) are READ-ONLY; their lessons become a Route D
 memory or a Route C CLAUDE.md override instead.
+
+**Route F writes global config.** Route F targets the user's global Claude
+config — `~/.claude/GOTCHAS.md` plus one `@~/.claude/GOTCHAS.md` import line in
+`~/.claude/CLAUDE.md`. The user owns these, so writing is allowed, but the edit
+to the personal `CLAUDE.md` is **announced before it happens** (see Stage 4) —
+the same transparency Route D memory writes get.
 
 ## Stage 3 — Present & approve
 
@@ -117,6 +132,29 @@ never "improve X"). The user replies which numbers to apply (all / some / none).
 - **Route D (memory):** write the memory file and add a one-line MEMORY.md
   pointer, per the memory schema; check for an existing file to update first.
 - **Route E:** nothing.
+- **Route F (global gotcha -> `~/.claude/GOTCHAS.md`):** the destination is a
+  standalone, cross-project file that Claude Code auto-loads in every session
+  via an `@` import in the global `~/.claude/CLAUDE.md`. Provision it lazily and
+  idempotently:
+    1. **Ensure the file.** If `~/.claude/GOTCHAS.md` is missing, create it with
+       a short header (title + one line: auto-loaded everywhere via `@` in
+       ~/.claude/CLAUDE.md, one gotcha = one line, grouped by area, update in
+       place). If it exists, never clobber it.
+    2. **Append or update — one line per gotcha.** Under the matching `##` area
+       heading (create one lazily if none fits), write
+       `- **<short title>** — <fix / workaround>. (YYYY-MM-DD)`. Before adding,
+       search for the bold `<short title>`; if present, UPDATE that line in
+       place (refine + re-date) instead of duplicating. Never auto-delete; the
+       date supports manual review. Keep it terse — this file loads on every
+       turn, so **no Mermaid diagram** (convention-exempt like MEMORY.md, ADR
+       0030). Any literal `@path` written INTO this file must be backticked, or
+       it would itself be re-imported.
+    3. **Ensure the import (first time only, announced).** If `~/.claude/CLAUDE.md`
+       has no bare `@~/.claude/GOTCHAS.md` line, first TELL the user: "adding one
+       `@import` line to your global CLAUDE.md so gotchas auto-load in every
+       project — Claude Code will ask you to approve the import on next start,
+       please approve it." Then append the line at end of file, written **plain**
+       (never inside backticks / a code fence, or it will not import).
 
 Note: writes into `C:\Repo2\workflow daily work` and other non-glasshull paths
 are blocked for the Write/Edit tools by the mobile-app write-guard hook — use
@@ -126,7 +164,9 @@ PowerShell here-strings or Bash for those.
 
 - Append a terse block to `docs/reflections/YYYY-MM.md` in the plugin repo
   (create `docs/reflections/` on first use). One block per session: date,
-  project, findings (one line each), applied vs skipped, cited sources.
+  project, findings (one line each — tag the route, e.g.
+`[Route F · GOTCHAS.md] <title>` for a global gotcha), applied vs skipped, cited
+sources.
   Short and greppable — not a narrative.
 - Run the commit offer (assisted, never automatic): write files first, then ask
   before staging/committing. Respect workspace git rules — confirm the target
