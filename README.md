@@ -1,6 +1,6 @@
 # Workflow Daily Work — Claude Code marketplace
 
-A Claude Code **plugin marketplace** for daily-work automation. It ships three plugins:
+A Claude Code **plugin marketplace** for daily-work automation. It ships four plugins:
 
 - **`ado-backlog`** — turn findings from *any* input (an Excel/CSV audit, a doc, a code/QA
   review, a pasted list of issues) into an **Azure DevOps backlog**: extract → triage →
@@ -14,6 +14,12 @@ A Claude Code **plugin marketplace** for daily-work automation. It ships three p
   drive-to-legacy, ticket-trace), and communication (management-talk, invoice-generator,
   problem-description) skills. **Also installable on Google Antigravity** — see
   [dev-workflows on Antigravity](#dev-workflows-on-antigravity).
+- **`react-workflows`** — **opt-in**, frontend structure conventions for React/TSX work
+  (`react-structure`): per-component file separation (UI `.tsx` / hook `.ts` / `type.ts` /
+  optional Redux slice), a TypeScript + Redux Toolkit + MUI + DataGridPremium stack, and a
+  planning flowchart before code. Install it only on React projects — see
+  [`plugins/react-workflows/README.md`](plugins/react-workflows/README.md) for why it's kept
+  separate from the always-on plugins above.
 
 **Start here: [PLAYBOOK.md](PLAYBOOK.md)** — the one-page map of when to reach for what.
 The only command to memorize is `/daily`.
@@ -33,6 +39,12 @@ The only command to memorize is `/daily`.
 # then sign in to Azure DevOps and check your setup:
 az login
 /ado-backlog:setup-check
+```
+
+`react-workflows` is **opt-in** — only install it on React/TSX projects (see above):
+
+```text
+/plugin install react-workflows@workflow-daily-work
 ```
 
 > CLI equivalents: `claude plugin marketplace add ThodsaphonSonthiphin/workflow-daily-work` and
@@ -90,7 +102,7 @@ See [`plugins/ado-backlog/README.md`](plugins/ado-backlog/README.md) for the ful
 ## Repo layout
 
 ```
-.claude-plugin/marketplace.json        # this marketplace (lists all three plugins)
+.claude-plugin/marketplace.json        # this marketplace (lists all four plugins)
 plugins/ado-backlog/
 ├── .claude-plugin/plugin.json
 ├── skills/                            # 8 skills (each invocable as /ado-backlog:<name>)
@@ -100,6 +112,9 @@ plugins/ado-backlog/
 ├── examples/                          # sample findings + backlog_input
 ├── README.md
 └── QUICKSTART.md
+plugins/github-backlog/                # same pipeline, GitHub Issues backend
+plugins/dev-workflows/                 # the daily-work arc — /daily router + design/debug/review/study/comms skills
+plugins/react-workflows/               # opt-in React/TSX structure conventions (react-structure)
 scripts/sync-personal-skills.ps1       # mirror dev-workflows skills into ~/.claude/skills
 ```
 
