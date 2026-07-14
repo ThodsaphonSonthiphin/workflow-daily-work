@@ -48,7 +48,7 @@ Walk every dimension so none is missed: happy · config/validation · integratio
 - Every fix-commit in the touched area → one regression case.
 - Mark Auto/Manual, map automated cases to the real test method, assign Priority, flag **hard gates** (must-pass before sign-off).
 
-**5. Make each case executable.** Numbered Steps; Expected = a **verifiable value from a real source** (`2026-06-18_14-03-22_screen.mp4`, `Total = 500,000 (NOT 0)`), never "works correctly". **The same bar applies to Test Data and Preconditions — name the specific instance, not the class:** ✗ `an email with ≥1 attachment` → ✓ `email "Re: BL-2026-0042" from shipping@acme.com, 1 attachment BL-2026-0042.pdf (PDF, 31 KB)` (the concrete instance pulled live in Step 2). Can't source any of these → `TBD (needs confirmation)`, then ask. **And the instance must be in the STATE the case's entry-point requires** — a real record in the wrong state (a Draft quote when the button's enable-rule needs Active; a closed ticket when the flow needs open) is as unusable as a fabricated one. Verify the trigger's preconditions (record state, enable/display rules, permissions) **live**, not just that the record exists.
+**5. Make each case executable.** Numbered Steps; Expected = a **verifiable value from a real source** (`2026-06-18_14-03-22_screen.mp4`, `Total = 500,000 (NOT 0)`), never "works correctly". **The same bar applies to Test Data and Preconditions — name the specific instance, not the class:** ✗ `an email with ≥1 attachment` → ✓ `email "Re: BL-2026-0042" from shipping@acme.com, 1 attachment BL-2026-0042.pdf (PDF, 31 KB)` (the concrete instance pulled live in Step 2). Can't source any of these → `TBD (needs confirmation)`, then ask. **And the instance must be in the STATE the case's entry-point requires** — a real record in the wrong state (a Draft quote when the button's enable-rule needs Active; a closed ticket when the flow needs open) is as unusable as a fabricated one. Verify the trigger's preconditions (record state, enable/display rules, permissions) **live**, not just that the record exists. **Cite every related entity as a directly-openable, TYPE-QUALIFIED reference — not a bare id.** A bare GUID is ambiguous — a contact id and a booking id are byte-identical, so the tester opens the wrong table and reports "data not found". Write the entity SET with the id in a form they can open as-is: Dataverse → `entityset(guid)` (e.g. `quotes(bc5d…)`, `ctg_cargodetails(ff1d…)`, `contacts(7271…)`); SQL → `table#pk`; REST → resource path. Do this for EVERY entity the case touches — the record under test AND its related rows (account, contact, parent, schedule, link records). Mark a not-yet-existing seed with a placeholder ref + a create-recipe pointing at a real base ref, never a fabricated id.
 
 **6. ▶ ASK the user the destination — before rendering.** Do not assume a format.
 ```
@@ -81,12 +81,14 @@ Also: priority scheme? · include Tester/Date columns? · map automated cases to
 | "The task said decide the format myself" | Decide *structure* yourself; the *destination* is the user's call — ask (Step 6). |
 | "git is overkill for tests" | git diff scopes the change; git log finds the regressions you'd otherwise miss. |
 | "The spec literally says 'an email with ≥1 attachment' — so it's sourced" | The spec gives the *class*; a test needs an *instance*. Pull the real email live (Step 2) or mark TBD. A category is not a value. |
+| "I gave the GUID, that's concrete" | A bare id is ambiguous across entities — a contact id reads as a booking id. Cite it type-qualified: `entityset(guid)` / `table#pk` / resource path. |
 
 ## Red flags — STOP and go find the source
 
 - "probably / expected / typically / normally / assume / should be" in Steps, Expected, or Test Data
 - A value or precondition stated as a **class, not an instance** — `a / an / some / any / a valid <noun>`, or a quantifier standing in for data (`≥1`, `one or more`, `at least`). You can't run a test from a category.
 - A concrete instance whose **state doesn't satisfy the action's entry-point** (enable rule / status / permission) — a real GUID in the wrong record state is still an unusable test datum.
+- A related entity cited as a **bare id with no entity type/set** — the tester can't tell which table to open (a contact id read as a booking id). Cite it type-qualified: `entityset(guid)` / `table#pk` / resource path.
 - An Expected Result with no Evidence cell filled
 - Picked a format without asking the user
 - Wrote device names / defaults / enum values without running or querying the live system

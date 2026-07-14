@@ -1,7 +1,7 @@
 ---
 type: daily-state
 schema_version: 1
-updated: '2026-07-09T21:46:10+07:00'
+updated: '2026-07-12T19:45:34+07:00'
 ---
 
 # Daily state
@@ -86,3 +86,32 @@ feat(reflect): add session-reflection skill (SKILL.md)
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
 EOF
 )
+- 2026-07-12T16:36:41+07:00 — docs(reflect): ADRs 0028-0031 + design spec + plan for cross-project gotchas (Route F)
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+- 2026-07-12T16:44:52+07:00 — $(cat <<'EOF'
+feat(reflect): add Route F â€” cross-project gotchas in ~/.claude/GOTCHAS.md (ADR 0028-0031)
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+EOF
+)
+- 2026-07-12T16:52:45+07:00 — $(cat <<'EOF'
+chore(dev-workflows): 0.24.0 -> 0.25.0 (Route F cross-project gotchas)
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+EOF
+)
+- 2026-07-12T17:04:00+07:00 — $(cat <<'EOF'
+docs(reflect): final-review polish â€” sync boundary wording, strip BOM, Stage-5 indent, ADR 0031 wording
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+EOF
+)
+- 2026-07-12T17:05:26+07:00 — (commit)
+- 2026-07-12T19:39:28+07:00 — $(cat <<'EOF'
+docs(reflect): scrutinize polish â€” Route F activation-latency + decline note, restore 'gotcha' in Route C cell
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+EOF
+)
+- 2026-07-12T19:45:34+07:00 — (commit)

@@ -140,15 +140,21 @@ never "improve X"). The user replies which numbers to apply (all / some / none).
        a short header (title + one line: auto-loaded everywhere via `@` in
        ~/.claude/CLAUDE.md, one gotcha = one line, grouped by area, update in
        place). If it exists, never clobber it.
-    2. **Append or update — one line per gotcha.** Under the matching `##` area
-       heading (create one lazily if none fits), write
-       `- **<short title>** — <fix / workaround>. (YYYY-MM-DD)`. Before adding,
-       search for the bold `<short title>`; if present, UPDATE that line in
-       place (refine + re-date) instead of duplicating. Never auto-delete; the
-       date supports manual review. Keep it terse — this file loads on every
-       turn, so **no Mermaid diagram** (convention-exempt like MEMORY.md, ADR
-       0030). Any literal `@path` written INTO this file must be backticked, or
-       it would itself be re-imported.
+    2. **Append or update -- a forward-looking WARNING, not an event log.** A
+       gotcha exists to steer future behavior, and this file loads on EVERY turn,
+       so every word is a per-turn tax. Write the **trap -> fix**, not the story:
+       `- **<trap, stated so future-you recognizes it>** -- <fix / rule>. (YYYY-MM-DD)`
+       Target ~1 line (2 only when the fix truly needs it). Keep the recognizable
+       symptom and the fix; **cut the incident narrative** -- no "hit twice",
+       "chased X once", blow-by-blow, or saying the same thing twice. The story,
+       evidence, and timeline go in the Stage 5 reflections record (and a
+       post-mortem for a full bug), NOT here. A tiny parenthetical for credibility
+       is fine; a paragraph is not. Before adding, search for the bold `<trap>`;
+       if present, UPDATE that line in place (refine + re-date) instead of
+       duplicating. Never auto-delete; the date supports manual review. No Mermaid
+       diagram (convention-exempt like MEMORY.md, ADR 0030). Any literal `@path`
+       written INTO this file must be backticked, or it would itself be
+       re-imported.
     3. **Ensure the import (first time only, announced).** If `~/.claude/CLAUDE.md`
        has no bare `@~/.claude/GOTCHAS.md` line, first TELL the user: "adding one
        `@import` line to your global CLAUDE.md so gotchas auto-load in every
