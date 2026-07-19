@@ -1,7 +1,7 @@
 {
   "name": "dev-workflows",
   "displayName": "Dev Workflows",
-  "version": "0.25.2",
+  "version": "0.25.7",
   "description": "The daily-work arc in one plugin, entered via /daily (hybrid router: bare = 5-station menu — start/work/file/report/wrap — argument jumps straight there; see PLAYBOOK.md at the marketplace repo root). Design & planning: grill-then-plan. Debug chain: debug-mantra -> (grill-then-plan when the fix involves a design choice) -> post-mortem -> generating-test-cases (regression case) -> management-talk. Review & verification: scrutinize, review-pr (GitHub PR review — safe workspace, scrutinize as the judge, then send-back / fix-it / chat-only), dual-verifier. Testing & QA: generating-test-cases (evidence-grounded test-case suites for a feature/change/fixed bug, rendered to Excel/Markdown/CSV or delegated to a tracker). Documents: sa-doc (full SA&D document — use cases, diagrams, data dictionary, architecture — generated from one validated model; Markdown canonical, PDF optional). System study: study-design-verify, fit-gap-analysis, naming-audit, drive-to-legacy, crm-archaeology (Dynamics 365/Dataverse org study), ticket-trace. Communication: management-talk, invoice-generator (Tribletext daily summary from git commits), problem-description (interactive HTML walkthroughs). Reflection: reflect (session retrospective that routes each lesson into an owned skill, a CLAUDE.md, a cross-project GOTCHAS.md, or memory — closing the daily arc with a learn beat).",
   "author": {
     "name": "ThodsaphonSonthiphin",

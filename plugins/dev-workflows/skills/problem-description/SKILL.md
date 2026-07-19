@@ -343,6 +343,7 @@ If you need to "add" a panel mid-walkthrough, declare it once in the initial HTM
 | Editing `walkthrough-engine.html` to add a mode | A mode is a pack registering one renderer — adding a mode is **zero engine edits** (ADR 0020). |
 | Hand-splicing the assembled `.html` | Use `scripts/assemble-walkthrough.py`, then `scripts/check-walkthrough.py` — a bad manual splice yields a self-contained-but-broken file. |
 | Introducing a new color hex | Reuse `:root` tokens / the 5 markerheads; the checker + review reject new tokens (ADR 0022). |
+| Apostrophe inside a single-quoted GLOSSARY string breaks the bootstrap JS | Use double-quotes or reword; `check-walkthrough.py` now `node --check`s the assembled `<script>`. |
 
 ## Reference files (the always-present scaffolds)
 

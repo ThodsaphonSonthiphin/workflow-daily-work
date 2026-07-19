@@ -110,6 +110,21 @@ def main(path):
     elif not (decl < reg < setpos):
         errs.append('source order wrong: expect engine modeRenderers decl < pack registration < MODE assignment')
 
+    # G. JS syntax -- node --check the assembled <script> (skip if node absent).
+    #    The other checks are regex-shaped and miss real syntax errors (e.g. an
+    #    apostrophe inside a single-quoted GLOSSARY string), which ship a blank page.
+    import shutil, subprocess, tempfile, os
+    _node = shutil.which('node')
+    _sj = re.search(r'<script>(.*)</script>', src, re.S)
+    if _node and _sj:
+        _tf = tempfile.NamedTemporaryFile('w', suffix='.js', delete=False, encoding='utf-8')
+        _tf.write(_sj.group(1)); _tf.close()
+        _r = subprocess.run([_node, '--check', _tf.name], capture_output=True, text=True)
+        os.unlink(_tf.name)
+        if _r.returncode != 0:
+            _tail = _r.stderr.strip().splitlines()
+            errs.append('JS syntax error in <script> (node --check): ' + (_tail[-1] if _tail else 'see node'))
+
     if errs:
         for e in errs:
             print('FAIL:', e)

@@ -29,43 +29,74 @@ Render or update the mockup when the open question can only be resolved by looki
 
 Do NOT render for what text already pins down — a label's exact words, a validation
 rule, a copy tweak. The gate is "does seeing it change the answer?" — not a fixed
-checkpoint, and not "render after every answer." Update the SAME artifact/file on
-each later render; never spawn a new one per edit (hygiene, not a reason to render
-less often).
+checkpoint, and not "render after every answer." Update the SAME card/file on each
+later render; never spawn a new one per edit (hygiene, not a reason to render less
+often).
 
-## No design system? Establish one first — don't wireframe around it
+## Where the mockup lives — a Claude Design design-system project (preferred)
 
-A mockup is only as consistent as the design language behind it. If the project has
-no design system, do NOT paper over the gap with ad-hoc or throwaway styling — every
-mockup would drift, and so would the build. Surface it as a decision the user must
-make: the project needs a design baseline before UI mockups mean anything.
+When the harness can reach Claude Design (claude.ai/design) through a design-sync
+mechanism (Claude Code's `DesignSync` tool), the mockup — and the design baseline it
+is built from — live as **cards in a Claude Design design-system project**, not as a
+throwaway file. That project is the reusable home the user browses across tools and
+future sessions push into, so keeping the mock there (rather than a one-off Artifact
+or a local `.html`) is the default. One design-system project per real project;
+reuse it, never spawn a second.
 
-Following grilling's own habit of always proposing a recommended answer, offer a
-*minimal* starter — palette, type scale, spacing scale, a handful of base
-components — so this never blocks the session; the user approves or edits it.
-Persist the approved baseline as a file in the project (it is the consistency anchor
-every later mockup reuses and the build inherits) and capture it as an ADR like any
-other decision. Only once a baseline exists do you render.
+Fallbacks, in strict order, only when the preferred path is genuinely unavailable:
+
+1. **Claude Design design-system project** via design-sync (preferred).
+2. A rendered **Artifact** (a harness like Claude Code that renders artifacts).
+3. A single self-contained **`.html`** (inline CSS/JS) in the working dir, path given
+   to the user.
+
+Never default to ad-hoc styling or a personal "local HTML in a mocks folder + browser
+devtools" habit — that is the last resort (option 3), never the mechanism.
+
+## Establish the design language first — don't wireframe around it
+
+A mockup is only as consistent as the design language behind it. Source it from the
+project's real design language: existing CSS/theme, a component library, a
+Tailwind/token config, or a Figma design system (pull tokens via the harness's Figma
+mechanism).
+
+If the project has no design system at all, do NOT paper over the gap with ad-hoc
+styling — every mockup would drift, and so would the build. Surface it as a decision:
+offer a *minimal* starter (palette, type scale, spacing scale, a handful of base
+components) so it never blocks the session; the user approves or edits it. Persist the
+approved baseline both as a file in the repo (the anchor the build inherits) **and**,
+via design-sync, as **Foundations / Components cards in the same Claude Design
+design-system project** the mockup screens live in. Capture the baseline as an ADR like
+any other decision. Only once a baseline exists do you render.
 
 ## How to render
 
 1. Gather the set of UI decisions resolved so far for this surface (not just the
    latest answer); the mockup reflects the whole accumulated set.
-2. Use the project's design language so the mockup looks like the real app: existing
-   CSS/theme, a component library, a Tailwind/token config, or a Figma design system
-   (pull tokens via your harness's Figma mechanism if it has one). Found none → STOP
-   and establish a baseline first (see above) — never fall back to ad-hoc styling.
-3. Produce the artifact:
-   - Harness can render artifacts (e.g. Claude Code) → create one.
-   - It cannot → write a single self-contained `.html` (inline CSS/JS) to the
-     working dir and give the user the path to open.
+2. Source the design language (above). Found none → STOP and establish a baseline
+   first — never ad-hoc styling.
+3. Produce the mockup in the Claude Design design-system project (the preferred path):
+   - **Reuse or create the project.** Find it via the design-sync mechanism (Claude
+     Code: `DesignSync list_projects` — it lists only design-**system** projects, so a
+     regular design project will not appear). Reuse the one that belongs to this repo;
+     create it only when none exists.
+   - **Build each surface as a standalone `.html`** styled in the project's design
+     language, whose **first line** is a card marker
+     (`<!-- @dsCard group="Screens" -->`; baseline files use `group="Foundations"` /
+     `"Components"`). The Design System pane builds its card index from that marker.
+   - **Push via the two-step plan:** `finalize_plan` (it needs **both** `writes` and
+     `deletes`, even if `deletes` is `[]`, plus the local dir the files sit in) →
+     `write_files`. Updating a mock = rewrite the same card path and push again. A **new** card also needs its `{path, group}` added to `_ds_manifest.json` `cards[]` and pushed -- the `@dsCard` marker is not auto-compiled on push, so a new screen stays invisible until the manifest lists it.
+   - Fall back to an Artifact, then a self-contained `.html`, only when the preferred
+     path is unavailable (see "Where the mockup lives").
 4. Ask it as a grilling question, with the mockup as your recommended answer: "Here's
-   how I read the decisions so far as a screen — is this what you mean? Anything in
-   the wrong place or missing?" If corrected → grill the point, update the same
-   mockup, ask again. Loop until confirmed.
+   how I read the decisions so far as a screen — is this what you mean? Anything in the
+   wrong place or missing?" If corrected → grill the point, update the SAME card
+   (re-push), ask again. Loop until confirmed.
 
 ## Carry it to the spec
 
-Reference the final mockup (artifact URL or `.html` path) in the design spec, so the
-plan and the implementer see the same screen you confirmed — one source of truth, no
-drift between words and picture.
+Reference the final mockup in the design spec — the Claude Design project + card name
+(or the Artifact URL / `.html` path when a fallback was used) — so the plan and the
+implementer see the same screen you confirmed: one source of truth, no drift between
+words and picture.
