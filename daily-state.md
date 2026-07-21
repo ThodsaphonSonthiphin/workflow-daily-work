@@ -1,7 +1,7 @@
 ---
 type: daily-state
 schema_version: 1
-updated: '2026-07-12T19:45:34+07:00'
+updated: '2026-07-21T09:58:17+07:00'
 ---
 
 # Daily state
@@ -115,3 +115,6 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
 EOF
 )
 - 2026-07-12T19:45:34+07:00 — (commit)
+- 2026-07-21T09:58:17+07:00 — docs(reflections): 2026-07-21 menunest #41 session - test-project map + EnterWorktree baseRef
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>

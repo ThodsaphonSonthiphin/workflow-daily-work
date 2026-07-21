@@ -43,6 +43,7 @@ For each claim the change/plan makes, answer:
 - **What inputs / states would break it?** Edge cases, concurrent callers, error paths, partial failures, retries, empty/null/unicode/huge inputs, ordering assumptions.
 - **What does it silently change?** Performance, error semantics, observability, contract for other callers, on-disk / on-wire format.
 - **How is it tested?** Do the tests actually exercise the traced path, or do they pass while skipping it (mocks that hide the bug, asserts on intermediate state, happy path only)?
+- **Does it match the mock (UI only)?** Behavior-tracing does NOT verify visual fidelity. If the change is UI and an approved mockup exists (a Claude Design screen, a `docs/mocks/` file), fetch the mock and statically diff the produced markup/CSS against it — design tokens, colors, structural treatment (bordered card vs flat, pill vs text link) — and flag every divergence. Recommend an interactive render for what the static diff can't confirm; a change that passes behavior review can still ship visibly wrong.
 
 ### 4. Report
 
