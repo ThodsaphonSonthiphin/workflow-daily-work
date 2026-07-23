@@ -111,10 +111,7 @@ the question** — render it from the UI decisions resolved so far, in the proje
 own design language, and ask the user to confirm or correct, then loop. If the
 project has no design system, first have the user establish a minimal design
 baseline (you propose the starter) — never wireframe ad-hoc, or the mockups and the
-build drift apart. Skip this entirely for designs with no visual surface. Full
-mechanism — when to render vs not, how, the harness fallback to a self-contained
-`.html`, and carrying it to the spec — is in
-`${CLAUDE_PLUGIN_ROOT}/references/ui-mockup.md`.
+build drift apart. Skip this entirely for designs with no visual surface. Put the mockup in the project's Claude Design design-system project via `DesignSync` (PREFERRED). A rendered Artifact, then a self-contained `.html`, are fallbacks used ONLY when DesignSync/Artifact are unavailable; never default to a local `.html` even if a prior `.html` mockup already exists in the repo. Full mechanism (when to render vs not, how, and carrying it to the spec) is in `${CLAUDE_PLUGIN_ROOT}/references/ui-mockup.md` -- read it before the first render.
 
 ## Step 4 — Capture inline as decisions crystallize
 
