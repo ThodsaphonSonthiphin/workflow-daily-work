@@ -146,6 +146,7 @@ mode: HITL
 status: open
 assignee:
 blocked_by: []
+gist:
 ---
 
 ## Question
@@ -179,7 +180,11 @@ honour:
   wholesale; it never edits, and never needs to parse, anything outside it.
   The `map.md` index is likewise regenerated in full from the ticket
   frontmatter of every closed ticket — one physical line per ticket — so it is
-  a projection, not accumulated state.
+  a projection, not accumulated state. **Its entries are ordered by ticket
+  slug (ascending), not by when each decision was resolved**, so the index is
+  a deterministic function of the ticket files and re-running the projection
+  never reorders it. The local backend records no resolution timestamp, so
+  resolution order is not recoverable from the files.
 - **Only the tool writes markers.** Every user-supplied string — a ticket
   `question`, a `comment` body, `gist`, `link`, `--body-file` content, titles,
   `notes`, fog and out-of-scope lines — is escaped on the way in, so the

@@ -30,6 +30,29 @@ search can no longer match user text, because user text can no longer
 contain a marker. See the marker constants below for the three rounds of
 failure that establish why nothing weaker works.
 
+Escaping is ORDER-SENSITIVE: any transformation that runs after the escape
+can put a marker back together. `_fm_value()` therefore flattens line breaks
+BEFORE escaping, never after (round 5, finding N4), and flattens using the
+reader's own `str.splitlines()` so the writer and the parser cannot disagree
+about what a line break is (round 5, finding N7).
+
+THE PATH INVARIANT (round 5, finding N5) -- the second thing the module
+rests on:
+
+    Every filesystem path this module builds is <root>/<safe-slug>/... ,
+    because every identifier that becomes a path segment goes through
+    `_safe_segment()`.
+
+`chart()` has slug-validated the keys it creates since round 1, but the
+identifiers the other subcommands accept at runtime were unchecked, so
+`claim --ticket ../../../VICTIM` rewrote an arbitrary .md file outside
+--root at exit code 0. `_map_dir()` and `_ticket_path()` are now the only
+ways a map or ticket path is constructed, and both validate.
+
+CLI failure contract: stdout carries JSON or nothing. A known, actionable
+failure prints one line to stderr and exits EXIT_ERROR; an unexpected crash
+still raises, so the two are distinguishable.
+
 `inp` is validated before any file is written (in both dry-run and real
 mode): `map` must have every field chart() reads unconditionally
 ("title", "destination"), every ticket must have every field chart() reads
@@ -126,6 +149,24 @@ class ChartConflictError(Exception):
 
 class ChartValidationError(ValueError):
     """map_input.json failed validation. Raised before anything is written."""
+
+
+class UnsafeIdentifierError(ValueError):
+    """A value used as a path segment (a map slug or a ticket id) is not a
+    safe slug. Raised BEFORE the path is built, so nothing outside the map
+    folder is ever opened, read or written.
+
+    chart() has slug-validated the keys it writes since round 1, but the
+    identifiers the other subcommands accept at runtime (--ticket, --map,
+    --blocked-by) were never checked -- `_ticket_path` was byte-identical
+    across rounds 1-4 -- so `claim --ticket ../../../VICTIM` rewrote an
+    arbitrary .md file outside --root, at exit code 0, lossily round-tripping
+    that file's own frontmatter on the way through (review round 5, N5)."""
+
+
+class CliUsageError(ValueError):
+    """A subcommand was invoked without an argument it needs. Raised before
+    any work, and reported as a one-line message rather than a traceback."""
 
 
 class MarkerIntegrityError(Exception):
@@ -324,19 +365,38 @@ def _fm_parse(text):
 
 
 def _fm_value(v):
-    """One frontmatter value, escaped and flattened to a single line.
+    """One frontmatter value, flattened to a single line and THEN escaped.
 
     The marker invariant's choke point for frontmatter: no frontmatter value
     is ever generated content, so every one of them is scrubbed here rather
     than at each caller (title, gist, assignee, blocked-by entries ...).
+
+    Frontmatter here is one physical line per key. An embedded line break
+    would otherwise either truncate the value (the rest silently dropped on
+    read) or corrupt a later key's parse (review round 1 finding); flattening
+    also guarantees the map.md index entries built from these values are
+    exactly one line each.
+
+    TWO ORDERING/COVERAGE RULES, both load-bearing, both learned the hard way:
+
+    1. Flatten FIRST, escape SECOND (round 5, finding N4). Escaping first is
+       a hole: "<!--\\ndecision-map:resolution:start -->" contains no marker
+       for _scrub to find, and flattening it afterwards RECONSTITUTES a live
+       marker that no escape ever saw. Unpaired that raised
+       MarkerIntegrityError mid-chart with map.md already on disk; paired it
+       sailed through _assert_one_region and wrote live markers into a
+       generated file -- falsifying the invariant this module rests on.
+    2. Flatten with the READER's own splitter (round 5, finding N7). _fm_parse
+       splits this block with str.splitlines(), so " ".join(s.splitlines())
+       covers exactly what the reader recognises, by construction, and the
+       two cannot drift apart. The previous hand-listed CRLF/LF/CR set missed
+       eight separators splitlines() honours -- U+000B, U+000C, U+001C,
+       U+001D, U+001E, U+0085, U+2028, U+2029 -- any of which let
+       `claim --user "me<sep>status: closed"` forge a real frontmatter key,
+       silently closing the ticket and dropping it out of the frontier.
     """
-    s = _scrub(v)
-    # Frontmatter here is one physical line per key. An embedded newline
-    # would otherwise either truncate the value (the rest silently dropped
-    # on read) or corrupt a later key's parse (review round 1 finding) —
-    # collapse it to a space instead. It also guarantees the map.md index
-    # entries built from these values are exactly one line each.
-    return s.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+    s = "" if v is None else str(v)
+    return _scrub(" ".join(s.splitlines()))
 
 
 def _fm_dump(fm):
@@ -349,8 +409,29 @@ def _fm_dump(fm):
     return "---\n" + "\n".join(lines) + "\n---\n"
 
 
+def _safe_segment(value, kind):
+    """Return `value` if it is safe to use as a single path segment.
+
+    THE enforcing line for the path half of the module: every filesystem path
+    this module builds goes through here or through _map_dir/_ticket_path
+    below, so a traversal payload is rejected before any path is constructed.
+    It uses the SAME _SAFE_SLUG_RE that chart() applies to the keys it
+    creates, so it can never reject an identifier this module could
+    legitimately have produced.
+    """
+    if not isinstance(value, str) or not _SAFE_SLUG_RE.match(value):
+        raise UnsafeIdentifierError(
+            f"invalid {kind} {value!r}: must be a safe slug (letters, digits, "
+            "'-', '_'; no path separators, drive letters, '..', or line breaks)")
+    return value
+
+
+def _map_dir(root, slug):
+    return Path(root) / _safe_segment(slug, "map slug")
+
+
 def _ticket_path(root, slug, ticket):
-    return Path(root) / slug / "tickets" / f"{ticket}.md"
+    return _map_dir(root, slug) / "tickets" / f"{_safe_segment(ticket, 'ticket id')}.md"
 
 
 def _load_ticket(root, slug, ticket):
@@ -381,7 +462,7 @@ def _ticket_json(root, slug, ticket):
         # forward slashes always -- backslash is Markdown's escape character,
         # so a Windows-native path here would break every [name](url) link
         # (review round 1 finding).
-        "url": (Path(root) / slug / "tickets" / f"{ticket}.md").as_posix(),
+        "url": _ticket_path(root, slug, ticket).as_posix(),
         "type": fm.get("type", "grilling"), "mode": fm.get("mode", "HITL"),
         "status": fm.get("status", "open"),
         "assignee": fm.get("assignee") or None,
@@ -393,8 +474,14 @@ def _ticket_json(root, slug, ticket):
 
 
 def _all_tickets(root, slug):
-    tdir = Path(root) / slug / "tickets"
-    return sorted(p.stem for p in tdir.glob("*.md")) if tdir.exists() else []
+    tdir = _map_dir(root, slug) / "tickets"
+    if not tdir.exists():
+        return []
+    # Only stems this module could itself have created. A hand-added file
+    # with a name that is not a safe slug is not a ticket -- skipping it
+    # keeps read/frontier working instead of tripping _safe_segment on a
+    # name that came from the filesystem rather than from the caller.
+    return sorted(p.stem for p in tdir.glob("*.md") if _SAFE_SLUG_RE.match(p.stem))
 
 
 def _chart_plan(base, inp, force):
@@ -422,12 +509,15 @@ def chart(root, inp, real, force=False):
     tickets. See the module docstring for the full re-chart policy."""
     _validate_chart_input(inp)
     slug = inp["target"]["slug"]
-    base = Path(root) / slug
+    base = _map_dir(root, slug)
     plan = _chart_plan(base, inp, force)
     if not real:
-        print("DRY RUN — planned files:")
+        # The human-readable plan goes to STDERR: every subcommand's contract
+        # is that stdout carries JSON or nothing, so `chart --input x | jq`
+        # works (round 5). The same plan is in the returned JSON's "planned".
+        print("DRY RUN — planned files:", file=sys.stderr)
         for p, action in plan:
-            print(f"  {action} {p}")
+            print(f"  {action} {p}", file=sys.stderr)
         return {"backend": "local", "dryRun": True,
                 "planned": [{"path": str(p), "action": action} for p, action in plan]}
     conflicts = [p for p, action in plan if action == "refuse"]
@@ -471,7 +561,8 @@ def chart(root, inp, real, force=False):
 
 
 def read_map(root, slug):
-    map_md = (Path(root) / slug / "map.md").read_text(encoding="utf-8")
+    map_path = _map_dir(root, slug) / "map.md"
+    map_md = map_path.read_text(encoding="utf-8")
     title = map_md.splitlines()[0].lstrip("# ").strip()
     dest = ""
     dm = re.search(r"## Destination\n(.+?)(\n\n|\n##)", map_md, re.DOTALL)
@@ -479,7 +570,7 @@ def read_map(root, slug):
         dest = dm.group(1).strip()
     return {"backend": "local",
             "map": {"id": slug, "name": title,
-                    "url": (Path(root) / slug / "map.md").as_posix(),
+                    "url": map_path.as_posix(),
                     "destination": dest},
             "tickets": [_ticket_json(root, slug, t) for t in _all_tickets(root, slug)]}
 
@@ -510,6 +601,10 @@ def claim(root, slug, ticket, user):
 
 
 def block(root, slug, ticket, blocked_by):
+    # --blocked-by is a ticket identifier too. Validating it also keeps the
+    # "blocked_by: [a, b]" frontmatter list parseable, since a value carrying
+    # a comma or a line break would otherwise corrupt it on read.
+    _safe_segment(blocked_by, "blocked-by ticket id")
     fm, body = _load_ticket(root, slug, ticket)
     deps = fm.get("blocked_by", [])
     if blocked_by not in deps:
@@ -547,7 +642,7 @@ def _reindex_decisions(root, slug):
         gist = fm.get("gist") or ""
         entries.append(f"- [{title}](tickets/{key}.md) — {gist}".rstrip() + "\n")
     region = f"{_DECISIONS_START}\n{''.join(entries)}{_DECISIONS_END}\n"
-    map_path = Path(root) / slug / "map.md"
+    map_path = _map_dir(root, slug) / "map.md"
     map_md = map_path.read_text(encoding="utf-8")
     if _DECISIONS_BLOCK_RE.search(map_md):
         map_md = _DECISIONS_BLOCK_RE.sub(lambda _m: region, map_md, count=1)
@@ -612,6 +707,70 @@ def resolve(root, slug, ticket, gist, link, body):
     return {"resolved": ticket, "gist": _fm_value(gist) or None}
 
 
+# Exit codes. 0 success; EXIT_ERROR a known, actionable failure reported as
+# one line on stderr; anything else (an unexpected crash) still surfaces as a
+# traceback and Python's own exit 1 -- deliberately distinct, so a caller can
+# tell "you passed something wrong" from "this tool is broken".
+EXIT_OK = 0
+EXIT_ERROR = 2
+
+# Every failure below is the user's to act on, so each gets a one-line
+# message naming the problem AND the remedy instead of a traceback (deferred
+# in rounds 1-4; landed in round 5 after N4 showed the error path actively
+# misdirects -- a reconstituted marker reported itself as "hand-edited
+# markers in the file", which was false).
+_REMEDY = {
+    CliUsageError: "run with --help to see the arguments this subcommand needs",
+    ChartValidationError: "correct the field named above in map_input.json and re-run",
+    ChartConflictError: "re-run with --force to overwrite, or chart into a different --map slug",
+    UnsafeIdentifierError: "pass the id exactly as chart created it",
+    MarkerIntegrityError: "remove the stray decision-map marker comments from that file by hand",
+    json.JSONDecodeError: "make sure --input points at valid JSON",
+}
+_DEFAULT_REMEDY = "check the path and permissions, then re-run"
+
+# (attribute on the parsed args, the flag the user types)
+_REQUIRED_CLI_ARGS = {
+    "chart": [("input", "--input")],
+    "read": [("slug", "--map")],
+    "frontier": [("slug", "--map")],
+    "claim": [("slug", "--map"), ("ticket", "--ticket")],
+    "resolve": [("slug", "--map"), ("ticket", "--ticket"), ("gist", "--gist")],
+    "comment": [("slug", "--map"), ("ticket", "--ticket"), ("body_file", "--body-file")],
+    "block": [("slug", "--map"), ("ticket", "--ticket"), ("blocked_by", "--blocked-by")],
+}
+
+
+def _check_cli_args(a):
+    missing = [flag for attr, flag in _REQUIRED_CLI_ARGS[a.cmd]
+               if getattr(a, attr, None) is None]
+    if missing:
+        raise CliUsageError(
+            f"{a.cmd} needs {' and '.join(missing)}")
+
+
+def _dispatch(a):
+    _check_cli_args(a)
+    body = Path(a.body_file).read_text(encoding="utf-8") if a.body_file else None
+    if a.cmd == "chart":
+        inp = json.loads(Path(a.input).read_text(encoding="utf-8"))
+        return chart(a.root, inp, real=a.real and not a.dry, force=a.force)
+    if a.cmd == "read":
+        return read_map(a.root, a.slug)
+    if a.cmd == "frontier":
+        return frontier(a.root, a.slug)
+    if a.dry:
+        # --dry-run is inert on every mutating subcommand: report, touch nothing
+        return {"dryRun": True, "wouldRun": a.cmd, "ticket": a.ticket}
+    if a.cmd == "claim":
+        return claim(a.root, a.slug, a.ticket, a.user)
+    if a.cmd == "resolve":
+        return resolve(a.root, a.slug, a.ticket, a.gist, a.link, body)
+    if a.cmd == "comment":
+        return comment(a.root, a.slug, a.ticket, body)
+    return block(a.root, a.slug, a.ticket, a.blocked_by)
+
+
 def main():
     ap = argparse.ArgumentParser(description="decision-map local backend")
     ap.add_argument("cmd", choices=["chart", "read", "frontier", "claim",
@@ -627,29 +786,26 @@ def main():
     ap.add_argument("--force", action="store_true",
                      help="chart only: explicitly allow overwriting an existing map folder")
     a = ap.parse_args()
-    body = Path(a.body_file).read_text(encoding="utf-8") if a.body_file else None
-    if a.cmd == "chart":
-        inp = json.loads(Path(a.input).read_text(encoding="utf-8"))
-        result = chart(a.root, inp, real=a.real and not a.dry, force=a.force)
-    elif a.cmd == "read":
-        result = read_map(a.root, a.slug)
-    elif a.cmd == "frontier":
-        result = frontier(a.root, a.slug)
-    elif a.dry:
-        result = {"dryRun": True, "wouldRun": a.cmd, "ticket": a.ticket}
-    elif a.cmd == "claim":
-        result = claim(a.root, a.slug, a.ticket, a.user)
-    elif a.cmd == "resolve":
-        result = resolve(a.root, a.slug, a.ticket, a.gist, a.link, body)
-    elif a.cmd == "comment":
-        result = comment(a.root, a.slug, a.ticket, body)
-    elif a.cmd == "block":
-        result = block(a.root, a.slug, a.ticket, a.blocked_by)
+    try:
+        result = _dispatch(a)
+    except (CliUsageError, ChartValidationError, ChartConflictError,
+            UnsafeIdentifierError, MarkerIntegrityError,
+            json.JSONDecodeError, OSError) as e:
+        remedy = next((r for cls, r in _REMEDY.items() if isinstance(e, cls)),
+                      _DEFAULT_REMEDY)
+        # one line, flattened, on stderr -- stdout stays empty so a caller
+        # piping it never sees half a JSON document
+        problem = " ".join(str(e).split())
+        if problem.startswith(f"{a.cmd}: "):       # don't say "chart: chart: ..."
+            problem = problem[len(a.cmd) + 2:]
+        print(f"error: {a.cmd}: {problem} -- {remedy}", file=sys.stderr)
+        return EXIT_ERROR
     text = json.dumps(result, indent=2)
     if a.output:
         Path(a.output).write_text(text, encoding="utf-8")
     print(text)
+    return EXIT_OK
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

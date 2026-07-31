@@ -3,7 +3,9 @@ import copy
 import hashlib
 import io
 import json
+import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -24,6 +26,14 @@ def _snapshot(base):
         if p.is_file():
             snap[p.relative_to(base).as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()
     return snap
+
+# Derived by scanning, not hand-listed (round 5, N7): every character
+# str.splitlines() treats as a line break. _fm_parse splits the frontmatter
+# block with splitlines(), so the writer's normaliser must cover exactly this
+# set. Scanning to 0x2200 covers all of them with margin; a separate one-off
+# scan of the full 0x110000 range confirmed there are no others.
+_SPLITLINES_SEPARATORS = [chr(c) for c in range(0x2200)
+                          if len(("a" + chr(c) + "b").splitlines()) > 1]
 
 INPUT = {
     "target": {"slug": "example-effort"},
@@ -618,6 +628,151 @@ class LocalMapOpsTest(unittest.TestCase):
                 bad["map"][field] = value
                 self._assert_rejected_without_writing(bad)
 
+    # ------------------------------------------------------------------
+    # Fix round 5 -- review findings N4, N5, N7
+    # ------------------------------------------------------------------
+
+    # N4: _fm_value scrubbed BEFORE collapsing line breaks, so a marker split
+    # by a newline carried no marker for _scrub to find and was then
+    # RECONSTITUTED into a live one by the very next collapse. Unpaired ->
+    # MarkerIntegrityError mid-chart with map.md already on disk (R3's
+    # partial-folder harm through a new door). Paired -> passed
+    # _assert_one_region and wrote live markers into a generated file, which
+    # falsifies the round-4 invariant outright.
+    def test_split_marker_is_not_reconstituted_when_frontmatter_is_collapsed(self):
+        inp = copy.deepcopy(INPUT)
+        inp["target"]["slug"] = "n4a-effort"
+        inp["tickets"] = [{"key": "t1", "type": "task", "question": "q?",
+                           "title": "<!--\ndecision-map:resolution:start --> TAIL-A",
+                           "blocks": []}]
+        ops.chart(self.root, inp, real=True)          # must not raise
+        text = self._ticket_text("n4a-effort", "t1")
+        self.assertEqual(text.count(ops._RESOLUTION_START), 0)
+        self.assertEqual(text.count(ops._RESOLUTION_END), 0)
+        self.assertIn(ops._MARKER_ESCAPED_PREFIX, text)
+        self.assertIn("TAIL-A", text)
+        # the whole map folder landed, not a half-written one
+        self.assertTrue((self.root / "n4a-effort" / "map.md").exists())
+
+    def test_split_marker_pair_is_not_reconstituted_and_never_goes_live(self):
+        inp = copy.deepcopy(INPUT)
+        inp["target"]["slug"] = "n4b-effort"
+        inp["tickets"] = [{"key": "t1", "type": "task", "question": "q?",
+                           "title": ("<!--\ndecision-map:resolution:start --> MID "
+                                     "<!--\ndecision-map:resolution:end --> TAIL-B"),
+                           "blocks": []}]
+        ops.chart(self.root, inp, real=True)
+        text = self._ticket_text("n4b-effort", "t1")
+        self.assertEqual(text.count(ops._RESOLUTION_START), 0)
+        self.assertEqual(text.count(ops._RESOLUTION_END), 0)
+        self.assertIn("MID", text)
+        self.assertIn("TAIL-B", text)
+        # and the same payload through --gist must not reach map.md live
+        ops.resolve(self.root, "n4b-effort", "t1",
+                    "<!--\ndecision-map:resolution:end --> GIST-TAIL",
+                    link=None, body=None)
+        text = self._ticket_text("n4b-effort", "t1")
+        self.assertEqual(text.count(ops._RESOLUTION_START), 1)   # resolve's own
+        self.assertEqual(text.count(ops._RESOLUTION_END), 1)
+        map_md = (self.root / "n4b-effort" / "map.md").read_text(encoding="utf-8")
+        self.assertNotIn(ops._RESOLUTION_START, map_md)
+        self.assertNotIn(ops._RESOLUTION_END, map_md)
+        self.assertEqual(map_md.count(ops._DECISIONS_START), 1)
+        self.assertIn("GIST-TAIL", map_md)
+
+    # N5 (Important): _ticket_path is byte-identical across all five commits --
+    # the runtime --ticket / --map identifiers were never validated, so
+    # claim/comment/resolve/block rewrote arbitrary .md files OUTSIDE --root,
+    # lossily round-tripping the victim's own frontmatter on the way through.
+    def _traversal_fixture(self):
+        """--root is a SUBdirectory, so a traversal payload can be proven to
+        land outside --root rather than merely outside the map folder."""
+        mroot = self.root / "maps"
+        mroot.mkdir()
+        victim = self.root / "VICTIM.md"
+        victim.write_text(
+            "---\ntitle: not a ticket\nstatus: precious\n---\n\nUNRELATED FILE\n",
+            encoding="utf-8")
+        inp = copy.deepcopy(INPUT)
+        ops.chart(mroot, inp, real=True)
+        return mroot, victim
+
+    TRAVERSALS = ["../../../VICTIM", "..\\..\\..\\VICTIM", "../VICTIM",
+                  "C:/Windows/Temp/dm-r5-victim", "C:\\Windows\\Temp\\dm-r5-victim",
+                  "/etc/passwd", "foo/bar", "", "..", None]
+
+    def test_runtime_ticket_id_cannot_escape_the_map_folder(self):
+        mroot, victim = self._traversal_fixture()
+        before = _snapshot(self.root)
+        body = self.root / "b.md"
+        body.write_text("x", encoding="utf-8")
+        before = _snapshot(self.root)
+        for payload in self.TRAVERSALS:
+            for op, args in [
+                    ("claim", lambda t: ops.claim(mroot, "example-effort", t, "attacker")),
+                    ("comment", lambda t: ops.comment(mroot, "example-effort", t, "hi")),
+                    ("resolve", lambda t: ops.resolve(mroot, "example-effort", t,
+                                                      "g", link=None, body=None)),
+                    ("block", lambda t: ops.block(mroot, "example-effort", t, "auth-model")),
+            ]:
+                with self.subTest(op=op, payload=payload):
+                    with self.assertRaises(ops.UnsafeIdentifierError):
+                        args(payload)
+                    self.assertEqual(_snapshot(self.root), before,
+                                     "a rejected traversal must leave the filesystem "
+                                     "byte-identical, inside AND outside --root")
+        self.assertIn("UNRELATED FILE", victim.read_text(encoding="utf-8"))
+        self.assertIn("status: precious", victim.read_text(encoding="utf-8"))
+
+    def test_runtime_map_slug_cannot_escape_the_root(self):
+        mroot, _ = self._traversal_fixture()
+        before = _snapshot(self.root)
+        for payload in self.TRAVERSALS:
+            for op, fn in [("read", ops.read_map), ("frontier", ops.frontier)]:
+                with self.subTest(op=op, payload=payload):
+                    with self.assertRaises(ops.UnsafeIdentifierError):
+                        fn(mroot, payload)
+                    self.assertEqual(_snapshot(self.root), before)
+            with self.subTest(op="claim-slug", payload=payload):
+                with self.assertRaises(ops.UnsafeIdentifierError):
+                    ops.claim(mroot, payload, "auth-model", "attacker")
+                self.assertEqual(_snapshot(self.root), before)
+
+    def test_block_rejects_an_unsafe_blocked_by_identifier(self):
+        self._chart()
+        before = _snapshot(self.root)
+        for payload in ["../../evil", "a, b", "x\ny", None]:
+            with self.subTest(payload=payload):
+                with self.assertRaises(ops.UnsafeIdentifierError):
+                    ops.block(self.root, "example-effort", "auth-model", payload)
+                self.assertEqual(_snapshot(self.root), before)
+
+    def test_a_stray_unsafely_named_file_does_not_break_read_or_frontier(self):
+        self._chart()
+        (self.root / "example-effort" / "tickets" / "not a ticket.md").write_text(
+            "hand added\n", encoding="utf-8")
+        m = ops.read_map(self.root, "example-effort")          # must not raise
+        self.assertEqual(len(m["tickets"]), 3)
+        ops.frontier(self.root, "example-effort")              # must not raise
+
+    # N7: _fm_value normalised only CRLF/LF/CR, but _fm_parse splits the
+    # frontmatter block with splitlines(), which also breaks on U+000B,
+    # U+000C, U+001C, U+001D, U+001E, U+0085, U+2028 and U+2029 -- so
+    # `claim --user "me<sep>status: closed"` forged a real frontmatter key and
+    # the ticket silently reported itself closed.
+    def test_writer_normalises_every_line_break_the_reader_splits_on(self):
+        self._chart()
+        for sep in _SPLITLINES_SEPARATORS:
+            with self.subTest(sep="U+%04X" % ord(sep)):
+                ops.claim(self.root, "example-effort", "rollout-order",
+                          f"me{sep}status: closed{sep}gist: forged")
+                t = next(x for x in ops.read_map(self.root, "example-effort")["tickets"]
+                         if x["key"] == "rollout-order")
+                self.assertEqual(t["status"], "open", "forged a status key")
+                self.assertIsNone(t["gist"], "forged a gist key")
+                self.assertIn("status: closed", t["assignee"],
+                              "the text must survive as part of the assignee value")
+
     def test_chart_rejects_wrong_typed_containers(self):
         cases = []
         bad = copy.deepcopy(INPUT); bad["tickets"] = {"a": 1}; cases.append(bad)
@@ -648,20 +803,35 @@ class LocalMapOpsCliTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def _run(self, argv):
+    def _run_full(self, argv):
+        """Drive main() and return (exit_code, stdout, stderr).
+
+        Round 5: main() no longer raises for a known failure -- it prints one
+        line to stderr and returns a distinct exit code, and stdout carries
+        JSON or nothing. Streams must therefore be captured separately.
+        """
         old_argv = sys.argv
         sys.argv = ["local_map_ops.py"] + argv
-        buf = io.StringIO()
+        out, err = io.StringIO(), io.StringIO()
         try:
-            with contextlib.redirect_stdout(buf):
-                ops.main()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                rc = ops.main()
         finally:
             sys.argv = old_argv
-        return buf.getvalue()
+        return rc, out.getvalue(), err.getvalue()
+
+    def _run(self, argv):
+        rc, out, err = self._run_full(argv)
+        self.assertEqual(rc, 0, f"expected success, got rc={rc}: {err}")
+        return out
 
     def test_cli_chart_dry_run_then_real_then_frontier(self):
-        out = self._run(["chart", "--root", str(self.root), "--input", str(self.input_path)])
-        self.assertIn("DRY RUN", out)
+        rc, out, err = self._run_full(
+            ["chart", "--root", str(self.root), "--input", str(self.input_path)])
+        self.assertEqual(rc, 0)
+        # the human-readable plan goes to stderr; stdout is pure JSON
+        self.assertIn("DRY RUN", err)
+        self.assertEqual(json.loads(out)["dryRun"], True)
         self.assertFalse((self.root / "example-effort").exists())
 
         out = self._run(["chart", "--root", str(self.root), "--input", str(self.input_path), "--real"])
@@ -689,14 +859,67 @@ class LocalMapOpsCliTest(unittest.TestCase):
                           "--body-file", str(self._write_body("noted"))])
         self.assertEqual(json.loads(out), {"commented": "rollout-order"})
 
-        # CLI-level re-chart refusal (finding 1), not just the function call
-        with self.assertRaises(ops.ChartConflictError):
-            self._run(["chart", "--root", str(self.root), "--input", str(self.input_path), "--real"])
+        # CLI-level re-chart refusal (finding 1), not just the function call.
+        # Round 5: a known failure is a clean one-line message on stderr and a
+        # distinct exit code -- never a raw traceback, and never partial JSON.
+        rc, out, err = self._run_full(
+            ["chart", "--root", str(self.root), "--input", str(self.input_path), "--real"])
+        self.assertEqual(rc, ops.EXIT_ERROR)
+        self.assertEqual(out, "", "stdout must carry JSON or nothing")
+        self.assertIn("refusing to overwrite", err)
+        self.assertIn("--force", err)
         # explicit --force opt-in still works from the CLI
         out = self._run(["chart", "--root", str(self.root), "--input", str(self.input_path),
                           "--real", "--force"])
         data = json.loads(out)
         self.assertEqual(data["backend"], "local")
+
+    # Deferred across rounds 1-4, landed in round 5: known failures must not
+    # surface as raw tracebacks with empty stdout.
+    def test_cli_known_failures_are_clean_one_line_errors(self):
+        self._run(["chart", "--root", str(self.root), "--input", str(self.input_path),
+                   "--real"])
+        cases = {
+            "unsafe ticket id": ["claim", "--root", str(self.root), "--map",
+                                 "example-effort", "--ticket", "../../../VICTIM"],
+            "unsafe map slug": ["frontier", "--root", str(self.root), "--map", "../.."],
+            "missing ticket file": ["claim", "--root", str(self.root), "--map",
+                                    "example-effort", "--ticket", "nope"],
+            "missing --input": ["chart", "--root", str(self.root), "--real"],
+            "missing --map": ["claim", "--root", str(self.root), "--ticket", "auth-model"],
+            "missing --gist": ["resolve", "--root", str(self.root), "--map",
+                               "example-effort", "--ticket", "auth-model"],
+            "unreadable --input": ["chart", "--root", str(self.root), "--input",
+                                   str(self.root / "nope.json"), "--real"],
+        }
+        for label, argv in cases.items():
+            with self.subTest(case=label):
+                rc, out, err = self._run_full(argv)
+                self.assertEqual(rc, ops.EXIT_ERROR,
+                                 "known failure needs its own exit code")
+                self.assertEqual(out, "", "stdout must carry JSON or nothing")
+                self.assertEqual(len(err.strip().splitlines()), 1,
+                                 f"expected exactly one line of diagnostics, got: {err!r}")
+                self.assertTrue(err.startswith("error: "), err)
+
+    def test_cli_process_exit_code_is_wired(self):
+        """The in-process tests above check main()'s return value; this one
+        proves __main__ actually turns it into a process exit code."""
+        script = Path(ops.__file__)
+        env = dict(os.environ, PYTHONIOENCODING="utf-8")
+        ok = subprocess.run(
+            [sys.executable, str(script), "chart", "--root", str(self.root),
+             "--input", str(self.input_path)], capture_output=True, text=True, env=env)
+        self.assertEqual(ok.returncode, 0)
+        json.loads(ok.stdout)                     # stdout is pure JSON
+        bad = subprocess.run(
+            [sys.executable, str(script), "claim", "--root", str(self.root),
+             "--map", "example-effort", "--ticket", "../../../VICTIM"],
+            capture_output=True, text=True, env=env)
+        self.assertEqual(bad.returncode, ops.EXIT_ERROR)
+        self.assertEqual(bad.stdout, "")
+        self.assertNotIn("Traceback", bad.stderr)
+        self.assertTrue(bad.stderr.startswith("error: "), bad.stderr)
 
     def _write_body(self, text):
         p = self.root / "body.md"
