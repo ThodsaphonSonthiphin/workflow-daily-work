@@ -94,6 +94,33 @@ mode of its own (ADRs 0016, 0018). The drawer code is kept DRY in one reference 
 walkthrough *glossary-aware*.
 _Avoid_: tooltip (narrower — can't hop), glossary popup, nested sub-walkthrough.
 
+## Decision-map terms (decision-map plugin)
+
+**Decision map**:
+The fourth plugin (ADR 0033/0034) and its canonical artifact: one tracker item
+(tagged/labelled `decision-map:map`) that indexes a multi-session planning effort —
+the destination, decisions so far, open fog, and out-of-scope list. An **index, not
+a store**: each decision's detail lives in its Decision ticket; the map only gists
+and links.
+_Avoid_: wayfinder (the upstream skill it adapts), roadmap, epic.
+
+**Decision ticket**:
+A child work item of a Decision map whose resolution is a **decision** — a question
+to settle, sized to one agent session — not a slice of a build to execute. Closed
+with the answer recorded on the ticket; the map gets a one-line gist + link. When a
+repo ADR exists for the decision, the ticket only gists and links it — the ADR stays
+canonical (ADR 0036). Typed `research`, `prototype`, `grilling`, or `task`
+(ADR 0038).
+_Avoid_: implementation ticket, task (an ADO/GitHub work item type, not this),
+user story.
+
+**HITL / AFK ticket**:
+Every Decision ticket is one or the other. **HITL** (human-in-the-loop) resolves
+only through live exchange with the human — the agent never answers its own
+questions (grilling, prototype). **AFK** is agent-driven without the human
+(research, some tasks). The mode determines who speaks, not who types.
+_Avoid_: manual/automated (it's about who decides, not who executes).
+
 ## GitHub terms (github-backlog plugin)
 
 **GitHub Owner**:
