@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""local_map_ops.py — decision-map local-markdown backend (ADR 0042).
+r"""local_map_ops.py — decision-map local-markdown backend (ADR 0042).
 
 Map lives at <root>/<slug>/map.md, tickets at <root>/<slug>/tickets/<slug>.md.
 Contract: plugins/decision-map/references/data-contracts.md. Stdlib only.
@@ -16,11 +16,14 @@ planned file "create" / "OVERWRITE" / "refuse", so the human approval gate
 is truthful about what a real run would do.
 
 `inp` is validated before any file is written (in both dry-run and real
-mode): every ticket `key` must be a safe slug (no path separators, no `..`),
-every ticket `type` must be one of the four valid types, and every `blocks`
-target must be a key present in this same `inp`. A malformed map_input.json
-fails cleanly with ChartValidationError instead of writing a half-finished
-map folder or crossing outside the map folder.
+mode): the map's own `target.slug` and every ticket `key` must each be a
+safe slug (letters/digits/`-`/`_` only, anchored to the exact end of the
+string with `\Z` -- not `$`, which in Python also matches just before a
+trailing newline and would let e.g. "okname\n" slip through as a path
+segment), every ticket `type` must be one of the four valid types, and
+every `blocks` target must be a key present in this same `inp`. A malformed
+map_input.json fails cleanly with ChartValidationError instead of writing a
+half-finished map folder or crossing outside the intended root.
 """
 import argparse, json, re, sys
 from pathlib import Path
@@ -28,9 +31,14 @@ from pathlib import Path
 AFK_TYPES = {"research"}
 VALID_TICKET_TYPES = {"research", "prototype", "grilling", "task"}
 
-# Ticket keys become path segments (tickets/<key>.md) — restrict to a safe
-# slug so a key can never escape the map folder (e.g. "../../pwned").
-_SAFE_SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+# Ticket keys AND the map's own target.slug all become path segments
+# (<root>/<slug>/... , tickets/<key>.md) -- restrict both to a safe slug so
+# neither can ever escape the intended root (e.g. "../../pwned",
+# "C:/Windows/Temp/pwned"). Anchored with \Z, not $: in Python, `$` also
+# matches just before a trailing newline, so "okname\n" would otherwise
+# pass here and only fail later -- as an OSError while writing the ticket
+# file, after map.md was already on disk (review round 2, finding N3).
+_SAFE_SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*\Z")
 
 # The only frontmatter key that is ever written/read as a list. Every other
 # key is a plain (one-line) string, even if its value happens to start with
@@ -54,10 +62,18 @@ def _mode(ticket_type):
 def _validate_chart_input(inp):
     """Validate `inp` before chart() writes anything (dry-run or real).
 
+    - target.slug must be a safe slug (round 2 finding N2 -- previously
+      unvalidated; "../../pwned-slug" and "C:/Windows/Temp/pwned-slug" both
+      wrote outside the intended root)
     - every ticket key must be a safe slug (no path separators / '..')
     - every ticket type must be one of the four valid types
     - every `blocks` target must be a key present in this same `inp`
     """
+    slug = inp["target"]["slug"]
+    if not _SAFE_SLUG_RE.match(slug):
+        raise ChartValidationError(
+            f"invalid map slug {slug!r}: must be a safe slug "
+            "(letters, digits, '-', '_'; no path separators, drive letters, or '..')")
     keys = set()
     for t in inp["tickets"]:
         key = t["key"]
@@ -291,9 +307,14 @@ def resolve(root, slug, ticket, gist, link, body):
     fm, tbody = _load_ticket(root, slug, ticket)
     fm["status"] = "closed"
     fm["gist"] = gist
-    # Drop any previously appended Resolution section (always the last
-    # section in the ticket body) before appending the fresh one.
-    tbody = re.sub(r"\n*## Resolution\n.*\Z", "", tbody, flags=re.DOTALL)
+    # Drop any previously appended Resolution section -- but only up to the
+    # NEXT "## " heading (or end of string if there is none), never past it.
+    # A \Z-anchored strip here would delete everything from "## Resolution"
+    # to end-of-file, including a comment() appended AFTER a prior resolve()
+    # (comment() has no closed-ticket guard, so `resolve -> comment ->
+    # resolve` is a real, documented sequence) -- silently destroying a
+    # user-authored comment (review round 2, finding N1).
+    tbody = re.sub(r"\n*## Resolution\n.*?(?=\n## |\Z)", "", tbody, flags=re.DOTALL)
     detail = f"\nDetail: {link}\n" if link else ""
     extra = f"\n{body}\n" if body else ""
     _save_ticket(root, slug, ticket, fm,

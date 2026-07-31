@@ -1,13 +1,29 @@
 import contextlib
 import copy
+import hashlib
 import io
 import json
+import shutil
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 import local_map_ops as ops
+
+
+def _snapshot(base):
+    """Return {relative posix path: sha256 hexdigest} for every file under
+    `base`. Used to prove a dry run truly wrote nothing (round-2 finding N5:
+    the prior assertion compared one file's contents to itself and could
+    never fail, regardless of what chart() actually did)."""
+    snap = {}
+    if not base.exists():
+        return snap
+    for p in sorted(base.rglob("*")):
+        if p.is_file():
+            snap[p.relative_to(base).as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()
+    return snap
 
 INPUT = {
     "target": {"slug": "example-effort"},
@@ -114,19 +130,25 @@ class LocalMapOpsTest(unittest.TestCase):
 
     def test_rechart_dry_run_reports_create_overwrite_refuse_accurately(self):
         self._chart()
+        base = self.root / "example-effort"
+        before = _snapshot(base)
+        self.assertTrue(before, "sanity: the chart fixture must have written files to snapshot")
         # default (force=False): every existing file must be reported "refuse"
         out_default = ops.chart(self.root, INPUT, real=False)
         actions_default = {p["path"]: p["action"] for p in out_default["planned"]}
         self.assertTrue(actions_default)
         self.assertTrue(all(a == "refuse" for a in actions_default.values()))
+        # dry run never writes, regardless of force -- verified via a real
+        # content hash snapshot (round-2 finding N5: the prior version of
+        # this assertion compared one file's contents to itself, which is
+        # vacuously true no matter what chart() does; a mutant that made a
+        # --force dry run clobber every file still passed the whole suite).
+        self.assertEqual(_snapshot(base), before)
         # force=True: same files must be reported "OVERWRITE", not silently "create"
         out_force = ops.chart(self.root, INPUT, real=False, force=True)
         actions_force = {p["path"]: p["action"] for p in out_force["planned"]}
         self.assertTrue(all(a == "OVERWRITE" for a in actions_force.values()))
-        # dry run never writes, regardless of force
-        self.assertEqual(
-            (self.root / "example-effort" / "tickets" / "auth-model.md").read_text(encoding="utf-8"),
-            (self.root / "example-effort" / "tickets" / "auth-model.md").read_text(encoding="utf-8"))
+        self.assertEqual(_snapshot(base), before)
 
     def test_rechart_with_force_overwrites_explicitly(self):
         self._chart()
@@ -240,6 +262,75 @@ class LocalMapOpsTest(unittest.TestCase):
         ticket_md = (self.root / "example-effort" / "tickets" / "auth-model.md").read_text(encoding="utf-8")
         self.assertIn("## Comment", ticket_md)
         self.assertIn("checking with security team", ticket_md)
+
+    # ------------------------------------------------------------------
+    # Fix round 2 — regression tests for review findings N1-N3, N5
+    # ------------------------------------------------------------------
+
+    # N1 (Important, regression from the round-1 fix): the round-1 fix made
+    # resolve() strip "## Resolution\n.*\Z" (anchored to end-of-string) before
+    # re-appending -- but comment() can append AFTER a resolve (the CLI has no
+    # closed-ticket guard on comment), so a second resolve()'s \Z-anchored
+    # strip deleted the user-authored comment along with the stale Resolution.
+    def test_resolve_after_comment_preserves_the_comment(self):
+        self._chart()
+        ops.resolve(self.root, "example-effort", "auth-model", "first gist", link=None, body=None)
+        ops.comment(self.root, "example-effort", "auth-model", "user comment after resolve")
+        ops.resolve(self.root, "example-effort", "auth-model", "second gist", link=None, body=None)
+        ticket_md = (self.root / "example-effort" / "tickets" / "auth-model.md").read_text(encoding="utf-8")
+        self.assertIn("user comment after resolve", ticket_md)
+        self.assertEqual(ticket_md.count("## Resolution"), 1)
+        self.assertIn("second gist", ticket_md)
+        self.assertNotIn("first gist", ticket_md)
+
+    # N2 (Important): target.slug was never validated, so it could carry a
+    # ticket key straight past the map folder -- direct-probe-confirmed
+    # against HEAD: "../../pwned-slug" landed two directories above the temp
+    # root, and "C:/Windows/Temp/pwned-slug" wrote directly under
+    # C:\Windows\Temp. Both payloads plus one more (absolute unix-style path)
+    # must now be rejected before any file is written.
+    def test_chart_rejects_unsafe_map_slug_dotdot(self):
+        bad = copy.deepcopy(INPUT)
+        bad["target"]["slug"] = "../../pwned-slug-n2"
+        escape_target = (self.root / "../../pwned-slug-n2").resolve()
+        try:
+            with self.assertRaises(ops.ChartValidationError):
+                ops.chart(self.root, bad, real=True)
+            self.assertFalse(escape_target.exists())
+        finally:
+            if escape_target.exists():
+                shutil.rmtree(escape_target, ignore_errors=True)
+
+    def test_chart_rejects_unsafe_map_slug_drive_path(self):
+        bad = copy.deepcopy(INPUT)
+        bad["target"]["slug"] = "C:/Windows/Temp/pwned-slug-n2b"
+        escape_target = Path("C:/Windows/Temp/pwned-slug-n2b")
+        try:
+            with self.assertRaises(ops.ChartValidationError):
+                ops.chart(self.root, bad, real=True)
+            self.assertFalse(escape_target.exists())
+        finally:
+            if escape_target.exists():
+                shutil.rmtree(escape_target, ignore_errors=True)
+
+    def test_chart_rejects_unsafe_map_slug_absolute_unix_path(self):
+        bad = copy.deepcopy(INPUT)
+        bad["target"]["slug"] = "/etc/pwned-slug-n2c"
+        with self.assertRaises(ops.ChartValidationError):
+            ops.chart(self.root, bad, real=True)
+
+    # N3 (Minor, but directly protects round-1's Critical): _SAFE_SLUG_RE
+    # used "$" (which, in Python, also matches just before a trailing
+    # newline) instead of "\Z". A key like "okname\n" therefore passed
+    # validation, then died with OSError while writing the ticket file --
+    # AFTER map.md was already on disk (the exact half-written state the
+    # module docstring claims can't happen). Must now be rejected up front.
+    def test_chart_rejects_ticket_key_with_trailing_newline(self):
+        bad = copy.deepcopy(INPUT)
+        bad["tickets"][0]["key"] = "okname\n"
+        with self.assertRaises(ops.ChartValidationError):
+            ops.chart(self.root, bad, real=True)
+        self.assertFalse((self.root / "example-effort").exists())
 
 
 class LocalMapOpsCliTest(unittest.TestCase):
