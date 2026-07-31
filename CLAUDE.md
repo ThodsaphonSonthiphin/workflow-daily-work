@@ -7,12 +7,13 @@ install/use, see [README.md](README.md). For deeper internals, see
 
 ## What this is
 
-A Claude Code **plugin marketplace** (`workflow-daily-work`). It ships three
+A Claude Code **plugin marketplace** (`workflow-daily-work`). It ships five
 **plugins**: `ado-backlog` (findings → Azure DevOps backlog, plus the assigned-work
-view), `github-backlog` (the same pipeline against GitHub Issues), and
-`dev-workflows` (the daily-work arc: the `/daily` router plus design, debugging,
-review, study, and communication skills). [PLAYBOOK.md](PLAYBOOK.md) maps the whole
-arc — when to reach for what.
+view), `github-backlog` (the same pipeline against GitHub Issues), `dev-workflows`
+(the daily-work arc: the `/daily` router plus design, debugging, review, study, and
+communication skills), `react-workflows` (opt-in React conventions), and
+`decision-map` (multi-session decision-ticket planning). [PLAYBOOK.md](PLAYBOOK.md)
+maps the whole arc — when to reach for what.
 
 ## Repo layout
 
@@ -38,6 +39,8 @@ plugins/ado-backlog/
 plugins/github-backlog/           same pipeline, GitHub Issues backend
 plugins/dev-workflows/            daily-work arc skills + the /daily router
   references/diagram-convention.md   canonical diagram convention (ADRs 0005-0009)
+plugins/decision-map/             multi-session planning: chart-map + work-map skills,
+                                  local-markdown backend, ops contract reference
 ```
 
 ## Mental model

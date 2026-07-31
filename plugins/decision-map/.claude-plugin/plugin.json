@@ -1,0 +1,15 @@
+{
+  "name": "decision-map",
+  "displayName": "Decision Map",
+  "version": "0.1.0",
+  "description": "Plan work too big for one agent session as a shared map of decision tickets on your tracker (Azure DevOps, GitHub Issues, or local markdown): chart the map, then resolve one decision per session until the way is clear. Adapts the wayfinder idea to this marketplace's plugins and safety gates.",
+  "author": {
+    "name": "ThodsaphonSonthiphin",
+    "email": "thodsaphon.sonthipin@cartagena.no",
+    "url": "https://github.com/ThodsaphonSonthiphin"
+  },
+  "homepage": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+  "repository": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+  "license": "MIT",
+  "keywords": ["planning", "decision-tickets", "wayfinder", "multi-session", "azure-devops", "github-issues", "daily-work"]
+}
