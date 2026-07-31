@@ -56,9 +56,12 @@ CAREER-GROWTH — five stations, full run every time
 
 ## Step 0 — Preflight
 
-1. Ask the user for (or confirm from a previous run): the **career repo path**,
-   the **resume file path**, and the **list of repo roots** to scan. If the career
-   repo doesn't exist or isn't a git repo, offer to create/`git init` it.
+1. **Career repo path** — if `$ARGUMENTS` is present and resolves to a usable
+   directory, use it as the career repo path; only ask the user for it (or
+   confirm from a previous run) when `$ARGUMENTS` is absent or doesn't resolve.
+   Also ask for (or confirm) the **resume file path** and the **list of repo
+   roots** to scan. If the career repo doesn't exist or isn't a git repo, offer
+   to create/`git init` it.
 2. Read `growth-state.md` and the four artifacts from the career repo if present
    (see `references/growth-state-contract.md`). They pre-fill this run; they never
    skip a station.
@@ -107,7 +110,10 @@ keeps the prior rounds.
 ## Station 3 — GAP + MOAT
 
 Cross INVENTORY × MARKET, weighted by Station 1's evidence grades: `verified`
-skills count as strengths, `unverified` ones as gaps to close even when claimed.
+skills count as strengths; `interview-attested` ones count as real strengths
+whose public evidence is still missing, feeding the `evidenced` test as proof
+still to be created rather than proof already held; `unverified` ones count as
+gaps to close even when claimed.
 
 - **Gap list** — market-demanded skills the user lacks or holds unverified.
 - **Moat candidates** — skill *combinations* (never single hot skills), each with
@@ -138,8 +144,12 @@ and an overview Mermaid decision diagram (chosen vs rejected).
 For the chosen moat:
 
 1. **Target certs** — select the certificates that evidence the moat, each
-   already live-verified in Station 2. Fetch each exam's **study guide** and
-   extract its objective domains.
+   already live-verified in Station 2. If the chosen moat needs a certificate
+   Station 2 did not verify, verify it now against the vendor's registry per
+   `references/market-sources.md` before naming it — if the registry is
+   unreachable or the cert is retired, say so and fall back to the non-cert
+   milestone route in item 3 instead of naming an unverified cert. Fetch each
+   exam's **study guide** and extract its objective domains.
 2. **Mini projects** — design each project *backwards from exam objectives*: the
    project exists to build the knowledge the exam tests; passing the exam is the
    milestone. Size each to the user's stated study hours. Offer (never require)
@@ -164,5 +174,5 @@ For the chosen moat:
 | A job board 403s | try the alternates in `references/market-sources.md`; only then report the metric unavailable |
 | Vendor cert registry unreachable | withhold cert recommendations — never from memory; keep a previously-targeted cert's existing status and leave its stale `verified_on` in place, noting the verification could not be refreshed. `retired-blocked` is only for a confirmed retirement listing |
 | `ado-backlog` absent | skip the ADO source with an explicit notice |
-| No web access at all | INVENTORY still runs; MARKET and PLAN stop and say why — never fabricate |
+| No web access at all | the run stops after INVENTORY — Stations 2 through 5 do not run, because without market evidence the `paid` and `durable` tests cannot be argued; say why, never fabricate |
 | User rejects all candidates | loop to Station 3 with their objections as constraints |
