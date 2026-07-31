@@ -4,16 +4,23 @@ r"""local_map_ops.py — decision-map local-markdown backend (ADR 0042).
 Map lives at <root>/<slug>/map.md, tickets at <root>/<slug>/tickets/<slug>.md.
 Contract: plugins/decision-map/references/data-contracts.md. Stdlib only.
 
-Re-chart policy (review round 1, Critical finding): `chart(real=True)` onto a
-map folder that already has files on disk REFUSES by default, raising
-ChartConflictError before writing anything — a previous chart's recorded
-state (claims, resolutions, blocking edges) can never be silently destroyed
-by an accidental re-run. Pass force=True (CLI: --force) to explicitly opt
-into overwriting every existing file with fresh content — an intentional,
-informed action, never a silent one. `chart(real=False)` (the default dry
-run) always reports the SAME policy a real run would apply, labeling every
-planned file "create" / "OVERWRITE" / "refuse", so the human approval gate
-is truthful about what a real run would do.
+Re-chart policy (ADR 0043, superseding round 1's refuse-by-default):
+`chart` is ADDITIVE. It names two acts — initial charting and incremental
+fog graduation — and one code path serves both. On a map folder that already
+exists it creates only the tickets whose key is absent, leaves every existing
+ticket file byte-identical (status, assignee, blocking edges and resolution
+region included), and merges `notYetSpecified` / `outOfScope` lines into the
+map body without disturbing anything else. Re-running identical input is a
+byte-identical no-op, which also makes a partially-failed chart resumable.
+The map's title/destination/notes are never rewritten additively; a
+difference is reported, not applied. `force=True` (CLI: --force) keeps its
+meaning: an explicit full rewrite of every file.
+
+Round 1's Critical — a re-run must never silently destroy recorded state —
+is still guarded, now by skipping rather than refusing. `chart(real=False)`
+(the default dry run) reports the SAME actions a real run would take,
+labeling every planned file "create" / "skip (exists)" / "merge" /
+"OVERWRITE", and a file labeled "skip (exists)" is never written.
 
 THE MARKER INVARIANT (review round 4, finding N1) -- the one rule the whole
 module rests on:
@@ -131,6 +138,28 @@ _RESOLUTION_START = "<!-- decision-map:resolution:start -->"
 _RESOLUTION_END = "<!-- decision-map:resolution:end -->"
 _DECISIONS_START = "<!-- decision-map:decisions:start -->"
 _DECISIONS_END = "<!-- decision-map:decisions:end -->"
+# Task 3b / ADR 0043: `chart` is additive, so the two authored lists in the
+# map body must be merged into rather than rewritten. They get their own
+# regions for the same reason the decisions index has one -- so the merge can
+# find exactly the lines the tool owns without splitting the document on
+# heading patterns, which is what cost rounds 1-3.
+_FOG_START = "<!-- decision-map:fog:start -->"
+_FOG_END = "<!-- decision-map:fog:end -->"
+_SCOPE_START = "<!-- decision-map:scope:start -->"
+_SCOPE_END = "<!-- decision-map:scope:end -->"
+
+# Which regions each generated file may hold. _assert_regions checks a file
+# against its own list, and checks that NO decision-map marker outside those
+# regions is present -- so adding a region here is the only way to introduce
+# a new legal marker.
+_MAP_REGIONS = ((_DECISIONS_START, _DECISIONS_END),
+                (_FOG_START, _FOG_END),
+                (_SCOPE_START, _SCOPE_END))
+_TICKET_REGIONS = ((_RESOLUTION_START, _RESOLUTION_END),)
+
+# The placeholder the tool writes into an empty list region. It is tool-owned,
+# not user content, so the merge drops it as soon as a real line arrives.
+_EMPTY_LIST_LINE = "- (none)"
 
 
 def _region_re(start, end):
@@ -142,9 +171,31 @@ _RESOLUTION_BLOCK_RE = _region_re(_RESOLUTION_START, _RESOLUTION_END)
 _DECISIONS_BLOCK_RE = _region_re(_DECISIONS_START, _DECISIONS_END)
 
 
-class ChartConflictError(Exception):
-    """chart(real=True) would overwrite existing map/ticket files and
-    force=True was not passed. Raised before anything is written."""
+def _region_body(text, start, end):
+    """The text strictly between one marker pair, or None if absent.
+
+    Literal `str.find` on the exact markers -- no pattern at all, so there is
+    nothing to anchor wrongly. Returns None rather than guessing when the
+    region is missing.
+    """
+    i = text.find(start)
+    if i < 0:
+        return None
+    j = text.find(end, i + len(start))
+    if j < 0:
+        return None
+    return text[i + len(start):j]
+
+
+def _replace_region(text, start, end, new_body):
+    """Swap the content between one marker pair, leaving the rest byte-identical."""
+    i = text.find(start)
+    if i < 0:
+        return text
+    j = text.find(end, i + len(start))
+    if j < 0:
+        return text
+    return text[:i + len(start)] + new_body + text[j:]
 
 
 class ChartValidationError(ValueError):
@@ -191,25 +242,38 @@ def _scrub(value):
     return s.replace(_MARKER_PREFIX, _MARKER_ESCAPED_PREFIX)
 
 
-def _assert_one_region(text, start, end, what):
-    """Refuse to write `text` unless it holds 0 or 1 well-formed regions.
+def _assert_regions(text, regions, what):
+    """Refuse to write `text` unless every declared region is well formed and
+    no decision-map marker appears outside them.
 
     The backstop for _scrub(): if a future change adds a user-input path and
     forgets to scrub it, this fails loudly at the write instead of silently
     losing user content on some later resolve() -- which is exactly how the
     same defect survived three fix rounds.
+
+    The final stray-prefix check is the part that generalises: it is what
+    makes "a marker in this file was written by this module" checkable
+    without enumerating every marker that could ever exist. Dropping it
+    survived the round-5 suite (review finding F6), so it now has its own
+    regression test.
     """
-    n_start, n_end = text.count(start), text.count(end)
     problem = None
-    if n_start > 1 or n_end > 1:
-        problem = f"{n_start} start / {n_end} end markers (expected at most one of each)"
-    elif n_start != n_end:
-        problem = f"unpaired markers ({n_start} start, {n_end} end)"
-    elif n_start and text.index(start) > text.index(end):
-        problem = "end marker precedes start marker"
-    elif text.count(_MARKER_PREFIX) != n_start + n_end:
+    accounted = 0
+    for start, end in regions:
+        n_start, n_end = text.count(start), text.count(end)
+        accounted += n_start + n_end
+        if n_start > 1 or n_end > 1:
+            problem = f"{n_start} start / {n_end} end markers (expected at most one of each)"
+        elif n_start != n_end:
+            problem = f"unpaired markers ({n_start} start, {n_end} end)"
+        elif n_start and text.index(start) > text.index(end):
+            problem = "end marker precedes start marker"
+        if problem:
+            problem = f"region {start!r}: {problem}"
+            break
+    if not problem and text.count(_MARKER_PREFIX) != accounted:
         problem = (f"{text.count(_MARKER_PREFIX)} decision-map marker(s) present but only "
-                   f"{n_start + n_end} belong to this region")
+                   f"{accounted} belong to a declared region")
     if problem:
         raise MarkerIntegrityError(
             f"refusing to write {what}: {problem}. Every string this module writes is "
@@ -395,6 +459,17 @@ def _fm_value(v):
        `claim --user "me<sep>status: closed"` forge a real frontmatter key,
        silently closing the ticket and dropping it out of the frontier.
     """
+    return _one_line(v)
+
+
+def _one_line(v):
+    """Flatten to a single line, THEN escape -- see _fm_value for both rules.
+
+    Shared by frontmatter values and by the one-line items in the map's fog /
+    out-of-scope regions, so a list item can never split across two physical
+    lines (which would break the merge's line-wise dedup) and can never
+    reconstitute a marker after the escape has run.
+    """
     s = "" if v is None else str(v)
     return _scrub(" ".join(s.splitlines()))
 
@@ -443,14 +518,13 @@ def _save_ticket(root, slug, ticket, fm, body):
     text = _fm_dump(fm) + body
     # THE enforcing line for the ticket half of the marker invariant: every
     # write of every ticket, from every subcommand, passes through here.
-    _assert_one_region(text, _RESOLUTION_START, _RESOLUTION_END,
-                       f"ticket {ticket!r}")
+    _assert_regions(text, _TICKET_REGIONS, f"ticket {ticket!r}")
     _ticket_path(root, slug, ticket).write_text(text, encoding="utf-8")
 
 
 def _write_map_md(path, text):
     """THE enforcing line for the map.md half of the marker invariant."""
-    _assert_one_region(text, _DECISIONS_START, _DECISIONS_END, "map.md")
+    _assert_regions(text, _MAP_REGIONS, "map.md")
     path.write_text(text, encoding="utf-8")
 
 
@@ -484,24 +558,117 @@ def _all_tickets(root, slug):
     return sorted(p.stem for p in tdir.glob("*.md") if _SAFE_SLUG_RE.match(p.stem))
 
 
+def _region_text(start, end, lines):
+    return start + "\n" + "".join(ln + "\n" for ln in lines) + end
+
+
+def _merge_region_lines(body, items):
+    """Union the existing one-line items with `items`, existing order first.
+
+    Never removes and never reorders what is already there (ADR 0043) -- new
+    lines are appended. The tool-owned "- (none)" placeholder is dropped as
+    soon as a real line exists, and restored if the result is empty.
+    """
+    existing = [ln for ln in (body or "").splitlines()
+                if ln.strip() and ln.strip() != _EMPTY_LIST_LINE]
+    seen = set(existing)
+    for x in items:
+        line = f"- {_one_line(x)}"
+        if line not in seen:
+            existing.append(line)
+            seen.add(line)
+    return existing or [_EMPTY_LIST_LINE]
+
+
+def _render_map_md(m):
+    """The whole map.md, as written by an initial chart or by --force."""
+    fog = _region_text(_FOG_START, _FOG_END,
+                       _merge_region_lines("", m.get("notYetSpecified") or []))
+    oos = _region_text(_SCOPE_START, _SCOPE_END,
+                       _merge_region_lines("", m.get("outOfScope") or []))
+    return (
+        f"# {_scrub(m['title'])}\n\n"
+        "```mermaid\ngraph TD\n    MAP[\"map (this file)\"] --> T[\"tickets/*.md — one decision each\"]\n"
+        "    T --> D[\"Decisions so far (index below)\"]\n```\n\n"
+        f"## Destination\n{_scrub(m['destination'])}\n\n"
+        f"## Notes\n{_scrub(m.get('notes') or '')}\n\n"
+        # Every list under a heading below is a GENERATED region, delimited so
+        # an additive re-chart can merge into it, and resolve() can rebuild the
+        # decisions index, without pattern-searching the rest of the file.
+        f"## Decisions so far\n\n{_DECISIONS_START}\n{_DECISIONS_END}\n\n"
+        f"## Not yet specified\n\n{fog}\n\n"
+        f"## Out of scope\n\n{oos}\n")
+
+
+_SCALAR_MAP_FIELDS = ("title", "destination", "notes")
+
+
+def _plan_map_md(base, inp, force):
+    """-> (action, text_or_None, divergences) for map.md.
+
+    Additive by default (ADR 0043): an existing map.md keeps its authored
+    prose byte-for-byte and only its fog / out-of-scope regions are merged
+    into. "skip (exists)" is returned only when the merge would change
+    nothing, so the dry run's promise that a skip never writes stays true.
+    """
+    p = base / "map.md"
+    m = inp["map"]
+    if not p.exists():
+        return "create", _render_map_md(m), []
+    if force:
+        return "OVERWRITE", _render_map_md(m), []
+    existing = p.read_text(encoding="utf-8")
+    div = []
+    # Scalars are never rewritten on the additive path -- --force is for that.
+    # The check is containment of the flattened value in the flattened file:
+    # it drives a REPORT only, never a write, so it deliberately avoids
+    # splitting the document into sections to compare field-by-field.
+    flat_existing = " ".join(existing.splitlines())
+    for field in _SCALAR_MAP_FIELDS:
+        value = m.get(field)
+        if value and _one_line(value) not in flat_existing:
+            div.append(f"map {field!r} in the input differs from the map on disk; "
+                       "left unchanged (re-chart with --force to rewrite it)")
+    text = existing
+    for start, end, items, label in (
+            (_FOG_START, _FOG_END, m.get("notYetSpecified") or [], "notYetSpecified"),
+            (_SCOPE_START, _SCOPE_END, m.get("outOfScope") or [], "outOfScope")):
+        body = _region_body(text, start, end)
+        if body is None:
+            if items:
+                div.append(
+                    f"this map.md predates the {label} region, so its "
+                    f"{len(items)} line(s) were not merged (re-chart with --force "
+                    "to regenerate the map with regions)")
+            continue
+        merged = _region_text(start, end, _merge_region_lines(body, items))
+        text = _replace_region(text, start, end, merged[len(start):-len(end)])
+    if text == existing:
+        return "skip (exists)", None, div
+    return "merge", text, div
+
+
 def _chart_plan(base, inp, force):
     """Return an ordered list of (Path, action) for every file chart() would
-    touch. action is one of:
-      - "create"    the file doesn't exist yet
-      - "OVERWRITE" the file exists and force=True (destructive, explicit
-                    opt-in)
-      - "refuse"    the file exists and force=False (default) — a real run
-                    will raise ChartConflictError rather than touch anything
+    touch, plus the map.md text and any divergences. action is one of:
+      - "create"       the file doesn't exist yet
+      - "skip (exists)" the file exists and will not be touched at all
+      - "merge"        map.md exists and gains fog / out-of-scope lines
+      - "OVERWRITE"    the file exists and force=True (explicit full rewrite)
+    "refuse" is gone: ADR 0043 supersedes refuse-by-default with additive
+    semantics. A "skip" must never write -- that is the surviving guard on
+    round 1's Critical, and it is why "merge" exists as a separate label
+    rather than being folded into "skip".
     """
-    targets = [base / "map.md"] + [
-        base / "tickets" / (t["key"] + ".md") for t in inp["tickets"]]
-    plan = []
-    for p in targets:
-        if p.exists():
-            plan.append((p, "OVERWRITE" if force else "refuse"))
-        else:
+    map_action, map_text, div = _plan_map_md(base, inp, force)
+    plan = [(base / "map.md", map_action)]
+    for t in inp["tickets"]:
+        p = base / "tickets" / (t["key"] + ".md")
+        if not p.exists():
             plan.append((p, "create"))
-    return plan
+        else:
+            plan.append((p, "OVERWRITE" if force else "skip (exists)"))
+    return plan, map_text, div
 
 
 def chart(root, inp, real, force=False):
@@ -510,7 +677,8 @@ def chart(root, inp, real, force=False):
     _validate_chart_input(inp)
     slug = inp["target"]["slug"]
     base = _map_dir(root, slug)
-    plan = _chart_plan(base, inp, force)
+    plan, map_text, div = _chart_plan(base, inp, force)
+    actions = {p: action for p, action in plan}
     if not real:
         # The human-readable plan goes to STDERR: every subcommand's contract
         # is that stdout carries JSON or nothing, so `chart --input x | jq`
@@ -518,46 +686,46 @@ def chart(root, inp, real, force=False):
         print("DRY RUN — planned files:", file=sys.stderr)
         for p, action in plan:
             print(f"  {action} {p}", file=sys.stderr)
+        for d in div:
+            print(f"  divergence: {d}", file=sys.stderr)
         return {"backend": "local", "dryRun": True,
-                "planned": [{"path": str(p), "action": action} for p, action in plan]}
-    conflicts = [p for p, action in plan if action == "refuse"]
-    if conflicts:
-        raise ChartConflictError(
-            "chart: refusing to overwrite existing file(s) without "
-            "force=True/--force: " + ", ".join(str(p) for p in conflicts))
+                "planned": [{"path": str(p), "action": action} for p, action in plan],
+                "divergence": div}
     (base / "tickets").mkdir(parents=True, exist_ok=True)
-    m = inp["map"]
-    fog = "\n".join(f"- {_scrub(x)}" for x in (m.get("notYetSpecified") or [])) or "- (none)"
-    oos = "\n".join(f"- {_scrub(x)}" for x in (m.get("outOfScope") or [])) or "- (none)"
-    _write_map_md(
-        base / "map.md",
-        f"# {_scrub(m['title'])}\n\n"
-        "```mermaid\ngraph TD\n    MAP[\"map (this file)\"] --> T[\"tickets/*.md — one decision each\"]\n"
-        "    T --> D[\"Decisions so far (index below)\"]\n```\n\n"
-        f"## Destination\n{_scrub(m['destination'])}\n\n"
-        f"## Notes\n{_scrub(m.get('notes') or '')}\n\n"
-        # The index under this heading is a GENERATED region, delimited so
-        # resolve() can rebuild it without pattern-searching the rest of the
-        # file. Before round 4 it substituted a "- [..](tickets/<key>.md)"
-        # line regex over the whole of map.md, so an index-shaped line a user
-        # wrote in `notes` was silently overwritten by the resolution gist
-        # (the map.md instance of finding N1's root cause).
-        f"## Decisions so far\n\n{_DECISIONS_START}\n{_DECISIONS_END}\n\n"
-        f"## Not yet specified\n{fog}\n\n"
-        f"## Out of scope\n{oos}\n")
-    # pass 1: create tickets; pass 2: wire blocking (create-then-wire, spec §9).
-    # Safe because _validate_chart_input already confirmed every `blocks`
-    # target is one of this map_input's own ticket keys, so pass 2 can never
-    # hit a ticket file that pass 1 didn't just create.
+    if actions[base / "map.md"] != "skip (exists)":
+        _write_map_md(base / "map.md", map_text)
+    # pass 1: create the absent tickets; pass 2: wire blocking edges
+    # (create-then-wire, spec §9). Safe because _validate_chart_input already
+    # confirmed every `blocks` target is one of this map_input's own keys.
+    written = set()
     for t in inp["tickets"]:
+        if actions[base / "tickets" / (t["key"] + ".md")] == "skip (exists)":
+            continue
         fm = {"title": t["title"], "type": t["type"], "mode": _mode(t["type"]),
               "status": "open", "assignee": "", "blocked_by": [], "gist": ""}
         _save_ticket(root, slug, t["key"], fm,
                      f"\n## Question\n\n{_scrub(t['question'])}\n")
+        written.add(t["key"])
     for t in inp["tickets"]:
-        for blocked in t.get("blocks", []):
-            block(root, slug, blocked, t["key"])
-    return read_map(root, slug)
+        for blocked in t.get("blocks") or []:
+            if blocked in written:
+                block(root, slug, blocked, t["key"])
+                continue
+            # ADR 0043: an existing ticket stays byte-identical, blocking
+            # edges included. Report the edge we did not add rather than
+            # editing a file this run does not own -- but only when it is
+            # genuinely absent, so re-running identical input stays silent.
+            fm, _ = _load_ticket(root, slug, blocked)
+            if t["key"] not in fm.get("blocked_by", []):
+                div.append(
+                    f"ticket {blocked!r} already exists, so the new "
+                    f"'blocked by {t['key']}' edge was not added to it "
+                    "(re-chart with --force, or use the block subcommand)")
+    for d in div:
+        print(f"chart: divergence: {d}", file=sys.stderr)
+    out = read_map(root, slug)
+    out["divergence"] = div
+    return out
 
 
 def read_map(root, slug):
@@ -722,7 +890,6 @@ EXIT_ERROR = 2
 _REMEDY = {
     CliUsageError: "run with --help to see the arguments this subcommand needs",
     ChartValidationError: "correct the field named above in map_input.json and re-run",
-    ChartConflictError: "re-run with --force to overwrite, or chart into a different --map slug",
     UnsafeIdentifierError: "pass the id exactly as chart created it",
     MarkerIntegrityError: "remove the stray decision-map marker comments from that file by hand",
     json.JSONDecodeError: "make sure --input points at valid JSON",
@@ -760,7 +927,14 @@ def _dispatch(a):
     if a.cmd == "frontier":
         return frontier(a.root, a.slug)
     if a.dry:
-        # --dry-run is inert on every mutating subcommand: report, touch nothing
+        # --dry-run is inert on every mutating subcommand: report, touch
+        # nothing. It must still validate every identifier the real run
+        # would, or it reports success for a call that exits 2 for real --
+        # an inert but untruthful dry run (review finding F3).
+        _safe_segment(a.slug, "map slug")
+        _safe_segment(a.ticket, "ticket id")
+        if a.cmd == "block":
+            _safe_segment(a.blocked_by, "blocked-by ticket id")
         return {"dryRun": True, "wouldRun": a.cmd, "ticket": a.ticket}
     if a.cmd == "claim":
         return claim(a.root, a.slug, a.ticket, a.user)
@@ -788,7 +962,7 @@ def main():
     a = ap.parse_args()
     try:
         result = _dispatch(a)
-    except (CliUsageError, ChartValidationError, ChartConflictError,
+    except (CliUsageError, ChartValidationError,
             UnsafeIdentifierError, MarkerIntegrityError,
             json.JSONDecodeError, OSError) as e:
         remedy = next((r for cls, r in _REMEDY.items() if isinstance(e, cls)),

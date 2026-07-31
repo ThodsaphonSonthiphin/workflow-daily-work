@@ -123,14 +123,19 @@ class LocalMapOpsTest(unittest.TestCase):
 
     # Finding 1 (Critical): re-charting an existing map folder must never
     # silently destroy recorded state (claims, resolutions, blocking edges).
-    def test_rechart_refuses_by_default_when_files_exist(self):
+    # REWRITTEN for Task 3b / ADR 0043: the guard is unchanged in substance --
+    # recorded state must survive an un-forced re-chart -- but the mechanism
+    # is now "skip every existing file" rather than "refuse the whole run".
+    # Byte-identity is a strictly stronger assertion than the old one.
+    def test_rechart_skips_existing_files_by_default(self):
         self._chart()
         ops.resolve(self.root, "example-effort", "auth-model",
                     "per-tenant keys", link=None, body=None)
         ops.claim(self.root, "example-effort", "rollout-order", "pon")
-        with self.assertRaises(ops.ChartConflictError):
-            ops.chart(self.root, INPUT, real=True)
-        # nothing was destroyed by the refused attempt
+        before = _snapshot(self.root / "example-effort")
+        ops.chart(self.root, INPUT, real=True)          # no longer raises
+        self.assertEqual(_snapshot(self.root / "example-effort"), before)
+        # nothing was destroyed
         m = ops.read_map(self.root, "example-effort")
         auth = next(t for t in m["tickets"] if t["key"] == "auth-model")
         rollout = next(t for t in m["tickets"] if t["key"] == "rollout-order")
@@ -138,16 +143,21 @@ class LocalMapOpsTest(unittest.TestCase):
         self.assertEqual(auth["gist"], "per-tenant keys")
         self.assertEqual(rollout["assignee"], "pon")
 
-    def test_rechart_dry_run_reports_create_overwrite_refuse_accurately(self):
+    # REWRITTEN for Task 3b: the action vocabulary lost "refuse" and gained
+    # "skip (exists)". The dry-run-writes-nothing guard (round-2 N5) is
+    # unchanged and still verified by content hash.
+    def test_rechart_dry_run_reports_create_skip_overwrite_accurately(self):
         self._chart()
         base = self.root / "example-effort"
         before = _snapshot(base)
         self.assertTrue(before, "sanity: the chart fixture must have written files to snapshot")
-        # default (force=False): every existing file must be reported "refuse"
+        # default (force=False): every existing file must be reported "skip (exists)"
         out_default = ops.chart(self.root, INPUT, real=False)
         actions_default = {p["path"]: p["action"] for p in out_default["planned"]}
         self.assertTrue(actions_default)
-        self.assertTrue(all(a == "refuse" for a in actions_default.values()))
+        self.assertTrue(all(a == "skip (exists)" for a in actions_default.values()),
+                        actions_default)
+        self.assertNotIn("refuse", set(actions_default.values()))
         # dry run never writes, regardless of force -- verified via a real
         # content hash snapshot (round-2 finding N5: the prior version of
         # this assertion compared one file's contents to itself, which is
@@ -773,6 +783,187 @@ class LocalMapOpsTest(unittest.TestCase):
                 self.assertIn("status: closed", t["assignee"],
                               "the text must survive as part of the assignee value")
 
+    # ------------------------------------------------------------------
+    # Task 3b -- `chart` is additive by default (ADR 0043)
+    # ------------------------------------------------------------------
+
+    def _plus_ticket(self, key="fog-graduate", blocks=None):
+        inp = copy.deepcopy(INPUT)
+        inp["tickets"].append({"key": key, "title": "Graduated from fog",
+                               "type": "research", "question": "newly specified?",
+                               "blocks": blocks or []})
+        return inp
+
+    def test_additive_chart_adds_a_ticket_and_leaves_existing_bytes_identical(self):
+        self._chart()
+        base = self.root / "example-effort"
+        before = _snapshot(base)
+        ops.chart(self.root, self._plus_ticket(), real=True)      # no --force
+        after = _snapshot(base)
+        self.assertIn("tickets/fog-graduate.md", after)
+        for path, digest in before.items():
+            self.assertEqual(after[path], digest,
+                             f"{path} must be byte-identical after an additive chart")
+
+    def test_rechart_identical_input_is_a_byte_identical_no_op(self):
+        self._chart()
+        base = self.root / "example-effort"
+        before = _snapshot(base)
+        ops.chart(self.root, INPUT, real=True)
+        self.assertEqual(_snapshot(base), before, "re-charting identical input must be a no-op")
+        ops.chart(self.root, INPUT, real=True)                    # and again
+        self.assertEqual(_snapshot(base), before)
+
+    def test_additive_chart_preserves_a_resolution_and_its_index_entry(self):
+        self._chart()
+        ops.claim(self.root, "example-effort", "api-limits", "pon")
+        ops.resolve(self.root, "example-effort", "auth-model", "per-tenant keys",
+                    link="docs/adr/0007-x.md", body="## Rationale\n\nblast radius")
+        base = self.root / "example-effort"
+        before = _snapshot(base)
+        ops.chart(self.root, self._plus_ticket(), real=True)
+        auth = self._ticket_text("example-effort", "auth-model")
+        self.assertEqual(after_start := auth.count(ops._RESOLUTION_START), 1, after_start)
+        self.assertIn("per-tenant keys", auth)
+        self.assertIn("blast radius", auth)
+        self.assertEqual(before["tickets/auth-model.md"],
+                         _snapshot(base)["tickets/auth-model.md"])
+        m = ops.read_map(self.root, "example-effort")
+        auth_json = next(t for t in m["tickets"] if t["key"] == "auth-model")
+        self.assertEqual(auth_json["status"], "closed")
+        self.assertEqual(next(t for t in m["tickets"]
+                              if t["key"] == "api-limits")["assignee"], "pon")
+        map_md = (base / "map.md").read_text(encoding="utf-8")
+        self.assertIn("[Auth model?](tickets/auth-model.md) — per-tenant keys", map_md)
+
+    def test_additive_chart_merges_fog_and_scope_without_duplication(self):
+        self._chart()
+        inp = self._plus_ticket()
+        inp["map"] = dict(inp["map"])
+        inp["map"]["notYetSpecified"] = ["how to deploy", "NEW-FOG-LINE"]
+        inp["map"]["outOfScope"] = ["mobile app", "NEW-SCOPE-LINE"]
+        ops.chart(self.root, inp, real=True)
+        map_md = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
+        self.assertEqual(map_md.count("- how to deploy"), 1, "existing line duplicated")
+        self.assertEqual(map_md.count("- mobile app"), 1, "existing line duplicated")
+        self.assertEqual(map_md.count("- NEW-FOG-LINE"), 1)
+        self.assertEqual(map_md.count("- NEW-SCOPE-LINE"), 1)
+        # order preserved: the pre-existing line stays first
+        self.assertLess(map_md.index("- how to deploy"), map_md.index("- NEW-FOG-LINE"))
+        # the merge must not disturb the decisions region
+        self.assertEqual(map_md.count(ops._DECISIONS_START), 1)
+        # and merging the same input again changes nothing
+        before = _snapshot(self.root / "example-effort")
+        ops.chart(self.root, inp, real=True)
+        self.assertEqual(_snapshot(self.root / "example-effort"), before)
+        # ADR 0043: "never remove existing ones". An input that OMITS a line
+        # already on disk must not delete it -- the merge is a union, not a
+        # replacement. (Without this the suite could not tell a real merge
+        # from "wipe the region and write the input", because every other
+        # case here happens to re-list the lines already present.)
+        inp2 = self._plus_ticket()
+        inp2["map"] = dict(inp2["map"])
+        inp2["map"]["notYetSpecified"] = ["ONLY-THIS-ONE"]
+        inp2["map"]["outOfScope"] = []
+        ops.chart(self.root, inp2, real=True)
+        map_md = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
+        for kept in ("- how to deploy", "- NEW-FOG-LINE", "- mobile app",
+                     "- NEW-SCOPE-LINE", "- ONLY-THIS-ONE"):
+            self.assertIn(kept, map_md, f"{kept} must survive a merge that omits it")
+
+    def test_additive_chart_leaves_divergent_destination_and_notes_alone(self):
+        self._chart()
+        inp = self._plus_ticket()
+        inp["map"] = dict(inp["map"])
+        inp["map"]["destination"] = "A COMPLETELY DIFFERENT DESTINATION"
+        inp["map"]["notes"] = "DIFFERENT NOTES"
+        out = ops.chart(self.root, inp, real=True)
+        map_md = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
+        self.assertIn("a spec", map_md, "on-disk destination must survive")
+        self.assertIn("use grill-with-docs", map_md, "on-disk notes must survive")
+        self.assertNotIn("A COMPLETELY DIFFERENT DESTINATION", map_md)
+        self.assertNotIn("DIFFERENT NOTES", map_md)
+        fields = " ".join(out["divergence"])
+        self.assertIn("destination", fields)
+        self.assertIn("notes", fields)
+        # --force is how you actually change them
+        ops.chart(self.root, inp, real=True, force=True)
+        map_md = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
+        self.assertIn("A COMPLETELY DIFFERENT DESTINATION", map_md)
+
+    def test_additive_chart_does_not_edit_an_existing_ticket_to_wire_a_new_edge(self):
+        self._chart()
+        base = self.root / "example-effort"
+        before = _snapshot(base)
+        out = ops.chart(self.root, self._plus_ticket(blocks=["api-limits"]), real=True)
+        self.assertEqual(_snapshot(base)["tickets/api-limits.md"],
+                         before["tickets/api-limits.md"],
+                         "an existing ticket must not be rewritten to add a blocking edge")
+        self.assertTrue(any("api-limits" in d and "fog-graduate" in d
+                            for d in out["divergence"]),
+                        f"the skipped edge must be reported: {out['divergence']}")
+
+    def test_additive_chart_dry_run_labels_create_and_skip_and_writes_nothing(self):
+        self._chart()
+        base = self.root / "example-effort"
+        before = _snapshot(base)
+        out = ops.chart(self.root, self._plus_ticket(), real=False)
+        actions = {Path(p["path"]).name: p["action"] for p in out["planned"]}
+        self.assertEqual(actions["fog-graduate.md"], "create")
+        self.assertEqual(actions["auth-model.md"], "skip (exists)")
+        self.assertEqual(actions["rollout-order.md"], "skip (exists)")
+        self.assertNotIn("refuse", set(actions.values()))
+        self.assertEqual(_snapshot(base), before, "a dry run must never write")
+        # a `skip` must never write: the real run agrees with the plan
+        ops.chart(self.root, self._plus_ticket(), real=True)
+        after = _snapshot(base)
+        for name, action in actions.items():
+            if action == "skip (exists)":
+                key = f"tickets/{name}" if name != "map.md" else "map.md"
+                self.assertEqual(after[key], before[key], f"{name} was labelled skip but changed")
+
+    def test_markers_in_fog_and_scope_survive_the_additive_path_escaped(self):
+        self._chart()
+        inp = self._plus_ticket()
+        inp["map"] = dict(inp["map"])
+        inp["map"]["notYetSpecified"] = [f"how to deploy",
+                                         f"FOG {ops._RESOLUTION_START} TAIL",
+                                         f"SPLIT <!--\ndecision-map:decisions:start --> TAIL2"]
+        inp["map"]["outOfScope"] = [f"SCOPE {ops._DECISIONS_END} TAIL3"]
+        ops.chart(self.root, inp, real=True)
+        map_md = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
+        self.assertEqual(map_md.count(ops._RESOLUTION_START), 0)
+        self.assertEqual(map_md.count(ops._DECISIONS_START), 1)   # the real region only
+        self.assertEqual(map_md.count(ops._DECISIONS_END), 1)
+        for canary in ("TAIL", "TAIL2", "TAIL3"):
+            self.assertIn(canary, map_md)
+        ops.resolve(self.root, "example-effort", "auth-model", "g", link=None, body=None)
+        map_md = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
+        self.assertEqual(map_md.count(ops._DECISIONS_START), 1)
+        self.assertIn("TAIL2", map_md)
+
+    def test_additive_chart_refuses_traversal_the_same_way(self):
+        self._chart()
+        before = _snapshot(self.root)
+        bad = self._plus_ticket()
+        bad["target"] = dict(bad["target"], slug="../../../pwned")
+        with self.assertRaises(ops.ChartValidationError):
+            ops.chart(self.root, bad, real=True)
+        self.assertEqual(_snapshot(self.root), before)
+
+    # F6 (parked Minor, closed here because this change touches the assertion):
+    # _assert_regions' "every decision-map marker belongs to a declared region"
+    # check was load-bearing but unguarded -- a mutant dropping it survived the
+    # whole suite. This test passes against 3f0f61e by design; it is validated
+    # against a mutant instead (see the report).
+    def test_write_refuses_when_a_stray_marker_prefix_is_present(self):
+        self._chart()
+        p = self.root / "example-effort" / "tickets" / "auth-model.md"
+        p.write_text(p.read_text(encoding="utf-8") + "\n<!-- decision-map:bogus -->\n",
+                     encoding="utf-8")
+        with self.assertRaises(ops.MarkerIntegrityError):
+            ops.claim(self.root, "example-effort", "auth-model", "pon")
+
     def test_chart_rejects_wrong_typed_containers(self):
         cases = []
         bad = copy.deepcopy(INPUT); bad["tickets"] = {"a": 1}; cases.append(bad)
@@ -843,7 +1034,36 @@ class LocalMapOpsCliTest(unittest.TestCase):
         data = json.loads(out)
         self.assertIn("auth-model", [t["id"] for t in data["frontier"]])
 
-    def test_cli_claim_resolve_and_rechart_refusal(self):
+    # F3 (parked Minor, closed here because Task 3b is about dry-run
+    # truthfulness): --dry-run short-circuited BEFORE the identifier guard, so
+    # `claim --dry-run --ticket ../../../VICTIM` reported rc=0 "wouldRun" for a
+    # call the real run rejects with rc=2. Inert, but an untruthful dry run.
+    def test_cli_dry_run_validates_identifiers_before_reporting_success(self):
+        self._run(["chart", "--root", str(self.root), "--input", str(self.input_path),
+                   "--real"])
+        for argv in (["claim", "--ticket", "../../../VICTIM", "--user", "x"],
+                     ["resolve", "--ticket", "../../../VICTIM", "--gist", "g"],
+                     ["block", "--ticket", "auth-model", "--blocked-by", "../../x"],
+                     ["claim", "--ticket", "auth-model", "--user", "x"]):
+                     # last one is valid and must still succeed
+            full = argv[:1] + ["--root", str(self.root), "--map", "example-effort",
+                               "--dry-run"] + argv[1:]
+            rc, out, err = self._run_full(full)
+            unsafe = any(".." in a for a in argv)
+            with self.subTest(argv=argv):
+                if unsafe:
+                    self.assertEqual(rc, ops.EXIT_ERROR,
+                                     "a dry run must reject what the real run rejects")
+                    self.assertEqual(out, "")
+                else:
+                    self.assertEqual(rc, 0)
+                    self.assertEqual(json.loads(out)["dryRun"], True)
+
+    # REWRITTEN for Task 3b / ADR 0043: the CLI-level re-chart assertion flips
+    # from "refuses with EXIT_ERROR" to "succeeds additively". The clean-error
+    # contract it also guarded (round 5) is still covered, by
+    # test_cli_known_failures_are_clean_one_line_errors.
+    def test_cli_claim_resolve_and_additive_rechart(self):
         self._run(["chart", "--root", str(self.root), "--input", str(self.input_path), "--real"])
 
         out = self._run(["claim", "--root", str(self.root), "--map", "example-effort",
@@ -859,15 +1079,16 @@ class LocalMapOpsCliTest(unittest.TestCase):
                           "--body-file", str(self._write_body("noted"))])
         self.assertEqual(json.loads(out), {"commented": "rollout-order"})
 
-        # CLI-level re-chart refusal (finding 1), not just the function call.
-        # Round 5: a known failure is a clean one-line message on stderr and a
-        # distinct exit code -- never a raw traceback, and never partial JSON.
+        # CLI-level re-chart is now ADDITIVE (ADR 0043): it succeeds, writes
+        # nothing that already exists, and preserves the resolution above.
+        base = self.root / "example-effort"
+        before = _snapshot(base)
         rc, out, err = self._run_full(
             ["chart", "--root", str(self.root), "--input", str(self.input_path), "--real"])
-        self.assertEqual(rc, ops.EXIT_ERROR)
-        self.assertEqual(out, "", "stdout must carry JSON or nothing")
-        self.assertIn("refusing to overwrite", err)
-        self.assertIn("--force", err)
+        self.assertEqual(rc, 0)
+        self.assertEqual(json.loads(out)["backend"], "local")
+        self.assertEqual(_snapshot(base), before,
+                         "an additive re-chart of identical input must write nothing")
         # explicit --force opt-in still works from the CLI
         out = self._run(["chart", "--root", str(self.root), "--input", str(self.input_path),
                           "--real", "--force"])

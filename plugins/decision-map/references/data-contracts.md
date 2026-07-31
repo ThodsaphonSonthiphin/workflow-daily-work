@@ -15,7 +15,7 @@ erDiagram
 
 | Subcommand | Args | Effect |
 |---|---|---|
-| `chart` | `--input <map_input.json> --output <map.json>` | bulk-create map + tickets + parent links + blocking edges. **Dry-run by default**; `--real` performs the writes. |
+| `chart` | `--input <map_input.json> --output <map.json>` | create map + tickets + parent links + blocking edges, **additively** (ADR 0043) — see below. **Dry-run by default**; `--real` performs the writes; `--force` is a full rewrite. |
 | `read` | `--map <id\|slug> --output <map.json>` | fetch map + children at low resolution. |
 | `frontier` | `--map <id\|slug> --output <frontier.json>` | open + unblocked + unclaimed children. |
 | `claim` | `--ticket <id\|slug>` (`--user <upn>` ADO only) | assign the ticket to the caller. |
@@ -25,6 +25,36 @@ erDiagram
 
 Every subcommand also accepts `--dry-run` (print planned mutations, change
 nothing) — for `chart` that is already the default.
+
+### `chart` is additive (ADR 0043)
+
+`chart` names **two acts**: the initial charting of a map, and the incremental
+graduation of fog into fresh tickets mid-map. One create path serves both, so
+do not read `chart` as create-only. On a map that already exists it:
+
+- creates only the tickets whose `key` is absent, and leaves every existing
+  ticket **byte-identical** — status, assignee, blocking edges and resolution
+  all survive;
+- merges `notYetSpecified` / `outOfScope` lines into the map body as a union:
+  new lines are appended, existing ones are never removed or reordered, and an
+  input that omits a line already on disk does not delete it;
+- does **not** apply a `title` / `destination` / `notes` that differs from what
+  is on disk — the difference is reported in the result's `divergence` list and
+  left unapplied, because silently rewriting an evolved map from a stale input
+  is the destructive case `--force` exists for;
+- does **not** add a blocking edge into a ticket that already exists (that
+  would rewrite it); the skipped edge is reported in `divergence`.
+
+Re-running identical input is therefore a **no-op** — the same bytes out —
+which also makes a partially-failed chart resumable. `--force` keeps its
+meaning: an explicit, dry-run-announced full rewrite of every file.
+
+The dry run reports one action per file, from the vocabulary
+`create` / `skip (exists)` / `merge` / `OVERWRITE`, on both the
+machine-readable stdout plan and the human stderr rendering. A file reported
+`skip (exists)` is never written; `merge` is the map body gaining fog or
+out-of-scope lines. Backends that cannot express `merge` may omit it, but must
+not label a write `skip`.
 
 ## `map_input.json` (input to `chart`)
 
@@ -78,6 +108,11 @@ task=either.
 }
 ```
 
+`chart` (only — not `read`) adds `"divergence"`: a list of human-readable
+strings naming anything the input asked for that an additive run deliberately
+did not apply (a differing `title`/`destination`/`notes`, a blocking edge into
+an existing ticket). Empty on an initial chart and on `--force`.
+
 `status` ∈ `open | closed`. `blockedBy` lists upstream blockers — the tickets
 that must close before this one is actionable — the same relation `frontier.json`
 reports for every blocked ticket; every backend computes this relation
@@ -130,11 +165,21 @@ path.
 <!-- decision-map:decisions:end -->
 
 ## Not yet specified
+
+<!-- decision-map:fog:start -->
 - <fog line>
+<!-- decision-map:fog:end -->
 
 ## Out of scope
+
+<!-- decision-map:scope:start -->
 - <ruled-out line>
+<!-- decision-map:scope:end -->
 ```
+
+An empty list region holds the single line `- (none)`, which is tool-owned:
+the merge drops it as soon as a real line arrives and restores it if the list
+becomes empty again.
 
 `tickets/<slug>.md`:
 
@@ -170,10 +215,12 @@ Detail: <link to repo ADR / commit, when one exists (ADR 0036)>
 
 ### Generated regions in local files (local backend only)
 
-Two spans of a local file are **generated regions**, each delimited by an HTML
+Four spans of a local file are **generated regions**, each delimited by an HTML
 comment pair: the resolution block in `tickets/<slug>.md`, and the
-"Decisions so far" index in `map.md`. Everything else in those files is user
-content. The rules, which any reader or writer of the local format must
+"Decisions so far" index, the "Not yet specified" list and the "Out of scope"
+list in `map.md`. Everything else in those files is user content — an additive
+`chart` rewrites only the two list regions and leaves the rest of the file
+byte-identical. The rules, which any reader or writer of the local format must
 honour:
 
 - **`resolve` owns strictly the span between its markers** and rewrites it
