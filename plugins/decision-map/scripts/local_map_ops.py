@@ -3,19 +3,90 @@
 
 Map lives at <root>/<slug>/map.md, tickets at <root>/<slug>/tickets/<slug>.md.
 Contract: plugins/decision-map/references/data-contracts.md. Stdlib only.
+
+Re-chart policy (review round 1, Critical finding): `chart(real=True)` onto a
+map folder that already has files on disk REFUSES by default, raising
+ChartConflictError before writing anything — a previous chart's recorded
+state (claims, resolutions, blocking edges) can never be silently destroyed
+by an accidental re-run. Pass force=True (CLI: --force) to explicitly opt
+into overwriting every existing file with fresh content — an intentional,
+informed action, never a silent one. `chart(real=False)` (the default dry
+run) always reports the SAME policy a real run would apply, labeling every
+planned file "create" / "OVERWRITE" / "refuse", so the human approval gate
+is truthful about what a real run would do.
+
+`inp` is validated before any file is written (in both dry-run and real
+mode): every ticket `key` must be a safe slug (no path separators, no `..`),
+every ticket `type` must be one of the four valid types, and every `blocks`
+target must be a key present in this same `inp`. A malformed map_input.json
+fails cleanly with ChartValidationError instead of writing a half-finished
+map folder or crossing outside the map folder.
 """
 import argparse, json, re, sys
 from pathlib import Path
 
 AFK_TYPES = {"research"}
+VALID_TICKET_TYPES = {"research", "prototype", "grilling", "task"}
+
+# Ticket keys become path segments (tickets/<key>.md) — restrict to a safe
+# slug so a key can never escape the map folder (e.g. "../../pwned").
+_SAFE_SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+
+# The only frontmatter key that is ever written/read as a list. Every other
+# key is a plain (one-line) string, even if its value happens to start with
+# "[" and end with "]" (see ChartValidationError / _fm_parse docstring).
+_LIST_FM_KEYS = {"blocked_by"}
+
+
+class ChartConflictError(Exception):
+    """chart(real=True) would overwrite existing map/ticket files and
+    force=True was not passed. Raised before anything is written."""
+
+
+class ChartValidationError(ValueError):
+    """map_input.json failed validation. Raised before anything is written."""
 
 
 def _mode(ticket_type):
     return "AFK" if ticket_type in AFK_TYPES else "HITL"
 
 
+def _validate_chart_input(inp):
+    """Validate `inp` before chart() writes anything (dry-run or real).
+
+    - every ticket key must be a safe slug (no path separators / '..')
+    - every ticket type must be one of the four valid types
+    - every `blocks` target must be a key present in this same `inp`
+    """
+    keys = set()
+    for t in inp["tickets"]:
+        key = t["key"]
+        if not _SAFE_SLUG_RE.match(key):
+            raise ChartValidationError(
+                f"invalid ticket key {key!r}: must be a safe slug "
+                "(letters, digits, '-', '_'; no path separators or '..')")
+        if t["type"] not in VALID_TICKET_TYPES:
+            raise ChartValidationError(
+                f"ticket {key!r}: invalid type {t['type']!r}; "
+                f"must be one of {sorted(VALID_TICKET_TYPES)}")
+        keys.add(key)
+    for t in inp["tickets"]:
+        for blocked in t.get("blocks", []):
+            if blocked not in keys:
+                raise ChartValidationError(
+                    f"ticket {t['key']!r} blocks unknown ticket {blocked!r} "
+                    "(not present in this map_input's tickets)")
+
+
 def _fm_parse(text):
-    """Parse the leading --- frontmatter block into a dict (flat, list via [a, b])."""
+    """Parse the leading --- frontmatter block into a dict.
+
+    Only keys in _LIST_FM_KEYS (currently just "blocked_by") are parsed as a
+    list; every other key is kept as a plain string even if its value starts
+    with "[" and ends with "]" — a title like "[spike] rollout order [v2]"
+    or a gist like "[deferred to ADR 0007, see notes]" must round-trip
+    unchanged, not be silently coerced into a list (review round 1 finding).
+    """
     m = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
     fm = {}
     if not m:
@@ -24,12 +95,16 @@ def _fm_parse(text):
         if ":" not in line:
             continue
         k, v = line.split(":", 1)
+        k = k.strip()
         v = v.strip()
-        if v.startswith("[") and v.endswith("]"):
-            inner = v[1:-1].strip()
-            fm[k.strip()] = [s.strip() for s in inner.split(",") if s.strip()]
+        if k in _LIST_FM_KEYS:
+            if v.startswith("[") and v.endswith("]"):
+                inner = v[1:-1].strip()
+                fm[k] = [s.strip() for s in inner.split(",") if s.strip()]
+            else:
+                fm[k] = []
         else:
-            fm[k.strip()] = v
+            fm[k] = v
     return fm, text[m.end():]
 
 
@@ -39,7 +114,13 @@ def _fm_dump(fm):
         if isinstance(v, list):
             lines.append(f"{k}: [{', '.join(v)}]")
         else:
-            lines.append(f"{k}: {v if v is not None else ''}")
+            s = "" if v is None else str(v)
+            # Frontmatter here is one physical line per key. An embedded
+            # newline would otherwise either truncate the value (the rest
+            # silently dropped on read) or corrupt a later key's parse
+            # (review round 1 finding) — collapse it to a space instead.
+            s = s.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+            lines.append(f"{k}: {s}")
     return "---\n" + "\n".join(lines) + "\n---\n"
 
 
@@ -61,7 +142,10 @@ def _ticket_json(root, slug, ticket):
     return {
         "key": ticket, "id": ticket,
         "name": fm.get("title", ticket),
-        "url": str(Path(root) / slug / "tickets" / f"{ticket}.md"),
+        # forward slashes always -- backslash is Markdown's escape character,
+        # so a Windows-native path here would break every [name](url) link
+        # (review round 1 finding).
+        "url": (Path(root) / slug / "tickets" / f"{ticket}.md").as_posix(),
         "type": fm.get("type", "grilling"), "mode": fm.get("mode", "HITL"),
         "status": fm.get("status", "open"),
         "assignee": fm.get("assignee") or None,
@@ -77,16 +161,44 @@ def _all_tickets(root, slug):
     return sorted(p.stem for p in tdir.glob("*.md")) if tdir.exists() else []
 
 
-def chart(root, inp, real):
+def _chart_plan(base, inp, force):
+    """Return an ordered list of (Path, action) for every file chart() would
+    touch. action is one of:
+      - "create"    the file doesn't exist yet
+      - "OVERWRITE" the file exists and force=True (destructive, explicit
+                    opt-in)
+      - "refuse"    the file exists and force=False (default) — a real run
+                    will raise ChartConflictError rather than touch anything
+    """
+    targets = [base / "map.md"] + [
+        base / "tickets" / (t["key"] + ".md") for t in inp["tickets"]]
+    plan = []
+    for p in targets:
+        if p.exists():
+            plan.append((p, "OVERWRITE" if force else "refuse"))
+        else:
+            plan.append((p, "create"))
+    return plan
+
+
+def chart(root, inp, real, force=False):
+    """Bulk-create (or explicitly re-chart, with force=True) a map + its
+    tickets. See the module docstring for the full re-chart policy."""
     slug = inp["target"]["slug"]
+    _validate_chart_input(inp)
     base = Path(root) / slug
-    plan = [f"create {base / 'map.md'}"] + [
-        f"create {base / 'tickets' / (t['key'] + '.md')}" for t in inp["tickets"]]
+    plan = _chart_plan(base, inp, force)
     if not real:
         print("DRY RUN — planned files:")
-        for line in plan:
-            print(f"  {line}")
-        return {"backend": "local", "dryRun": True, "planned": plan}
+        for p, action in plan:
+            print(f"  {action} {p}")
+        return {"backend": "local", "dryRun": True,
+                "planned": [{"path": str(p), "action": action} for p, action in plan]}
+    conflicts = [p for p, action in plan if action == "refuse"]
+    if conflicts:
+        raise ChartConflictError(
+            "chart: refusing to overwrite existing file(s) without "
+            "force=True/--force: " + ", ".join(str(p) for p in conflicts))
     (base / "tickets").mkdir(parents=True, exist_ok=True)
     m = inp["map"]
     fog = "\n".join(f"- {x}" for x in m.get("notYetSpecified", [])) or "- (none)"
@@ -101,7 +213,10 @@ def chart(root, inp, real):
         f"## Not yet specified\n{fog}\n\n"
         f"## Out of scope\n{oos}\n",
         encoding="utf-8")
-    # pass 1: create tickets; pass 2: wire blocking (create-then-wire, spec §9)
+    # pass 1: create tickets; pass 2: wire blocking (create-then-wire, spec §9).
+    # Safe because _validate_chart_input already confirmed every `blocks`
+    # target is one of this map_input's own ticket keys, so pass 2 can never
+    # hit a ticket file that pass 1 didn't just create.
     for t in inp["tickets"]:
         fm = {"title": t["title"], "type": t["type"], "mode": _mode(t["type"]),
               "status": "open", "assignee": "", "blocked_by": [], "gist": ""}
@@ -121,7 +236,8 @@ def read_map(root, slug):
         dest = dm.group(1).strip()
     return {"backend": "local",
             "map": {"id": slug, "name": title,
-                    "url": str(Path(root) / slug / "map.md"), "destination": dest},
+                    "url": (Path(root) / slug / "map.md").as_posix(),
+                    "destination": dest},
             "tickets": [_ticket_json(root, slug, t) for t in _all_tickets(root, slug)]}
 
 
@@ -167,9 +283,17 @@ def comment(root, slug, ticket, body_text):
 
 
 def resolve(root, slug, ticket, gist, link, body):
+    """Close `ticket` and record its resolution. Idempotent (review round 1
+    finding): re-resolving the same ticket replaces the prior `## Resolution`
+    section and the prior "Decisions so far" line rather than accumulating
+    duplicate/contradictory ones.
+    """
     fm, tbody = _load_ticket(root, slug, ticket)
     fm["status"] = "closed"
     fm["gist"] = gist
+    # Drop any previously appended Resolution section (always the last
+    # section in the ticket body) before appending the fresh one.
+    tbody = re.sub(r"\n*## Resolution\n.*\Z", "", tbody, flags=re.DOTALL)
     detail = f"\nDetail: {link}\n" if link else ""
     extra = f"\n{body}\n" if body else ""
     _save_ticket(root, slug, ticket, fm,
@@ -177,7 +301,12 @@ def resolve(root, slug, ticket, gist, link, body):
     map_path = Path(root) / slug / "map.md"
     map_md = map_path.read_text(encoding="utf-8")
     entry = f"- [{fm['title']}](tickets/{ticket}.md) — {gist}\n"
-    map_md = map_md.replace("## Decisions so far\n", "## Decisions so far\n" + entry, 1)
+    line_re = re.compile(
+        rf"^- \[.*?\]\(tickets/{re.escape(ticket)}\.md\).*\n?", re.MULTILINE)
+    if line_re.search(map_md):
+        map_md = line_re.sub(entry, map_md, count=1)
+    else:
+        map_md = map_md.replace("## Decisions so far\n", "## Decisions so far\n" + entry, 1)
     map_path.write_text(map_md, encoding="utf-8")
     return {"resolved": ticket, "gist": gist}
 
@@ -194,11 +323,13 @@ def main():
     ap.add_argument("--blocked-by", dest="blocked_by")
     ap.add_argument("--real", action="store_true")
     ap.add_argument("--dry-run", dest="dry", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                     help="chart only: explicitly allow overwriting an existing map folder")
     a = ap.parse_args()
     body = Path(a.body_file).read_text(encoding="utf-8") if a.body_file else None
     if a.cmd == "chart":
         inp = json.loads(Path(a.input).read_text(encoding="utf-8"))
-        result = chart(a.root, inp, real=a.real and not a.dry)
+        result = chart(a.root, inp, real=a.real and not a.dry, force=a.force)
     elif a.cmd == "read":
         result = read_map(a.root, a.slug)
     elif a.cmd == "frontier":
