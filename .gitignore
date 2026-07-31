@@ -14,3 +14,8 @@ plugins/dev-workflows/skills/ticket-trace-workspace/
 
 # Playwright MCP scratch (browser snapshots/logs)
 .playwright-mcp/
+
+# harness scratch: git worktrees created by the agent, and subagent-driven-development
+# ledgers/briefs/review packages — working files, never part of the marketplace
+.claude/worktrees/
+.superpowers/
