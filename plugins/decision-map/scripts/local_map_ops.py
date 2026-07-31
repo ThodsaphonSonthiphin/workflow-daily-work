@@ -15,21 +15,40 @@ run) always reports the SAME policy a real run would apply, labeling every
 planned file "create" / "OVERWRITE" / "refuse", so the human approval gate
 is truthful about what a real run would do.
 
+THE MARKER INVARIANT (review round 4, finding N1) -- the one rule the whole
+module rests on:
+
+    Every decision-map marker in a generated file was written by this
+    module, because every user-supplied string is escaped on the way in.
+
+Enforced, not asserted. `_scrub()` escapes the marker prefix in every
+user-supplied string before it reaches a file, and every write goes through
+`_assert_one_region()`, which refuses to write a file that does not hold
+exactly zero or one well-formed marker region. That is what lets
+`resolve()` find the block it owns by searching for its own markers: the
+search can no longer match user text, because user text can no longer
+contain a marker. See the marker constants below for the three rounds of
+failure that establish why nothing weaker works.
+
 `inp` is validated before any file is written (in both dry-run and real
 mode): `map` must have every field chart() reads unconditionally
 ("title", "destination"), every ticket must have every field chart() reads
-unconditionally ("key", "title", "type", "question"), the map's own
-`target.slug` and every ticket `key` must each be a safe slug
-(letters/digits/`-`/`_` only, anchored to the exact end of the string with
-`\Z` -- not `$`, which in Python also matches just before a trailing
-newline and would let e.g. "okname\n" slip through as a path segment),
-every ticket `type` must be one of the four valid types, and every `blocks`
-target must be a key present in this same `inp`. A malformed map_input.json
-fails cleanly with ChartValidationError instead of writing a half-finished
-map folder or crossing outside the intended root (round 3 finding R3: a
-ticket missing "title" or "question" used to raise a bare KeyError
-mid-write, leaving exactly the half-finished folder this paragraph claims
-can't happen -- required-field validation closes that gap).
+unconditionally ("key", "title", "type", "question"), each of those must be
+a *string* and not merely present (round 4 finding N2 -- `title: [1, 2]`
+used to raise TypeError from _fm_dump after map.md and the first ticket
+were already on disk, and `title: null` / a dict / an int / `question:
+null` were silently accepted and written), the map's own `target.slug` and
+every ticket `key` must each be a safe slug (letters/digits/`-`/`_` only,
+anchored to the exact end of the string with `\Z` -- not `$`, which in
+Python also matches just before a trailing newline and would let e.g.
+"okname\n" slip through as a path segment), every ticket `type` must be one
+of the four valid types, and every `blocks` target must be a key present in
+this same `inp`. A malformed map_input.json fails cleanly with
+ChartValidationError instead of writing a half-finished map folder or
+crossing outside the intended root (round 3 finding R3: a ticket missing
+"title" or "question" used to raise a bare KeyError mid-write, leaving
+exactly the half-finished folder this paragraph claims can't happen --
+required-field validation closes that gap).
 """
 import argparse, json, re, sys
 from pathlib import Path
@@ -51,23 +70,53 @@ _SAFE_SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*\Z")
 # "[" and end with "]" (see ChartValidationError / _fm_parse docstring).
 _LIST_FM_KEYS = {"blocked_by"}
 
-# resolve() delimits the block it generates with its own sentinel comments,
-# and re-resolve replaces STRICTLY between them -- never by guessing at
-# markdown structure (review round 3, findings R1/R2). Two rounds of trying
-# to infer the boundary from "the next ## heading" both failed: a
-# --body-file with its own "## Rationale" sub-heading made the boundary stop
-# early, orphaning the tail on every re-resolve (R1, unbounded accumulation);
-# and with no anchor, the literal text "## Resolution" appearing ANYWHERE in
-# the ticket -- including inside ordinary Question prose, at a line start or
-# truly mid-line -- was matched and deleted on the very first resolve (R2).
-# A sentinel that only resolve() itself ever writes cannot collide with
-# user-authored content by construction, so there is no pattern left to get
-# subtly wrong.
+# ---------------------------------------------------------------------------
+# Generated-region markers, and the invariant that makes them trustworthy.
+#
+# Every generated region in a generated file is delimited by a marker comment
+# pair that ONLY this module writes: resolve() owns the span between the
+# resolution markers in a ticket file, and the "Decisions so far" index in
+# map.md is the span between the decisions markers.
+#
+# Four review rounds established that finding the region by pattern-matching
+# the file is the wrong half of the problem to work on:
+#   round 1  append-only            -> duplicate blocks stacked
+#   round 2  "## Resolution.*\Z"    -> deleted a user comment
+#   round 2b lookahead to "\n## "   -> a --body-file's own "## Rationale"
+#                                      orphaned the tail (unbounded growth);
+#                                      "## Resolution" inside Question prose
+#                                      was deleted on the FIRST resolve
+#   round 3  these markers          -> same mechanism, longer needle: a marker
+#                                      pasted into question/gist/link/body/
+#                                      comment reproduced BOTH harms, and the
+#                                      code claimed immunity "by construction"
+#                                      while nothing enforced the premise
+# The needle was never the problem. What was missing is the write side:
+# _scrub() below escapes the marker prefix in every user-supplied string, so
+# a marker in a file is proof this module put it there. _assert_one_region()
+# then checks that promise on every single write. Widening or re-anchoring
+# the search pattern is NOT a fix -- it is round 5.
+_MARKER_PREFIX = "<!-- decision-map:"
+# "&lt;" is Markdown/HTML's own escape for a literal "<", so the scrubbed text
+# still RENDERS as the marker the user typed -- it just stops being an HTML
+# comment, and stops matching. Escaping, not mangling. Idempotent: the
+# escaped form no longer contains _MARKER_PREFIX, so re-scrubbing is a no-op
+# and repeated read/modify/write cycles cannot cascade.
+_MARKER_ESCAPED_PREFIX = "&lt;!-- decision-map:"
+
 _RESOLUTION_START = "<!-- decision-map:resolution:start -->"
 _RESOLUTION_END = "<!-- decision-map:resolution:end -->"
-_RESOLUTION_BLOCK_RE = re.compile(
-    re.escape(_RESOLUTION_START) + r".*?" + re.escape(_RESOLUTION_END) + r"\n?",
-    re.DOTALL)
+_DECISIONS_START = "<!-- decision-map:decisions:start -->"
+_DECISIONS_END = "<!-- decision-map:decisions:end -->"
+
+
+def _region_re(start, end):
+    return re.compile(
+        re.escape(start) + r".*?" + re.escape(end) + r"\n?", re.DOTALL)
+
+
+_RESOLUTION_BLOCK_RE = _region_re(_RESOLUTION_START, _RESOLUTION_END)
+_DECISIONS_BLOCK_RE = _region_re(_DECISIONS_START, _DECISIONS_END)
 
 
 class ChartConflictError(Exception):
@@ -79,6 +128,54 @@ class ChartValidationError(ValueError):
     """map_input.json failed validation. Raised before anything is written."""
 
 
+class MarkerIntegrityError(Exception):
+    """A file about to be written does not hold exactly zero or one
+    well-formed generated region. Raised INSTEAD of writing, so the module
+    refuses rather than corrupts. Every string this module writes is
+    scrubbed, so reaching this means either a bug here (a new user-input
+    path that forgot _scrub) or a hand-edited file with stray markers."""
+
+
+def _scrub(value):
+    """Escape every decision-map marker in a user-supplied string.
+
+    This is the write-side half of the marker invariant, and the reason
+    resolve()'s region search is safe: after this, no user-supplied byte in
+    any generated file can be read back as a marker. Apply it to EVERY
+    string that originates outside this module -- question, title,
+    destination, notes, fog/out-of-scope lines, comment bodies, gist, link,
+    resolution body, assignee, blocked-by. `None` becomes "".
+    """
+    s = "" if value is None else str(value)
+    return s.replace(_MARKER_PREFIX, _MARKER_ESCAPED_PREFIX)
+
+
+def _assert_one_region(text, start, end, what):
+    """Refuse to write `text` unless it holds 0 or 1 well-formed regions.
+
+    The backstop for _scrub(): if a future change adds a user-input path and
+    forgets to scrub it, this fails loudly at the write instead of silently
+    losing user content on some later resolve() -- which is exactly how the
+    same defect survived three fix rounds.
+    """
+    n_start, n_end = text.count(start), text.count(end)
+    problem = None
+    if n_start > 1 or n_end > 1:
+        problem = f"{n_start} start / {n_end} end markers (expected at most one of each)"
+    elif n_start != n_end:
+        problem = f"unpaired markers ({n_start} start, {n_end} end)"
+    elif n_start and text.index(start) > text.index(end):
+        problem = "end marker precedes start marker"
+    elif text.count(_MARKER_PREFIX) != n_start + n_end:
+        problem = (f"{text.count(_MARKER_PREFIX)} decision-map marker(s) present but only "
+                   f"{n_start + n_end} belong to this region")
+    if problem:
+        raise MarkerIntegrityError(
+            f"refusing to write {what}: {problem}. Every string this module writes is "
+            "escaped, so this indicates hand-edited markers in the file (remove them) "
+            "or an unscrubbed input path (a bug in this module).")
+
+
 def _mode(ticket_type):
     return "AFK" if ticket_type in AFK_TYPES else "HITL"
 
@@ -87,17 +184,50 @@ _REQUIRED_MAP_FIELDS = ("title", "destination")
 _REQUIRED_TICKET_FIELDS = ("key", "title", "type", "question")
 
 
+def _require(where, container, field, kind, required):
+    """Presence + TYPE check for one field, returning its value (or None when
+    an optional field is absent/null).
+
+    Presence-only validation was round 4's finding N2: `title: [1, 2]`
+    reproduced R3's partial-folder harm through a wrong type instead of a
+    missing key, and `title: null` / a dict / an int were written silently.
+    `null` counts as absent for an optional field and as invalid for a
+    required one.
+    """
+    if field not in container or (container[field] is None and not required):
+        if required:
+            raise ChartValidationError(f"{where} is missing required field {field!r}")
+        return None
+    value = container[field]
+    if kind is str:
+        if not isinstance(value, str):
+            raise ChartValidationError(
+                f"{where}: field {field!r} must be a string, "
+                f"got {type(value).__name__} ({value!r})")
+    else:  # list of str
+        if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
+            raise ChartValidationError(
+                f"{where}: field {field!r} must be a list of strings, got {value!r}")
+    return value
+
+
 def _validate_chart_input(inp):
     """Validate `inp` before chart() writes anything (dry-run or real).
 
-    - map_input's "map" must have every field chart() reads unconditionally
-      (round 3, finding R3 -- a missing "title"/"destination" used to raise
-      a bare KeyError while writing map.md, after `tickets/` was already
-      created)
-    - every ticket must have every field chart() reads unconditionally
-      (round 3, finding R3 -- a missing "title"/"question" used to raise a
-      bare KeyError mid-pass-1, after map.md and earlier tickets were
-      already on disk)
+    - the top-level containers must be the right shape (a missing/mistyped
+      "target"/"map"/"tickets" used to raise a bare KeyError/AttributeError
+      rather than the ChartValidationError the docstring promises)
+    - map_input's "map" must have every field chart() reads unconditionally,
+      and each must be a string (round 3 finding R3 for presence; round 4
+      finding N2 for type)
+    - every ticket must likewise have every field chart() reads
+      unconditionally, each a string (round 3 R3 -- a missing
+      "title"/"question" used to raise a bare KeyError mid-pass-1, after
+      map.md and earlier tickets were already on disk; round 4 N2 --
+      `title: [1, 2]` did the same thing via _fm_dump's ", ".join)
+    - optional fields, when present and not null, must be their declared
+      type: "notes" a string, "notYetSpecified"/"outOfScope"/"blocks" lists
+      of strings
     - target.slug must be a safe slug (round 2 finding N2 -- previously
       unvalidated; "../../pwned-slug" and "C:/Windows/Temp/pwned-slug" both
       wrote outside the intended root)
@@ -105,22 +235,45 @@ def _validate_chart_input(inp):
     - every ticket type must be one of the four valid types
     - every `blocks` target must be a key present in this same `inp`
     """
-    slug = inp["target"]["slug"]
+    if not isinstance(inp, dict):
+        raise ChartValidationError(
+            f"map_input.json must be a JSON object, got {type(inp).__name__}")
+    for name in ("target", "map"):
+        if name not in inp:
+            raise ChartValidationError(f'map_input.json is missing required key "{name}"')
+        if not isinstance(inp[name], dict):
+            raise ChartValidationError(
+                f'map_input.json\'s "{name}" must be an object, '
+                f"got {type(inp[name]).__name__}")
+    if "tickets" not in inp:
+        raise ChartValidationError('map_input.json is missing required key "tickets"')
+    if not isinstance(inp["tickets"], list):
+        raise ChartValidationError(
+            f'map_input.json\'s "tickets" must be a list, '
+            f"got {type(inp['tickets']).__name__}")
+
+    slug = _require('map_input.json\'s "target"', inp["target"], "slug", str, True)
     if not _SAFE_SLUG_RE.match(slug):
         raise ChartValidationError(
             f"invalid map slug {slug!r}: must be a safe slug "
             "(letters, digits, '-', '_'; no path separators, drive letters, or '..')")
+
     m = inp["map"]
+    where_map = 'map_input.json\'s "map"'
     for field in _REQUIRED_MAP_FIELDS:
-        if field not in m:
-            raise ChartValidationError(
-                f'map_input.json\'s "map" is missing required field {field!r}')
+        _require(where_map, m, field, str, True)
+    _require(where_map, m, "notes", str, False)
+    for field in ("notYetSpecified", "outOfScope"):
+        _require(where_map, m, field, list, False)
+
     keys = set()
-    for t in inp["tickets"]:
+    for i, t in enumerate(inp["tickets"]):
+        if not isinstance(t, dict):
+            raise ChartValidationError(
+                f"tickets[{i}] must be an object, got {type(t).__name__}")
+        where = f"ticket {t.get('key', f'#{i}')!r}"
         for field in _REQUIRED_TICKET_FIELDS:
-            if field not in t:
-                raise ChartValidationError(
-                    f"ticket {t.get('key', '<no key>')!r} is missing required field {field!r}")
+            _require(where, t, field, str, True)
         key = t["key"]
         if not _SAFE_SLUG_RE.match(key):
             raise ChartValidationError(
@@ -130,9 +283,10 @@ def _validate_chart_input(inp):
             raise ChartValidationError(
                 f"ticket {key!r}: invalid type {t['type']!r}; "
                 f"must be one of {sorted(VALID_TICKET_TYPES)}")
+        _require(where, t, "blocks", list, False)
         keys.add(key)
     for t in inp["tickets"]:
-        for blocked in t.get("blocks", []):
+        for blocked in t.get("blocks") or []:
             if blocked not in keys:
                 raise ChartValidationError(
                     f"ticket {t['key']!r} blocks unknown ticket {blocked!r} "
@@ -169,19 +323,29 @@ def _fm_parse(text):
     return fm, text[m.end():]
 
 
+def _fm_value(v):
+    """One frontmatter value, escaped and flattened to a single line.
+
+    The marker invariant's choke point for frontmatter: no frontmatter value
+    is ever generated content, so every one of them is scrubbed here rather
+    than at each caller (title, gist, assignee, blocked-by entries ...).
+    """
+    s = _scrub(v)
+    # Frontmatter here is one physical line per key. An embedded newline
+    # would otherwise either truncate the value (the rest silently dropped
+    # on read) or corrupt a later key's parse (review round 1 finding) —
+    # collapse it to a space instead. It also guarantees the map.md index
+    # entries built from these values are exactly one line each.
+    return s.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+
+
 def _fm_dump(fm):
     lines = []
     for k, v in fm.items():
         if isinstance(v, list):
-            lines.append(f"{k}: [{', '.join(v)}]")
+            lines.append(f"{k}: [{', '.join(_fm_value(x) for x in v)}]")
         else:
-            s = "" if v is None else str(v)
-            # Frontmatter here is one physical line per key. An embedded
-            # newline would otherwise either truncate the value (the rest
-            # silently dropped on read) or corrupt a later key's parse
-            # (review round 1 finding) — collapse it to a space instead.
-            s = s.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
-            lines.append(f"{k}: {s}")
+            lines.append(f"{k}: {_fm_value(v)}")
     return "---\n" + "\n".join(lines) + "\n---\n"
 
 
@@ -195,7 +359,18 @@ def _load_ticket(root, slug, ticket):
 
 
 def _save_ticket(root, slug, ticket, fm, body):
-    _ticket_path(root, slug, ticket).write_text(_fm_dump(fm) + body, encoding="utf-8")
+    text = _fm_dump(fm) + body
+    # THE enforcing line for the ticket half of the marker invariant: every
+    # write of every ticket, from every subcommand, passes through here.
+    _assert_one_region(text, _RESOLUTION_START, _RESOLUTION_END,
+                       f"ticket {ticket!r}")
+    _ticket_path(root, slug, ticket).write_text(text, encoding="utf-8")
+
+
+def _write_map_md(path, text):
+    """THE enforcing line for the map.md half of the marker invariant."""
+    _assert_one_region(text, _DECISIONS_START, _DECISIONS_END, "map.md")
+    path.write_text(text, encoding="utf-8")
 
 
 def _ticket_json(root, slug, ticket):
@@ -245,8 +420,8 @@ def _chart_plan(base, inp, force):
 def chart(root, inp, real, force=False):
     """Bulk-create (or explicitly re-chart, with force=True) a map + its
     tickets. See the module docstring for the full re-chart policy."""
-    slug = inp["target"]["slug"]
     _validate_chart_input(inp)
+    slug = inp["target"]["slug"]
     base = Path(root) / slug
     plan = _chart_plan(base, inp, force)
     if not real:
@@ -262,18 +437,24 @@ def chart(root, inp, real, force=False):
             "force=True/--force: " + ", ".join(str(p) for p in conflicts))
     (base / "tickets").mkdir(parents=True, exist_ok=True)
     m = inp["map"]
-    fog = "\n".join(f"- {x}" for x in m.get("notYetSpecified", [])) or "- (none)"
-    oos = "\n".join(f"- {x}" for x in m.get("outOfScope", [])) or "- (none)"
-    (base / "map.md").write_text(
-        f"# {m['title']}\n\n"
+    fog = "\n".join(f"- {_scrub(x)}" for x in (m.get("notYetSpecified") or [])) or "- (none)"
+    oos = "\n".join(f"- {_scrub(x)}" for x in (m.get("outOfScope") or [])) or "- (none)"
+    _write_map_md(
+        base / "map.md",
+        f"# {_scrub(m['title'])}\n\n"
         "```mermaid\ngraph TD\n    MAP[\"map (this file)\"] --> T[\"tickets/*.md — one decision each\"]\n"
         "    T --> D[\"Decisions so far (index below)\"]\n```\n\n"
-        f"## Destination\n{m['destination']}\n\n"
-        f"## Notes\n{m.get('notes', '')}\n\n"
-        "## Decisions so far\n\n"
+        f"## Destination\n{_scrub(m['destination'])}\n\n"
+        f"## Notes\n{_scrub(m.get('notes') or '')}\n\n"
+        # The index under this heading is a GENERATED region, delimited so
+        # resolve() can rebuild it without pattern-searching the rest of the
+        # file. Before round 4 it substituted a "- [..](tickets/<key>.md)"
+        # line regex over the whole of map.md, so an index-shaped line a user
+        # wrote in `notes` was silently overwritten by the resolution gist
+        # (the map.md instance of finding N1's root cause).
+        f"## Decisions so far\n\n{_DECISIONS_START}\n{_DECISIONS_END}\n\n"
         f"## Not yet specified\n{fog}\n\n"
-        f"## Out of scope\n{oos}\n",
-        encoding="utf-8")
+        f"## Out of scope\n{oos}\n")
     # pass 1: create tickets; pass 2: wire blocking (create-then-wire, spec §9).
     # Safe because _validate_chart_input already confirmed every `blocks`
     # target is one of this map_input's own ticket keys, so pass 2 can never
@@ -281,7 +462,8 @@ def chart(root, inp, real, force=False):
     for t in inp["tickets"]:
         fm = {"title": t["title"], "type": t["type"], "mode": _mode(t["type"]),
               "status": "open", "assignee": "", "blocked_by": [], "gist": ""}
-        _save_ticket(root, slug, t["key"], fm, f"\n## Question\n\n{t['question']}\n")
+        _save_ticket(root, slug, t["key"], fm,
+                     f"\n## Question\n\n{_scrub(t['question'])}\n")
     for t in inp["tickets"]:
         for blocked in t.get("blocks", []):
             block(root, slug, blocked, t["key"])
@@ -339,8 +521,47 @@ def block(root, slug, ticket, blocked_by):
 
 def comment(root, slug, ticket, body_text):
     fm, body = _load_ticket(root, slug, ticket)
-    _save_ticket(root, slug, ticket, fm, body + f"\n## Comment\n\n{body_text}\n")
+    _save_ticket(root, slug, ticket, fm,
+                 body + f"\n## Comment\n\n{_scrub(body_text)}\n")
     return {"commented": ticket}
+
+
+def _reindex_decisions(root, slug):
+    """Rebuild map.md's "Decisions so far" index from the ticket files.
+
+    The index is a projection of the tickets, not accumulated state, so it is
+    regenerated wholesale inside its own marker region. There is no per-line
+    pattern to match and nothing outside the region is read or touched --
+    which is what stops a user-authored, index-shaped line elsewhere in
+    map.md (in `notes`, say) from being substituted away, and stops a
+    multi-line gist from splitting one entry into an orphanable pair. Every
+    title/gist here comes from frontmatter, so it is already scrubbed and
+    already single-line.
+    """
+    entries = []
+    for key in _all_tickets(root, slug):
+        fm, _ = _load_ticket(root, slug, key)
+        if fm.get("status") != "closed":
+            continue
+        title = fm.get("title") or key
+        gist = fm.get("gist") or ""
+        entries.append(f"- [{title}](tickets/{key}.md) — {gist}".rstrip() + "\n")
+    region = f"{_DECISIONS_START}\n{''.join(entries)}{_DECISIONS_END}\n"
+    map_path = Path(root) / slug / "map.md"
+    map_md = map_path.read_text(encoding="utf-8")
+    if _DECISIONS_BLOCK_RE.search(map_md):
+        map_md = _DECISIONS_BLOCK_RE.sub(lambda _m: region, map_md, count=1)
+    else:
+        # Legacy map.md charted before the region existed. Insert a fresh
+        # region rather than trying to recognise the old loose list -- same
+        # conservative choice, and same rationale, as resolve()'s legacy
+        # ticket path: never guess at the boundary of pre-marker content.
+        heading = "## Decisions so far\n"
+        if heading in map_md:
+            map_md = map_md.replace(heading, heading + "\n" + region, 1)
+        else:
+            map_md = map_md.rstrip("\n") + f"\n\n## Decisions so far\n\n{region}"
+    _write_map_md(map_path, map_md)
 
 
 def resolve(root, slug, ticket, gist, link, body):
@@ -350,11 +571,17 @@ def resolve(root, slug, ticket, gist, link, body):
     duplicate/contradictory ones.
 
     The resolution block is delimited by _RESOLUTION_START/_RESOLUTION_END
-    sentinel comments (review round 3, findings R1/R2 -- see the constants'
+    marker comments (review round 3, findings R1/R2 -- see the constants'
     comment for why two rounds of markdown-pattern guessing both failed).
-    Re-resolving replaces exactly the span between its own sentinels; the
+    Re-resolving replaces exactly the span between its own markers; the
     Question, any comment() sections, and a --body-file's own "## " sub-
-    headings are outside that span by construction and are never touched.
+    headings are outside that span and are never touched. That holds because
+    of the marker invariant, NOT because markers look unlikely: `gist`,
+    `link` and `body` are scrubbed below, exactly as chart() scrubs
+    `question` and comment() scrubs its body, so nothing in `tbody` can
+    impersonate a marker (review round 4, finding N1 -- before the scrub, a
+    marker pasted into any of those five inputs reproduced round 1's
+    unbounded accumulation and round 2's silent deletion of user text).
 
     Legacy tickets resolved before sentinels existed (no start/end markers
     present) are NOT migrated in place: their old, unsentinelled
@@ -369,9 +596,9 @@ def resolve(root, slug, ticket, gist, link, body):
     fm, tbody = _load_ticket(root, slug, ticket)
     fm["status"] = "closed"
     fm["gist"] = gist
-    detail = f"\nDetail: {link}\n" if link else ""
-    extra = f"\n{body}\n" if body else ""
-    block = (f"{_RESOLUTION_START}\n## Resolution\n\n{gist}\n{detail}{extra}"
+    detail = f"\nDetail: {_scrub(link)}\n" if link else ""
+    extra = f"\n{_scrub(body)}\n" if body else ""
+    block = (f"{_RESOLUTION_START}\n## Resolution\n\n{_scrub(gist)}\n{detail}{extra}"
              f"{_RESOLUTION_END}\n")
     if _RESOLUTION_BLOCK_RE.search(tbody):
         tbody = _RESOLUTION_BLOCK_RE.sub(lambda _m: block, tbody, count=1)
@@ -379,17 +606,10 @@ def resolve(root, slug, ticket, gist, link, body):
         sep = "" if tbody.endswith("\n\n") else "\n"
         tbody = tbody + sep + block
     _save_ticket(root, slug, ticket, fm, tbody)
-    map_path = Path(root) / slug / "map.md"
-    map_md = map_path.read_text(encoding="utf-8")
-    entry = f"- [{fm['title']}](tickets/{ticket}.md) — {gist}\n"
-    line_re = re.compile(
-        rf"^- \[.*?\]\(tickets/{re.escape(ticket)}\.md\).*\n?", re.MULTILINE)
-    if line_re.search(map_md):
-        map_md = line_re.sub(entry, map_md, count=1)
-    else:
-        map_md = map_md.replace("## Decisions so far\n", "## Decisions so far\n" + entry, 1)
-    map_path.write_text(map_md, encoding="utf-8")
-    return {"resolved": ticket, "gist": gist}
+    _reindex_decisions(root, slug)
+    # report the gist as STORED, not as passed in -- scrubbed and flattened,
+    # so callers and the ticket file never disagree
+    return {"resolved": ticket, "gist": _fm_value(gist) or None}
 
 
 def main():

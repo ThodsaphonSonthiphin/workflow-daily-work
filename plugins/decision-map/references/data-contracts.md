@@ -106,7 +106,7 @@ path.
 | claim | `System.AssignedTo` | assignee | frontmatter `assignee:` |
 | close | `System.State` → `Done` (fallback `Closed` on 400) | state closed | frontmatter `status: closed` |
 | blocking | `System.LinkTypes.Dependency-Reverse` on the blocked item → predecessor | native "blocked by" if the plan supports it, else body line `blocked-by: #<n>` (weaker — the script labels it) | frontmatter `blocked_by: [slug]` |
-| resolution | work-item comment | issue comment | `## Resolution` section appended |
+| resolution | work-item comment | issue comment | `## Resolution` section inside the `decision-map:resolution` markers (see below) |
 
 ## Local map/ticket file formats
 
@@ -124,7 +124,10 @@ path.
 <domain; skills every session should consult; standing preferences>
 
 ## Decisions so far
+
+<!-- decision-map:decisions:start -->
 - [<ticket title>](tickets/<slug>.md) — <one-line gist>
+<!-- decision-map:decisions:end -->
 
 ## Not yet specified
 - <fog line>
@@ -150,12 +153,45 @@ blocked_by: []
 <the decision or investigation this ticket resolves>
 ```
 
-`## Resolution` (appended by `resolve`):
+`## Resolution` (written by `resolve` into the ticket file):
 
 ```markdown
+<!-- decision-map:resolution:start -->
 ## Resolution
 
 <gist — one or two lines>
 
 Detail: <link to repo ADR / commit, when one exists (ADR 0036)>
+
+<optional --body-file content, which may contain its own "## " sub-headings>
+<!-- decision-map:resolution:end -->
 ```
+
+### Generated regions in local files (local backend only)
+
+Two spans of a local file are **generated regions**, each delimited by an HTML
+comment pair: the resolution block in `tickets/<slug>.md`, and the
+"Decisions so far" index in `map.md`. Everything else in those files is user
+content. The rules, which any reader or writer of the local format must
+honour:
+
+- **`resolve` owns strictly the span between its markers** and rewrites it
+  wholesale; it never edits, and never needs to parse, anything outside it.
+  The `map.md` index is likewise regenerated in full from the ticket
+  frontmatter of every closed ticket — one physical line per ticket — so it is
+  a projection, not accumulated state.
+- **Only the tool writes markers.** Every user-supplied string — a ticket
+  `question`, a `comment` body, `gist`, `link`, `--body-file` content, titles,
+  `notes`, fog and out-of-scope lines — is escaped on the way in, so the
+  literal text `<!-- decision-map:` in user content is written as
+  `&lt;!-- decision-map:` (which still renders as typed, but is not a marker).
+  A file must contain at most one well-formed region of each kind; a writer
+  that finds otherwise should refuse to write rather than guess.
+- **Do not emit an unmarked resolution block.** `resolve` treats an
+  unmarked `## Resolution` as pre-existing user content and appends a fresh
+  marked block below it, so an unmarked block written by another tool will
+  be duplicated rather than updated.
+
+These markers are specific to the local backend's Markdown files. ADO and
+GitHub record the resolution as a native tracker comment and need no
+equivalent.

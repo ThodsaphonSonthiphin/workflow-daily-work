@@ -416,6 +416,223 @@ class LocalMapOpsTest(unittest.TestCase):
             ops.chart(self.root, bad, real=True)
         self.assertFalse((self.root / "example-effort").exists())
 
+    # ------------------------------------------------------------------
+    # Fix round 4 — regression tests for review findings N1, N2
+    #
+    # N1 (Important): round 3 replaced the needle ("## Resolution" -> a
+    # namespaced HTML comment) but not the MECHANISM -- resolve() still
+    # located the region it owns by pattern-searching a body whose every byte
+    # is user-controlled (chart() writes `question` verbatim, comment() writes
+    # `body_text`, resolve() writes `gist`/`link`/`body`). A user string
+    # carrying a marker therefore reproduced BOTH earlier harms: unbounded
+    # accumulation (round-1 finding 3) via an END marker, and silent deletion
+    # of user text (round-2 finding N1) via a START marker. The fix escapes
+    # every marker occurrence in every user-supplied string on the way in, so
+    # "only resolve() ever writes these markers" is enforced, not asserted.
+    # ------------------------------------------------------------------
+
+    def _ticket_text(self, slug, ticket):
+        return (self.root / slug / "tickets" / f"{ticket}.md").read_text(encoding="utf-8")
+
+    # N1 harm (a): an END marker inside --body-file made the non-greedy match
+    # stop early -- 5 resolves left 5 orphaned tails and 5 stray markers, the
+    # file growing 274 -> 478 chars monotonically.
+    def test_resolve_body_containing_end_marker_does_not_accumulate(self):
+        self._chart()
+        lengths = []
+        for i in range(1, 6):
+            ops.resolve(self.root, "example-effort", "auth-model", f"gist-{i}",
+                        link=None,
+                        body=f"Reasoning {i}.\n{ops._RESOLUTION_END}\nTAIL-{i}")
+            text = self._ticket_text("example-effort", "auth-model")
+            lengths.append(len(text))
+            self.assertEqual(text.count(ops._RESOLUTION_START), 1,
+                             f"resolve #{i}: exactly one region start expected")
+            self.assertEqual(text.count(ops._RESOLUTION_END), 1,
+                             f"resolve #{i}: exactly one region end expected")
+            self.assertIn(f"TAIL-{i}", text, f"resolve #{i}: own body tail lost")
+            self.assertIn("per-tenant or shared?", text)
+        final = self._ticket_text("example-effort", "auth-model")
+        for i in range(1, 5):
+            self.assertNotIn(f"TAIL-{i}\n", final)   # no orphaned tails
+            self.assertNotIn(f"gist-{i}", final)     # no stale gists
+        # every payload is the same length, so an unchanging file length is a
+        # direct assertion that nothing accumulated across the 5 resolves
+        self.assertEqual(lengths, [lengths[0]] * 5,
+                         f"file grew across resolves: {lengths}")
+
+    # N1 harm (b): a Question carrying a well-formed marker PAIR lost its
+    # inner text on the very FIRST resolve.
+    def test_resolve_does_not_eat_a_marker_pair_inside_the_question(self):
+        inp = copy.deepcopy(INPUT)
+        inp["target"]["slug"] = "pair-effort"
+        question = (f"Should we do X?\n{ops._RESOLUTION_START}\n## Resolution\n\n"
+                    f"USER-AUTHORED-EXAMPLE\n{ops._RESOLUTION_END}\nAnd what about Y?")
+        inp["tickets"] = [{"key": "t1", "title": "T one", "type": "task",
+                           "question": question, "blocks": []}]
+        ops.chart(self.root, inp, real=True)
+        ops.resolve(self.root, "pair-effort", "t1", "answered", link=None, body=None)
+        text = self._ticket_text("pair-effort", "t1")
+        self.assertIn("USER-AUTHORED-EXAMPLE", text)
+        self.assertIn("Should we do X?", text)
+        self.assertIn("And what about Y?", text)
+        # exactly one live region -- resolve()'s own; the Question's copies are
+        # escaped, so they are text, not markers
+        self.assertEqual(text.count(ops._RESOLUTION_START), 1)
+        self.assertEqual(text.count(ops._RESOLUTION_END), 1)
+
+    # N1 harm (b), worse variant: a Question carrying only the START marker
+    # lost its prose and its trailing sentence on the SECOND resolve.
+    def test_resolve_does_not_eat_prose_after_a_lone_start_marker_in_the_question(self):
+        inp = copy.deepcopy(INPUT)
+        inp["target"]["slug"] = "lone-effort"
+        question = (f"Should we do X?\n{ops._RESOLUTION_START}\n"
+                    f"IMPORTANT-USER-PROSE-AFTER-FAKE-START\nAnd Y?")
+        inp["tickets"] = [{"key": "t1", "title": "T one", "type": "task",
+                           "question": question, "blocks": []}]
+        ops.chart(self.root, inp, real=True)
+        ops.resolve(self.root, "lone-effort", "t1", "first", link=None, body=None)
+        ops.comment(self.root, "lone-effort", "t1", "a human note")
+        ops.resolve(self.root, "lone-effort", "t1", "second", link=None, body=None)
+        text = self._ticket_text("lone-effort", "t1")
+        self.assertIn("IMPORTANT-USER-PROSE-AFTER-FAKE-START", text)
+        self.assertIn("And Y?", text)
+        self.assertIn("a human note", text)
+        self.assertIn("second", text)
+        self.assertNotIn("first", text)
+        self.assertEqual(text.count(ops._RESOLUTION_START), 1)
+        self.assertEqual(text.count(ops._RESOLUTION_END), 1)
+
+    # N1 harm (b), the exact harm round 2 was supposed to close: a comment()
+    # written BEFORE the first resolve, carrying a START marker, was deleted
+    # by the second resolve.
+    def test_resolve_does_not_delete_an_early_comment_containing_a_marker(self):
+        self._chart()
+        ops.comment(self.root, "example-effort", "auth-model",
+                    f"heads up {ops._RESOLUTION_START} IMPORTANT-COMMENT-BODY")
+        ops.resolve(self.root, "example-effort", "auth-model", "first", link=None, body=None)
+        ops.resolve(self.root, "example-effort", "auth-model", "second", link=None, body=None)
+        text = self._ticket_text("example-effort", "auth-model")
+        self.assertIn("IMPORTANT-COMMENT-BODY", text)
+        self.assertIn("second", text)
+        self.assertNotIn("first", text)
+        self.assertEqual(text.count(ops._RESOLUTION_START), 1)
+        self.assertEqual(text.count(ops._RESOLUTION_END), 1)
+
+    # N1, leak half: a marker in --gist / --link leaked verbatim into map.md's
+    # Decisions-so-far index line and into the `gist` field of read/frontier.
+    def test_markers_in_gist_and_link_do_not_leak_into_map_or_json(self):
+        self._chart()
+        ops.resolve(self.root, "example-effort", "auth-model",
+                    f"answer {ops._RESOLUTION_END} tail",
+                    link=f"docs/{ops._RESOLUTION_START}.md", body=None)
+        map_md = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
+        self.assertNotIn(ops._RESOLUTION_START, map_md)
+        self.assertNotIn(ops._RESOLUTION_END, map_md)
+        self.assertIn("answer", map_md)
+        m = ops.read_map(self.root, "example-effort")
+        auth = next(t for t in m["tickets"] if t["key"] == "auth-model")
+        self.assertNotIn(ops._RESOLUTION_START, auth["gist"])
+        self.assertNotIn(ops._RESOLUTION_END, auth["gist"])
+        text = self._ticket_text("example-effort", "auth-model")
+        self.assertEqual(text.count(ops._RESOLUTION_START), 1)
+        self.assertEqual(text.count(ops._RESOLUTION_END), 1)
+
+    # N1, extension: map.md's Decisions-so-far index was found by the same
+    # class of pattern search (a "^- [...](tickets/<key>.md)" line regex over
+    # the whole file), so a map `notes` line shaped like an index entry was
+    # substituted away by resolve(). The index is now a generated region and
+    # is rebuilt from the ticket files, so nothing outside it is ever touched.
+    def test_resolve_does_not_clobber_an_index_shaped_line_in_notes(self):
+        inp = copy.deepcopy(INPUT)
+        inp["target"]["slug"] = "notes-effort"
+        inp["map"] = dict(inp["map"])
+        inp["map"]["notes"] = ("prior art:\n"
+                               "- [Auth model?](tickets/auth-model.md) — USER-AUTHORED-NOTE\n"
+                               "keep reading")
+        ops.chart(self.root, inp, real=True)
+        ops.resolve(self.root, "notes-effort", "auth-model", "REAL-GIST",
+                    link=None, body=None)
+        map_md = (self.root / "notes-effort" / "map.md").read_text(encoding="utf-8")
+        self.assertIn("USER-AUTHORED-NOTE", map_md)
+        self.assertIn("keep reading", map_md)
+        self.assertIn("REAL-GIST", map_md)
+        self.assertEqual(map_md.count("tickets/auth-model.md"), 2)  # the note + the index entry
+        # re-resolving still updates exactly the generated entry
+        ops.resolve(self.root, "notes-effort", "auth-model", "SECOND-GIST",
+                    link=None, body=None)
+        map_md = (self.root / "notes-effort" / "map.md").read_text(encoding="utf-8")
+        self.assertIn("USER-AUTHORED-NOTE", map_md)
+        self.assertIn("SECOND-GIST", map_md)
+        self.assertNotIn("REAL-GIST", map_md)
+        self.assertEqual(map_md.count("tickets/auth-model.md"), 2)
+
+    # N1, backstop: the escape is the prevention, but every write also asserts
+    # the file holds at most one well-formed region. A hand-edited file with a
+    # stray marker must make the module REFUSE to write, not silently corrupt.
+    def test_write_refuses_when_a_hand_edited_file_has_stray_markers(self):
+        self._chart()
+        p = self.root / "example-effort" / "tickets" / "auth-model.md"
+        p.write_text(p.read_text(encoding="utf-8") + f"\n{ops._RESOLUTION_END}\n",
+                     encoding="utf-8")
+        with self.assertRaises(ops.MarkerIntegrityError):
+            ops.claim(self.root, "example-effort", "auth-model", "pon")
+
+    # ------------------------------------------------------------------
+    # N2 (Minor, re-opens R3): validation was presence-only, so a wrong-TYPED
+    # field reproduced R3's exact partial-folder harm -- `title: [1, 2]` raised
+    # TypeError from _fm_dump AFTER map.md and the first ticket were on disk --
+    # while `title: null`, a dict, an int and `question: null` were silently
+    # accepted and written. Validate types in the same pre-write pass.
+    # ------------------------------------------------------------------
+
+    def _assert_rejected_without_writing(self, bad):
+        """chart() must raise ChartValidationError and leave the filesystem
+        byte-identical -- not even the <slug>/ directory, which would trip
+        refuse-by-default on retry and push the user toward --force."""
+        before = _snapshot(self.root)
+        with self.assertRaises(ops.ChartValidationError):
+            ops.chart(self.root, bad, real=True)
+        self.assertEqual(_snapshot(self.root), before,
+                         "validation must run before ANY write")
+        self.assertFalse(any(self.root.iterdir()))
+
+    def test_chart_rejects_wrong_typed_ticket_fields(self):
+        for field, value in [("title", [1, 2]), ("title", None), ("title", {"a": 1}),
+                             ("title", 42), ("question", None), ("question", 7),
+                             ("type", None), ("key", 5)]:
+            with self.subTest(field=field, value=value):
+                bad = copy.deepcopy(INPUT)
+                bad["tickets"][1][field] = value   # second ticket: pass 1 would
+                                                   # already have written map.md
+                                                   # and the first ticket
+                self._assert_rejected_without_writing(bad)
+
+    def test_chart_rejects_wrong_typed_map_fields(self):
+        for field, value in [("title", None), ("title", 42), ("destination", None),
+                             ("destination", ["a"]), ("notes", 3),
+                             ("notYetSpecified", 5), ("outOfScope", "mobile"),
+                             ("notYetSpecified", [1, 2])]:
+            with self.subTest(field=field, value=value):
+                bad = copy.deepcopy(INPUT)
+                bad["map"][field] = value
+                self._assert_rejected_without_writing(bad)
+
+    def test_chart_rejects_wrong_typed_containers(self):
+        cases = []
+        bad = copy.deepcopy(INPUT); bad["tickets"] = {"a": 1}; cases.append(bad)
+        bad = copy.deepcopy(INPUT); bad["tickets"][0] = "not a dict"; cases.append(bad)
+        bad = copy.deepcopy(INPUT); bad["map"] = "not a dict"; cases.append(bad)
+        bad = copy.deepcopy(INPUT); del bad["target"]; cases.append(bad)
+        bad = copy.deepcopy(INPUT); bad["target"]["slug"] = 7; cases.append(bad)
+        bad = copy.deepcopy(INPUT); bad["tickets"][0]["blocks"] = "rollout-order"
+        cases.append(bad)
+        bad = copy.deepcopy(INPUT); bad["tickets"][0]["blocks"] = [1]; cases.append(bad)
+        del bad
+        for i, case in enumerate(cases):
+            with self.subTest(case=i):
+                self._assert_rejected_without_writing(case)
+
 
 class LocalMapOpsCliTest(unittest.TestCase):
     """Finding 6: main()/argparse had zero coverage. Drive the real CLI
