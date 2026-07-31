@@ -16,14 +16,20 @@ planned file "create" / "OVERWRITE" / "refuse", so the human approval gate
 is truthful about what a real run would do.
 
 `inp` is validated before any file is written (in both dry-run and real
-mode): the map's own `target.slug` and every ticket `key` must each be a
-safe slug (letters/digits/`-`/`_` only, anchored to the exact end of the
-string with `\Z` -- not `$`, which in Python also matches just before a
-trailing newline and would let e.g. "okname\n" slip through as a path
-segment), every ticket `type` must be one of the four valid types, and
-every `blocks` target must be a key present in this same `inp`. A malformed
-map_input.json fails cleanly with ChartValidationError instead of writing a
-half-finished map folder or crossing outside the intended root.
+mode): `map` must have every field chart() reads unconditionally
+("title", "destination"), every ticket must have every field chart() reads
+unconditionally ("key", "title", "type", "question"), the map's own
+`target.slug` and every ticket `key` must each be a safe slug
+(letters/digits/`-`/`_` only, anchored to the exact end of the string with
+`\Z` -- not `$`, which in Python also matches just before a trailing
+newline and would let e.g. "okname\n" slip through as a path segment),
+every ticket `type` must be one of the four valid types, and every `blocks`
+target must be a key present in this same `inp`. A malformed map_input.json
+fails cleanly with ChartValidationError instead of writing a half-finished
+map folder or crossing outside the intended root (round 3 finding R3: a
+ticket missing "title" or "question" used to raise a bare KeyError
+mid-write, leaving exactly the half-finished folder this paragraph claims
+can't happen -- required-field validation closes that gap).
 """
 import argparse, json, re, sys
 from pathlib import Path
@@ -45,6 +51,24 @@ _SAFE_SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*\Z")
 # "[" and end with "]" (see ChartValidationError / _fm_parse docstring).
 _LIST_FM_KEYS = {"blocked_by"}
 
+# resolve() delimits the block it generates with its own sentinel comments,
+# and re-resolve replaces STRICTLY between them -- never by guessing at
+# markdown structure (review round 3, findings R1/R2). Two rounds of trying
+# to infer the boundary from "the next ## heading" both failed: a
+# --body-file with its own "## Rationale" sub-heading made the boundary stop
+# early, orphaning the tail on every re-resolve (R1, unbounded accumulation);
+# and with no anchor, the literal text "## Resolution" appearing ANYWHERE in
+# the ticket -- including inside ordinary Question prose, at a line start or
+# truly mid-line -- was matched and deleted on the very first resolve (R2).
+# A sentinel that only resolve() itself ever writes cannot collide with
+# user-authored content by construction, so there is no pattern left to get
+# subtly wrong.
+_RESOLUTION_START = "<!-- decision-map:resolution:start -->"
+_RESOLUTION_END = "<!-- decision-map:resolution:end -->"
+_RESOLUTION_BLOCK_RE = re.compile(
+    re.escape(_RESOLUTION_START) + r".*?" + re.escape(_RESOLUTION_END) + r"\n?",
+    re.DOTALL)
+
 
 class ChartConflictError(Exception):
     """chart(real=True) would overwrite existing map/ticket files and
@@ -59,9 +83,21 @@ def _mode(ticket_type):
     return "AFK" if ticket_type in AFK_TYPES else "HITL"
 
 
+_REQUIRED_MAP_FIELDS = ("title", "destination")
+_REQUIRED_TICKET_FIELDS = ("key", "title", "type", "question")
+
+
 def _validate_chart_input(inp):
     """Validate `inp` before chart() writes anything (dry-run or real).
 
+    - map_input's "map" must have every field chart() reads unconditionally
+      (round 3, finding R3 -- a missing "title"/"destination" used to raise
+      a bare KeyError while writing map.md, after `tickets/` was already
+      created)
+    - every ticket must have every field chart() reads unconditionally
+      (round 3, finding R3 -- a missing "title"/"question" used to raise a
+      bare KeyError mid-pass-1, after map.md and earlier tickets were
+      already on disk)
     - target.slug must be a safe slug (round 2 finding N2 -- previously
       unvalidated; "../../pwned-slug" and "C:/Windows/Temp/pwned-slug" both
       wrote outside the intended root)
@@ -74,8 +110,17 @@ def _validate_chart_input(inp):
         raise ChartValidationError(
             f"invalid map slug {slug!r}: must be a safe slug "
             "(letters, digits, '-', '_'; no path separators, drive letters, or '..')")
+    m = inp["map"]
+    for field in _REQUIRED_MAP_FIELDS:
+        if field not in m:
+            raise ChartValidationError(
+                f'map_input.json\'s "map" is missing required field {field!r}')
     keys = set()
     for t in inp["tickets"]:
+        for field in _REQUIRED_TICKET_FIELDS:
+            if field not in t:
+                raise ChartValidationError(
+                    f"ticket {t.get('key', '<no key>')!r} is missing required field {field!r}")
         key = t["key"]
         if not _SAFE_SLUG_RE.match(key):
             raise ChartValidationError(
@@ -300,25 +345,40 @@ def comment(root, slug, ticket, body_text):
 
 def resolve(root, slug, ticket, gist, link, body):
     """Close `ticket` and record its resolution. Idempotent (review round 1
-    finding): re-resolving the same ticket replaces the prior `## Resolution`
-    section and the prior "Decisions so far" line rather than accumulating
+    finding): re-resolving the same ticket replaces the prior resolution
+    block and the prior "Decisions so far" line rather than accumulating
     duplicate/contradictory ones.
+
+    The resolution block is delimited by _RESOLUTION_START/_RESOLUTION_END
+    sentinel comments (review round 3, findings R1/R2 -- see the constants'
+    comment for why two rounds of markdown-pattern guessing both failed).
+    Re-resolving replaces exactly the span between its own sentinels; the
+    Question, any comment() sections, and a --body-file's own "## " sub-
+    headings are outside that span by construction and are never touched.
+
+    Legacy tickets resolved before sentinels existed (no start/end markers
+    present) are NOT migrated in place: their old, unsentinelled
+    "## Resolution" text is left untouched as ordinary ticket content, and a
+    fresh sentineled block is appended below it. This is deliberately
+    conservative -- guessing at the boundary of pre-sentinel content is
+    exactly the fragile pattern that caused rounds 1-3; the one-time cost is
+    a single stale legacy section on the FIRST post-upgrade resolve of an
+    already-resolved ticket, never an unbounded accumulation and never a
+    chance of deleting unrelated content.
     """
     fm, tbody = _load_ticket(root, slug, ticket)
     fm["status"] = "closed"
     fm["gist"] = gist
-    # Drop any previously appended Resolution section -- but only up to the
-    # NEXT "## " heading (or end of string if there is none), never past it.
-    # A \Z-anchored strip here would delete everything from "## Resolution"
-    # to end-of-file, including a comment() appended AFTER a prior resolve()
-    # (comment() has no closed-ticket guard, so `resolve -> comment ->
-    # resolve` is a real, documented sequence) -- silently destroying a
-    # user-authored comment (review round 2, finding N1).
-    tbody = re.sub(r"\n*## Resolution\n.*?(?=\n## |\Z)", "", tbody, flags=re.DOTALL)
     detail = f"\nDetail: {link}\n" if link else ""
     extra = f"\n{body}\n" if body else ""
-    _save_ticket(root, slug, ticket, fm,
-                 tbody + f"\n## Resolution\n\n{gist}\n{detail}{extra}")
+    block = (f"{_RESOLUTION_START}\n## Resolution\n\n{gist}\n{detail}{extra}"
+             f"{_RESOLUTION_END}\n")
+    if _RESOLUTION_BLOCK_RE.search(tbody):
+        tbody = _RESOLUTION_BLOCK_RE.sub(lambda _m: block, tbody, count=1)
+    else:
+        sep = "" if tbody.endswith("\n\n") else "\n"
+        tbody = tbody + sep + block
+    _save_ticket(root, slug, ticket, fm, tbody)
     map_path = Path(root) / slug / "map.md"
     map_md = map_path.read_text(encoding="utf-8")
     entry = f"- [{fm['title']}](tickets/{ticket}.md) — {gist}\n"

@@ -332,6 +332,90 @@ class LocalMapOpsTest(unittest.TestCase):
             ops.chart(self.root, bad, real=True)
         self.assertFalse((self.root / "example-effort").exists())
 
+    # ------------------------------------------------------------------
+    # Fix round 3 — regression tests for review findings R1-R3
+    # ------------------------------------------------------------------
+
+    # R1 (Important, introduced by round 2's fix): a --body-file containing
+    # its own "## " sub-heading (e.g. "## Rationale") made the round-2
+    # lookahead-based strip stop INSIDE the old Resolution block, orphaning
+    # its tail. Each re-resolve leaves one more stale sub-heading behind --
+    # unbounded accumulation, reintroducing round-1 finding 3's harm through
+    # a documented, ordinary --resolve --body-file argument.
+    def test_resolve_with_heading_in_body_does_not_accumulate(self):
+        self._chart()
+        ops.resolve(self.root, "example-effort", "auth-model", "gist one",
+                    link=None, body="## Rationale\n\nfirst reasoning")
+        ops.resolve(self.root, "example-effort", "auth-model", "gist two",
+                    link=None, body="## Rationale\n\nsecond reasoning")
+        ops.resolve(self.root, "example-effort", "auth-model", "gist three",
+                    link=None, body="## Rationale\n\nthird reasoning")
+        ticket_md = (self.root / "example-effort" / "tickets" / "auth-model.md").read_text(encoding="utf-8")
+        self.assertEqual(ticket_md.count("## Resolution"), 1)
+        self.assertEqual(ticket_md.count("## Rationale"), 1)
+        self.assertIn("gist three", ticket_md)
+        self.assertIn("third reasoning", ticket_md)
+        self.assertNotIn("gist one", ticket_md)
+        self.assertNotIn("gist two", ticket_md)
+        self.assertNotIn("first reasoning", ticket_md)
+        self.assertNotIn("second reasoning", ticket_md)
+
+    # R2 (Important, residual of round-2's N1 fix -- narrowed, not closed):
+    # the strip regex has no "^"/MULTILINE anchor and its leading "\n*" can
+    # match zero characters, so the literal substring "## Resolution\n" is
+    # matched WHEREVER it appears -- including inside a ticket's own Question
+    # text, at a line start or truly mid-line -- deleting real user content on
+    # the very FIRST resolve(), before any resolution has ever been recorded.
+    def test_resolve_first_call_does_not_corrupt_question_with_heading_text_at_line_start(self):
+        inp = copy.deepcopy(INPUT)
+        inp["target"]["slug"] = "r2-line-effort"
+        question = "Should the process include\n## Resolution\nas a required governance step?"
+        inp["tickets"] = [
+            {"key": "line-start", "title": "Process question", "type": "task",
+             "question": question, "blocks": []},
+        ]
+        ops.chart(self.root, inp, real=True)
+        ops.resolve(self.root, "r2-line-effort", "line-start", "resolved", link=None, body=None)
+        ticket_md = (self.root / "r2-line-effort" / "tickets" / "line-start.md").read_text(encoding="utf-8")
+        self.assertIn("as a required governance step?", ticket_md)
+
+    def test_resolve_first_call_does_not_corrupt_question_with_mid_line_heading_text(self):
+        inp = copy.deepcopy(INPUT)
+        inp["target"]["slug"] = "r2-mid-effort"
+        question = "Consider this idea: ## Resolution\nand what it implies for our timeline?"
+        inp["tickets"] = [
+            {"key": "mid-line", "title": "Inline question", "type": "task",
+             "question": question, "blocks": []},
+        ]
+        ops.chart(self.root, inp, real=True)
+        ops.resolve(self.root, "r2-mid-effort", "mid-line", "resolved", link=None, body=None)
+        ticket_md = (self.root / "r2-mid-effort" / "tickets" / "mid-line.md").read_text(encoding="utf-8")
+        self.assertIn("and what it implies for our timeline?", ticket_md)
+
+    # R3 (Minor): the module docstring claims malformed input "fails cleanly
+    # ... instead of writing a half-finished map folder" -- false for a
+    # ticket missing "title" or "question" (or the map missing "title"/
+    # "destination"): chart() raised a bare KeyError mid-pass-1, after map.md
+    # and earlier tickets were already on disk, and the resulting partial
+    # folder then trips refuse-by-default on retry, nudging the user toward
+    # the destructive --force path.
+    def test_chart_rejects_ticket_missing_required_field(self):
+        bad = copy.deepcopy(INPUT)
+        del bad["tickets"][1]["question"]  # rollout-order, second in the list
+        with self.assertRaises(ops.ChartValidationError):
+            ops.chart(self.root, bad, real=True)
+        # must fail before ANY file is written -- not even auth-model.md
+        # (the first, valid ticket), which chart's pass-1 loop would already
+        # have written to disk by the time it reached the invalid one
+        self.assertFalse((self.root / "example-effort").exists())
+
+    def test_chart_rejects_map_missing_required_field(self):
+        bad = copy.deepcopy(INPUT)
+        del bad["map"]["destination"]
+        with self.assertRaises(ops.ChartValidationError):
+            ops.chart(self.root, bad, real=True)
+        self.assertFalse((self.root / "example-effort").exists())
+
 
 class LocalMapOpsCliTest(unittest.TestCase):
     """Finding 6: main()/argparse had zero coverage. Drive the real CLI
