@@ -52,6 +52,7 @@ flowchart TD
     WORK -- new legacy codebase --> DTL["drive-to-legacy"]
     WORK -- new CRM / D365 org --> CA["crm-archaeology"]
     WORK -- need a full SA/design document --> SAD["sa-doc"]
+    WORK -- planning my own growth --> CG["career-growth"]
 
     WORK -- 💥 something broke --> DM["debug-mantra<br/>(diagnose)"]
     DM --> Q{"fix involves a<br/>design choice?"}
@@ -78,6 +79,7 @@ flowchart TD
 | unfamiliar Dynamics 365 / Dataverse org | `crm-archaeology` |
 | need a full SA&D document (use cases, diagrams, data dictionary) | `sa-doc` |
 | need a repeatable test-case suite (feature / change / fixed bug) | `generating-test-cases` |
+| planning my own growth / quarterly career review | `career-growth` |
 
 ### The debug chain (ADRs 0003 + 0011)
 
