@@ -80,11 +80,12 @@ task=either.
 
 `status` ∈ `open | closed`. `blockedBy` lists upstream blockers — the tickets
 that must close before this one is actionable — the same relation `frontier.json`
-reports for every blocked ticket; all three backends compute it naturally (ADO
-predecessors, GitHub `dependencies`/`blocked_by`, local frontmatter
-`blocked_by`). After `resolve`, `gist` holds the one-line answer. For the local
-backend, `id` and `key` are both the ticket file's slug and `url` is the
-repo-relative file path.
+reports for every blocked ticket; every backend computes this relation
+naturally from its own native dependency mechanism (see the "blocking" row of
+Backend mappings below for the exact field/label each backend uses). After
+`resolve`, `gist` holds the one-line answer. For the local backend, `id` and
+`key` are both the ticket file's slug and `url` is the repo-relative file
+path.
 
 ## `frontier.json` (output of `frontier`)
 
