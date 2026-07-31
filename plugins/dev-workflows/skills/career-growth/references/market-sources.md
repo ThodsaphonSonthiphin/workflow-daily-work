@@ -4,7 +4,9 @@ The fixed per-ring source list that keeps MARKET a single-session stage (ADR 004
 and the operational detail of the three evidence rules (ADR 0048). Fetchability
 shifts — treat "known blocked" entries as *skip immediately*, and when a listed
 board starts returning 403, try the alternates before reporting a metric
-unavailable, then note the change here.
+unavailable, then record the fetchability change in `market-report.md` in the
+user's career repo and tell the user to update this reference file in the
+plugin **source** if the change looks permanent.
 
 ```mermaid
 flowchart TD

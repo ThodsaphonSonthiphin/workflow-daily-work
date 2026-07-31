@@ -91,8 +91,9 @@ overview Mermaid diagram (skill map grouped by evidence grade).
 ## Station 2 — MARKET
 
 Survey each confirmed ring using **only** the bounded source list in
-`references/market-sources.md`, under the evidence rules above. For the chosen
-skill areas gather: demand (posting counts per ring), the certificates employers
+`references/market-sources.md`, under the evidence rules above. For the skill
+areas from Station 1's inventory, plus any adjacent areas confirmed with the
+user, gather: demand (posting counts per ring), the certificates employers
 name (each live-verified before it may be mentioned), compensation signals where
 boards expose them, and the 3-year outlook (triangulated, with the AI-absorption
 assessment stated per skill).
@@ -100,16 +101,18 @@ assessment stated per skill).
 Write **`market-report.md`** to the career repo: overview Mermaid diagram (rings ×
 demand), a demand table per ring (skill · postings · source · date), the verified
 cert list (code, registry status, `verified_on`, registry URL), and the triangulated
-outlook with each signal cited. Do not delete the previous report's insights —
-the file is overwritten, git history keeps the rounds.
+outlook with each signal cited. The file is overwritten each run; git history
+keeps the prior rounds.
 
 ## Station 3 — GAP + MOAT
 
-Cross INVENTORY × MARKET:
+Cross INVENTORY × MARKET, weighted by Station 1's evidence grades: `verified`
+skills count as strengths, `unverified` ones as gaps to close even when claimed.
 
 - **Gap list** — market-demanded skills the user lacks or holds unverified.
 - **Moat candidates** — skill *combinations* (never single hot skills), each with
-  a four-test argument, one line per test:
+  its **gap** (what the person is missing for this combination, drawn from the
+  Gap list) and a four-test argument, one line per test:
   `rare` (evidence of scarcity in the rings) · `evidenced` (what public proof the
   user has or would gain) · `paid` (demand claims with sources) · `durable`
   (the triangulated 3-year case against AI/automation absorption — synthesise
@@ -120,14 +123,15 @@ Cross INVENTORY × MARKET:
 
 ## Station 4 — PRESENT ⛔ approval gate
 
-Present the candidates (a compact table: combination · the four test verdicts ·
-strongest evidence) and ask the user to **pick one moat, or reject all**. On
-reject: collect the objections as constraints and loop back to Station 3. Never
-pick for the user; never proceed past this gate without an explicit pick.
+Present the candidates (a compact table: combination · gap · the four test
+verdicts · strongest evidence) and ask the user to **pick one moat, or reject
+all**. On reject: collect the objections as constraints and loop back to
+Station 3. Never pick for the user; never proceed past this gate without an
+explicit pick.
 
 On a pick, write **`moat.md`** to the career repo: the chosen combination, its
-full four-test argument, the rejected candidates (one line each, why), and an
-overview Mermaid decision diagram (chosen vs rejected).
+gap, its full four-test argument, the rejected candidates (one line each, why),
+and an overview Mermaid decision diagram (chosen vs rejected).
 
 ## Station 5 — PLAN
 
@@ -158,7 +162,7 @@ For the chosen moat:
 | Situation | Behavior |
 |---|---|
 | A job board 403s | try the alternates in `references/market-sources.md`; only then report the metric unavailable |
-| Vendor cert registry unreachable | withhold cert recommendations — never from memory; mark affected certs `retired-blocked` if previously targeted |
+| Vendor cert registry unreachable | withhold cert recommendations — never from memory; keep a previously-targeted cert's existing status and leave its stale `verified_on` in place, noting the verification could not be refreshed. `retired-blocked` is only for a confirmed retirement listing |
 | `ado-backlog` absent | skip the ADO source with an explicit notice |
 | No web access at all | INVENTORY still runs; MARKET and PLAN stop and say why — never fabricate |
 | User rejects all candidates | loop to Station 3 with their objections as constraints |
