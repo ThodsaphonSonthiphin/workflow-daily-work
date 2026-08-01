@@ -121,6 +121,18 @@ questions (grilling, prototype). **AFK** is agent-driven without the human
 (research, some tasks). The mode determines who speaks, not who types.
 _Avoid_: manual/automated (it's about who decides, not who executes).
 
+## Career-growth terms (dev-workflows plugin)
+
+**Moat**:
+A skill combination that passes **all four tests**: (1) *rare* — few people in the
+same target market hold it; (2) *evidenced* — backed by tangible public proof
+(shipped repo, certificate, delivered work); (3) *paid* — demand verified by real
+market signals; (4) *durable* — expected to survive ≥3 years against AI/automation
+absorption (ADR 0044). Every recommendation the career-growth skill emits must state
+how it passes each test.
+_Avoid_: strength, unique selling point (marketing term), specialty (implies depth
+only — a moat is a combination).
+
 ## GitHub terms (github-backlog plugin)
 
 **GitHub Owner**:

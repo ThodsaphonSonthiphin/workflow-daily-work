@@ -45,6 +45,7 @@ flowchart TD
 
     WORK -- designing something --> GTP["grill-then-plan"]
     WORK -- advising on a system --> SDV["study-design-verify"]
+    WORK -- advising on cert / market / vendor facts --> VTA["verify-then-advise"]
     WORK -- auditing names/mappings --> NA["naming-audit /<br/>fit-gap-analysis"]
     WORK -- explaining a problem --> PD["problem-description"]
     WORK -- why does this exist? --> TT["ticket-trace"]
@@ -52,6 +53,7 @@ flowchart TD
     WORK -- new legacy codebase --> DTL["drive-to-legacy"]
     WORK -- new CRM / D365 org --> CA["crm-archaeology"]
     WORK -- need a full SA/design document --> SAD["sa-doc"]
+    WORK -- planning my own growth --> CG["career-growth"]
 
     WORK -- 💥 something broke --> DM["debug-mantra<br/>(diagnose)"]
     DM --> Q{"fix involves a<br/>design choice?"}
@@ -70,6 +72,7 @@ flowchart TD
 | designing something new | `grill-then-plan` |
 | something broke | `debug-mantra`, then the debug chain below |
 | advising on how a system should work | `study-design-verify` |
+| advising on cert / market / vendor facts (outside the codebase) | `verify-then-advise` |
 | auditing names / labels / mappings | `naming-audit` / `fit-gap-analysis` |
 | explaining a complex problem | `problem-description` |
 | "why does this code/ticket exist?" | `ticket-trace` |
@@ -78,6 +81,7 @@ flowchart TD
 | unfamiliar Dynamics 365 / Dataverse org | `crm-archaeology` |
 | need a full SA&D document (use cases, diagrams, data dictionary) | `sa-doc` |
 | need a repeatable test-case suite (feature / change / fixed bug) | `generating-test-cases` |
+| planning my own growth / quarterly career review | `career-growth` |
 
 ### The debug chain (ADRs 0003 + 0011)
 
