@@ -1,7 +1,7 @@
 {
   "name": "decision-map",
   "displayName": "Decision Map",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Plan work too big for one agent session as a map of decision tickets kept in your repo as markdown (docs/decision-map/): chart the map, then resolve one decision per session until the way is clear. v1 ships the local-markdown backend only; Azure DevOps and GitHub Issues are planned for phase 2 (ADR 0059) and are not available yet. Adapts the wayfinder idea to this marketplace's plugins and safety gates.",
   "author": {
     "name": "ThodsaphonSonthiphin",

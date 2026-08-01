@@ -1,8 +1,13 @@
 # ADR 0059 — v1 ships the local-markdown backend only; tracker backends deferred
 
-- **Status:** Accepted
+- **Status:** Accepted — **gate half-cleared, see [ADR 0060](0060-marker-join-verified-on-github-ado-half-of-the-gate-still-open.md)**
 - **Date:** 2026-08-01
 - **Supersedes in part:** [ADR 0035](0035-decision-map-v1-supports-both-trackers-plus-local-fallback.md)
+
+> The six-step probe this ADR gates on has since been **run against GitHub and
+> passed** (2026-08-01). GitHub is cleared for phase-2 implementation; the ADO half —
+> step 3, the Boards web-UI edit, where all the HTML risk lives — is still open. The
+> "a probe would settle GitHub only" reasoning below held exactly.
 
 ```mermaid
 flowchart TD

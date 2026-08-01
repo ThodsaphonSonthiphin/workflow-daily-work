@@ -348,7 +348,7 @@ once per run.** Never by a global search.
 |---|---|---|
 | Local | the ticket filename stem, `tickets/<key>.md` | glob `tickets/*.md`; the stem *is* the key (a stem that is not a safe slug is not a decision-map ticket: it is ignored, and a `warning:` line naming it is written to stderr so the skip is never silent) |
 | ADO | marker line `<!-- decision-map:key:<key> -->` in `System.Description` | one WIQL/link query for the map work item's `System.LinkTypes.Hierarchy-Forward` children, then read each child's description |
-| GitHub | marker line `<!-- decision-map:key:<key> -->` in the issue body | list the map issue's sub-issues (or parse the task list in the map body when sub-issues are unavailable), then read each issue's body |
+| GitHub | marker line `<!-- decision-map:key:<key> -->` in the issue body | `GET /issues/{n}/sub_issues` — **one paginated pass**, no per-ticket fetch: the response carries full issue objects, bodies included |
 
 Both trackers use the **same marker format as the local backend's regions**, so
 one escaping rule covers all three: every user-supplied string written into a
@@ -372,6 +372,32 @@ tickets. Enumerating the map's own children is bounded and strongly
 consistent. It is **not** one round trip: on ADO it is a WIQL query returning
 ids, then `workitemsbatch` in pages of 200, so O(n/200)+1 calls; on GitHub it
 is a paginated sub-issue listing. Bounded and predictable, not constant.
+
+**GitHub specifics phase 2 must respect** (verified live 2026-08-01 unless
+marked documented):
+
+- **A map cannot exceed 100 tickets.** GitHub documents a hard ceiling of 100
+  sub-issues per parent (and 8 nesting levels). `chart` must check the count
+  before a real run and fail loudly rather than create tickets up to the cap
+  and then start failing halfway.
+- **Sub-issue mutations are keyed on the issue *database id*, not the issue
+  number** — `sub_issue_id` and `issue_id` both take `.id`. The two are
+  unrelated values. `map.json`'s `id` for GitHub must therefore carry the
+  number (what humans and `--ticket` use) *and* the database id (what the
+  mutations need), or every write costs an extra resolve call.
+- A sub-issue must share the parent's repository **owner**, so a map cannot
+  span owners.
+- **Secondary rate limit: 80 content-creating requests per minute.** A large
+  additive `chart` must pace itself; the primary 5,000/hr limit is not the
+  binding one.
+- Native GitHub **issue types are organisation-scoped** and unavailable on a
+  user-owned repo — which is why the type is carried by the
+  `decision-map:type:<type>` label and not by the native field.
+- `gh` gained first-class `--parent` / `--blocked-by` flags in **2.94.0**
+  (2026-06-10). Either pin that as a prerequisite or drive the REST/GraphQL
+  endpoints through `gh api`, which works on any version. GraphQL can fetch the
+  map, its children, their bodies and their `blockedBy` edges in one round
+  trip — worth considering over the REST list.
 
 **Key format.** A key matches `[A-Za-z0-9][A-Za-z0-9_-]*` and **must not
 contain `--`**. The HTML spec forbids `--` inside comment text, so
@@ -405,6 +431,11 @@ not situations to work around:
   decision-map ticket: ignore it, so an unrelated hand-created child cannot
   collide with the join. (The local backend does the same for a filename that
   is not a safe slug.)
+- **A body that is absent is not an empty body.** GitHub returns `body: null`
+  for an issue created with no description — verified on two live issues — so
+  every read of a body must treat `null` as "no markers found" rather than
+  letting a `contains`/regex throw. A *labelled* child with a null body is the
+  loud error above, not a skip.
 - **Parentage is authoritative.** A ticket re-parented out of this map stops
   being one of its tickets, and a later `chart` naming that key creates a
   fresh ticket rather than adopting the moved one. Re-parenting is not a
@@ -414,19 +445,54 @@ not situations to work around:
 
 The whole design rests on one bet — that a marker written into an item's body
 survives round trips through the tracker. **Verify that before writing join
-code**, because every fallback below is cheaper to adopt early than late:
+code**, because every fallback below is cheaper to adopt early than late.
+
+> **GitHub half: PASSED, 2026-08-01.** Run against a throwaway private repo.
+> The marker survives byte-for-byte through create → `GET`, through a
+> close/reopen, and through a **human edit in the web UI** (the deciding test):
+> a body of 122 chars came back byte-identical, and after a human typed a line
+> *inside* a `decision-map:fog` region it came back as exactly the original
+> plus what was typed — all three markers intact, no line-ending rewrite, no
+> sanitiser. A key containing `--` also survives the API verbatim; the format
+> rule stays because the local backend already rejects such keys at mint time
+> and because ADO is the tracker with a rich-text editor. Sub-issue add/list
+> and native `blocked_by` write+read were exercised end to end.
+>
+> **ADO half: NOT RUN — still the gate.** All the risk lives here:
+> `System.Description` is HTML, and **Microsoft documents nothing about
+> sanitisation of work-item HTML fields or whether HTML comments survive a
+> `PATCH`→`GET` or a Boards rich-text edit.** This probe is therefore not
+> diligence, it is the only evidence that will ever exist.
+
+Steps 1–5 are ADO-shaped and **open**; step 6 is GitHub and is settled above.
 
 1. `PATCH` a description containing the marker, `GET` it back, and
-   **byte-compare** the marker.
+   **byte-compare the marker region** — not the whole body, which carries
+   formatting the tracker may legitimately reshape.
 2. Repeat with a key containing `--`, to confirm the format rule above is
    actually necessary on this tracker (and that a conforming key is safe).
 3. **Edit that description in the Boards web UI, then re-`GET`.** This is the
    deciding test: the rich-text editor, not the API, is what rewrites HTML.
 4. Close the item and reopen it, then re-`GET`.
-5. Confirm the real call shape end to end: WIQL for ids, then
-   `workitemsbatch` in pages of 200.
-6. For GitHub, check sub-issue API availability separately, and exercise the
-   task-list fallback if it is unavailable.
+5. Confirm the real call shape end to end: WIQL for ids (WIQL returns ids only
+   whatever you `SELECT`, so the two-call shape is mandatory), then
+   `workitemsbatch` in pages of 200 — **with `errorPolicy: "omit"`**, or one
+   deleted child fails the whole batch. Send `fields` *and* `$expand:
+   "relations"` in the same call and confirm both come back; the join needs the
+   description and the links together. Capture a real `workItemRelations`
+   payload for a map with 2+ children and pin the root-row shape in a fixture.
+6. GitHub sub-issue API availability. **Settled: GA, no fallback needed.**
+
+Two further ADO checks the documentation forces:
+
+- **Enumerate `GET _apis/wit/workitemrelationtypes?api-version=7.1` rather than
+  hard-coding dependency link names.** Microsoft's own WIQL page and the
+  relation-types API disagree on the spelling
+  (`Dependency-Predecessor/-Successor` vs `Dependency-Forward/-Reverse`); only
+  `System.LinkTypes.Hierarchy-Forward` is agreed by both and safe to hard-code.
+- **Use `op: "test"` on `/rev` in the JSON-Patch** when `chart` updates an
+  existing item, so a concurrent human edit fails the call instead of being
+  silently overwritten by a read-modify-write.
 
 If the marker does not survive, take the first rung that does — **tags, labels
 and the search API stay rejected at every rung**, for the reasons above:
@@ -446,11 +512,11 @@ and the search API stay rejected at every rung**, for the reasons above:
 | Concept | ADO | GitHub | Local |
 |---|---|---|---|
 | map | work item `mapType`, tag `decision-map:map` | issue, label `decision-map:map` | `docs/decision-map/<slug>/map.md` |
-| ticket | child via `System.LinkTypes.Hierarchy-Reverse`, tag `decision-map:ticket`, body line `Decision-Map-Type: <type>` | sub-issue (native REST if available, else task-list in map body), labels `decision-map:ticket`, `decision-map:type:<type>` | `tickets/<slug>.md` with frontmatter |
+| ticket | child via `System.LinkTypes.Hierarchy-Reverse`, tag `decision-map:ticket`, body line `Decision-Map-Type: <type>` | **sub-issue (native REST — GA since 2025-04-09, no fallback)**, labels `decision-map:ticket`, `decision-map:type:<type>` | `tickets/<slug>.md` with frontmatter |
 | ticket `key` | `<!-- decision-map:key:<key> -->` in `System.Description` | `<!-- decision-map:key:<key> -->` in the issue body | the filename stem `tickets/<key>.md` |
 | claim | `System.AssignedTo` | assignee | frontmatter `assignee:` |
 | close | `System.State` → `Done` (fallback `Closed` on 400) | state closed | frontmatter `status: closed` |
-| blocking | `System.LinkTypes.Dependency-Reverse` on the blocked item → predecessor | native "blocked by" if the plan supports it, else body line `blocked-by: #<n>` (weaker — the script labels it) | frontmatter `blocked_by: [slug]` |
+| blocking | `System.LinkTypes.Dependency-Reverse` on the blocked item → predecessor | **native issue dependencies** — `POST /issues/{n}/dependencies/blocked_by` with `issue_id`; readable both directions (GA 2025-08-21, no fallback) | frontmatter `blocked_by: [slug]` |
 | resolution | work-item comment | issue comment | `## Resolution` section inside the `decision-map:resolution` markers (see below) |
 | ticket `key` | `<!-- decision-map:key:<key> -->` in `System.Description` | `<!-- decision-map:key:<key> -->` in the issue body | the filename stem `tickets/<key>.md` |
 | ticket `gist` | `decision-map:gist` region in `System.Description` | same region in the issue body | frontmatter `gist:` |
@@ -497,14 +563,27 @@ only. Reading:
 | Backend | `open` | `closed` |
 |---|---|---|
 | ADO | any other state category | `System.State` whose **state category** is `Completed` or `Removed` |
-| GitHub | `state` is `open` | `state` is `closed` (either `state_reason` — `completed` or `not_planned`) |
+| GitHub | `state` is `open` | `state` is `closed` — read `state` **only** |
 | Local | frontmatter `status: open`, or absent | frontmatter `status: closed` |
 
 Match on ADO's **state category**, never on the literal state name: names
 differ per process (Agile `Closed`, Scrum `Done`, Basic `Done`) and a project
 may add its own, so a name-based check silently mis-reads a customised
 process. `Removed` maps to `closed` because a removed item is not actionable;
-like any closed ticket it then appears in no `frontier.json` bucket.
+like any closed ticket it then appears in no `frontier.json` bucket. The
+category for a type is one call:
+`GET {org}/{project}/_apis/wit/workitemtypes/{type}/states?api-version=7.1`
+returns `{name, color, category}`. Note this rule contradicts the **close**
+row's `Done` → fallback `Closed` on 400, which is name-based: `Done` is the
+completed state in Basic and Scrum, `Closed` in Agile and CMMI, so the pair
+covers the four stock processes and nothing else. Phase 2 should resolve the
+target state through the states API rather than guessing and catching a 400.
+
+**Never key on GitHub's `state_reason`.** A closed issue can carry
+`state_reason: null`, and the enum has grown beyond `completed` /
+`not_planned` (it now includes `duplicate` and `reopened`), so any check that
+enumerates reasons mis-reads issues that are plainly closed. `state` alone is
+the signal.
 
 ## Local map/ticket file formats
 
