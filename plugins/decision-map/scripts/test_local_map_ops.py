@@ -1099,6 +1099,47 @@ class LocalMapOpsTest(unittest.TestCase):
         self.assertIn("fog-graduate", ro["blockedBy"])
         self.assertIn("auth-model", ro["blockedBy"])
 
+    # Round-3 hazard: _SAFE_SLUG_RE accepts "foo--bar", which would make the
+    # cross-backend key marker "<!-- decision-map:key:foo--bar -->" a MALFORMED
+    # HTML comment -- "--" is not allowed inside comment text, so sanitizers
+    # and rich-text editors rewrite or truncate it, silently breaking the
+    # key->item join and re-creating every ticket. Rejected at the one place
+    # keys are minted.
+    # G4: map.json and frontier.json filter blockedBy DIFFERENTLY and must not
+    # be made to agree -- map.json is the durable graph (every recorded
+    # blocker, open or closed), frontier.json answers "why can I not pick this
+    # up right now" (open blockers only). Two backends are about to implement
+    # this from the contract, so pin the distinction.
+    def test_map_json_keeps_closed_blockers_that_frontier_drops(self):
+        self._chart()
+        ops.resolve(self.root, "example-effort", "auth-model", "answered",
+                    link=None, body=None)
+        m = ops.read_map(self.root, "example-effort")
+        rollout = next(t for t in m["tickets"] if t["key"] == "rollout-order")
+        self.assertEqual(rollout["blockedBy"], ["auth-model"],
+                         "map.json must keep a blocker after it closes")
+        f = ops.frontier(self.root, "example-effort")
+        self.assertIn("rollout-order", [t["id"] for t in f["frontier"]],
+                      "a ticket whose only blocker closed is actionable")
+        self.assertNotIn("rollout-order", [b["id"] for b in f["blocked"]])
+
+    def test_chart_rejects_a_key_containing_a_double_hyphen(self):
+        before = _snapshot(self.root)
+        for key in ("foo--bar", "a--", "--lead", "x---y"):
+            with self.subTest(key=key):
+                bad = copy.deepcopy(INPUT)
+                bad["tickets"][0]["key"] = key
+                bad["tickets"][0]["blocks"] = []
+                with self.assertRaises(ops.ChartValidationError) as cm:
+                    ops.chart(self.root, bad, real=True)
+                self.assertIn("--", str(cm.exception))
+                self.assertEqual(_snapshot(self.root), before,
+                                 "rejection must happen before any write")
+        # a single hyphen is still fine -- the fixture keys all use one
+        ops.chart(self.root, INPUT, real=True)
+        self.assertTrue((self.root / "example-effort" / "tickets"
+                         / "auth-model.md").exists())
+
     def test_plan_detail_is_deduped_and_absent_on_non_merge_entries(self):
         self._chart()
         inp = self._plus_ticket(blocks=["api-limits", "api-limits"])

@@ -23,9 +23,13 @@ just-created ticket was meant to block it, silently, which is exactly what
 the frontier must never do.
 
 `force=True` (CLI: --force) is the explicit full rewrite. It is DESTRUCTIVE:
-it discards every recorded resolution, claim and blocking edge in the map.
-It is never needed to add tickets. See _FORCE_COST -- no message in this
-module may recommend --force without saying so.
+it discards the recorded resolutions, claims and blocking edges of every item
+the input NAMES -- not of the whole map. Its reach is exactly the items the
+plan labels OVERWRITE; a ticket named only in a `blocks` list is still a
+`merge` and keeps everything, and a ticket the input does not mention is not
+in the plan at all and is untouched. It is never needed to add tickets. See
+_FORCE_COST -- no message in this module may recommend --force without saying
+what it costs.
 
 Round 1's Critical — a re-run must never silently destroy recorded state —
 is still guarded, now by skipping rather than refusing. `chart(real=False)`
@@ -179,8 +183,8 @@ _EMPTY_LIST_LINE = "- (none)"
 # and watched it erase a resolution, its frontmatter and its index entry:
 # round 1's Critical harm, actively recommended by this module's own
 # messages. Any text that steers a user toward --force must carry this.
-_FORCE_COST = ("--force rewrites the whole map and DISCARDS every recorded "
-               "resolution, claim and blocking edge in it")
+_FORCE_COST = ("--force fully rewrites every item named in the input and "
+               "DISCARDS their recorded resolutions, claims and blocking edges")
 
 
 def _region_re(start, end):
@@ -411,6 +415,19 @@ def _validate_chart_input(inp, root=None):
             raise ChartValidationError(
                 f"invalid ticket key {key!r}: must be a safe slug "
                 "(letters, digits, '-', '_'; no path separators or '..')")
+        # A key is a CROSS-BACKEND identity: ADO and GitHub carry it in an
+        # HTML comment (<!-- decision-map:key:<key> -->), and the HTML spec
+        # forbids "--" inside comment text -- sanitizers and rich-text editors
+        # rewrite or truncate such a comment, which would silently break the
+        # key->item join and re-create every ticket. Rejected here, at the one
+        # place keys are minted, rather than in _SAFE_SLUG_RE: tightening that
+        # would make _all_tickets silently skip an existing "a--b.md" and
+        # would reject --ticket for a file that legitimately exists.
+        if "--" in key:
+            raise ChartValidationError(
+                f"invalid ticket key {key!r}: must not contain '--'. The key is "
+                "carried in an HTML comment on ADO and GitHub, where '--' is "
+                "not allowed inside comment text; use a single hyphen")
         if t["type"] not in VALID_TICKET_TYPES:
             raise ChartValidationError(
                 f"ticket {key!r}: invalid type {t['type']!r}; "

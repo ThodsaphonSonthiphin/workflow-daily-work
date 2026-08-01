@@ -75,7 +75,8 @@ Its reach is exactly the items the plan labels `OVERWRITE`:
 
 | the item is… | label under `--force` | what happens to its recorded state |
 |---|---|---|
-| listed in `tickets[]` | `OVERWRITE` | **all discarded** — status back to `open`, assignee cleared, gist cleared, resolution removed, `blockedBy` reset and then re-wired from this input's `blocks` |
+| listed in `tickets[]` **and already exists** | `OVERWRITE` | **all discarded** — status back to `open`, assignee cleared, gist cleared, resolution removed, `blockedBy` reset and then re-wired from this input's `blocks` |
+| listed in `tickets[]` but **does not exist yet** | `create` | nothing to discard — `--force` does not change how a new ticket is created |
 | the map itself | `OVERWRITE` | title / destination / notes / fog / out-of-scope rewritten from the input. Fog and out-of-scope lines that existed only on the map and are absent from the input **are lost** — this is the one place additive's union guarantee does not apply |
 | named only in a `blocks` list, not in `tickets[]` | `merge` | **nothing discarded** — it gains the edge and keeps its status, assignee, gist and resolution, exactly as on the additive path |
 | present on the map but in neither `tickets[]` nor any `blocks` | *absent from the plan* | **untouched** — `--force` never reaches an item this input does not name |
@@ -86,10 +87,15 @@ the plan nor this contract permits. Every destructive act must appear in the
 dry-run plan as an `OVERWRITE` line before it happens.
 
 One consequence worth knowing: the "Decisions so far" index is a projection
-refreshed by `resolve`, so after a `--force` rewrite it reflects only the
-tickets this input rewrote. A ticket left closed because the input did not
-name it keeps its own closed state, but is no longer listed in the index until
-something re-projects it.
+refreshed by `resolve`, and `--force` rewrites the map body without
+re-projecting it, so **the index comes out empty** — not narrowed to the
+surviving decisions. Every rewritten ticket is reset to `open` so could not
+appear anyway, and a ticket that is still closed (because the input named it
+only in a `blocks` list, or did not name it at all) keeps its own closed state
+but drops out of the index too. It is **self-healing**: the next `resolve`
+re-projects the index from every closed ticket and all of those entries come
+back. A backend must therefore not implement a partial refresh here — the
+index is either fully re-projected or left for the next `resolve` to rebuild.
 
 #### Dry-run action vocabulary (required of every backend)
 
@@ -109,6 +115,42 @@ additive `chart` genuinely produces:
 be labelled `merge`, never `skip`. A `merge` entry carries a `detail` string
 naming what it will add (e.g. `unions blockedBy: fog-graduate`), so the
 ADR-0039 approval gate can show the reviewer every write before it happens.
+
+#### Dry-run plan schema
+
+`chart` with `--dry-run` (the default) writes this to stdout and nothing else:
+
+```json
+{
+  "backend": "ado",
+  "dryRun": true,
+  "planned": [
+    { "path": "<map>",      "action": "merge",         "detail": "adds 1 fog line" },
+    { "path": "auth-model", "action": "skip (exists)", "detail": null },
+    { "path": "rollout",    "action": "merge",         "detail": "unions blockedBy: auth-model" },
+    { "path": "new-thing",  "action": "create",        "detail": null }
+  ],
+  "divergence": ["<human-readable string>", "..."]
+}
+```
+
+- `dryRun` is `true` only on a dry run; a real run returns `map.json` instead,
+  with `divergence` added.
+- **`planned` is ordered and complete**: the map first, then one entry for
+  every item the run would touch — including an existing ticket that appears
+  only as a `blocks` target and is therefore not in `tickets[]`. Nothing the
+  run writes may be missing from it; that is the whole value of the gate.
+- `path` identifies the item. The name is historical — it is the file path on
+  the local backend, and on a tracker it is the ticket **`key`**, or the
+  literal `<map>` for the map item. It is a display and correlation handle,
+  not something to parse.
+- `action` is one of the four labels above. `detail` is a one-line string on a
+  `merge` entry saying what it will add, and `null` on every other action.
+- `divergence` is always present (empty list when there is nothing to report),
+  and holds the same strings the real run returns.
+
+The same plan is rendered for humans on **stderr**; stdout carries JSON or
+nothing, so `chart --input x | jq` works on every backend.
 
 ## `map_input.json` (input to `chart`)
 
@@ -171,13 +213,26 @@ initial chart and on `--force`. Blocking edges are **not** listed here: since
 ADR 0055 they are applied, and appear in the dry-run plan as a `merge`.
 
 `status` ∈ `open | closed`. `blockedBy` lists upstream blockers — the tickets
-that must close before this one is actionable — the same relation `frontier.json`
-reports for every blocked ticket; every backend computes this relation
-naturally from its own native dependency mechanism (see the "blocking" row of
-Backend mappings below for the exact field/label each backend uses). **Its
-entries are `key`s, not native ids**, in every backend: a backend that stores
-the edge natively (an ADO link, a GitHub "blocked by") must resolve each
-linked item back to its key through the join above before emitting this field.
+that must close before this one is actionable; every backend computes it from
+its own native dependency mechanism (see the "blocking" row of Backend
+mappings below). **Its entries are `key`s, not native ids**, in every backend:
+a backend that stores the edge natively (an ADO link, a GitHub "blocked by")
+must resolve each linked item back to its key through the join above before
+emitting this field.
+
+**`map.json` and `frontier.json` filter `blockedBy` differently — this is
+deliberate, and the two must not be made to agree:**
+
+- **`map.json` lists *every* recorded blocker**, open or closed. It is the
+  durable graph: an edge does not stop existing because the blocker was
+  resolved, and a consumer redrawing the map needs all of them.
+- **`frontier.json`'s `blocked[].blockedBy` lists only the *open* blockers.**
+  It answers "why can I not pick this up right now", and a closed blocker is
+  not a reason. This is also what makes `resolve` release the next decision.
+
+A ticket with blockers that have all closed therefore appears on the
+`frontier`, while still showing those blockers in `map.json`.
+
 After `resolve`, `gist` holds the one-line answer. For the local backend, `id`
 and `key` are both the ticket file's slug and `url` is the repo-relative file
 path.
@@ -193,7 +248,9 @@ path.
 ```
 
 Closed tickets appear in none of the three buckets — a closed ticket is done,
-not actionable. `blockedBy` here carries `key`s, as it does in `map.json`.
+not actionable. `blockedBy` here carries `key`s, as it does in `map.json`, but
+lists **only open blockers** — see the note under `map.json` above, which
+lists every recorded blocker instead.
 
 **Bucket precedence — every backend must use the same order.** A ticket can
 satisfy more than one condition at once (claimed *and* blocked is the common
@@ -248,19 +305,88 @@ can never forge a key. The marker is tool-owned — a human editing the body mus
 leave it alone.
 
 Why not a tag or a label: it would mean one tag/label per ticket ever created,
-and ADO tags are organisation-scoped while GitHub labels are repository-scoped,
-so both namespaces would grow without bound. Why not the search API: the join
-is correctness-critical, and code search is eventually consistent and rate
-limited. Enumerating the map's own children is bounded, strongly consistent,
-and needs one round trip per run regardless of ticket count.
+and the namespace cost is real in both: ADO tags are **project**-scoped (an
+unused tag is auto-deleted after about three days, so the pollution is
+self-limiting but the live tag list still carries one entry per open ticket),
+and GitHub labels are repository-scoped with no cleanup at all. The decisive
+argument is not the pollution though — it is that **searchability buys nothing
+once you enumerate the map's children**, so any namespace cost is paid for a
+capability the design does not use.
 
-Two rules a backend must enforce rather than guess:
+Why not the search API: the join is correctness-critical, and code search is
+eventually consistent and rate limited — a stale index means duplicate
+tickets. Enumerating the map's own children is bounded and strongly
+consistent. It is **not** one round trip: on ADO it is a WIQL query returning
+ids, then `workitemsbatch` in pages of 200, so O(n/200)+1 calls; on GitHub it
+is a paginated sub-issue listing. Bounded and predictable, not constant.
 
-- **Keys are unique within a map.** Finding two children with the same key is
+**Key format.** A key matches `[A-Za-z0-9][A-Za-z0-9_-]*` and **must not
+contain `--`**. The HTML spec forbids `--` inside comment text, so
+`<!-- decision-map:key:foo--bar -->` is a malformed comment that sanitizers
+and rich-text editors rewrite or truncate — breaking the join silently and
+re-creating every ticket. A double hyphen carries no meaning a single one does
+not, so the key is constrained rather than the marker syntax; the alternatives
+were encoding the key, which destroys the marker's greppability, or a
+non-comment carrier, which is either visible to readers or strippable by
+rich-text editors. The local backend rejects such a key at chart time, where
+keys are minted.
+
+#### Rules for a map a human has edited
+
+The join must survive people editing the tracker by hand. These are errors,
+not situations to work around:
+
+- **Every child carrying the decision-map ticket tag/label must resolve to
+  exactly one key, or the run fails.** In particular, a tagged child with
+  **no** key marker is a **loud error** — never "ignore it and carry on".
+  Ignoring it hides the ticket from the join, so `chart` labels it `create`,
+  and a map whose markers were stripped (a bulk edit, an HTML sanitizer, a
+  migration) is silently re-created in full and presented to the user as a
+  page of ordinary, approvable `create` lines. That is the worst failure this
+  contract can produce. Fail, and name the offending item.
+- **Two key markers in one body is an error.** Do not take the first, the
+  last, or the one that matches the input.
+- **Keys are unique within a map.** Two children resolving to the same key is
   an error — fail, do not pick one.
-- **A child with no key marker is not a decision-map ticket.** Ignore it (the
-  local backend does the same for a filename that is not a safe slug), so a
-  hand-created child issue cannot collide with the join.
+- A child with **neither** the tag/label **nor** a key marker is simply not a
+  decision-map ticket: ignore it, so an unrelated hand-created child cannot
+  collide with the join. (The local backend does the same for a filename that
+  is not a safe slug.)
+- **Parentage is authoritative.** A ticket re-parented out of this map stops
+  being one of its tickets, and a later `chart` naming that key creates a
+  fresh ticket rather than adopting the moved one. Re-parenting is not a
+  supported way to move a decision between maps.
+
+### Before building the join: verify it, Task 4
+
+The whole design rests on one bet — that a marker written into an item's body
+survives round trips through the tracker. **Verify that before writing join
+code**, because every fallback below is cheaper to adopt early than late:
+
+1. `PATCH` a description containing the marker, `GET` it back, and
+   **byte-compare** the marker.
+2. Repeat with a key containing `--`, to confirm the format rule above is
+   actually necessary on this tracker (and that a conforming key is safe).
+3. **Edit that description in the Boards web UI, then re-`GET`.** This is the
+   deciding test: the rich-text editor, not the API, is what rewrites HTML.
+4. Close the item and reopen it, then re-`GET`.
+5. Confirm the real call shape end to end: WIQL for ids, then
+   `workitemsbatch` in pages of 200.
+6. For GitHub, check sub-issue API availability separately, and exercise the
+   task-list fallback if it is unavailable.
+
+If the marker does not survive, take the first rung that does — **tags, labels
+and the search API stay rejected at every rung**, for the reasons above:
+
+1. **A key→id manifest in a marker region on the *map* item's body.** One
+   marker in one place instead of n, so it is a single survival bet and costs
+   zero extra calls (the map item is fetched anyway). The manifest must be
+   rebuildable, since it is now a second source of truth.
+2. **A tool-owned comment on the map item** holding the same manifest. Comments
+   are not touched by the work-item rich-text editor, at the cost of one extra
+   call per run.
+3. **A key prefix in `System.Title`** (`[auth-model] Auth model — …`). Ugly and
+   user-visible, and a human can rename it away, but titles survive everything.
 
 ## Backend mappings
 
@@ -273,6 +399,59 @@ Two rules a backend must enforce rather than guess:
 | close | `System.State` → `Done` (fallback `Closed` on 400) | state closed | frontmatter `status: closed` |
 | blocking | `System.LinkTypes.Dependency-Reverse` on the blocked item → predecessor | native "blocked by" if the plan supports it, else body line `blocked-by: #<n>` (weaker — the script labels it) | frontmatter `blocked_by: [slug]` |
 | resolution | work-item comment | issue comment | `## Resolution` section inside the `decision-map:resolution` markers (see below) |
+| ticket `key` | `<!-- decision-map:key:<key> -->` in `System.Description` | `<!-- decision-map:key:<key> -->` in the issue body | the filename stem `tickets/<key>.md` |
+| ticket `gist` | `decision-map:gist` region in `System.Description` | same region in the issue body | frontmatter `gist:` |
+| map `destination` / `notes` | prose in the map item's description | prose in the map issue body | `## Destination` / `## Notes` |
+| map `notYetSpecified` / `outOfScope` | `decision-map:fog` / `decision-map:scope` regions in the map item's description | same regions in the map issue body | the same two regions in `map.md` |
+
+### Where each field lives on a tracker
+
+The local backend keeps everything in Markdown files. A tracker backend needs
+an equivalent home for each field, and the same enumerate-and-read pass that
+builds the key join should recover all of them without extra calls.
+
+**`gist`.** `resolve` posts the human-facing resolution as a native tracker
+comment, but the gist must also be **recoverable** for `map.json`, and walking
+every ticket's comments costs one API call per ticket. So the gist is *also*
+written into a `decision-map:gist` marker region on the ticket item itself and
+read from there — one line, flattened and escaped exactly as the local backend
+flattens it into frontmatter. The comment is the record a human reads; the
+region is the field a machine reads. They are written in the same operation
+and must not be allowed to diverge.
+
+**The map body lists.** Additive `chart` unions `notYetSpecified` and
+`outOfScope`, so a tracker needs the same delimited regions `map.md` uses:
+read the map item's body, replace the content between the markers, write it
+back. **Only the resolution markers are local-only** — a tracker records the
+resolution as a native comment instead. The `key`, `gist`, `fog`, `scope` and
+`decisions` markers are shared by every backend that stores text, and carry
+the same escaping rule (user-supplied strings are escaped on the way in, so
+nothing a user types can forge a marker).
+
+**Foreign edge targets.** decision-map models dependencies **within one map**.
+On write, an edge target must be in this input or already a child of this map;
+anything else is a validation error, exactly as the local backend enforces. On
+read, a native dependency link pointing at an item that is not a child of this
+map has no key, cannot be expressed in `blockedBy`, and is **ignored** — it is
+not part of the decision-map graph. A cross-map dependency added by hand in
+the tracker UI is therefore invisible to the tool; express it as a fog line or
+a note instead. A backend must not invent a synthetic key, and must not leak a
+native id into `blockedBy`.
+
+**Reading `status` back.** The "close" row above gives the write direction
+only. Reading:
+
+| Backend | `open` | `closed` |
+|---|---|---|
+| ADO | any other state category | `System.State` whose **state category** is `Completed` or `Removed` |
+| GitHub | `state` is `open` | `state` is `closed` (either `state_reason` — `completed` or `not_planned`) |
+| Local | frontmatter `status: open`, or absent | frontmatter `status: closed` |
+
+Match on ADO's **state category**, never on the literal state name: names
+differ per process (Agile `Closed`, Scrum `Done`, Basic `Done`) and a project
+may add its own, so a name-based check silently mis-reads a customised
+process. `Removed` maps to `closed` because a removed item is not actionable;
+like any closed ticket it then appears in no `frontier.json` bucket.
 
 ## Local map/ticket file formats
 
@@ -381,6 +560,9 @@ The rules, which any reader or writer of the local format must honour:
   marked block below it, so an unmarked block written by another tool will
   be duplicated rather than updated.
 
-These markers are specific to the local backend's Markdown files. ADO and
-GitHub record the resolution as a native tracker comment and need no
-equivalent.
+Only the **resolution** markers are specific to the local backend's Markdown
+files: ADO and GitHub record the resolution as a native tracker comment and
+need no equivalent. The `key`, `gist`, `fog`, `scope` and `decisions` markers
+are **shared by every backend that stores text** — see "Where each field lives
+on a tracker" above — and carry the same escaping rule and the same
+one-well-formed-region-per-kind rule stated here.
