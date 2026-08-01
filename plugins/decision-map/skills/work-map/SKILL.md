@@ -177,12 +177,14 @@ handshake: a session that starts a minute later sees the ticket under `claimed`
 and picks something else. Work first and claim later, and you have no handshake
 at all.
 
-**A claim you cannot finish must be released by hand.** There is no `unclaim`
-subcommand, and the contract scopes `--user` to ADO, so it is not a release
-lever here — nor is passing an empty one, which on Windows PowerShell drops the
-argument and fails argparse outright. So if you end the session
-holding a ticket you did not resolve — the escalation in Step 3 is the usual
-reason — clear its `assignee:` value by hand:
+**A claim you cannot finish must be released.** There is no `unclaim`
+subcommand, but `claim --user ""` does release one: it sets `assignee:` back
+to empty and the ticket returns to the frontier. The catch is quoting — on
+Windows PowerShell an empty string is dropped before argparse sees it, so the
+command fails there. Under bash it works. If you are on PowerShell, or you
+would rather not rely on shell quoting, clear the value by hand instead — so
+if you end the session holding a ticket you did not resolve (the escalation in
+Step 3 is the usual reason), edit:
 
 ```
 docs/decision-map/<slug>/tickets/<key>.md   →   frontmatter `assignee:`
@@ -210,7 +212,14 @@ resolution.
 
 **HITL means the human answers.** Preference, trade-off and scope questions go
 to the user, one at a time. Your own recommended answer is a recommendation,
-never an accepted answer — do not resolve a ticket on it.
+never an accepted answer — do not resolve a ticket on it. Silence is not
+acceptance, and neither is a plausible-sounding default.
+
+If the human is not available to answer, stop and say so rather than resolving
+alone. A decision recorded without them is worse than an open ticket: the map
+presents it as settled, and the next session builds on it without knowing
+nobody agreed to it. Release the claim (above) so the ticket goes back on the
+frontier.
 
 **Research escalation (ADR 0038).** If the question can only be answered from a
 live system — a real schema, a real org's data, the actual running code — do

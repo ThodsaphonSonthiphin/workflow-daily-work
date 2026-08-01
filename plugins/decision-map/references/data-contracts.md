@@ -39,7 +39,7 @@ do not change when a tracker lands, only which ops script the skills call.
 | `chart` | `--input <map_input.json> --output <map.json>` | create map + tickets + parent links + blocking edges, **additively** (ADR 0054/0055) — see below. **Dry-run by default**; `--real` performs the writes; `--force` is a **destructive** full rewrite that discards recorded resolutions, claims and edges. |
 | `read` | `--map <id\|slug> --output <map.json>` | fetch map + children at low resolution. |
 | `frontier` | `--map <id\|slug> --output <frontier.json>` | open + unblocked + unclaimed children. |
-| `claim` | `--map <id\|slug> --ticket <id\|slug>` (`--user <upn>` ADO only) | assign the ticket to the caller. |
+| `claim` | `--map <id\|slug> --ticket <id\|slug> [--user <upn>]` | assign the ticket to the caller. `--user` works on **every** backend (it sets the local `assignee:` frontmatter too); passing an empty value releases the claim. |
 | `resolve` | `--map <id\|slug> --ticket <id\|slug> --gist "<one line>" [--link <url>] [--body-file <md>]` | post resolution comment, close the ticket. |
 | `comment` | `--map <id\|slug> --ticket <id\|slug> --body-file <md>` | plain comment. |
 | `block` | `--map <id\|slug> --ticket <id\|slug> --blocked-by <id\|slug>` | dependency edge (ticket waits on blocked-by). |
@@ -237,11 +237,22 @@ task=either.
     { "key": "auth-model", "id": "auth-model", "name": "Auth model — …",
       "url": "docs/decision-map/billing/tickets/auth-model.md",
       "type": "grilling", "mode": "HITL",
-      "status": "open", "assignee": null, "blockedBy": ["rollout-order"],
+      "status": "open", "assignee": null, "blockedBy": [],
+      "gist": null },
+    { "key": "rollout-order", "id": "rollout-order", "name": "Rollout order — …",
+      "url": "docs/decision-map/billing/tickets/rollout-order.md",
+      "type": "grilling", "mode": "HITL",
+      "status": "open", "assignee": null, "blockedBy": ["auth-model"],
       "gist": null }
   ]
 }
 ```
+
+Note the direction, because it inverts between the two documents and is the
+one relation the whole graph is built from: the input above says `auth-model`
+**blocks** `rollout-order`, so it is `rollout-order` that comes back
+`"blockedBy": ["auth-model"]`. `auth-model` itself is blocked by nothing. The
+`frontier.json` example below shows the same pair the same way round.
 
 A phase-2 tracker backend emits the same fields with its own native handles —
 `"backend": "ado"`, `"id": "1235"`, `"url": "https://…"` — and the same `key`s.
@@ -597,6 +608,20 @@ The rules, which any reader or writer of the local format must honour:
   `&lt;!-- decision-map:` (which still renders as typed, but is not a marker).
   A file must contain at most one well-formed region of each kind; a writer
   that finds otherwise should refuse to write rather than guess.
+- **Escape LAST: flatten first, then escape — never the other way round.**
+  Any transformation applied to a string *after* it is escaped can put a
+  marker back together. Flattening a value like
+  `"<!--\ndecision-map:resolution:start -->"` to a single line finds no marker
+  to escape if the escape has already run, and then reconstitutes a live one
+  that nothing ever inspected. Whatever a backend does to user text —
+  flattening to one line, trimming, collapsing whitespace, converting Markdown
+  to HTML — must happen **before** the escape, and nothing may touch the
+  string afterwards. Flatten using the same line-break definition the reader
+  splits on, so writer and parser cannot drift apart (Python's
+  `str.splitlines()` breaks on eight separators beyond CR/LF, including
+  U+0085, U+2028 and U+2029). This rule cost four review rounds to get right
+  and is invisible in the output when it is working; a backend that escapes
+  first will pass every ordinary test and corrupt real files.
 - **Do not emit an unmarked resolution block.** `resolve` treats an
   unmarked `## Resolution` as pre-existing user content and appends a fresh
   marked block below it, so an unmarked block written by another tool will

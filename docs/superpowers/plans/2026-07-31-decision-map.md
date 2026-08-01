@@ -1,5 +1,23 @@
 # decision-map Plugin Implementation Plan
 
+> ⚠️ **EXECUTED AND SUPERSEDED IN PART — historical record, not a description
+> of the shipped tool.** This plan was carried out; implementation and five
+> review rounds changed several things it still shows. Do not read any code
+> block here as current. The authoritative sources are
+> [`plugins/decision-map/references/data-contracts.md`](../../../plugins/decision-map/references/data-contracts.md)
+> and the two skills.
+>
+> Specifically: **v1 ships the local backend only** — Tasks 4 and 5 (the ADO
+> and GitHub ops scripts) were **not** built and are phase 2
+> ([ADR 0056](../../adr/0056-v1-ships-local-backend-only-tracker-backends-deferred.md));
+> `chart` became **additive** ([ADR 0054](../../adr/0054-chart-is-additive-so-fog-graduation-needs-no-new-subcommand.md))
+> and **unions `blockedBy`** into existing tickets
+> ([ADR 0055](../../adr/0055-additive-chart-unions-blocked-by-on-existing-tickets.md));
+> and **Task 3's resolution format is obsolete** — it shows an unmarked
+> `## Resolution` append, which five review rounds replaced with a
+> sentinel-delimited region, because appending without a delimiter destroyed
+> user content in three different ways. Never copy that snippet.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship the `decision-map` plugin — wayfinder-style multi-session planning as a map of decision tickets on ADO / GitHub / local markdown — per the approved spec `docs/superpowers/specs/2026-07-31-decision-map-design.md` (ADRs 0033–0042).

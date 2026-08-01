@@ -8,8 +8,11 @@ off to the normal build flow.
 
 Adapted from the [wayfinder](https://github.com/mattpocock/skills) skill by Matt
 Pocock, re-grounded on this marketplace's plugins, trackers, and safety gates
-(design: `docs/superpowers/specs/2026-07-31-decision-map-design.md`, ADRs 0033–0042
-at the marketplace root).
+(ADRs 0033–0042 and 0054–0056 at the marketplace root). The authoritative
+description of what the tool does is
+[`references/data-contracts.md`](references/data-contracts.md); the original
+design spec at `docs/superpowers/specs/2026-07-31-decision-map-design.md` is a
+historical record and is superseded in part — it carries a banner saying how.
 
 ## Skills
 

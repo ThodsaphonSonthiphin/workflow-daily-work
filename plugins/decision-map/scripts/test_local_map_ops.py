@@ -102,9 +102,25 @@ class LocalMapOpsTest(unittest.TestCase):
         self.assertEqual(t["gist"], "per-tenant keys")
         map_md = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
         self.assertIn("[Auth model?](tickets/auth-model.md) — per-tenant keys", map_md)
+        # S2 (negative): the index is a projection of CLOSED tickets only.
+        # Including open ones survived the whole suite, and makes the map
+        # advertise an undecided question as a recorded decision with an empty
+        # gist -- worse than omitting it, because a reader trusts the index.
+        self.assertNotIn("tickets/api-limits.md", map_md,
+                         "an OPEN ticket must not appear in Decisions so far")
         # unblocking: rollout-order now on the frontier
         f = ops.frontier(self.root, "example-effort")
         self.assertIn("rollout-order", [t["id"] for t in f["frontier"]])
+        # S1 (negative): a closed ticket belongs in NO frontier bucket.
+        # Deleting frontier()'s closed filter survived the whole suite, and
+        # the mutant reports closed decisions as claimed and a closed research
+        # ticket as takeable -- that predicate is what makes the
+        # one-decision-per-session loop terminate at all.
+        self.assertNotIn("auth-model",
+                         [t["id"] for t in f["frontier"]]
+                         + [t["id"] for t in f["blocked"]]
+                         + [t["id"] for t in f["claimed"]],
+                         "a closed ticket must not appear in any frontier bucket")
 
     def test_block_adds_edge(self):
         self._chart()
@@ -1123,6 +1139,42 @@ class LocalMapOpsTest(unittest.TestCase):
                       "a ticket whose only blocker closed is actionable")
         self.assertNotIn("rollout-order", [b["id"] for b in f["blocked"]])
 
+    # E (ledger F2 / L16): a self-blocking ticket permanently quarantines
+    # itself -- frontier() reports it blocked by a ticket that can never
+    # close, so it is never takeable and never resolvable. And block()
+    # accepted a --blocked-by naming a ticket that exists nowhere, returning
+    # rc=0 while writing a phantom key that blocks the ticket forever, even
+    # though chart() rejects the identical edge. One validation surface.
+    def test_block_rejects_a_self_blocking_edge(self):
+        self._chart()
+        before = _snapshot(self.root)
+        with self.assertRaises(ops.InvalidEdgeError):
+            ops.block(self.root, "example-effort", "auth-model", "auth-model")
+        self.assertEqual(_snapshot(self.root), before)
+        f = ops.frontier(self.root, "example-effort")
+        self.assertIn("auth-model", [t["id"] for t in f["frontier"]],
+                      "the ticket must stay actionable")
+
+    def test_chart_rejects_a_ticket_that_blocks_itself(self):
+        before = _snapshot(self.root)
+        bad = copy.deepcopy(INPUT)
+        bad["tickets"][0]["blocks"] = ["auth-model"]      # its own key
+        with self.assertRaises(ops.ChartValidationError):
+            ops.chart(self.root, bad, real=True)
+        self.assertEqual(_snapshot(self.root), before,
+                         "rejection must happen before any write")
+
+    def test_block_rejects_a_blocked_by_that_exists_nowhere(self):
+        self._chart()
+        before = _snapshot(self.root)
+        with self.assertRaises(FileNotFoundError):
+            ops.block(self.root, "example-effort", "auth-model", "ghost")
+        self.assertEqual(_snapshot(self.root), before,
+                         "no phantom key may be written")
+        m = ops.read_map(self.root, "example-effort")
+        auth = next(t for t in m["tickets"] if t["key"] == "auth-model")
+        self.assertEqual(auth["blockedBy"], [])
+
     def test_chart_rejects_a_key_containing_a_double_hyphen(self):
         before = _snapshot(self.root)
         for key in ("foo--bar", "a--", "--lead", "x---y"):
@@ -1442,6 +1494,18 @@ class LocalMapOpsCliTest(unittest.TestCase):
     # truthfulness): --dry-run short-circuited BEFORE the identifier guard, so
     # `claim --dry-run --ticket ../../../VICTIM` reported rc=0 "wouldRun" for a
     # call the real run rejects with rc=2. Inert, but an untruthful dry run.
+    def test_cli_block_rejects_a_phantom_target_with_a_clean_error(self):
+        self._run(["chart", "--root", str(self.root), "--input", str(self.input_path),
+                   "--real"])
+        for bad in ("ghost", "auth-model"):     # nonexistent, then self-block
+            with self.subTest(blocked_by=bad):
+                rc, out, err = self._run_full(
+                    ["block", "--root", str(self.root), "--map", "example-effort",
+                     "--ticket", "auth-model", "--blocked-by", bad])
+                self.assertEqual(rc, ops.EXIT_ERROR, "must not report success")
+                self.assertEqual(out, "", "stdout must carry JSON or nothing")
+                self.assertTrue(err.startswith("error: block: "), err)
+
     def test_cli_dry_run_validates_identifiers_before_reporting_success(self):
         self._run(["chart", "--root", str(self.root), "--input", str(self.input_path),
                    "--real"])

@@ -240,6 +240,13 @@ class UnsafeIdentifierError(ValueError):
     that file's own frontmatter on the way through (review round 5, N5)."""
 
 
+class InvalidEdgeError(ValueError):
+    """A blocking edge is unusable: it names its own ticket. Raised before
+    anything is written. A self-edge permanently quarantines the ticket --
+    frontier() reports it blocked by something that can never close, so it is
+    never takeable and never resolvable (review F2 / L16)."""
+
+
 class CliUsageError(ValueError):
     """A subcommand was invoked without an argument it needs. Raised before
     any work, and reported as a one-line message rather than a traceback."""
@@ -436,6 +443,11 @@ def _validate_chart_input(inp, root=None):
         keys.add(key)
     for t in inp["tickets"]:
         for blocked in t.get("blocks") or []:
+            if blocked == t["key"]:
+                raise ChartValidationError(
+                    f"ticket {t['key']!r} blocks itself: the edge would leave "
+                    "it waiting on a ticket that can never close, so it would "
+                    "never appear on the frontier")
             if blocked in keys:
                 continue
             # ADR 0055 / review F3: an edge may name a ticket that already
@@ -912,7 +924,19 @@ def block(root, slug, ticket, blocked_by):
     # "blocked_by: [a, b]" frontmatter list parseable, since a value carrying
     # a comma or a line break would otherwise corrupt it on read.
     _safe_segment(blocked_by, "blocked-by ticket id")
+    if blocked_by == ticket:
+        raise InvalidEdgeError(
+            f"ticket {ticket!r} cannot block itself: the edge would leave it "
+            "waiting on a ticket that can never close, so it would never "
+            "appear on the frontier again")
     fm, body = _load_ticket(root, slug, ticket)
+    # The target must exist in this map. chart() already rejects an edge to a
+    # ticket that is in neither the input nor the map; block() used to accept
+    # one, return rc=0 and write a phantom key that blocked the ticket for
+    # ever. Same validation surface, same rule -- and reading it raises the
+    # same FileNotFoundError any missing ticket does, which main() renders as
+    # a clean one-line error.
+    _load_ticket(root, slug, blocked_by)
     deps = fm.get("blocked_by", [])
     # Union, and do not write at all when the edge is already there. The
     # no-write path is what makes an additive re-chart byte-identical rather
@@ -1035,6 +1059,7 @@ _REMEDY = {
     CliUsageError: "run with --help to see the arguments this subcommand needs",
     ChartValidationError: "correct the field named above in map_input.json and re-run",
     UnsafeIdentifierError: "pass the id exactly as chart created it",
+    InvalidEdgeError: "a ticket cannot block itself; name a different --blocked-by",
     MarkerIntegrityError: "remove the stray decision-map marker comments from that file by hand",
     json.JSONDecodeError: "make sure --input points at valid JSON",
 }
@@ -1108,7 +1133,7 @@ def main():
     a = ap.parse_args()
     try:
         result = _dispatch(a)
-    except (CliUsageError, ChartValidationError,
+    except (CliUsageError, ChartValidationError, InvalidEdgeError,
             UnsafeIdentifierError, MarkerIntegrityError,
             json.JSONDecodeError, OSError) as e:
         remedy = next((r for cls, r in _REMEDY.items() if isinstance(e, cls)),

@@ -1,7 +1,23 @@
 # decision-map — design spec
 
+> ⚠️ **SUPERSEDED IN PART — historical design record, not the current
+> behaviour.** This is the spec as approved on 2026-07-31; implementation and
+> five review rounds changed three things it still describes. For what the
+> tool actually does, read
+> [`plugins/decision-map/references/data-contracts.md`](../../../plugins/decision-map/references/data-contracts.md)
+> and the two skills — the contract wins over this document everywhere.
+>
+> | This spec says | Actually |
+> |---|---|
+> | "three backends at full parity" | **v1 ships the local Markdown backend only.** ADO and GitHub are deferred to phase 2; the ops contract is written so they can be added without changing it ([ADR 0056](../../adr/0056-decision-map-v1-ships-local-backend-only.md)) |
+> | offer the tracker install command when a tracker is wanted | **Never offer it.** Both skills forbid it — say decision-map cannot do that yet and stop |
+> | `chart` creates a map once | **`chart` is additive**: it creates only what is absent, unions fog / out-of-scope lines, and unions a new `blockedBy` edge into an existing ticket, leaving everything else untouched ([ADR 0054](../../adr/0054-chart-is-additive-so-fog-graduation-needs-no-new-subcommand.md), [ADR 0055](../../adr/0055-additive-chart-unions-blocked-by-on-existing-tickets.md)) |
+>
+> The resolution format shown here is also pre-marker; `resolve` now writes a
+> sentinel-delimited region. See the contract's "Generated regions" section.
+
 - **Date:** 2026-07-31
-- **Status:** Draft for approval
+- **Status:** Approved and implemented, then partly superseded — see the banner above
 - **Decisions recorded:** ADRs [0033](../../adr/0033-decision-map-as-fourth-plugin.md) ·
   [0034](../../adr/0034-fourth-plugin-named-decision-map.md) ·
   [0035](../../adr/0035-decision-map-v1-supports-both-trackers-plus-local-fallback.md) ·
