@@ -105,11 +105,22 @@ overview Mermaid diagram (skill map grouped by evidence grade).
 
 ## Station 2 — MARKET
 
-Run **`verify-then-advise`'s** six-stage method over each confirmed ring, for
-the skill areas from Station 1's inventory plus any adjacent areas confirmed
-with the user. `references/market-sources.md` is the **starting** board and
-ring list — it bounds where the survey begins, not where it must stop. Two of
-the sibling's stages reach outside that list by design and are required here,
+Load the `verify-then-advise` skill via your harness's mechanism and run its
+six-stage method in full over each confirmed ring, for the skill areas from
+Station 1's inventory plus any adjacent areas confirmed with the user. Two
+stages run before the source-list work even starts and are easy to miss if
+you assume you already know the method:
+
+- **Inventory the moving parts** (stage 1) — before researching anything,
+  list every external entity this round's advice will name (certs, vendors,
+  products, market claims) as the verification queue.
+- **Compute headline numbers in a script** (stage 6) — any number that
+  carries the recommendation is computed from source values, once, in a
+  script; never sum rounded per-item parts.
+
+`references/market-sources.md` is the **starting** board and ring list — it
+bounds where the survey begins, not where it must stop. Two more of the
+sibling's stages reach outside that list by design and are required here,
 not optional:
 
 - **Counter-signal hunt** (stage 3) — a counter-signal is by definition not on
@@ -195,15 +206,19 @@ For the chosen moat:
 4. Write **`growth-plan.md`** to the career repo (overview Mermaid diagram: certs
    + projects on a quarter timeline; then per-project sections: objective
    domains covered, milestone, size, publish decision).
-5. **Wrap up:** propose the career-repo commit (assisted — show the diff summary,
-   let the user approve). Only on approval, commit, then write/finalise
-   **`growth-state.md`**'s `last_run` there per
-   `references/growth-state-contract.md` — a committed round is what `last_run`
-   means, so a crashed run and a declined commit both leave it unchanged. Then
-   print the `next_review_due` date with a reminder that re-runs are
-   user-initiated. If the user declines the commit, say plainly that the run is
-   not recorded as complete and the next run's posting-trend-delta signal will
-   have no prior round to diff against.
+5. **Wrap up:** propose the career-repo commit (assisted — show the diff
+   summary, let the user approve). On approval, write/finalise
+   **`growth-state.md`**'s `last_run` (and the round's other fields) per
+   `references/growth-state-contract.md`, **then** commit all five artifacts
+   together — `profile.md`, `market-report.md`, `moat.md`, `growth-plan.md`,
+   and `growth-state.md` — so the file asserting a committed round exists is
+   itself inside that commit. A committed round is what `last_run` means, so
+   a crashed run and a declined commit both leave it unchanged: on decline,
+   do not write `growth-state.md` at all. Then print the `next_review_due`
+   date with a reminder that re-runs are user-initiated. If the user declines
+   the commit, say plainly that the run is not recorded as complete and the
+   next run's posting-trend-delta signal will have no prior round to diff
+   against.
 
 ## Failure & degradation
 

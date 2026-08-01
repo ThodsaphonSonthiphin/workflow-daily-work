@@ -42,7 +42,7 @@ market, career roadmap) with no precedence stated in either.
   counter-signal hunt, primary-artifact counts, the institutional-incentive read, and
   the four-grade claim scale. `market-sources.md` is reduced to the per-ring board
   list that bounds MARKET's research cost (ADR 0047) — the registry list and the
-  trend-signal taxonomy live only in the sibling.
+  claim-grade scale live only in the sibling.
 - ADR 0048's rules 1–3 stand as **consequences of running the sibling**, not as
   `career-growth`'s own re-derived rules. Rule 4 (personal data never enters the
   plugin or the current project; career-repo commits are assisted) has no sibling
@@ -59,11 +59,12 @@ market, career roadmap) with no precedence stated in either.
   method (graded claims, counter-signal, institutional read) for free.
 - ➕ The trigger collision is resolved in text a model actually reads, not only in
   PLAYBOOK.
-- ➖ `career-growth` now has a **soft dependency on a second skill**. Unlike the
-  `ado-backlog` dependency (ADR 0046) this one is not optional — without the sibling
-  the MARKET station has no verification method. Both ship in the same plugin, so
-  installation cannot separate them, but a future extraction of either skill must
-  carry the other.
+- ➖ `career-growth` now has a **hard, in-plugin dependency on a second skill**.
+  Unlike the `ado-backlog` dependency (ADR 0046), which is genuinely soft — the
+  skill detects it and gracefully skips when absent — this one is not optional:
+  without the sibling the MARKET station has no verification method. Both ship
+  in the same plugin, so installation cannot separate them, but a future
+  extraction of either skill must carry the other.
 - ➖ Reading `career-growth` alone no longer tells the whole story; the delegation
   must stay explicit at every point it matters.
 - **Process lesson:** a worktree branched from a commit that omits a sibling's

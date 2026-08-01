@@ -43,11 +43,13 @@ mini_projects:                  # Station 5 output — one entry per mini projec
 - `status: retired-blocked` is set only when the registry was reachable **and**
   listed the cert as retired (ADR 0048 rule 1); the skill must then propose a
   replacement. An unreachable registry leaves the cert's status unchanged.
-- The skill updates this file **only after the career-repo commit is
-  approved**, not merely after the four document artifacts are written.
-  `last_run` means "a committed round exists in the career repo" — a crashed
-  run and a commit the user declines both leave `last_run` (and the rest of
-  this file) unchanged.
+- The skill writes this file's `last_run` (and the round's other fields)
+  once the user has **approved** the career-repo commit but **before** that
+  commit runs, so `growth-state.md` is one of the five files the commit
+  covers — never written merely after the four document artifacts exist, and
+  never left for a follow-up commit. `last_run` means "a committed round
+  exists in the career repo": a crashed run and a commit the user declines
+  both leave `last_run` (and the rest of this file) unchanged.
 - This file is a machine-readable state file and is exempt from the diagram
   convention — the four document artifacts carry the diagrams, the same way the
   CONTEXT.md glossary is exempt.
