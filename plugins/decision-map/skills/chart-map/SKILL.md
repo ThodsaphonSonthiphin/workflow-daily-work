@@ -217,10 +217,13 @@ would touch appears exactly once, with one of four actions:
 Every `merge` carries a `detail` naming exactly what it gains. A **ticket**
 merge reads `unions blockedBy: <key>` — and that is the only thing a ticket
 merge ever does. A **map-body** merge counts the lines,
-`adds 2 fog lines, 1 out-of-scope line`. Read those details out; then add the
-part the count cannot convey: it is a **union**, so it can add lines but never
-removes or reorders the ones already there, and a fog line the input omits stays
-on the map.
+`adds 2 fog lines, 1 out-of-scope line`; when it adds none but still rewrites a
+region it says so instead — `normalises the map body's list regions (no new
+lines)`, which is what you see after a hand edit left a region empty or ragged
+and the run is only restoring the tool-owned `- (none)` placeholder. Read those
+details out; then add the part the count cannot convey: it is a **union**, so it
+can add lines but never removes or reorders the ones already there, and a fog
+line the input omits stays on the map.
 
 On a first chart every line is `create`. On a later chart most lines are
 `skip (exists)` — that is the design, not a failure: **`chart` is additive** (ADR

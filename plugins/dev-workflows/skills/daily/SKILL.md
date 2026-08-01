@@ -125,7 +125,7 @@ Ask ONE question — "What's happening?" — with these options, then hand off:
 | The user is… | Hand off to |
 |---|---|
 | designing something new | `grill-then-plan` |
-| facing an effort too big for one session (foggy, multi-session) | `/decision-map:chart` to chart the map; `/decision-map:work` to continue one already charted (maps live in `docs/decision-map/`) |
+| facing an effort too big for one session (foggy, multi-session) | `chart-map` (`/decision-map:chart`) to chart it; `work-map` (`/decision-map:work`) to continue a map already charted (maps live in `docs/decision-map/`) |
 | dealing with something broken | `debug-mantra` — then follow the debug chain below |
 | advising how a system should work | `study-design-verify` |
 | auditing names / labels / mappings | `naming-audit` (or `fit-gap-analysis` for as-is vs to-be) |

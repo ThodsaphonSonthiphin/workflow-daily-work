@@ -44,8 +44,8 @@ flowchart TD
     WORK{"🔧 WORKING<br/>what's happening?"}
 
     WORK -- designing something --> GTP["grill-then-plan"]
-    WORK -- too big for one session --> DMAP["decision-map:chart<br/>(chart the map)"]
-    WORK -- continuing a charted map --> DMW["decision-map:work<br/>(one decision, then stop)"]
+    WORK -- too big for one session --> DMAP["chart-map<br/>(/decision-map:chart)"]
+    WORK -- continuing a charted map --> DMW["work-map<br/>(/decision-map:work)"]
     DMAP -. next session .-> DMW
     WORK -- advising on a system --> SDV["study-design-verify"]
     WORK -- advising on cert / market / vendor facts --> VTA["verify-then-advise"]
@@ -73,8 +73,8 @@ flowchart TD
 | When… | Reach for |
 |---|---|
 | designing something new | `grill-then-plan` |
-| an effort too big for one session (foggy, multi-session) | `/decision-map:chart` — chart the map: destination, decision tickets, fog (lands in `docs/decision-map/`) |
-| continuing a map already charted | `/decision-map:work` — claim and resolve exactly one decision, then stop |
+| an effort too big for one session (foggy, multi-session) | `chart-map` (`/decision-map:chart`) — chart the destination, the decision tickets and the fog; the map lands in `docs/decision-map/` |
+| continuing a decision map already charted | `work-map` (`/decision-map:work`) — claim and resolve exactly one decision, then stop |
 | something broke | `debug-mantra`, then the debug chain below |
 | advising on how a system should work | `study-design-verify` |
 | advising on cert / market / vendor facts (outside the codebase) | `verify-then-advise` |

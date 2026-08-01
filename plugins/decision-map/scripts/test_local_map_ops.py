@@ -1197,6 +1197,38 @@ class LocalMapOpsTest(unittest.TestCase):
         for added in ("- FOG-A", "- FOG-B", "- SCOPE-A"):
             self.assertEqual(map_md.count(added), 1, f"{added} not added once")
 
+    # F3: the "adds nothing" branch of the map-body detail was unguarded --
+    # mutating it to "adds 0 lines", the exact lie its own docstring warns
+    # against, left all 74 tests green. It is reachable from the hand edit
+    # work-map INSTRUCTS: delete the graduated fog line, and the next chart
+    # restores the tool-owned "- (none)" placeholder, changing bytes while
+    # adding nothing.
+    def test_map_body_merge_that_adds_nothing_does_not_claim_it_added_lines(self):
+        self._chart()
+        base = self.root / "example-effort"
+        p = base / "map.md"
+        text = p.read_text(encoding="utf-8")
+        self.assertIn("- how to deploy",
+                      ops._region_body(text, ops._FOG_START, ops._FOG_END))
+        # the hand edit: empty the fog region, markers left alone
+        p.write_text(ops._replace_region(text, ops._FOG_START, ops._FOG_END, "\n"),
+                     encoding="utf-8")
+        inp = copy.deepcopy(INPUT)
+        inp["map"] = dict(inp["map"], notYetSpecified=[])   # nothing new to add
+        entry = {Path(e["path"]).name: e
+                 for e in ops.chart(self.root, inp, real=False)["planned"]}["map.md"]
+        self.assertEqual(entry["action"], "merge",
+                         "restoring the placeholder is a write, so not a skip")
+        self.assertEqual(entry["detail"],
+                         "normalises the map body's list regions (no new lines)")
+        self.assertNotIn("adds", entry["detail"],
+                         "a merge that adds nothing must not say it adds anything")
+        # and the real run does exactly that: the placeholder, no phantom lines
+        ops.chart(self.root, inp, real=True)
+        fog = ops._region_body(p.read_text(encoding="utf-8"),
+                               ops._FOG_START, ops._FOG_END)
+        self.assertEqual(fog.strip(), ops._EMPTY_LIST_LINE)
+
     def test_block_does_not_rewrite_when_the_edge_is_already_present(self):
         """The byte-identical no-op depends on block() not writing at all --
         a rewrite happens to produce the same bytes for files this module

@@ -1,7 +1,7 @@
 # decision-map data contracts
 
 Single source of truth for the shapes exchanged between the decision-map flow
-skills and the three backend ops scripts (ADR 0037). Nothing else redefines them.
+skills and the backend ops scripts (ADR 0037). Nothing else redefines them.
 The tracker (or the local files) is the source of truth; these JSON files are
 working files, never a store.
 
@@ -11,7 +11,28 @@ erDiagram
     TICKET ||--o{ TICKET : "blockedBy"
 ```
 
-## Subcommand contract (all three backends)
+## What ships, and what is specification (ADR 0056)
+
+**v1 ships exactly one backend: local markdown.** `scripts/local_map_ops.py` is
+the only ops script that exists. Azure DevOps and GitHub Issues are **phase 2**,
+gated on running the six-step probe below ("Before building the join") against a
+live tracker. Read this document in two layers:
+
+| Part | Status |
+|---|---|
+| the subcommand contract, `map_input.json` / `map.json` / `frontier.json`, the dry-run plan and its action vocabulary, the `key`-join rules, the local file formats and their generated regions | **shipping** — implemented and tested by the local backend |
+| every tracker-specific part: the Backend-mappings table, the ADO / GitHub marker regions, "Where each field lives on a tracker", the ADO / GitHub `status` reading rules, the verification probe and its fallback ladder | **phase-2 specification** — nothing implements it yet |
+
+Both layers are normative, and the phase-2 layer stays here unchanged: it is the
+specification phase 2 implements, and the reasoning behind the `key` join is the
+most valuable thing in this document. But nothing in it describes code you can
+run today. Where a rule reads "every backend must …", it binds every backend
+that ships — today that is one — and every backend phase 2 adds.
+
+The flow skills are backend-neutral: the subcommands, flags and JSON shapes below
+do not change when a tracker lands, only which ops script the skills call.
+
+## Subcommand contract (identical on every backend)
 
 | Subcommand | Args | Effect |
 |---|---|---|
@@ -129,19 +150,26 @@ that line, and a blank one asks them to approve an undescribed write.
 
 `chart` with `--dry-run` (the default) writes this to stdout and nothing else:
 
+The worked example is the **shipping** backend, because this plan is exactly what
+the ADR-0039 approval gate puts in front of the user:
+
 ```json
 {
-  "backend": "ado",
+  "backend": "local",
   "dryRun": true,
   "planned": [
-    { "path": "<map>",      "action": "merge",         "detail": "adds 1 fog line" },
-    { "path": "auth-model", "action": "skip (exists)", "detail": null },
-    { "path": "rollout",    "action": "merge",         "detail": "unions blockedBy: auth-model" },
-    { "path": "new-thing",  "action": "create",        "detail": null }
+    { "path": "docs/decision-map/billing/map.md",                 "action": "merge",         "detail": "adds 1 fog line" },
+    { "path": "docs/decision-map/billing/tickets/auth-model.md",  "action": "skip (exists)", "detail": null },
+    { "path": "docs/decision-map/billing/tickets/rollout.md",     "action": "merge",         "detail": "unions blockedBy: auth-model" },
+    { "path": "docs/decision-map/billing/tickets/new-thing.md",   "action": "create",        "detail": null }
   ],
   "divergence": ["<human-readable string>", "..."]
 }
 ```
+
+A phase-2 tracker backend emits the same document with `"backend": "ado"` /
+`"github"` and the ticket `key` (or the literal `<map>`) in `path` — see the
+`path` bullet below.
 
 - `dryRun` is `true` only on a dry run; a real run returns `map.json` instead,
   with `divergence` added.
@@ -159,7 +187,7 @@ that line, and a blank one asks them to approve an undescribed write.
   and holds the same strings the real run returns.
 
 The same plan is rendered for humans on **stderr**; stdout carries JSON or
-nothing, so `chart --input x | jq` works on every backend.
+nothing, so `chart --input x | jq` works — a split every backend must keep.
 
 ## `map_input.json` (input to `chart`)
 
@@ -202,17 +230,21 @@ task=either.
 
 ```json
 {
-  "backend": "ado",
-  "map": { "id": "1234", "name": "Decision map — <effort>", "url": "https://…",
-           "destination": "<line>" },
+  "backend": "local",
+  "map": { "id": "billing", "name": "Decision map — <effort>",
+           "url": "docs/decision-map/billing/map.md", "destination": "<line>" },
   "tickets": [
-    { "key": "auth-model", "id": "1235", "name": "Auth model — …",
-      "url": "https://…", "type": "grilling", "mode": "HITL",
+    { "key": "auth-model", "id": "auth-model", "name": "Auth model — …",
+      "url": "docs/decision-map/billing/tickets/auth-model.md",
+      "type": "grilling", "mode": "HITL",
       "status": "open", "assignee": null, "blockedBy": ["rollout-order"],
       "gist": null }
   ]
 }
 ```
+
+A phase-2 tracker backend emits the same fields with its own native handles —
+`"backend": "ado"`, `"id": "1235"`, `"url": "https://…"` — and the same `key`s.
 
 `chart` (only — not `read`) adds `"divergence"`: a list of human-readable
 strings naming anything the input asked for that an additive run deliberately
@@ -250,9 +282,10 @@ path.
 
 ```json
 {
-  "frontier": [ { "id": "1235", "name": "Auth model — …", "url": "https://…", "type": "grilling" } ],
-  "blocked":  [ { "id": "1236", "name": "Rollout order — …", "blockedBy": ["auth-model"] } ],
-  "claimed":  [ { "id": "1237", "name": "…", "assignee": "thodsaphon.sonthipin@cartagena.no" } ]
+  "frontier": [ { "id": "auth-model", "name": "Auth model — …",
+                  "url": "docs/decision-map/billing/tickets/auth-model.md", "type": "grilling" } ],
+  "blocked":  [ { "id": "rollout-order", "name": "Rollout order — …", "blockedBy": ["auth-model"] } ],
+  "claimed":  [ { "id": "api-limits", "name": "…", "assignee": "thodsaphon.sonthipin@cartagena.no" } ]
 }
 ```
 
@@ -366,7 +399,7 @@ not situations to work around:
   fresh ticket rather than adopting the moved one. Re-parenting is not a
   supported way to move a decision between maps.
 
-### Before building the join: verify it, Task 4
+### Before building the join: verify it — phase 2's first step
 
 The whole design rests on one bet — that a marker written into an item's body
 survives round trips through the tracker. **Verify that before writing join

@@ -110,8 +110,10 @@ ticket. It does **not** return the fog list, the out-of-scope list or the
 notes. Those live only in `map.md` — the first two between the
 `decision-map:fog` and `decision-map:scope` marker pairs, the third under the
 `## Notes` heading — so **open the file and read them**. You need the fog list
-twice below, in Step 5 and in Step 6's report, and the JSON will not give it to
-you:
+in Step 5, and again in Step 6's report — but not this same copy of it: Step 5
+changes that region twice (the gate's merge adds lines, your hand edit deletes
+the graduated one), and `frontier` carries no fog to refresh it. **Re-read
+`map.md` in Step 6**; treat what you read here as good only until Step 5 writes:
 
 ```
 docs/decision-map/<slug>/map.md
@@ -202,7 +204,7 @@ resolution.
 | Type | Mode | How you resolve it |
 |---|---|---|
 | `grilling` | HITL | Load `grill-with-docs` the way your harness loads skills — or `grill-then-plan` when this ticket's outcome is meant to be a written plan. **If the ticket is fix-shaped and the cause is not yet verified, verify the cause first with `debug-mantra`: never plan a fix on an unverified cause** (ADR 0003/0011). |
-| `prototype` | HITL | Produce the cheap artifact through the ui-mockup mechanism — read `plugins/dev-workflows/references/ui-mockup.md` before the first render (a Claude Design design-system home is preferred per ADR 0032; a rendered artifact, then a self-contained local `.html`, are fallbacks 2 and 3, used only when the ones above are unavailable). The user reacts to the artifact; their reaction is the decision. Link the artifact onto the ticket with `comment`. |
+| `prototype` | HITL | Produce the cheap artifact through the ui-mockup mechanism — before the first render, read `references/ui-mockup.md` **as bundled with the dev-workflows plugin** (in this repo, `plugins/dev-workflows/references/ui-mockup.md`; once installed it sits inside that plugin's own directory, wherever your harness put it — the plugin-root path every other file reference in this skill uses points at decision-map, so it cannot address another plugin's file). A Claude Design design-system home is preferred per ADR 0032; a rendered artifact, then a self-contained local `.html`, are fallbacks 2 and 3, used only when the ones above are unavailable. The user reacts to the artifact; their reaction is the decision. Link the artifact onto the ticket with `comment`. |
 | `research` | AFK | Normally already resolved by the chart-time subagents. If it is still open: dispatch a research subagent now, the way your harness runs them, and record its findings with `--body-file` in Step 4. |
 | `task` | either | Do the thing if you can do it unattended; otherwise hand the user a **precise** checklist and wait. Record what was done, and the facts later tickets depend on — a task ticket's value to the map is the facts it leaves behind. |
 
@@ -334,7 +336,11 @@ the user the stderr rendering.
 A graduation run should read almost entirely `create` (the new tickets) and
 `merge` (the map body, and any existing ticket gaining an edge). Every `merge`
 names what it adds in its `detail` — `adds 2 fog lines, 1 out-of-scope line` on
-the map body, `unions blockedBy: <key>` on a ticket — so read those out. **A
+the map body, `unions blockedBy: <key>` on a ticket — so read those out. There
+is a third shape: `normalises the map body's list regions (no new lines)`, a
+rewrite that adds nothing. Expect it on the run *after* you delete a graduated
+fog line by hand and the region is left empty — the run is restoring the
+tool-owned `- (none)` placeholder, nothing more. **A
 `merge` on an existing ticket adds exactly one `blockedBy` entry and changes
 nothing else**: its status, assignee, gist and resolution block are untouched
 (ADR 0055). If you see an `OVERWRITE` line and did not deliberately pass
@@ -401,6 +407,12 @@ looked when the session opened:
 ```
 python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" frontier --map <slug>
 ```
+
+**And re-read the fog region of `map.md`** — `frontier` does not carry it, and
+the copy you read in Step 1 is stale the moment Step 5 runs: the gate's merge
+appended any new fog lines and your hand edit removed the graduated one.
+Reporting the Step 1 copy tells the user the map still asks a question they just
+answered.
 
 Report, in this order:
 
