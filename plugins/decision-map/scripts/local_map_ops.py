@@ -917,17 +917,36 @@ def read_map(root, slug):
 
 
 def frontier(root, slug):
+    # Assert the map exists before reporting on it. Without this a slug that
+    # does not exist yields three empty buckets and exit 0 -- indistinguishable
+    # from a map whose every decision is resolved, which is what work-map would
+    # then tell the user. Reading map.md fails the same way read_map does
+    # (OSError -> exit 2), so both entry points agree on what "no such map"
+    # looks like.
+    (_map_dir(root, slug) / "map.md").read_text(encoding="utf-8")
+
     out = {"frontier": [], "blocked": [], "claimed": []}
     tickets = {t: _ticket_json(root, slug, t) for t in _all_tickets(root, slug)}
     for key, t in tickets.items():
         if t["status"] != "open":
             continue
+        # A blocker that no longer exists is NOT a satisfied blocker. Treating
+        # an absent key as cleared means deleting a blocker silently promotes
+        # its dependents onto the frontier, and a session then starts work the
+        # map still says is not ready. Keep them blocked and name what is
+        # missing; on a tracker (items deleted, moved, re-parented) this is the
+        # common case, not the edge case.
+        missing = [b for b in t["blockedBy"] if b not in tickets]
         open_blockers = [b for b in t["blockedBy"]
                          if b in tickets and tickets[b]["status"] == "open"]
+        open_blockers += [b for b in missing if b not in open_blockers]
         if t["assignee"]:
             out["claimed"].append({"id": key, "name": t["name"], "assignee": t["assignee"]})
         elif open_blockers:
-            out["blocked"].append({"id": key, "name": t["name"], "blockedBy": open_blockers})
+            entry = {"id": key, "name": t["name"], "blockedBy": open_blockers}
+            if missing:
+                entry["missingBlockers"] = missing
+            out["blocked"].append(entry)
         else:
             out["frontier"].append({"id": key, "name": t["name"],
                                     "url": t["url"], "type": t["type"]})

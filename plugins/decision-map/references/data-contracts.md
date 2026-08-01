@@ -345,6 +345,15 @@ not actionable. `blockedBy` here carries `key`s, as it does in `map.json`, but
 lists **only open blockers** — see the note under `map.json` above, which
 lists every recorded blocker instead.
 
+**`missingBlockers`** is present on a `blocked[]` entry only when one of its
+recorded blockers has no surviving item, and lists those keys (they also remain
+in that entry's `blockedBy`). A blocker that cannot be found is **not** a
+satisfied blocker: the ticket stays blocked and the absence is named, rather
+than the dependent being silently promoted onto the frontier
+([ADR 0061](../../../docs/adr/0061-a-missing-map-and-a-deleted-blocker-must-fail-loudly-not-read-as-done.md)).
+On a tracker this is the common case — items get deleted, moved and
+re-parented — so a backend must implement it, not treat it as a local quirk.
+
 **Bucket precedence — every backend must use the same order.** A ticket can
 satisfy more than one condition at once (claimed *and* blocked is the common
 case), and it appears in **exactly one** bucket:
@@ -572,6 +581,20 @@ this document found places where the document is silent, where it describes
 behaviour the code does not have, or where the two backends cannot both be
 right. These are phase-2 work items, not descriptions of shipped behaviour.
 
+**Closed, and fixed in the shipping backend** ([ADR 0061](../../../docs/adr/0061-a-missing-map-and-a-deleted-blocker-must-fail-loudly-not-read-as-done.md)) —
+both were the same bug shape, an *absence* read as a *resolution*:
+
+- **`frontier` on a map that does not exist now fails** (`OSError` → exit `2`,
+  empty stdout, one stderr line), exactly as `read` does. It used to return
+  three empty buckets and exit `0`, which is indistinguishable from a map whose
+  every decision is resolved — and that is what `work-map` renders to the user.
+- **A blocker whose item no longer exists still blocks.** It used to fall out of
+  the open-blocker filter, silently promoting its dependents onto the frontier.
+  It now stays in `blockedBy`, and the blocked entry carries a
+  **`missingBlockers`** list naming what could not be found, so the flow skills
+  can say so. Wrongly holding a ticket back costs one question; wrongly
+  releasing it starts a session on work the map says is not ready.
+
 **Decided here, because leaving them open is how the worst failure happens:**
 
 - **The key marker is authoritative; the tag/label is decorative.** A child
@@ -595,23 +618,17 @@ right. These are phase-2 work items, not descriptions of shipped behaviour.
   the map item's description is exactly where a team adds context. Observed
   live during the GitHub probe: a human edit landed inside a `fog` region and
   the next `chart` would have overwritten it silently.
-- **`read` / `frontier` on a map that does not exist.** Local `read` exits `2`;
-  local `frontier` returns **exit 0 with three empty buckets**, which is
-  indistinguishable from a finished map. `work-map` uses `read` as its
-  existence check, so a tracker must not make `frontier` the check. Phase 2
-  needs a read-failure table: missing, not-a-map, no permission, and deleted
-  are four distinguishable cases on a tracker and one on local.
+- **A read-failure table.** Missing, not-a-map, no permission and deleted are
+  four distinguishable cases on a tracker and one on local. All four exit `2`;
+  phase 2 must decide how much the stderr line distinguishes them. (The prior
+  gap here — `frontier` returning exit 0 and empty buckets for a map that does
+  not exist — is **fixed**, see below.)
 - **Ordering is unspecified** everywhere except the decisions index. Local
   emits `map.json.tickets[]` and the `frontier.json` buckets in key-ascending
   order, because it globs a directory. A tracker's natural order is creation or
   id order, so the two backends will disagree for the same logical state and
   nothing here says which is right. Pick one and write it down.
-- **A blocker whose item no longer exists.** Local keeps the phantom key in
-  `map.json.blockedBy` but `frontier` silently drops it, so deleting a blocker
-  quietly unblocks its dependents. On a tracker this is the *common* case
-  (items get deleted, moved, re-parented). The "Foreign edge targets" rule
-  covers a link pointing out of the map, not a recorded key with no surviving
-  item.
+*(The blocker-no-longer-exists gap is **fixed**, see below.)*
 - **Tag/label provisioning is outside the dry-run plan**, which contradicts
   "nothing the run writes may be missing from it". A tracker `chart` must
   create `decision-map:map` / `decision-map:ticket` / `decision-map:type:*` if

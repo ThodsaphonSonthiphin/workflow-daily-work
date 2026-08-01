@@ -92,6 +92,26 @@ class LocalMapOpsTest(unittest.TestCase):
         self.assertEqual(rollout["blockedBy"], ["auth-model"])
         self.assertNotIn("blocked_by", rollout)
 
+    def test_frontier_on_a_missing_map_fails_instead_of_reporting_done(self):
+        # Three empty buckets and exit 0 is indistinguishable from "every
+        # decision is resolved", and work-map renders exactly that to the
+        # user. A map that does not exist must fail like read_map does.
+        with self.assertRaises(OSError):
+            ops.frontier(self.root, "no-such-map")
+
+    def test_a_deleted_blocker_does_not_silently_unblock_its_dependents(self):
+        self._chart()
+        # rollout-order is blocked by auth-model. Delete the blocker the way a
+        # human would on a tracker -- the item is simply gone.
+        (self.root / "example-effort" / "tickets" / "auth-model.md").unlink()
+        f = ops.frontier(self.root, "example-effort")
+        self.assertNotIn("rollout-order", [t["id"] for t in f["frontier"]],
+                         "a blocker that no longer exists must not count as satisfied")
+        blocked = next(t for t in f["blocked"] if t["id"] == "rollout-order")
+        self.assertEqual(blocked["blockedBy"], ["auth-model"])
+        # and the missing blocker must be announced, not swallowed
+        self.assertEqual(blocked.get("missingBlockers"), ["auth-model"])
+
     def test_resolve_closes_and_indexes(self):
         self._chart()
         ops.resolve(self.root, "example-effort", "auth-model",
