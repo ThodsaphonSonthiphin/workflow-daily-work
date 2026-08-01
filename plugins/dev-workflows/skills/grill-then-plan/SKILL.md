@@ -172,6 +172,15 @@ scope, and ambiguity; fix inline. Ask the user to review the spec and approve
 before proceeding. If they do NOT approve, return to Step 2 and grill on the
 disputed points, then revise the spec — do not proceed to handoff until approved.
 
+## Step 5a - Verify load-bearing claims before approval
+
+If the spec's plan rests on claims about how EXISTING code or a live system
+behaves (coupling, dependencies, "X already does Y", "path Z is ungated"),
+verify those load-bearing claims against the actual code / live system BEFORE
+asking for spec approval - a prose self-review cannot catch a false premise.
+Correct the spec with what you find. A wrong assumption about the current
+system silently breaks the plan built on it.
+
 ## Step 6 — Hand off
 
 After the user approves the spec, invoke `superpowers:writing-plans` to produce
