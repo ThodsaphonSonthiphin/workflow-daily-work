@@ -14,3 +14,7 @@ plugins/dev-workflows/skills/ticket-trace-workspace/
 
 # Playwright MCP scratch (browser snapshots/logs)
 .playwright-mcp/
+
+# Python bytecode (was tracked by mistake)
+__pycache__/
+*.pyc

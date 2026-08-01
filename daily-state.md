@@ -1,7 +1,7 @@
 ---
 type: daily-state
 schema_version: 1
-updated: '2026-08-01T10:01:20+07:00'
+updated: '2026-08-01T10:06:11+07:00'
 ---
 
 # Daily state
@@ -120,3 +120,4 @@ EOF
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
 - 2026-07-31T23:22:20+07:00 — docs(decision-map): design session — ADRs 0033-0042, spec, plan (1872a31)
 - 2026-08-01T10:01:20+07:00 — fix(dev-workflows): career-growth - stop crediting the trend taxonomy to verify-then-advise (c2469f6)
+- 2026-08-01T10:06:11+07:00 — fix(dev-workflows): commit-log hook reads git after the fact, not the command line (c545af9)
