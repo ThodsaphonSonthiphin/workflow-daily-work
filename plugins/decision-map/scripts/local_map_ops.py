@@ -7,14 +7,25 @@ Contract: plugins/decision-map/references/data-contracts.md. Stdlib only.
 Re-chart policy (ADR 0043, superseding round 1's refuse-by-default):
 `chart` is ADDITIVE. It names two acts — initial charting and incremental
 fog graduation — and one code path serves both. On a map folder that already
-exists it creates only the tickets whose key is absent, leaves every existing
-ticket file byte-identical (status, assignee, blocking edges and resolution
-region included), and merges `notYetSpecified` / `outOfScope` lines into the
-map body without disturbing anything else. Re-running identical input is a
-byte-identical no-op, which also makes a partially-failed chart resumable.
-The map's title/destination/notes are never rewritten additively; a
-difference is reported, not applied. `force=True` (CLI: --force) keeps its
-meaning: an explicit full rewrite of every file.
+exists it creates only the tickets whose key is absent and merges
+`notYetSpecified` / `outOfScope` lines into the map body without disturbing
+anything else. Re-running identical input is a byte-identical no-op, which
+also makes a partially-failed chart resumable. The map's
+title/destination/notes are never rewritten additively; a difference is
+reported, not applied.
+
+Additive means UNION, and the guarantee is "never removes, never reorders,
+never overwrites" -- not "never touches" (ADR 0044). An existing ticket may
+gain a `blocked_by` entry and NOTHING else: every other byte of the file is
+unchanged. That one exception exists because the alternative was worse --
+dropping the edge left `frontier()` reporting a ticket as actionable when a
+just-created ticket was meant to block it, silently, which is exactly what
+the frontier must never do.
+
+`force=True` (CLI: --force) is the explicit full rewrite. It is DESTRUCTIVE:
+it discards every recorded resolution, claim and blocking edge in the map.
+It is never needed to add tickets. See _FORCE_COST -- no message in this
+module may recommend --force without saying so.
 
 Round 1's Critical — a re-run must never silently destroy recorded state —
 is still guarded, now by skipping rather than refusing. `chart(real=False)`
@@ -30,7 +41,7 @@ module rests on:
 
 Enforced, not asserted. `_scrub()` escapes the marker prefix in every
 user-supplied string before it reaches a file, and every write goes through
-`_assert_one_region()`, which refuses to write a file that does not hold
+`_assert_regions()`, which refuses to write a file that does not hold
 exactly zero or one well-formed marker region. That is what lets
 `resolve()` find the block it owns by searching for its own markers: the
 search can no longer match user text, because user text can no longer
@@ -72,8 +83,10 @@ every ticket `key` must each be a safe slug (letters/digits/`-`/`_` only,
 anchored to the exact end of the string with `\Z` -- not `$`, which in
 Python also matches just before a trailing newline and would let e.g.
 "okname\n" slip through as a path segment), every ticket `type` must be one
-of the four valid types, and every `blocks` target must be a key present in
-this same `inp`. A malformed map_input.json fails cleanly with
+of the four valid types, and every `blocks` target must exist either in this
+same `inp` or already in the map on disk (ADR 0044 -- an edge may name an
+existing ticket without re-listing it). A malformed map_input.json fails
+cleanly with
 ChartValidationError instead of writing a half-finished map folder or
 crossing outside the intended root (round 3 finding R3: a ticket missing
 "title" or "question" used to raise a bare KeyError mid-write, leaving
@@ -123,7 +136,7 @@ _LIST_FM_KEYS = {"blocked_by"}
 #                                      while nothing enforced the premise
 # The needle was never the problem. What was missing is the write side:
 # _scrub() below escapes the marker prefix in every user-supplied string, so
-# a marker in a file is proof this module put it there. _assert_one_region()
+# a marker in a file is proof this module put it there. _assert_regions()
 # then checks that promise on every single write. Widening or re-anchoring
 # the search pattern is NOT a fix -- it is round 5.
 _MARKER_PREFIX = "<!-- decision-map:"
@@ -160,6 +173,14 @@ _TICKET_REGIONS = ((_RESOLUTION_START, _RESOLUTION_END),)
 # The placeholder the tool writes into an empty list region. It is tool-owned,
 # not user content, so the merge drops it as soon as a real line arrives.
 _EMPTY_LIST_LINE = "- (none)"
+
+# Never recommend --force without saying what it costs (review F2). The
+# reviewer followed the old advice -- "re-chart with --force to rewrite it" --
+# and watched it erase a resolution, its frontmatter and its index entry:
+# round 1's Critical harm, actively recommended by this module's own
+# messages. Any text that steers a user toward --force must carry this.
+_FORCE_COST = ("--force rewrites the whole map and DISCARDS every recorded "
+               "resolution, claim and blocking edge in it")
 
 
 def _region_re(start, end):
@@ -316,8 +337,12 @@ def _require(where, container, field, kind, required):
     return value
 
 
-def _validate_chart_input(inp):
+def _validate_chart_input(inp, root=None):
     """Validate `inp` before chart() writes anything (dry-run or real).
+
+    `root`, when given, lets the `blocks` check accept a target that already
+    exists in the map rather than requiring it to be re-listed in tickets[]
+    (ADR 0044 / review F3).
 
     - the top-level containers must be the right shape (a missing/mistyped
       "target"/"map"/"tickets" used to raise a bare KeyError/AttributeError
@@ -392,10 +417,23 @@ def _validate_chart_input(inp):
         keys.add(key)
     for t in inp["tickets"]:
         for blocked in t.get("blocks") or []:
-            if blocked not in keys:
-                raise ChartValidationError(
-                    f"ticket {t['key']!r} blocks unknown ticket {blocked!r} "
-                    "(not present in this map_input's tickets)")
+            if blocked in keys:
+                continue
+            # ADR 0044 / review F3: an edge may name a ticket that already
+            # exists on disk without re-listing it in tickets[]. The round-1
+            # rule ("must be a key in this same input") existed only so pass 2
+            # could never hit a file pass 1 had not created; additive chart
+            # unions into existing files, so the real requirement is that the
+            # target exist SOMEWHERE. Reading the filesystem here is a
+            # pre-write check, so nothing is written before it passes.
+            if (root is not None and isinstance(blocked, str)
+                    and _SAFE_SLUG_RE.match(blocked)
+                    and _ticket_path(root, slug, blocked).exists()):
+                continue
+            raise ChartValidationError(
+                f"ticket {t['key']!r} blocks unknown ticket {blocked!r} "
+                "(not in this map_input's tickets[], and no such ticket "
+                "exists in the map)")
 
 
 def _fm_parse(text):
@@ -448,7 +486,7 @@ def _fm_value(v):
        for _scrub to find, and flattening it afterwards RECONSTITUTES a live
        marker that no escape ever saw. Unpaired that raised
        MarkerIntegrityError mid-chart with map.md already on disk; paired it
-       sailed through _assert_one_region and wrote live markers into a
+       sailed through _assert_regions and wrote live markers into a
        generated file -- falsifying the invariant this module rests on.
     2. Flatten with the READER's own splitter (round 5, finding N7). _fm_parse
        splits this block with str.splitlines(), so " ".join(s.splitlines())
@@ -628,7 +666,9 @@ def _plan_map_md(base, inp, force):
         value = m.get(field)
         if value and _one_line(value) not in flat_existing:
             div.append(f"map {field!r} in the input differs from the map on disk; "
-                       "left unchanged (re-chart with --force to rewrite it)")
+                       f"left unchanged. To apply it you must re-chart, but "
+                       f"{_FORCE_COST} -- editing map.md by hand is usually "
+                       "the right move instead")
     text = existing
     for start, end, items, label in (
             (_FOG_START, _FOG_END, m.get("notYetSpecified") or [], "notYetSpecified"),
@@ -638,8 +678,9 @@ def _plan_map_md(base, inp, force):
             if items:
                 div.append(
                     f"this map.md predates the {label} region, so its "
-                    f"{len(items)} line(s) were not merged (re-chart with --force "
-                    "to regenerate the map with regions)")
+                    f"{len(items)} line(s) were not merged. Add the "
+                    f"{label} markers to map.md by hand to enable merging; "
+                    f"re-charting would also fix it, but {_FORCE_COST}")
             continue
         merged = _region_text(start, end, _merge_region_lines(body, items))
         text = _replace_region(text, start, end, merged[len(start):-len(end)])
@@ -648,79 +689,108 @@ def _plan_map_md(base, inp, force):
     return "merge", text, div
 
 
-def _chart_plan(base, inp, force):
-    """Return an ordered list of (Path, action) for every file chart() would
-    touch, plus the map.md text and any divergences. action is one of:
-      - "create"       the file doesn't exist yet
+def _chart_plan(root, inp, force):
+    """Return (entries, map_text, divergences) for everything chart() would do.
+
+    Each entry is {"path", "action", "detail"}. action is one of:
+      - "create"        the file doesn't exist yet
       - "skip (exists)" the file exists and will not be touched at all
-      - "merge"        map.md exists and gains fog / out-of-scope lines
-      - "OVERWRITE"    the file exists and force=True (explicit full rewrite)
-    "refuse" is gone: ADR 0043 supersedes refuse-by-default with additive
-    semantics. A "skip" must never write -- that is the surviving guard on
-    round 1's Critical, and it is why "merge" exists as a separate label
-    rather than being folded into "skip".
+      - "merge"         the file exists and is modified in place, additively:
+                        map.md gaining fog / out-of-scope lines, or a ticket
+                        gaining a blockedBy entry (ADR 0044)
+      - "OVERWRITE"     the file exists and force=True (explicit full rewrite)
+    "refuse" is gone: ADR 0043 supersedes refuse-by-default. A "skip" must
+    never write -- the surviving guard on round 1's Critical -- which is why
+    "merge" is its own label rather than being folded into "skip".
+
+    The blockedBy unions are computed HERE, before the dry run returns, so
+    the ADR-0039 approval gate sees every write (review F1: they used to be
+    computed after the dry-run early return, leaving the gate silent about a
+    file the real run would modify).
     """
+    slug = inp["target"]["slug"]
+    base = _map_dir(root, slug)
     map_action, map_text, div = _plan_map_md(base, inp, force)
-    plan = [(base / "map.md", map_action)]
+    entries = [{"path": base / "map.md", "action": map_action, "detail": None}]
+    by_path = {base / "map.md": entries[0]}
+    action_by_key = {}
     for t in inp["tickets"]:
         p = base / "tickets" / (t["key"] + ".md")
         if not p.exists():
-            plan.append((p, "create"))
+            action = "create"
         else:
-            plan.append((p, "OVERWRITE" if force else "skip (exists)"))
-    return plan, map_text, div
+            action = "OVERWRITE" if force else "skip (exists)"
+        action_by_key[t["key"]] = action
+        entry = {"path": p, "action": action, "detail": None}
+        entries.append(entry)
+        by_path[p] = entry
+    pending = {}
+    for t in inp["tickets"]:
+        for blocked in t.get("blocks") or []:
+            if action_by_key.get(blocked) in ("create", "OVERWRITE"):
+                continue                      # written fresh; edge goes in with it
+            fm, _ = _load_ticket(root, slug, blocked)
+            if t["key"] in fm.get("blocked_by", []):
+                continue                      # already unioned: genuinely no change
+            pending.setdefault(_ticket_path(root, slug, blocked), []).append(t["key"])
+    for p, blockers in pending.items():
+        entry = by_path.get(p)
+        if entry is None:                     # target not re-listed in tickets[]
+            entry = {"path": p, "action": "skip (exists)", "detail": None}
+            entries.append(entry)
+            by_path[p] = entry
+        entry["action"] = "merge"
+        entry["detail"] = "unions blockedBy: " + ", ".join(blockers)
+    return entries, map_text, div
 
 
 def chart(root, inp, real, force=False):
     """Bulk-create (or explicitly re-chart, with force=True) a map + its
     tickets. See the module docstring for the full re-chart policy."""
-    _validate_chart_input(inp)
+    _validate_chart_input(inp, root)
     slug = inp["target"]["slug"]
     base = _map_dir(root, slug)
-    plan, map_text, div = _chart_plan(base, inp, force)
-    actions = {p: action for p, action in plan}
+    entries, map_text, div = _chart_plan(root, inp, force)
+    actions = {e["path"]: e["action"] for e in entries}
     if not real:
         # The human-readable plan goes to STDERR: every subcommand's contract
         # is that stdout carries JSON or nothing, so `chart --input x | jq`
         # works (round 5). The same plan is in the returned JSON's "planned".
         print("DRY RUN — planned files:", file=sys.stderr)
-        for p, action in plan:
-            print(f"  {action} {p}", file=sys.stderr)
+        for e in entries:
+            detail = f"  [{e['detail']}]" if e["detail"] else ""
+            print(f"  {e['action']} {e['path']}{detail}", file=sys.stderr)
         for d in div:
             print(f"  divergence: {d}", file=sys.stderr)
         return {"backend": "local", "dryRun": True,
-                "planned": [{"path": str(p), "action": action} for p, action in plan],
+                "planned": [{"path": str(e["path"]), "action": e["action"],
+                             "detail": e["detail"]} for e in entries],
                 "divergence": div}
     (base / "tickets").mkdir(parents=True, exist_ok=True)
     if actions[base / "map.md"] != "skip (exists)":
         _write_map_md(base / "map.md", map_text)
-    # pass 1: create the absent tickets; pass 2: wire blocking edges
+    # pass 1: create the absent tickets; pass 2: union the blocking edges
     # (create-then-wire, spec §9). Safe because _validate_chart_input already
-    # confirmed every `blocks` target is one of this map_input's own keys.
-    written = set()
+    # confirmed every `blocks` target is either in this input or on disk.
     for t in inp["tickets"]:
-        if actions[base / "tickets" / (t["key"] + ".md")] == "skip (exists)":
+        # ONLY create/OVERWRITE write a fresh ticket. "merge" must fall
+        # through to pass 2: it means the file exists and gains a blockedBy
+        # entry, so rewriting it here would reset the very status, assignee
+        # and resolution ADR 0044 promises to preserve.
+        if actions[base / "tickets" / (t["key"] + ".md")] not in ("create", "OVERWRITE"):
             continue
         fm = {"title": t["title"], "type": t["type"], "mode": _mode(t["type"]),
               "status": "open", "assignee": "", "blocked_by": [], "gist": ""}
         _save_ticket(root, slug, t["key"], fm,
                      f"\n## Question\n\n{_scrub(t['question'])}\n")
-        written.add(t["key"])
+    # ADR 0044: the edge is UNIONED into whatever file holds it, existing or
+    # not. block() appends only when absent and does not write otherwise, so
+    # an existing ticket gains one blockedBy entry and nothing else, and an
+    # identical re-run stays byte-identical. It routes through _save_ticket,
+    # so _assert_regions still covers this write.
     for t in inp["tickets"]:
         for blocked in t.get("blocks") or []:
-            if blocked in written:
-                block(root, slug, blocked, t["key"])
-                continue
-            # ADR 0043: an existing ticket stays byte-identical, blocking
-            # edges included. Report the edge we did not add rather than
-            # editing a file this run does not own -- but only when it is
-            # genuinely absent, so re-running identical input stays silent.
-            fm, _ = _load_ticket(root, slug, blocked)
-            if t["key"] not in fm.get("blocked_by", []):
-                div.append(
-                    f"ticket {blocked!r} already exists, so the new "
-                    f"'blocked by {t['key']}' edge was not added to it "
-                    "(re-chart with --force, or use the block subcommand)")
+            block(root, slug, blocked, t["key"])
     for d in div:
         print(f"chart: divergence: {d}", file=sys.stderr)
     out = read_map(root, slug)
@@ -775,10 +845,15 @@ def block(root, slug, ticket, blocked_by):
     _safe_segment(blocked_by, "blocked-by ticket id")
     fm, body = _load_ticket(root, slug, ticket)
     deps = fm.get("blocked_by", [])
+    # Union, and do not write at all when the edge is already there. The
+    # no-write path is what makes an additive re-chart byte-identical rather
+    # than merely equivalent (ADR 0044) -- a rewrite would be a no-op only if
+    # parse/dump round-trips exactly, which is not a property worth betting
+    # a byte-identity guarantee on.
     if blocked_by not in deps:
         deps.append(blocked_by)
-    fm["blocked_by"] = deps
-    _save_ticket(root, slug, ticket, fm, body)
+        fm["blocked_by"] = deps
+        _save_ticket(root, slug, ticket, fm, body)
     return {"ticket": ticket, "blockedBy": deps}
 
 
@@ -958,7 +1033,9 @@ def main():
     ap.add_argument("--real", action="store_true")
     ap.add_argument("--dry-run", dest="dry", action="store_true")
     ap.add_argument("--force", action="store_true",
-                     help="chart only: explicitly allow overwriting an existing map folder")
+                     help="chart only: full rewrite of an existing map. DESTRUCTIVE -- "
+                          "discards every recorded resolution, claim and blocking edge. "
+                          "Not needed to add tickets: chart is additive by default")
     a = ap.parse_args()
     try:
         result = _dispatch(a)

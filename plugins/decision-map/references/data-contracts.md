@@ -15,7 +15,7 @@ erDiagram
 
 | Subcommand | Args | Effect |
 |---|---|---|
-| `chart` | `--input <map_input.json> --output <map.json>` | create map + tickets + parent links + blocking edges, **additively** (ADR 0043) — see below. **Dry-run by default**; `--real` performs the writes; `--force` is a full rewrite. |
+| `chart` | `--input <map_input.json> --output <map.json>` | create map + tickets + parent links + blocking edges, **additively** (ADR 0043/0044) — see below. **Dry-run by default**; `--real` performs the writes; `--force` is a **destructive** full rewrite that discards recorded resolutions, claims and edges. |
 | `read` | `--map <id\|slug> --output <map.json>` | fetch map + children at low resolution. |
 | `frontier` | `--map <id\|slug> --output <frontier.json>` | open + unblocked + unclaimed children. |
 | `claim` | `--ticket <id\|slug>` (`--user <upn>` ADO only) | assign the ticket to the caller. |
@@ -26,35 +26,67 @@ erDiagram
 Every subcommand also accepts `--dry-run` (print planned mutations, change
 nothing) — for `chart` that is already the default.
 
-### `chart` is additive (ADR 0043)
+### `chart` is additive (ADR 0043, refined by ADR 0044)
 
 `chart` names **two acts**: the initial charting of a map, and the incremental
 graduation of fog into fresh tickets mid-map. One create path serves both, so
-do not read `chart` as create-only. On a map that already exists it:
+do not read `chart` as create-only.
 
-- creates only the tickets whose `key` is absent, and leaves every existing
-  ticket **byte-identical** — status, assignee, blocking edges and resolution
-  all survive;
-- merges `notYetSpecified` / `outOfScope` lines into the map body as a union:
-  new lines are appended, existing ones are never removed or reordered, and an
+**Additive means union.** The guarantee is *never removes, never reorders,
+never overwrites* — **not** "never touches". On a map that already exists,
+`chart`:
+
+- creates only the tickets whose `key` is absent;
+- **unions** `notYetSpecified` / `outOfScope` lines into the map body: new
+  lines are appended, existing ones are never removed or reordered, and an
   input that omits a line already on disk does not delete it;
-- does **not** apply a `title` / `destination` / `notes` that differs from what
-  is on disk — the difference is reported in the result's `divergence` list and
-  left unapplied, because silently rewriting an evolved map from a stale input
-  is the destructive case `--force` exists for;
-- does **not** add a blocking edge into a ticket that already exists (that
-  would rewrite it); the skipped edge is reported in `divergence`.
+- **unions** a new blocking edge into an existing ticket's `blockedBy`
+  (ADR 0044). That ticket gains one entry and **nothing else** — every other
+  byte of it, including status, assignee, gist and the resolution block, is
+  unchanged. Dropping the edge instead was worse: `frontier()` then reported a
+  ticket as actionable while a just-created ticket was meant to block it;
+- does **not** apply a `title` / `destination` / `notes` that differs from
+  what is on disk. The difference is reported in the result's `divergence`
+  list and left unapplied — silently rewriting an evolved map from a stale
+  input is precisely the destruction this design exists to prevent. Edit
+  `map.md` by hand to change them.
 
-Re-running identical input is therefore a **no-op** — the same bytes out —
-which also makes a partially-failed chart resumable. `--force` keeps its
-meaning: an explicit, dry-run-announced full rewrite of every file.
+**What additive does not guarantee:** that an existing ticket file is
+byte-identical afterwards (it may gain one `blockedBy` entry), and that a
+value in the input takes effect (a divergent scalar is reported, not applied).
+It does guarantee that nothing recorded is ever removed, reordered or
+overwritten, and that re-running identical input is a **no-op** — the same
+bytes out, which also makes a partially-failed chart resumable.
 
-The dry run reports one action per file, from the vocabulary
-`create` / `skip (exists)` / `merge` / `OVERWRITE`, on both the
-machine-readable stdout plan and the human stderr rendering. A file reported
-`skip (exists)` is never written; `merge` is the map body gaining fog or
-out-of-scope lines. Backends that cannot express `merge` may omit it, but must
-not label a write `skip`.
+An edge may name a ticket that already exists in the map **without re-listing
+it in `tickets[]`** (ADR 0044). A `blocks` target must exist either in this
+input or in the map on disk; naming a target that exists in neither is a
+validation error.
+
+`--force` is the explicit, dry-run-announced full rewrite. **It is
+destructive: it discards every recorded resolution, claim and blocking edge
+in the map.** It is never required to add tickets or edges — that is what
+additive `chart` is for. No message in any backend may recommend `--force`
+without stating this cost.
+
+#### Dry-run action vocabulary (required of every backend)
+
+The dry run reports one action per item, on both the machine-readable stdout
+plan and the human stderr rendering. All four labels are **required** — a
+backend must be able to express each of them, because each names an outcome
+additive `chart` genuinely produces:
+
+| action | meaning |
+|---|---|
+| `create` | the item does not exist yet and will be created |
+| `skip (exists)` | the item exists and will **not** be written at all |
+| `merge` | the item exists and will be **modified in place, additively** — the map body gaining fog / out-of-scope lines, or a ticket gaining a `blockedBy` entry |
+| `OVERWRITE` | `--force` only: the item exists and will be fully rewritten |
+
+`skip (exists)` is a promise that nothing is written; anything modified must
+be labelled `merge`, never `skip`. A `merge` entry carries a `detail` string
+naming what it will add (e.g. `unions blockedBy: fog-graduate`), so the
+ADR-0039 approval gate can show the reviewer every write before it happens.
 
 ## `map_input.json` (input to `chart`)
 
@@ -110,8 +142,10 @@ task=either.
 
 `chart` (only — not `read`) adds `"divergence"`: a list of human-readable
 strings naming anything the input asked for that an additive run deliberately
-did not apply (a differing `title`/`destination`/`notes`, a blocking edge into
-an existing ticket). Empty on an initial chart and on `--force`.
+did not apply — a differing `title`/`destination`/`notes`, or list lines that
+could not be merged into a `map.md` predating the list regions. Empty on an
+initial chart and on `--force`. Blocking edges are **not** listed here: since
+ADR 0044 they are applied, and appear in the dry-run plan as a `merge`.
 
 `status` ∈ `open | closed`. `blockedBy` lists upstream blockers — the tickets
 that must close before this one is actionable — the same relation `frontier.json`

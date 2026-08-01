@@ -891,17 +891,237 @@ class LocalMapOpsTest(unittest.TestCase):
         map_md = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
         self.assertIn("A COMPLETELY DIFFERENT DESTINATION", map_md)
 
-    def test_additive_chart_does_not_edit_an_existing_ticket_to_wire_a_new_edge(self):
+    # REWRITTEN for ADR 0044: the edge is now UNIONED into the existing ticket
+    # instead of being dropped and reported. The guarantee is restated as
+    # "never removes, never reorders, never overwrites" -- so this test pins
+    # the scoped identity: exactly one blockedBy entry gained, every other
+    # byte of the file unchanged.
+    def test_additive_chart_unions_a_new_edge_into_an_existing_ticket(self):
+        self._chart()
+        base = self.root / "example-effort"
+        target = base / "tickets" / "api-limits.md"
+        # The target carries RECORDED STATE. Without this the test cannot
+        # distinguish a union from "rewrite the ticket fresh, then append the
+        # edge" -- a default-valued ticket looks identical either way, and
+        # that is exactly the bug an adversarial probe caught here: a ticket
+        # whose action became "merge" fell through pass 1's skip check and
+        # had its claim silently cleared.
+        ops.claim(self.root, "example-effort", "api-limits", "pon")
+        ops.comment(self.root, "example-effort", "api-limits", "a human note")
+        before_text = target.read_text(encoding="utf-8")
+        self.assertIn("assignee: pon", before_text)
+        before_tree = _snapshot(base)
+        ops.chart(self.root, self._plus_ticket(blocks=["api-limits"]), real=True)
+        after_text = target.read_text(encoding="utf-8")
+        # the edge is live in the model, and api-limits is not offered as
+        # actionable (it reports under `claimed` because it is claimed --
+        # frontier() checks assignee before blockers)
+        m = ops.read_map(self.root, "example-effort")
+        api = next(t for t in m["tickets"] if t["key"] == "api-limits")
+        self.assertIn("fog-graduate", api["blockedBy"],
+                      "the unioned edge must be visible to readers")
+        f = ops.frontier(self.root, "example-effort")
+        self.assertNotIn("api-limits", [t["id"] for t in f["frontier"]])
+        self.assertIn("api-limits", [t["id"] for t in f["claimed"]])
+        # scoped identity: ONLY the blocked_by line changed
+        b_lines, a_lines = before_text.splitlines(), after_text.splitlines()
+        self.assertEqual(len(b_lines), len(a_lines), "line count must not change")
+        differing = [i for i, (x, y) in enumerate(zip(b_lines, a_lines)) if x != y]
+        self.assertEqual(len(differing), 1,
+                         f"exactly one line may change, got {differing}")
+        self.assertTrue(a_lines[differing[0]].startswith("blocked_by:"),
+                        f"the changed line must be blocked_by, got {a_lines[differing[0]]!r}")
+        self.assertEqual(b_lines[differing[0]], "blocked_by: []")
+        self.assertEqual(a_lines[differing[0]], "blocked_by: [fog-graduate]")
+        # the recorded state is explicitly still there
+        self.assertIn("assignee: pon", after_text)
+        self.assertIn("a human note", after_text)
+        # every OTHER ticket is still byte-identical
+        for path, digest in before_tree.items():
+            if path != "tickets/api-limits.md":
+                self.assertEqual(_snapshot(base)[path], digest, f"{path} changed")
+        # unioning the same edge again is a no-op, byte for byte
+        frozen = _snapshot(base)
+        ops.chart(self.root, self._plus_ticket(blocks=["api-limits"]), real=True)
+        self.assertEqual(_snapshot(base), frozen,
+                         "re-unioning an edge already present must change nothing")
+
+    def test_additive_chart_unions_an_edge_without_relisting_the_target(self):
+        """ADR 0044 / F3: an edge may name a ticket that exists on disk but is
+        not re-listed in this input's tickets[]."""
+        self._chart()
+        inp = copy.deepcopy(INPUT)
+        inp["tickets"] = [{"key": "late-arrival", "title": "Late", "type": "task",
+                           "question": "q?",
+                           "blocks": ["rollout-order", "api-limits"]}]
+        # api-limits is open, unclaimed and unblocked, so it is on the
+        # frontier right now -- ADR 0044's stated harm is that it would STAY
+        # there while a just-created ticket is meant to block it.
+        self.assertIn("api-limits",
+                      [t["id"] for t in ops.frontier(self.root, "example-effort")["frontier"]])
+        ops.chart(self.root, inp, real=True)
+        m = ops.read_map(self.root, "example-effort")
+        rollout = next(t for t in m["tickets"] if t["key"] == "rollout-order")
+        self.assertIn("late-arrival", rollout["blockedBy"])
+        self.assertIn("auth-model", rollout["blockedBy"], "existing edge must survive")
+        self.assertEqual(len(m["tickets"]), 4)
+        f = ops.frontier(self.root, "example-effort")
+        self.assertNotIn("api-limits", [t["id"] for t in f["frontier"]],
+                         "a blocked ticket must not still be reported actionable")
+        self.assertIn("late-arrival",
+                      {b["id"]: b["blockedBy"] for b in f["blocked"]}.get("api-limits", []))
+
+    def test_chart_still_rejects_an_edge_to_a_target_that_exists_nowhere(self):
+        self._chart()
+        before = _snapshot(self.root)
+        bad = self._plus_ticket(blocks=["ghost-ticket"])
+        with self.assertRaises(ops.ChartValidationError):
+            ops.chart(self.root, bad, real=True)
+        self.assertEqual(_snapshot(self.root), before)
+
+    # F1: the edge was computed only AFTER the dry-run returned, so the
+    # ADR-0039 approval gate was silent about a write it was about to make.
+    def test_dry_run_reports_the_edge_it_will_union(self):
         self._chart()
         base = self.root / "example-effort"
         before = _snapshot(base)
-        out = ops.chart(self.root, self._plus_ticket(blocks=["api-limits"]), real=True)
-        self.assertEqual(_snapshot(base)["tickets/api-limits.md"],
-                         before["tickets/api-limits.md"],
-                         "an existing ticket must not be rewritten to add a blocking edge")
-        self.assertTrue(any("api-limits" in d and "fog-graduate" in d
-                            for d in out["divergence"]),
-                        f"the skipped edge must be reported: {out['divergence']}")
+        out = ops.chart(self.root, self._plus_ticket(blocks=["api-limits"]), real=False)
+        entries = {Path(p["path"]).name: p for p in out["planned"]}
+        self.assertEqual(entries["api-limits.md"]["action"], "merge",
+                         "a ticket that will gain an edge is not a skip")
+        self.assertIn("fog-graduate", entries["api-limits.md"].get("detail") or "",
+                      f"the plan must name the edge: {entries['api-limits.md']}")
+        self.assertEqual(entries["auth-model.md"]["action"], "skip (exists)")
+        self.assertEqual(_snapshot(base), before, "a dry run must never write")
+        # the plan told the truth: the real run changes exactly that file
+        ops.chart(self.root, self._plus_ticket(blocks=["api-limits"]), real=True)
+        after = _snapshot(base)
+        self.assertNotEqual(after["tickets/api-limits.md"], before["tickets/api-limits.md"])
+        self.assertEqual(after["tickets/auth-model.md"], before["tickets/auth-model.md"])
+
+    def test_dry_run_stderr_renders_the_edge_detail(self):
+        self._chart()
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            ops.chart(self.root, self._plus_ticket(blocks=["api-limits"]), real=False)
+        text = err.getvalue()
+        self.assertIn("merge", text)
+        # assert the DETAIL specifically -- "fog-graduate" alone is no proof,
+        # the created ticket's own path line already contains that word
+        self.assertIn("unions blockedBy", text,
+                      f"the human rendering must name the edge too: {text!r}")
+
+    def test_dry_run_json_carries_divergence_and_edge_only_targets(self):
+        self._chart()
+        inp = copy.deepcopy(INPUT)
+        inp["tickets"] = [{"key": "late-arrival", "title": "Late", "type": "task",
+                           "question": "q?", "blocks": ["api-limits"]}]
+        inp["map"] = dict(inp["map"], destination="DIFFERENT")
+        out = ops.chart(self.root, inp, real=False)
+        # the plan must include a target that is NOT re-listed in tickets[]
+        names = {Path(p["path"]).name: p for p in out["planned"]}
+        self.assertIn("api-limits.md", names,
+                      f"an edge-only target must appear in the plan: {list(names)}")
+        self.assertEqual(names["api-limits.md"]["action"], "merge")
+        # the dry run must carry divergence too, not only the real run
+        self.assertIn("divergence", out)
+        self.assertTrue(any("destination" in d for d in out["divergence"]),
+                        f"dry-run divergence lost: {out}")
+
+    def test_dry_run_stderr_renders_divergence(self):
+        self._chart()
+        inp = self._plus_ticket()
+        inp["map"] = dict(inp["map"], destination="DIFFERENT")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            ops.chart(self.root, inp, real=False)
+        self.assertIn("divergence", err.getvalue())
+        self.assertIn("destination", err.getvalue())
+
+    def test_real_run_stderr_renders_divergence(self):
+        self._chart()
+        inp = self._plus_ticket()
+        inp["map"] = dict(inp["map"], destination="DIFFERENT")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            ops.chart(self.root, inp, real=True)
+        self.assertIn("divergence", err.getvalue())
+        self.assertIn("destination", err.getvalue())
+
+    def test_block_does_not_rewrite_when_the_edge_is_already_present(self):
+        """The byte-identical no-op depends on block() not writing at all --
+        a rewrite happens to produce the same bytes for files this module
+        wrote, so only a file that does NOT round-trip exactly can prove it."""
+        self._chart()
+        p = self.root / "example-effort" / "tickets" / "rollout-order.md"
+        odd = p.read_text(encoding="utf-8").replace(
+            "blocked_by: [auth-model]", "blocked_by:   [auth-model]")
+        self.assertIn("blocked_by:   [auth-model]", odd, "sanity: fixture rewritten")
+        p.write_text(odd, encoding="utf-8")
+        ops.block(self.root, "example-effort", "rollout-order", "auth-model")
+        self.assertEqual(p.read_text(encoding="utf-8"), odd,
+                         "block() must not write when the edge is already present")
+        ops.chart(self.root, INPUT, real=True)      # additive re-chart, same edge
+        self.assertEqual(p.read_text(encoding="utf-8"), odd,
+                         "an additive re-chart must not rewrite it either")
+
+    # F2: every message that steers the user to --force must say what --force
+    # destroys. The reviewer followed this advice and lost a resolution.
+    def test_force_advice_always_warns_what_force_destroys(self):
+        """Every message that steers the user to re-charting must state the
+        cost -- checked across BOTH divergence sources, not just the scalar
+        one, since each builds its own sentence."""
+        def assert_warned(messages, label):
+            self.assertTrue(messages, f"sanity: expected {label} divergence")
+            warned = 0
+            for message in messages:
+                if "--force" in message or "re-chart" in message.lower():
+                    lowered = message.lower()
+                    self.assertTrue(
+                        any(w in lowered for w in ("discard", "destroy")),
+                        f"{label}: advice must state the cost: {message!r}")
+                    self.assertIn("resolution", lowered,
+                                  f"{label}: name what is lost: {message!r}")
+                    warned += 1
+            self.assertTrue(warned, f"{label}: no message mentioned re-charting")
+
+        # source 1: a divergent scalar
+        self._chart()
+        inp = self._plus_ticket()
+        inp["map"] = dict(inp["map"], destination="DIFFERENT", notes="DIFFERENT")
+        assert_warned(ops.chart(self.root, inp, real=True)["divergence"], "scalar")
+
+        # source 2: a map.md predating the list regions
+        inp2 = copy.deepcopy(INPUT)
+        inp2["target"] = dict(inp2["target"], slug="legacy-effort")
+        ops.chart(self.root, inp2, real=True)
+        mp = self.root / "legacy-effort" / "map.md"
+        legacy = mp.read_text(encoding="utf-8")
+        for marker in (ops._FOG_START, ops._FOG_END, ops._SCOPE_START, ops._SCOPE_END):
+            legacy = legacy.replace(marker, "")
+        mp.write_text(legacy, encoding="utf-8")
+        inp2["map"] = dict(inp2["map"], notYetSpecified=["how to deploy", "NEW"])
+        assert_warned(ops.chart(self.root, inp2, real=True)["divergence"], "legacy region")
+
+    # N5 (parked Minor): the legacy map.md path -- an existing map with no fog
+    # or scope regions -- was never exercised.
+    def test_legacy_map_without_list_regions_is_reported_not_mangled(self):
+        self._chart()
+        mp = self.root / "example-effort" / "map.md"
+        legacy = mp.read_text(encoding="utf-8")
+        legacy = legacy.replace(ops._FOG_START, "").replace(ops._FOG_END, "")
+        legacy = legacy.replace(ops._SCOPE_START, "").replace(ops._SCOPE_END, "")
+        mp.write_text(legacy, encoding="utf-8")
+        inp = self._plus_ticket()
+        inp["map"] = dict(inp["map"], notYetSpecified=["how to deploy", "BRAND-NEW-FOG"])
+        out = ops.chart(self.root, inp, real=True)
+        after = mp.read_text(encoding="utf-8")
+        self.assertIn("- how to deploy", after, "legacy content must survive untouched")
+        self.assertNotIn("BRAND-NEW-FOG", after, "must not guess where to insert")
+        self.assertTrue(any("notYetSpecified" in d for d in out["divergence"]),
+                        f"the un-merged lines must be reported: {out['divergence']}")
+        self.assertTrue((self.root / "example-effort" / "tickets"
+                         / "fog-graduate.md").exists(), "the ticket still lands")
 
     def test_additive_chart_dry_run_labels_create_and_skip_and_writes_nothing(self):
         self._chart()
