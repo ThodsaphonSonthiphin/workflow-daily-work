@@ -45,6 +45,7 @@ flowchart TD
 
     WORK -- designing something --> GTP["grill-then-plan"]
     WORK -- advising on a system --> SDV["study-design-verify"]
+    WORK -- advising on cert / market / vendor facts --> VTA["verify-then-advise"]
     WORK -- auditing names/mappings --> NA["naming-audit /<br/>fit-gap-analysis"]
     WORK -- explaining a problem --> PD["problem-description"]
     WORK -- why does this exist? --> TT["ticket-trace"]
@@ -71,6 +72,7 @@ flowchart TD
 | designing something new | `grill-then-plan` |
 | something broke | `debug-mantra`, then the debug chain below |
 | advising on how a system should work | `study-design-verify` |
+| advising on cert / market / vendor facts (outside the codebase) | `verify-then-advise` |
 | auditing names / labels / mappings | `naming-audit` / `fit-gap-analysis` |
 | explaining a complex problem | `problem-description` |
 | "why does this code/ticket exist?" | `ticket-trace` |
