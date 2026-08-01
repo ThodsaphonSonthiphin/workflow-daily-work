@@ -34,11 +34,12 @@ CHART A DECISION MAP — one session, then stop
   │   maps land in docs/decision-map/<slug>/
   │   name it BEFORE any charting
   ▼
-  ② DESTINATION
+  ② DESTINATION  (HITL — the human answers)
   │   what does arriving look like?
   │   one or two lines, written down first
   ▼
   ③ FRONTIER — breadth-first, never deep
+  │   HITL too: you ask, the human answers
   │   can you STATE the question now?
   │     yes → ticket · no → fog
   │     past the destination → out of scope
@@ -53,7 +54,8 @@ CHART A DECISION MAP — one session, then stop
   ⑤ RESEARCH subagents, in parallel
   │   findings posted back with `resolve`
   ▼
-  ■ STOP — charting hand-resolves nothing
+  ■ STOP — report the `frontier`, hand off
+     charting hand-resolves nothing
 ```
 
 ## Step 0 — Preflight: name the backend before you chart
@@ -99,10 +101,36 @@ change made in place?
 One or two lines. The destination is what every ticket is measured against, and
 what makes "out of scope" decidable. Write it down before any ticket exists.
 
+### The HITL guard — it governs this step and Step 2 both
+
+Naming the destination is itself a HITL grilling exchange, and so is the
+breadth-first grill that follows. **An agent that answers its own grilling
+questions has broken the type.** A map charted that way is fiction: every
+ticket on it is measured against a destination the human never actually agreed
+to, and the whole effort then runs off it.
+
+The line is *who supplies the answer*, not who does the work:
+
+- **Explore for yourself** the factual questions — what the code does today,
+  which services exist, what the repo has already decided. Reading is not
+  asking, and the more you find out, the sharper your questions get.
+- **Ask the human** every preference, trade-off, scope and destination
+  question. One at a time.
+- **Never pose a question and answer it in the same breath.** Your own
+  recommended answer is a recommendation, never an accepted answer: offer it,
+  then wait for the human to accept, reject or reshape it. Silence is not
+  acceptance, and neither is a plausible-sounding default.
+
+If the human is not available to answer, stop and say so rather than charting
+alone.
+
 ## Step 2 — Map the frontier, breadth-first
 
 Grill again, this time breadth-first: fan out across the whole space, never deep
 on one thread. Depth is what the individual sessions are for.
+
+The HITL guard above applies here too. The *classification* below is yours to
+make — but the answers that feed it come from the human, not from you.
 
 For each area, apply one test — **can you *state* the question precisely, right
 now?** Not answer it. State it.
@@ -147,7 +175,9 @@ working files, never a store — the map itself is the source of truth.
   "tickets": [
     { "key": "provider-choice", "title": "Provider - which one do we commit to?",
       "type": "grilling", "question": "<the decision this resolves>",
-      "blocks": ["cutover-order"] }
+      "blocks": ["cutover-order"] },
+    { "key": "cutover-order", "title": "Cutover order - big bang or per-tenant ramp?",
+      "type": "grilling", "question": "<the decision this resolves>" }
   ]
 }
 ```
@@ -156,6 +186,10 @@ working files, never a store — the map itself is the source of truth.
   `[A-Za-z0-9][A-Za-z0-9_-]*`, and **must not contain `--`**.
 - `blocks` is **downstream** — the tickets this one holds up. Readers see the
   upstream `blockedBy` instead; do not confuse the two.
+- **Every `blocks` target must already exist**, either in this same input's
+  `tickets[]` or on the map on disk. Naming one that exists in neither is a
+  validation error: the run exits `2` and writes nothing. That is why the
+  template above carries `cutover-order` as well as the ticket that blocks it.
 - `mapType` / `ticketType` in the contract are Azure DevOps work-item types.
   They have no effect on the local backend — leave them out.
 
@@ -177,8 +211,16 @@ would touch appears exactly once, with one of four actions:
 |---|---|
 | `create` | it does not exist yet and will be created |
 | `skip (exists)` | it exists and **nothing** will be written to it |
-| `merge` | it exists and will be modified **in place, additively** — the `detail` names exactly what it gains |
+| `merge` | it exists and will be modified **in place, additively** — added to, never overwritten |
 | `OVERWRITE` | `--force` only: it exists and will be fully rewritten, discarding its recorded state |
+
+`merge` is the one label you must read twice, because the plan describes the two
+kinds unevenly. A **ticket** merge carries a `detail` naming exactly what it
+gains (`unions blockedBy: <key>`) — and that is the only thing a ticket merge
+ever does. A **map-body** merge comes back with `detail: null` and renders as a
+bare `merge …/map.md`; it means the fog and out-of-scope lists gain this input's
+new lines. Say that to the user in words rather than showing them a blank: it is
+a union, so it can add lines but cannot remove or reorder the ones already there.
 
 On a first chart every line is `create`. On a later chart most lines are
 `skip (exists)` — that is the design, not a failure: **`chart` is additive** (ADR
@@ -199,7 +241,11 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" chart --input <workdir>/
 
 Keep the returned `map.json` as this session's working file. Show the user the
 map's name and its path, and the tickets by name — never a wall of bare keys.
-The script wires the parent links and the blocking edges itself.
+The script wires the **blocking edges** itself, in a second pass once every
+ticket exists. There are no parent links to wire: on the local backend
+containment *is* the directory — a ticket belongs to this map because it sits in
+that map's `tickets/` folder — and `map.md` holds no index of open tickets, only
+the "Decisions so far" list that `resolve` projects from the closed ones.
 
 **5. Check `divergence` in the result.** A non-empty list means the input asked
 for something an additive run deliberately did **not** apply — most often a
@@ -209,6 +255,13 @@ every line. The fix is to edit `map.md` by hand, never to reach for `--force`.
 **On failure:** a known, actionable failure exits `2` with one line on stderr
 and **empty stdout**. That line names the field to fix. Correct
 `map_input.json`, re-run the dry run, and re-approve.
+
+**The gate will not remove a graduated fog line.** If this chart turns a line
+that already sits under "Not yet specified" into a real ticket, union never
+deletes, so the line is still sitting there. Delete it by hand from between the
+`decision-map:fog` marker comments in `map.md`, leaving the markers themselves
+alone — otherwise the map keeps advertising fog that is now a real ticket, and
+the list slowly becomes a log of questions already answered.
 
 ### `--force` is an escape hatch, never a remedy
 
@@ -223,7 +276,9 @@ the map looks stale, or because a run half-failed. Additive `chart` already
 covers all three, and `--force` is never required to add a ticket or an edge.
 Offer it only when the user explicitly asks for an existing map to be rewritten
 from a new input — and only after showing the `--force` dry run's `OVERWRITE`
-lines and naming, per line, what will be destroyed.
+lines and naming, per line, what will be destroyed. The plan will not name it
+for you: an `OVERWRITE` entry carries `detail: null`, so you have to work each
+line's cost out of the contract's `--force` table and say it out loud yourself.
 
 ## Step 4 — Fire the research subagents
 
@@ -253,10 +308,27 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" comment --map <slug> --t
 
 ## Step 5 — Stop
 
+**Read the frontier before you report it.** The split you are about to show
+answers "what can the next session pick up", and `map.json` cannot answer that:
+its `blockedBy` deliberately lists **every** recorded blocker, open or closed.
+Step 4 has just produced exactly the state that trips this up — a `research`
+ticket you resolved may have been blocking something, and in `map.json` that
+something still looks blocked. `frontier.json` counts only the **open**
+blockers, which is the whole point of it:
+
+```
+python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" frontier --map <slug>
+```
+
+Its three buckets — `frontier`, `blocked`, `claimed` — are what you report.
+`map.json` stays the full picture; the frontier is the answer to "what is
+takeable".
+
 Report, in this order:
 
 - the map's name and path;
-- the tickets **by name**, split into frontier (open and unblocked) and blocked;
+- the **frontier** tickets **by name** — what the next session can pick up;
+- the **blocked** tickets by name, each with the open blocker still holding it;
 - what the research subagents resolved, one gist each;
 - the fog lines still unspecified;
 - what was ruled out of scope.
