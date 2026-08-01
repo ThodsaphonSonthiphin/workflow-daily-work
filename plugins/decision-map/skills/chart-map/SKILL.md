@@ -214,13 +214,13 @@ would touch appears exactly once, with one of four actions:
 | `merge` | it exists and will be modified **in place, additively** — added to, never overwritten |
 | `OVERWRITE` | `--force` only: it exists and will be fully rewritten, discarding its recorded state |
 
-`merge` is the one label you must read twice, because the plan describes the two
-kinds unevenly. A **ticket** merge carries a `detail` naming exactly what it
-gains (`unions blockedBy: <key>`) — and that is the only thing a ticket merge
-ever does. A **map-body** merge comes back with `detail: null` and renders as a
-bare `merge …/map.md`; it means the fog and out-of-scope lists gain this input's
-new lines. Say that to the user in words rather than showing them a blank: it is
-a union, so it can add lines but cannot remove or reorder the ones already there.
+Every `merge` carries a `detail` naming exactly what it gains. A **ticket**
+merge reads `unions blockedBy: <key>` — and that is the only thing a ticket
+merge ever does. A **map-body** merge counts the lines,
+`adds 2 fog lines, 1 out-of-scope line`. Read those details out; then add the
+part the count cannot convey: it is a **union**, so it can add lines but never
+removes or reorders the ones already there, and a fog line the input omits stays
+on the map.
 
 On a first chart every line is `create`. On a later chart most lines are
 `skip (exists)` — that is the design, not a failure: **`chart` is additive** (ADR

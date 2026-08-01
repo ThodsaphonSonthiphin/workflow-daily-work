@@ -1,5 +1,5 @@
 ---
-description: Work one session of a Decision map — show the frontier, claim ONE decision ticket, resolve it with the right arc skill, record the answer, graduate the fog it cleared, stop.
+description: Work one session of a Decision map (Markdown, under docs/decision-map/) — show the frontier, claim ONE decision ticket, resolve it with the right arc skill, record the answer, graduate the fog it cleared, stop.
 argument-hint: "[map slug, or a ticket name on it — optional]"
 ---
 

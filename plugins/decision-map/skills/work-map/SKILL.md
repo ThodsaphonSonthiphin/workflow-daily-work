@@ -5,7 +5,9 @@ description: >-
   (open, unblocked, unclaimed tickets) by name, claim exactly ONE, resolve it
   with the matching arc skill (grilling / prototype / research / task), record
   the answer on the ticket, graduate any fog it cleared through the dry-run
-  gate, then STOP. Use when a map already exists and the user says "continue
+  gate, then STOP. This is also the skill that graduates fog on its own, when a
+  map has nothing takeable left but fog remains. Use when a map already exists
+  and the user says "continue
   the map", "next decision", "work the decision map", names a ticket on it, or
   comes back to a charted effort. Do NOT use to create a map or to add the
   first tickets to a foggy idea (that is chart-map), and do NOT use for a
@@ -92,8 +94,7 @@ If the user did not name a map, the maps are the directories under
 `docs/decision-map/` — list them and ask which one. If there is no map at all,
 this is the wrong skill: point at `/decision-map:chart`.
 
-**Read the map first.** It gives the low-resolution view — destination,
-decisions so far, fog, out of scope — and it is also the existence check:
+**Read the map first.** It is also the existence check:
 
 ```
 python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" read --map <slug>
@@ -104,6 +105,21 @@ matters, because `frontier` on an unknown slug returns three **empty buckets
 and exit 0** — indistinguishable, at a glance, from a finished map. Never open
 a session on `frontier` alone.
 
+`read` returns the map's `id` / `name` / `url` / `destination`, and every
+ticket. It does **not** return the fog list, the out-of-scope list or the
+notes. Those live only in `map.md` — the first two between the
+`decision-map:fog` and `decision-map:scope` marker pairs, the third under the
+`## Notes` heading — so **open the file and read them**. You need the fog list
+twice below, in Step 5 and in Step 6's report, and the JSON will not give it to
+you:
+
+```
+docs/decision-map/<slug>/map.md
+```
+
+("Decisions so far" you do not need to read: it is a projection of the closed
+tickets, and `read` returns each one's `status` and `gist` already.)
+
 ```
 python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" frontier --map <slug>
 ```
@@ -112,8 +128,8 @@ Present it as prose, in this order:
 
 - the **destination** line, verbatim — it is what every choice below is
   measured against;
-- **decisions so far**, one gist each (the closed tickets in `read`'s output,
-  the same lines `map.md` indexes);
+- **decisions so far**, one gist each — the closed tickets in `read`'s output,
+  the same lines `map.md` indexes;
 - the **frontier by ticket name**, one line each with its type — never a wall
   of bare ids. The names are the question; the ids are plumbing;
 - one line of **blocked**: `<name> — waiting on <blocker name>`;
@@ -131,11 +147,23 @@ and Step 6 tells them apart.
 
 ## Step 2 — Choose one, and claim it before you work
 
-If the user named a ticket, use it. Otherwise recommend the first frontier
-ticket and say in one line **why** — usually that it unblocks the most, or that
-it is the only thing open.
+If the user named a ticket, use it — **unless it came back under `claimed`**,
+which is the one case where you stop and ask first (below). Otherwise recommend
+the first frontier ticket and say in one line **why** — usually that it unblocks
+the most, or that it is the only thing open.
 
-The moment the user picks or accepts, **claim it — before any work at all**:
+**Before claiming, check the bucket the ticket came from.** Claim only what
+`frontier` listed under `frontier`. A ticket under `claimed` is another
+session's work: there is no tool backstop, so a second `claim` exits `0` and
+silently replaces the first assignee, and the two sessions then resolve the same
+decision two different ways with no trace that it happened. Ask the user whether
+that session is still live, and say plainly that taking it over means the other
+session's answer will land on a ticket you have already changed. On the local
+backend the claim records that the ticket is **taken**, not by whom, so the
+files cannot tell you who holds it — only the user can.
+
+Then, the moment the user picks or accepts, **claim it — before any work at
+all**:
 
 ```
 python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" claim --map <slug> --ticket <key>
@@ -144,13 +172,25 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" claim --map <slug> --tic
 The pick itself is the approval; this is a lifecycle write, not a create, so it
 needs no separate dialog (ADR 0039). Claiming first is the concurrency
 handshake: a session that starts a minute later sees the ticket under `claimed`
-and picks something else. Work first and claim later, and two sessions resolve
-the same decision two different ways.
+and picks something else. Work first and claim later, and you have no handshake
+at all.
 
-On the local backend the claim records that the ticket is **taken**, not who
-took it. So treat anything already in `claimed` as another session's work: do
-not claim over it — a second claim silently replaces the first. Ask the user
-whether that session is still live before touching it.
+**A claim you cannot finish must be released by hand.** There is no `unclaim`
+subcommand, and the contract scopes `--user` to ADO, so it is not a release
+lever here — nor is passing an empty one, which on Windows PowerShell drops the
+argument and fails argparse outright. So if you end the session
+holding a ticket you did not resolve — the escalation in Step 3 is the usual
+reason — clear its `assignee:` value by hand:
+
+```
+docs/decision-map/<slug>/tickets/<key>.md   →   frontmatter `assignee:`
+```
+
+That is a legitimate edit: the local backend is Markdown in the user's own repo,
+`assignee:` is ordinary frontmatter rather than a tool-owned marker region, and
+clearing it puts the ticket straight back on the frontier. Skipping it
+quarantines the ticket permanently, because every future session is told above
+not to claim over `claimed`.
 
 ## Step 3 — Resolve it, by type
 
@@ -162,7 +202,7 @@ resolution.
 | Type | Mode | How you resolve it |
 |---|---|---|
 | `grilling` | HITL | Load `grill-with-docs` the way your harness loads skills — or `grill-then-plan` when this ticket's outcome is meant to be a written plan. **If the ticket is fix-shaped and the cause is not yet verified, verify the cause first with `debug-mantra`: never plan a fix on an unverified cause** (ADR 0003/0011). |
-| `prototype` | HITL | Produce the cheap artifact through the ui-mockup mechanism (a Claude Design design-system home is preferred per ADR 0032; a rendered artifact, then a self-contained local `.html`, are fallbacks 2 and 3). The user reacts to the artifact; their reaction is the decision. Link the artifact onto the ticket with `comment`. |
+| `prototype` | HITL | Produce the cheap artifact through the ui-mockup mechanism — read `plugins/dev-workflows/references/ui-mockup.md` before the first render (a Claude Design design-system home is preferred per ADR 0032; a rendered artifact, then a self-contained local `.html`, are fallbacks 2 and 3, used only when the ones above are unavailable). The user reacts to the artifact; their reaction is the decision. Link the artifact onto the ticket with `comment`. |
 | `research` | AFK | Normally already resolved by the chart-time subagents. If it is still open: dispatch a research subagent now, the way your harness runs them, and record its findings with `--body-file` in Step 4. |
 | `task` | either | Do the thing if you can do it unattended; otherwise hand the user a **precise** checklist and wait. Record what was done, and the facts later tickets depend on — a task ticket's value to the map is the facts it leaves behind. |
 
@@ -179,6 +219,13 @@ stop:
 ```
 python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" comment --map <slug> --ticket <key> --body-file <workdir>/note-<key>.md
 ```
+
+**Then release the claim** — clear the ticket's `assignee:` frontmatter by hand,
+exactly as Step 2 describes. You could not have avoided claiming it: you learn
+that a question needs live-system grounding *here*, in Step 3, and by then the
+claim has already happened, because claiming first is the handshake you must not
+skip. An escalated ticket left claimed is a ticket no future session will pick
+up.
 
 The same `comment` call is how a prototype artifact's link, or any note that is
 not the answer, lands on a ticket.
@@ -258,7 +305,9 @@ edge onto a ticket that already exists, that edge in the new ticket's `blocks`:
   alone. To change one, edit `map.md` by hand.
 - `blocks` is **downstream** — the tickets this one holds up. Readers see the
   upstream `blockedBy`. An edge may name a ticket that already exists without
-  re-listing it in `tickets[]` (ADR 0055).
+  re-listing it in `tickets[]` (ADR 0055), but the target must exist **either in
+  this input or already on the map**: naming one that exists in neither is a
+  validation error, and the run exits `2` naming the ticket and the bad target.
 - Keys are lowercase-kebab, must match `[A-Za-z0-9][A-Za-z0-9_-]*`, and **must
   not contain `--`**.
 
@@ -283,11 +332,13 @@ the user the stderr rendering.
 | `OVERWRITE` | `--force` only: it exists and will be fully rewritten, discarding its recorded state |
 
 A graduation run should read almost entirely `create` (the new tickets) and
-`merge` (the map body, and any existing ticket gaining an edge). **A `merge` on
-an existing ticket adds exactly one `blockedBy` entry and changes nothing
-else** — its status, assignee, gist and resolution block are untouched (ADR
-0055). If you see an `OVERWRITE` line and did not deliberately pass `--force`,
-stop and investigate.
+`merge` (the map body, and any existing ticket gaining an edge). Every `merge`
+names what it adds in its `detail` — `adds 2 fog lines, 1 out-of-scope line` on
+the map body, `unions blockedBy: <key>` on a ticket — so read those out. **A
+`merge` on an existing ticket adds exactly one `blockedBy` entry and changes
+nothing else**: its status, assignee, gist and resolution block are untouched
+(ADR 0055). If you see an `OVERWRITE` line and did not deliberately pass
+`--force`, stop and investigate.
 
 **3. Ask for explicit approval. Never create without it.** The approval is for
 the plan you just showed — if the input changes at all, re-run the dry run.
@@ -328,14 +379,28 @@ that blocks an existing one pushes that ticket off the frontier into `blocked`
 
 ## Step 6 — Stop
 
-**One HITL ticket per session** (ADR 0041). The research subagents are the only
-exception; they are AFK and they run in parallel.
+**The cap counts HITL tickets: one per session** (ADR 0041). Grilling and
+prototype tickets are always HITL, and so is any task ticket that needed the
+user. **Research is AFK and does not count** — subagents run in parallel, so
+dispatching several and recording their findings is one session's work whether
+they were fired at chart time or picked up here. The line is the user's
+attention, not the ticket count: the moment a ticket needs their judgement, that
+is this session's one, and you stop after it. If the ticket you claimed turned
+out to be research that resolved without them, you may go back to Step 1 and
+take one more.
 
-The pull to do "just one more" is not stamina, it is a **signal** — name it out
-loud rather than acting on it. Either the frontier is genuinely small and the
-map is nearly done, or this session is overreaching and the next decision
-deserves a fresh, un-anchored session. The cap is what keeps the map, rather
-than a long conversation, holding the state.
+The pull to do "just one more" past that line is not stamina, it is a
+**signal** — name it out loud rather than acting on it. Either the frontier is
+genuinely small and the map is nearly done, or this session is overreaching and
+the next decision deserves a fresh, un-anchored session. The cap is what keeps
+the map, rather than a long conversation, holding the state.
+
+Re-run the frontier so the report describes the map as it now stands, not as it
+looked when the session opened:
+
+```
+python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" frontier --map <slug>
+```
 
 Report, in this order:
 
@@ -360,10 +425,16 @@ Three different situations, and they need different answers:
 - **Nothing open and no fog left** — the map is done. Say the way is clear, and
   hand off to `superpowers:writing-plans` (or whatever the destination line
   named). decision-map plans; it does not build.
-- **Nothing open but fog remains** — the next move is charting, not planning.
-  The fog needs an exchange sharp enough to state it as a question: run
-  `/decision-map:chart` against the same slug, or graduate it here through
-  Step 5's gate.
+- **Nothing open but fog remains** — this session's work is **graduation, and
+  it happens here**. Do not send the user to `/decision-map:chart`: that skill
+  charts a map that does not exist yet, and this one does. Take the sharpest fog
+  line, grill it just far enough to *state* it as a question, and run Step 5's
+  gate on it — the gate is the same additive `chart` whether or not a resolution
+  came before it, and a session that opens a map, finds nothing takeable and
+  graduates one fog line into a real ticket has done exactly one session's work.
+  If nothing sharpens, say so and stop: fog that will not state itself is
+  waiting on a decision that has not been made yet.
 - **Everything left is blocked or claimed** — another session is holding the
   unblocked work, or a blocker is still open under someone else's claim.
-  Nothing to pick up; say who holds what and stop.
+  Nothing to pick up; say who holds what and stop. If a `claimed` ticket looks
+  abandoned, releasing it is the hand edit in Step 2, and it is the user's call.
