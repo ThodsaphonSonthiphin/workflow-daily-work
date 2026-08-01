@@ -123,7 +123,7 @@ class LocalMapOpsTest(unittest.TestCase):
 
     # Finding 1 (Critical): re-charting an existing map folder must never
     # silently destroy recorded state (claims, resolutions, blocking edges).
-    # REWRITTEN for Task 3b / ADR 0043: the guard is unchanged in substance --
+    # REWRITTEN for Task 3b / ADR 0054: the guard is unchanged in substance --
     # recorded state must survive an un-forced re-chart -- but the mechanism
     # is now "skip every existing file" rather than "refuse the whole run".
     # Byte-identity is a strictly stronger assertion than the old one.
@@ -784,7 +784,7 @@ class LocalMapOpsTest(unittest.TestCase):
                               "the text must survive as part of the assignee value")
 
     # ------------------------------------------------------------------
-    # Task 3b -- `chart` is additive by default (ADR 0043)
+    # Task 3b -- `chart` is additive by default (ADR 0054)
     # ------------------------------------------------------------------
 
     def _plus_ticket(self, key="fog-graduate", blocks=None):
@@ -856,7 +856,7 @@ class LocalMapOpsTest(unittest.TestCase):
         before = _snapshot(self.root / "example-effort")
         ops.chart(self.root, inp, real=True)
         self.assertEqual(_snapshot(self.root / "example-effort"), before)
-        # ADR 0043: "never remove existing ones". An input that OMITS a line
+        # ADR 0054: "never remove existing ones". An input that OMITS a line
         # already on disk must not delete it -- the merge is a union, not a
         # replacement. (Without this the suite could not tell a real merge
         # from "wipe the region and write the input", because every other
@@ -891,7 +891,7 @@ class LocalMapOpsTest(unittest.TestCase):
         map_md = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
         self.assertIn("A COMPLETELY DIFFERENT DESTINATION", map_md)
 
-    # REWRITTEN for ADR 0044: the edge is now UNIONED into the existing ticket
+    # REWRITTEN for ADR 0055: the edge is now UNIONED into the existing ticket
     # instead of being dropped and reported. The guarantee is restated as
     # "never removes, never reorders, never overwrites" -- so this test pins
     # the scoped identity: exactly one blockedBy entry gained, every other
@@ -947,7 +947,7 @@ class LocalMapOpsTest(unittest.TestCase):
                          "re-unioning an edge already present must change nothing")
 
     def test_additive_chart_unions_an_edge_without_relisting_the_target(self):
-        """ADR 0044 / F3: an edge may name a ticket that exists on disk but is
+        """ADR 0055 / F3: an edge may name a ticket that exists on disk but is
         not re-listed in this input's tickets[]."""
         self._chart()
         inp = copy.deepcopy(INPUT)
@@ -955,7 +955,7 @@ class LocalMapOpsTest(unittest.TestCase):
                            "question": "q?",
                            "blocks": ["rollout-order", "api-limits"]}]
         # api-limits is open, unclaimed and unblocked, so it is on the
-        # frontier right now -- ADR 0044's stated harm is that it would STAY
+        # frontier right now -- ADR 0055's stated harm is that it would STAY
         # there while a just-created ticket is meant to block it.
         self.assertIn("api-limits",
                       [t["id"] for t in ops.frontier(self.root, "example-effort")["frontier"]])
@@ -1279,7 +1279,7 @@ class LocalMapOpsCliTest(unittest.TestCase):
                     self.assertEqual(rc, 0)
                     self.assertEqual(json.loads(out)["dryRun"], True)
 
-    # REWRITTEN for Task 3b / ADR 0043: the CLI-level re-chart assertion flips
+    # REWRITTEN for Task 3b / ADR 0054: the CLI-level re-chart assertion flips
     # from "refuses with EXIT_ERROR" to "succeeds additively". The clean-error
     # contract it also guarded (round 5) is still covered, by
     # test_cli_known_failures_are_clean_one_line_errors.
@@ -1299,7 +1299,7 @@ class LocalMapOpsCliTest(unittest.TestCase):
                           "--body-file", str(self._write_body("noted"))])
         self.assertEqual(json.loads(out), {"commented": "rollout-order"})
 
-        # CLI-level re-chart is now ADDITIVE (ADR 0043): it succeeds, writes
+        # CLI-level re-chart is now ADDITIVE (ADR 0054): it succeeds, writes
         # nothing that already exists, and preserves the resolution above.
         base = self.root / "example-effort"
         before = _snapshot(base)

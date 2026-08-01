@@ -15,7 +15,7 @@ erDiagram
 
 | Subcommand | Args | Effect |
 |---|---|---|
-| `chart` | `--input <map_input.json> --output <map.json>` | create map + tickets + parent links + blocking edges, **additively** (ADR 0043/0044) — see below. **Dry-run by default**; `--real` performs the writes; `--force` is a **destructive** full rewrite that discards recorded resolutions, claims and edges. |
+| `chart` | `--input <map_input.json> --output <map.json>` | create map + tickets + parent links + blocking edges, **additively** (ADR 0054/0055) — see below. **Dry-run by default**; `--real` performs the writes; `--force` is a **destructive** full rewrite that discards recorded resolutions, claims and edges. |
 | `read` | `--map <id\|slug> --output <map.json>` | fetch map + children at low resolution. |
 | `frontier` | `--map <id\|slug> --output <frontier.json>` | open + unblocked + unclaimed children. |
 | `claim` | `--ticket <id\|slug>` (`--user <upn>` ADO only) | assign the ticket to the caller. |
@@ -26,7 +26,7 @@ erDiagram
 Every subcommand also accepts `--dry-run` (print planned mutations, change
 nothing) — for `chart` that is already the default.
 
-### `chart` is additive (ADR 0043, refined by ADR 0044)
+### `chart` is additive (ADR 0054, refined by ADR 0055)
 
 `chart` names **two acts**: the initial charting of a map, and the incremental
 graduation of fog into fresh tickets mid-map. One create path serves both, so
@@ -41,7 +41,7 @@ never overwrites* — **not** "never touches". On a map that already exists,
   lines are appended, existing ones are never removed or reordered, and an
   input that omits a line already on disk does not delete it;
 - **unions** a new blocking edge into an existing ticket's `blockedBy`
-  (ADR 0044). That ticket gains one entry and **nothing else** — every other
+  (ADR 0055). That ticket gains one entry and **nothing else** — every other
   byte of it, including status, assignee, gist and the resolution block, is
   unchanged. Dropping the edge instead was worse: `frontier()` then reported a
   ticket as actionable while a just-created ticket was meant to block it;
@@ -59,7 +59,7 @@ overwritten, and that re-running identical input is a **no-op** — the same
 bytes out, which also makes a partially-failed chart resumable.
 
 An edge may name a ticket that already exists in the map **without re-listing
-it in `tickets[]`** (ADR 0044). A `blocks` target must exist either in this
+it in `tickets[]`** (ADR 0055). A `blocks` target must exist either in this
 input or in the map on disk; naming a target that exists in neither is a
 validation error.
 
@@ -145,7 +145,7 @@ strings naming anything the input asked for that an additive run deliberately
 did not apply — a differing `title`/`destination`/`notes`, or list lines that
 could not be merged into a `map.md` predating the list regions. Empty on an
 initial chart and on `--force`. Blocking edges are **not** listed here: since
-ADR 0044 they are applied, and appear in the dry-run plan as a `merge`.
+ADR 0055 they are applied, and appear in the dry-run plan as a `merge`.
 
 `status` ∈ `open | closed`. `blockedBy` lists upstream blockers — the tickets
 that must close before this one is actionable — the same relation `frontier.json`

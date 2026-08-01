@@ -1,18 +1,18 @@
-# ADR 0044 — additive `chart` unions `blockedBy` on existing tickets
+# ADR 0055 — additive `chart` unions `blockedBy` on existing tickets
 
 - **Status:** Accepted
 - **Date:** 2026-08-01
-- **Refines:** [ADR 0043](0043-chart-is-additive-so-fog-graduation-needs-no-new-subcommand.md)
+- **Refines:** [ADR 0054](0054-chart-is-additive-so-fog-graduation-needs-no-new-subcommand.md)
 
 ```mermaid
 flowchart TD
-    Q{"a graduating ticket must block<br/>a ticket that already exists —<br/>who wires the edge?"} -->|chosen| UNION["`chart` unions the edge into the<br/>existing ticket's blocked_by — the<br/>same union semantics ADR 0043 already<br/>applies to fog and out-of-scope"]
+    Q{"a graduating ticket must block<br/>a ticket that already exists —<br/>who wires the edge?"} -->|chosen| UNION["`chart` unions the edge into the<br/>existing ticket's blocked_by — the<br/>same union semantics ADR 0054 already<br/>applies to fog and out-of-scope"]
     Q -->|rejected| TWOCALL["keep existing tickets byte-identical;<br/>the flow skill calls `block` after<br/>`chart` — preserves the simpler<br/>property but makes graduation a<br/>two-step a caller can forget"]
 ```
 
 ## Context
 
-ADR 0043 made `chart` additive, and Task 3b implemented it with a strict guarantee: every
+ADR 0054 made `chart` additive, and Task 3b implemented it with a strict guarantee: every
 pre-existing ticket file stays **byte-identical**. Review then established the actual shape
 of the resulting hole — narrower than first reported, but real:
 
