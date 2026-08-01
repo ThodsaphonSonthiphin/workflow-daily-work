@@ -200,8 +200,8 @@ nothing, so `chart --input x | jq` works — a split every backend must keep.
   "ticketType": "Issue",
   "map": {
     "title": "Decision map — <effort name>",
-    "destination": "<one or two lines>",
-    "notes": "<skills to consult; standing preferences>",
+    "destination": "<one or two sentences — stored as a single line>",
+    "notes": "<skills to consult; standing preferences — stored as a single line>",
     "notYetSpecified": ["<fog line>", "..."],
     "outOfScope": ["<ruled-out line>", "..."]
   },
@@ -346,7 +346,7 @@ once per run.** Never by a global search.
 
 | Backend | Where the key lives | How the join is built |
 |---|---|---|
-| Local | the ticket filename stem, `tickets/<key>.md` | glob `tickets/*.md`; the stem *is* the key (stems that are not safe slugs are not decision-map tickets and are ignored) |
+| Local | the ticket filename stem, `tickets/<key>.md` | glob `tickets/*.md`; the stem *is* the key (a stem that is not a safe slug is not a decision-map ticket: it is ignored, and a `warning:` line naming it is written to stderr so the skip is never silent) |
 | ADO | marker line `<!-- decision-map:key:<key> -->` in `System.Description` | one WIQL/link query for the map work item's `System.LinkTypes.Hierarchy-Forward` children, then read each child's description |
 | GitHub | marker line `<!-- decision-map:key:<key> -->` in the issue body | list the map issue's sub-issues (or parse the task list in the map body when sub-issues are unavailable), then read each issue's body |
 
@@ -516,7 +516,7 @@ like any closed ticket it then appears in no `frontier.json` bucket.
 <one small overview mermaid diagram (diagram convention applies to local files)>
 
 ## Destination
-<one or two lines>
+<one or two sentences, always rendered as a single line>
 
 ## Notes
 <domain; skills every session should consult; standing preferences>

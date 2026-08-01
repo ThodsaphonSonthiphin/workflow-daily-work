@@ -624,7 +624,19 @@ def _all_tickets(root, slug):
     # with a name that is not a safe slug is not a ticket -- skipping it
     # keeps read/frontier working instead of tripping _safe_segment on a
     # name that came from the filesystem rather than from the caller.
-    return sorted(p.stem for p in tdir.glob("*.md") if _SAFE_SLUG_RE.match(p.stem))
+    keep, skipped = [], []
+    for p in sorted(tdir.glob("*.md")):
+        (keep if _SAFE_SLUG_RE.match(p.stem) else skipped).append(p)
+    # ...but say so. Silently skipping made a hand-added file invisible: a
+    # session reads the frontier and believes a decision is unrepresented
+    # while it is sitting on disk. stderr only -- stdout stays JSON-only and
+    # the JSON shape is unchanged, because the contract documents it and both
+    # flow skills parse it (review F2).
+    for p in skipped:
+        print(f"warning: ignoring {p.name!r} in {slug}/tickets: the filename is not a "
+              "safe slug (letters, digits, '-', '_'), so it is not a decision-map "
+              "ticket and no command will see it", file=sys.stderr)
+    return [p.stem for p in keep]
 
 
 def _region_text(start, end, lines):
@@ -689,11 +701,21 @@ def _render_map_md(m):
     oos = _region_text(_SCOPE_START, _SCOPE_END,
                        _merge_region_lines("", m.get("outOfScope") or []))
     return (
-        f"# {_scrub(m['title'])}\n\n"
+        # _one_line, not _scrub: these three are single-line slots in the
+        # rendered document -- an H1, and one paragraph under each of two
+        # headings -- so they get the same flatten-then-escape treatment every
+        # other user string in this module gets (see _fm_value). _scrub alone
+        # neutralises the marker but leaves line breaks, and both harms were
+        # silent: read_map()'s splitlines()[0] truncated a two-line title with
+        # no error and no divergence entry, and a newline-bearing destination
+        # injected a second "## Notes" heading AHEAD of the real one, into the
+        # file a human is meant to read and hand-edit. Both skills describe the
+        # destination as "one or two lines", so that shape is invited.
+        f"# {_one_line(m['title'])}\n\n"
         "```mermaid\ngraph TD\n    MAP[\"map (this file)\"] --> T[\"tickets/*.md — one decision each\"]\n"
         "    T --> D[\"Decisions so far (index below)\"]\n```\n\n"
-        f"## Destination\n{_scrub(m['destination'])}\n\n"
-        f"## Notes\n{_scrub(m.get('notes') or '')}\n\n"
+        f"## Destination\n{_one_line(m['destination'])}\n\n"
+        f"## Notes\n{_one_line(m.get('notes') or '')}\n\n"
         # Every list under a heading below is a GENERATED region, delimited so
         # an additive re-chart can merge into it, and resolve() can rebuild the
         # decisions index, without pattern-searching the rest of the file.

@@ -1175,6 +1175,81 @@ class LocalMapOpsTest(unittest.TestCase):
         auth = next(t for t in m["tickets"] if t["key"] == "auth-model")
         self.assertEqual(auth["blockedBy"], [])
 
+    # F1 (scrutinize, Major): the map's own title/destination/notes were the
+    # only user strings in the module passed to _scrub() WITHOUT being
+    # flattened first -- every other one goes through _fm_value/_one_line.
+    # Two silent harms: read_map()'s splitlines()[0] truncated a two-line
+    # title with no error and no divergence entry, and a newline-bearing
+    # destination injected a spurious "## Notes" heading AHEAD of the real
+    # one, into the document a human is meant to read and hand-edit. Both
+    # skills invite the shape by describing the destination as "one or two
+    # lines". This is the map-level analogue of
+    # test_newline_in_title_does_not_corrupt_frontmatter.
+    def test_newlines_in_map_scalars_do_not_corrupt_map_md(self):
+        inp = copy.deepcopy(INPUT)
+        inp["target"]["slug"] = "map-scalars"
+        inp["map"] = {
+            "title": "Migrate billing\nSECOND LINE SHOULD NOT APPEAR AS HEADING",
+            "destination": "ship it\n\n## Notes\nFAKE INJECTED NOTES SECTION",
+            "notes": "first note\nsecond note line",
+            "notYetSpecified": [], "outOfScope": [],
+        }
+        ops.chart(self.root, inp, real=True)
+        map_md = (self.root / "map-scalars" / "map.md").read_text(encoding="utf-8")
+        # exactly the five headings the renderer writes -- nothing injected
+        self.assertEqual([l for l in map_md.splitlines() if l.startswith("## ")],
+                         ["## Destination", "## Notes", "## Decisions so far",
+                          "## Not yet specified", "## Out of scope"])
+        # the H1 is one line and carries the WHOLE title, not a truncation
+        self.assertEqual(map_md.splitlines()[0],
+                         "# Migrate billing SECOND LINE SHOULD NOT APPEAR AS HEADING")
+        m = ops.read_map(self.root, "map-scalars")
+        self.assertEqual(m["map"]["name"],
+                         "Migrate billing SECOND LINE SHOULD NOT APPEAR AS HEADING")
+        # read_map's destination regex still extracts the full flattened value
+        self.assertEqual(m["map"]["destination"],
+                         "ship it  ## Notes FAKE INJECTED NOTES SECTION")
+        self.assertIn("first note second note line", map_md)
+        # and map.md still opens with the overview diagram right after the H1
+        self.assertIn("```mermaid", map_md.split("## Destination")[0])
+
+    def test_changed_destination_reports_divergence_exactly_once(self):
+        """Knock-on guard: _plan_map_md compares _one_line(value) against a
+        flattened file, so flattening at render must keep the two consistent
+        rather than skew them."""
+        inp = copy.deepcopy(INPUT)
+        inp["target"]["slug"] = "div-once"
+        inp["map"] = dict(inp["map"], destination="line one\nline two")
+        ops.chart(self.root, inp, real=True)
+        same = ops.chart(self.root, inp, real=True)
+        self.assertEqual([d for d in same["divergence"] if "destination" in d], [],
+                         "an unchanged multi-line destination must not diverge")
+        changed = copy.deepcopy(inp)
+        changed["map"] = dict(changed["map"], destination="something else entirely")
+        out = ops.chart(self.root, changed, real=True)
+        self.assertEqual(len([d for d in out["divergence"] if "destination" in d]), 1,
+                         f"expected exactly one destination divergence: {out['divergence']}")
+
+    # F2 (scrutinize, Minor): the skip itself is right -- raising would let one
+    # stray file break read/frontier for the whole map -- but it was totally
+    # silent, so a hand-added `tickets/my ticket.md` was invisible and a
+    # session would believe a decision was unrepresented while it sat on disk.
+    def test_a_skipped_ticket_file_is_announced_on_stderr(self):
+        self._chart()
+        (self.root / "example-effort" / "tickets" / "my ticket.md").write_text(
+            "hand added\n", encoding="utf-8")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            m = ops.read_map(self.root, "example-effort")
+        self.assertEqual(len(m["tickets"]), 3, "the JSON shape must not change")
+        self.assertIn("warning:", err.getvalue())
+        self.assertIn("my ticket.md", err.getvalue())
+        err2 = io.StringIO()
+        with contextlib.redirect_stderr(err2):
+            ops.frontier(self.root, "example-effort")
+        self.assertIn("my ticket.md", err2.getvalue(),
+                      "frontier must warn too -- it is the view a session trusts")
+
     def test_chart_rejects_a_key_containing_a_double_hyphen(self):
         before = _snapshot(self.root)
         for key in ("foo--bar", "a--", "--lead", "x---y"):

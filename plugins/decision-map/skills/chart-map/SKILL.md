@@ -36,7 +36,7 @@ CHART A DECISION MAP — one session, then stop
   ▼
   ② DESTINATION  (HITL — the human answers)
   │   what does arriving look like?
-  │   one or two lines, written down first
+  │   one or two sentences, one line, first
   ▼
   ③ FRONTIER — breadth-first, never deep
   │   HITL too: you ask, the human answers
@@ -98,8 +98,13 @@ skills, if it is available; otherwise ask directly, one question at a time):
 **what does reaching the end look like?** A written spec, a locked decision, a
 change made in place?
 
-One or two lines. The destination is what every ticket is measured against, and
-what makes "out of scope" decidable. Write it down before any ticket exists.
+One or two sentences. The destination is what every ticket is measured against,
+and what makes "out of scope" decidable. Write it down before any ticket exists.
+
+It is stored as a **single line** — the tool collapses any line break to a
+space, in `title`, `destination` and `notes` alike, so that a stray newline can
+never truncate the value or inject a heading into `map.md`. Write it as prose,
+not as a bulleted list or a paragraph break.
 
 ### The HITL guard — it governs this step and Step 2 both
 
@@ -167,7 +172,7 @@ working files, never a store — the map itself is the source of truth.
   "target": { "slug": "billing-migration" },
   "map": {
     "title": "Decision map - migrate billing to the new provider",
-    "destination": "<the one or two lines from Step 1>",
+    "destination": "<the destination from Step 1, as one line>",
     "notes": "<skills every session should consult; standing preferences>",
     "notYetSpecified": ["<fog line>"],
     "outOfScope": ["<ruled-out line>"]
