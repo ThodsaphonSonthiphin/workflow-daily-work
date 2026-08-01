@@ -90,9 +90,14 @@ reason ADR 0059 deferred was the editor that only ADO has.
   the next `chart` reports every line as changed — the byte-identical no-op guarantee
   breaks on text nobody touched. The key marker is single-line and safe either way;
   region *content* is what this protects.
-- **One gap is now concrete rather than theoretical:** the contract says generated
-  regions are tool-owned but never says what happens when a human edits *inside* one.
-  The probe's web-UI edit did exactly that, and the next `chart` would overwrite the
-  line without warning. This is the same class of bug that took the local backend five
-  review rounds to fix by moving to sentinel-delimited regions. Phase 2 must close it
-  before writing join code.
+- **Correction (verified after this ADR was first written).** It said the probe's
+  web-UI edit — a line typed *inside* a `fog` region — would be overwritten by the
+  next `chart` without warning. **That is wrong**, and it was taken from an audit
+  claim rather than measured. Running it: an additive `chart` **preserves** the
+  human's line, because additive means union and a hand-typed line is simply another
+  fog line; it is then absorbed into the tool's fog list and appears in `map.json`'s
+  `notYetSpecified`. Only `--force` destroys it — along with any prose outside the
+  regions — and `--force` announces every one of those files as `OVERWRITE` in the
+  dry-run plan first, which is the documented, gated behaviour. So the real gap is
+  narrower than claimed and is not data loss: the contract never says that text a
+  human types inside a region becomes tool-managed content.

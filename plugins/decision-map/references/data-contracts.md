@@ -610,14 +610,18 @@ both were the same bug shape, an *absence* read as a *resolution*:
 
 **Open — phase 2 must decide, and the probe can settle several:**
 
-- **A human editing inside a generated region.** The contract says regions are
-  tool-owned but never says what happens when someone types inside one. Local's
-  behaviour is three-way and undocumented: markers deleted → the merge is
-  skipped and a divergence reported; markers intact → the content between them
-  is replaced, so the human's text is destroyed without warning. On a tracker
-  the map item's description is exactly where a team adds context. Observed
-  live during the GitHub probe: a human edit landed inside a `fog` region and
-  the next `chart` would have overwritten it silently.
+- **A human editing inside a generated region — it is adopted, not destroyed,
+  and that should be written down.** Measured on the shipping backend, not
+  assumed: an additive `chart` **preserves** a line a human types between the
+  `fog` markers, because additive means union and a hand-typed line is just
+  another fog line. It is then *adopted* — it appears in `map.json`'s
+  `notYetSpecified` and is re-emitted on every subsequent write, so the human
+  has effectively handed their line to the tool. Only `--force` destroys it,
+  along with any prose outside the regions, and it announces each file as
+  `OVERWRITE` in the dry-run plan first. Nothing here is data loss; what is
+  missing is the contract saying any of it. A tracker must adopt the same rule,
+  and phase 2 should decide whether adoption deserves a divergence line so the
+  user learns their sentence is now tool-managed.
 - **A read-failure table.** Missing, not-a-map, no permission and deleted are
   four distinguishable cases on a tracker and one on local. All four exit `2`;
   phase 2 must decide how much the stderr line distinguishes them. (The prior
