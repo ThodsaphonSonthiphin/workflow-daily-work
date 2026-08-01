@@ -1,6 +1,10 @@
 # ADR 0035 — decision-map v1 supports ADO + GitHub + a local-markdown fallback
 
-- **Status:** Accepted
+- **Status:** Accepted — **superseded in part by
+  [ADR 0059](0059-v1-ships-local-backend-only-tracker-backends-deferred.md)**:
+  v1 ships the local-markdown backend only, and ADO + GitHub become phase 2,
+  gated on the live-API probe. The tracker design decided here stands as that
+  phase's specification.
 - **Date:** 2026-07-31
 
 ```mermaid

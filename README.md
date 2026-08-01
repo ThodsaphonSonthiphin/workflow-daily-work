@@ -1,6 +1,6 @@
 # Workflow Daily Work — Claude Code marketplace
 
-A Claude Code **plugin marketplace** for daily-work automation. It ships four plugins:
+A Claude Code **plugin marketplace** for daily-work automation. It ships five plugins:
 
 - **`ado-backlog`** — turn findings from *any* input (an Excel/CSV audit, a doc, a code/QA
   review, a pasted list of issues) into an **Azure DevOps backlog**: extract → triage →
@@ -14,6 +14,12 @@ A Claude Code **plugin marketplace** for daily-work automation. It ships four pl
   drive-to-legacy, ticket-trace), and communication (management-talk, invoice-generator,
   problem-description) skills. **Also installable on Google Antigravity** — see
   [dev-workflows on Antigravity](#dev-workflows-on-antigravity).
+- **`decision-map`** — plan an effort **too big for one agent session**:
+  `/decision-map:chart` names the destination and charts a **Decision map** — decision
+  tickets you can state now, fog you cannot yet — behind a dry-run gate;
+  `/decision-map:work` then claims and resolves **exactly one decision per session**
+  until the way is clear. v1 keeps the map in your repo as markdown under
+  `docs/decision-map/`; Azure DevOps and GitHub Issues backends are phase 2 (ADR 0059).
 - **`react-workflows`** — **opt-in**, frontend structure conventions for React/TSX work
   (`react-structure`): per-component file separation (UI `.tsx` / hook `.ts` / `type.ts` /
   optional Redux slice), a TypeScript + Redux Toolkit + MUI + DataGridPremium stack, and a
@@ -35,6 +41,7 @@ The only command to memorize is `/daily`.
 /plugin install ado-backlog@workflow-daily-work
 /plugin install github-backlog@workflow-daily-work
 /plugin install dev-workflows@workflow-daily-work
+/plugin install decision-map@workflow-daily-work
 
 # then sign in to Azure DevOps and check your setup:
 az login
@@ -79,8 +86,8 @@ load-bearing). Verify the staged script runs:
 python "$HOME/.gemini/config/skills/.dev-workflows-shared/scripts/daily-state.py" --help
 ```
 
-- Only `dev-workflows` ships an Antigravity installer; `ado-backlog` / `github-backlog`
-  are Claude-Code-only for now.
+- Only `dev-workflows` ships an Antigravity installer; `ado-backlog`, `github-backlog`
+  and `decision-map` are Claude-Code-only for now.
 - `grill-then-plan` hands off to `superpowers:writing-plans`, so it also needs a
   **superpowers skills port** installed on Antigravity.
 - Whether skills trigger live in the Antigravity IDE must be confirmed on your own
@@ -102,7 +109,7 @@ See [`plugins/ado-backlog/README.md`](plugins/ado-backlog/README.md) for the ful
 ## Repo layout
 
 ```
-.claude-plugin/marketplace.json        # this marketplace (lists all four plugins)
+.claude-plugin/marketplace.json        # this marketplace (lists all five plugins)
 plugins/ado-backlog/
 ├── .claude-plugin/plugin.json
 ├── skills/                            # 8 skills (each invocable as /ado-backlog:<name>)
@@ -115,6 +122,7 @@ plugins/ado-backlog/
 plugins/github-backlog/                # same pipeline, GitHub Issues backend
 plugins/dev-workflows/                 # the daily-work arc — /daily router + design/debug/review/study/comms skills
 plugins/react-workflows/               # opt-in React/TSX structure conventions (react-structure)
+plugins/decision-map/                  # multi-session planning — chart-map + work-map, local-markdown backend
 scripts/sync-personal-skills.ps1       # mirror dev-workflows skills into ~/.claude/skills
 ```
 

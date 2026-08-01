@@ -1,5 +1,23 @@
 # decision-map Plugin Implementation Plan
 
+> ⚠️ **EXECUTED AND SUPERSEDED IN PART — historical record, not a description
+> of the shipped tool.** This plan was carried out; implementation and five
+> review rounds changed several things it still shows. Do not read any code
+> block here as current. The authoritative sources are
+> [`plugins/decision-map/references/data-contracts.md`](../../../plugins/decision-map/references/data-contracts.md)
+> and the two skills.
+>
+> Specifically: **v1 ships the local backend only** — Tasks 4 and 5 (the ADO
+> and GitHub ops scripts) were **not** built and are phase 2
+> ([ADR 0059](../../adr/0059-v1-ships-local-backend-only-tracker-backends-deferred.md));
+> `chart` became **additive** ([ADR 0057](../../adr/0057-chart-is-additive-so-fog-graduation-needs-no-new-subcommand.md))
+> and **unions `blockedBy`** into existing tickets
+> ([ADR 0058](../../adr/0058-additive-chart-unions-blocked-by-on-existing-tickets.md));
+> and **Task 3's resolution format is obsolete** — it shows an unmarked
+> `## Resolution` append, which five review rounds replaced with a
+> sentinel-delimited region, because appending without a delimiter destroyed
+> user content in three different ways. Never copy that snippet.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship the `decision-map` plugin — wayfinder-style multi-session planning as a map of decision tickets on ADO / GitHub / local markdown — per the approved spec `docs/superpowers/specs/2026-07-31-decision-map-design.md` (ADRs 0033–0042).
@@ -646,6 +664,32 @@ git commit -m "feat(decision-map): local-markdown backend with unit tests (ADR 0
 
 ### Task 4: ADO backend `decision-map-ops.cs`
 
+> **⚠ SUPERSEDED IN PART — read this before the code below.**
+> `plugins/decision-map/references/data-contracts.md` is authoritative; where the
+> skeleton below disagrees with it, the contract wins. Implementing Tasks 3 and 3b
+> changed the semantics this skeleton was written against (ADRs 0054, 0055):
+>
+> - **`chart` is additive**, not create-only: skip tickets whose `key` already exists,
+>   union new `blockedBy` edges into existing tickets, merge the map's fog and
+>   out-of-scope lists. `--force` is the explicit destructive full rewrite. The
+>   skeleton's `Chart` creates unconditionally.
+> - **The output field is `blockedBy`** (upstream blockers) carrying **keys, not native
+>   tracker ids**. The skeleton emits `blocks = Predecessors(...)` with ids — wrong
+>   name and wrong value type.
+> - **`key` is not the item id.** A stable key is stored on the item and recovered by
+>   enumerating the map's children; the skeleton's `key = id.ToString()` defeats
+>   additive chart entirely — every run would re-create every ticket.
+> - **`gist` must round-trip**, not be hardcoded `null` as in the skeleton.
+> - **Chart pass 2's `created[b]` throws** when an edge names a ticket that already
+>   exists on the map rather than one created in this run — the normal fog-graduation
+>   case. An edge target must resolve against this input *or* the map on disk.
+> - **Before writing any join code**, run the key-marker survival probe the contract
+>   specifies (PATCH/GET byte-compare, a key containing `--`, a Boards web-UI edit then
+>   re-GET, close/reopen) and fall back down the contract's ladder if it fails.
+>
+> The auth, JSON-patch and CLI wiring in the skeleton remain valid — treat it as a
+> starting shape for those, not as the semantics.
+
 **Files:**
 - Create: `plugins/ado-backlog/scripts/decision-map-ops.cs`
 - Create: `plugins/decision-map/examples/map_input.example.json` (fixture used by smoke tests and docs)
@@ -1103,6 +1147,28 @@ git commit -m "feat(ado-backlog): decision-map ops backend — chart/claim/resol
 ---
 
 ### Task 5: GitHub backend `decision_map_ops.py`
+
+> **⚠ SUPERSEDED IN PART — read this before the code below.**
+> `plugins/decision-map/references/data-contracts.md` is authoritative; where the
+> skeleton below disagrees with it, the contract wins. The same corrections as Task 4
+> apply here (ADRs 0054, 0055):
+>
+> - **`chart` is additive** — skip issues whose `key` already exists, union new
+>   `blockedBy` edges into existing issues, merge the map body's fog and out-of-scope
+>   lists; `--force` is the explicit destructive full rewrite. The skeleton's `chart`
+>   creates unconditionally.
+> - **`read_map_impl` hardcodes `"blocks": []` and `"gist": None`** — both wrong. The
+>   field is `blockedBy`, it carries **keys not issue numbers**, and it must be
+>   populated (the `_blocked_by()` helper already exists); `gist` must round-trip.
+> - **`key` is not the issue number.** The key lives in a marker in the issue body and
+>   is recovered by enumerating the map's children.
+> - **Chart pass 2's `created[blocked_key]` throws** when an edge names an issue that
+>   already exists on the map rather than one created in this run.
+> - **Verify GitHub's sub-issues and issue-dependencies availability on the target
+>   plan before building the join on them**, and use the documented body-convention
+>   fallback if absent — labelling the weaker mode in output, as the skeleton already does.
+>
+> The token handling, `gh` wrapping and CLI wiring remain valid.
 
 **Files:**
 - Create: `plugins/github-backlog/scripts/decision_map_ops.py`
