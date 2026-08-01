@@ -41,10 +41,11 @@ CAREER-GROWTH — five stations, full run every time
 ## Non-negotiable evidence rules
 
 All outside-world fact verification — certificate lifecycle, market demand,
-trend claims — is delegated to **`verify-then-advise`**; Station 2 runs its
+claim grading — is delegated to **`verify-then-advise`**; Station 2 runs its
 six-stage method rather than career-growth re-deriving a thinner copy of it.
-Running that method is what makes the following true; they are its
-consequences here, not separate rules of career-growth's own:
+Rules 1–2 below are consequences of running that method; rule 3 draws on
+career-growth's own trend-signal taxonomy, with the sibling contributing
+claim grading and the counter-signal hunt that stress-test it:
 
 1. **Never answer certificate questions from memory** — every cert is
    live-verified against the vendor's registry before it may be named
@@ -54,7 +55,9 @@ consequences here, not separate rules of career-growth's own:
    Directional / Unverified); an ungraded claim may not appear in
    `market-report.md`.
 3. **No 3-year claim without triangulation** — at least three signal types,
-   per `verify-then-advise`'s primary-artifact counting and trend-signal work.
+   drawn from this skill's own trend-signal taxonomy
+   (`references/market-sources.md`); `verify-then-advise` contributes the
+   claim-grading scale and the counter-signal hunt that stress-test the case.
 
 One rule has no sibling equivalent and stays entirely career-growth's own:
 
@@ -232,11 +235,12 @@ For the chosen moat:
 
 ## Relationship to neighbouring skills
 
-- **`verify-then-advise`** — owns all outside-world fact verification:
-  certificate lifecycle, market demand, trend claims, claim grading. Station 2
-  runs its six-stage method in full; career-growth owns the person-side
-  analysis (the evidence-graded inventory) and the decision structure (the
-  four-test moat argument, the approval gate, the cert-driven plan).
+- **`verify-then-advise`** — owns retirement-registry lifecycle verification,
+  the counter-signal hunt, primary-artifact counting, the institutional-
+  incentive read, and the four-grade claim scale. Station 2 runs its
+  six-stage method in full; career-growth owns the person-side inventory,
+  the trend-signal taxonomy, and the decision structure (the four-test moat
+  argument, the approval gate, the cert-driven plan).
   Precedence: reach for career-growth for the full periodic review; reach for
   `verify-then-advise` for a single verified recommendation, or to check
   whether one named product or credential is still current.
