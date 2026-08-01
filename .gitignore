@@ -19,3 +19,7 @@ plugins/dev-workflows/skills/ticket-trace-workspace/
 # ledgers/briefs/review packages — working files, never part of the marketplace
 .claude/worktrees/
 .superpowers/
+
+# Python bytecode (was tracked by mistake)
+__pycache__/
+*.pyc
