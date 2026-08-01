@@ -65,6 +65,11 @@ Also: priority scheme? · include Tester/Date columns? · map automated cases to
 - Evidence present on **every** row; no `TBD` left unflagged; no "probably/assume/typically" in Steps/Expected/Test Data
 - **Concrete-instance check:** every **Test Data / Precondition** cell names a real instance (actual ID, name, value), not a class. Treat `some / any / a valid <noun>` and a quantifier used *as* the datum (`≥1`, `one or more`, `at least`) as smells to resolve — not a literal word-ban; a concrete value that merely contains "a"/"an" is fine.
 - Coverage: every requirement/ADR/diff-hunk/risk has a case; negative cases present; every P1 has an unambiguous pass/fail
+- Negative properties: for every rule of the form "X must be refused / omitted /
+  absent / left unchanged", one case asserts the **absence**, not merely that the
+  happy path still works. A suite that only asserts what the code writes cannot
+  catch code that writes too much — a deleted filter, a widened match, or rows
+  that should have been excluded all pass a presence-only suite.
 - Every fix-commit in the area has a regression case
 - Encoding check **by codepoint**, not by console rendering (avoids false "mojibake")
 

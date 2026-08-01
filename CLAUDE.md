@@ -87,6 +87,14 @@ and an add-a-skill recipe.
   Canonical wording lives only in
   `plugins/dev-workflows/references/diagram-convention.md` (ADRs 0005–0009).
 
+- **A superseded design doc gets its banner in the same change that supersedes it.**
+  Implementation routinely invalidates the spec or plan that seeded it — and the SDD
+  flow generates each implementer's requirements *from the plan file*, so a stale plan
+  ships wrong requirements silently. When a decision changes what a spec, plan or ADR
+  describes, add a supersession banner at the top of that document (what it says vs
+  what is now true, and the ADR that changed it) in the same commit. Worked examples:
+  `docs/superpowers/specs/2026-07-31-decision-map-design.md`, ADRs 0033/0035/0037.
+
 ## Key commands
 
 Run these from a shell at the repo root (repo-relative paths). Inside a skill's
