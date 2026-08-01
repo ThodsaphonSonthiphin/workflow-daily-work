@@ -73,7 +73,7 @@ flowchart TD
 | When… | Reach for |
 |---|---|
 | designing something new | `grill-then-plan` |
-| an effort too big for one session (foggy, multi-session) | `chart-map` (`/decision-map:chart`) — chart the destination, the decision tickets and the fog; the map lands in `docs/decision-map/` |
+| an effort too big for one session (foggy, multi-session) | `chart-map` (`/decision-map:chart`) — chart the destination, the decision tickets and the fog; the map lands in `docs/decision-map/`, or on GitHub Issues as an issue + sub-issues |
 | continuing a decision map already charted | `work-map` (`/decision-map:work`) — claim and resolve exactly one decision, then stop |
 | something broke | `debug-mantra`, then the debug chain below |
 | advising on how a system should work | `study-design-verify` |

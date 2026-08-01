@@ -29,9 +29,9 @@ Emit this diagram once, at the start, so the user can see the whole run:
 CHART A DECISION MAP — one session, then stop
 ─────────────────────────────────────────────
 
-  ① PREFLIGHT
-  │   backend = local markdown (v1 only)
-  │   maps land in docs/decision-map/<slug>/
+  ① PREFLIGHT — ask which backend
+  │   local docs/decision-map/<slug>/
+  │   or GitHub issues + sub-issues
   │   name it BEFORE any charting
   ▼
   ② DESTINATION  (HITL — the human answers)
@@ -60,29 +60,42 @@ CHART A DECISION MAP — one session, then stop
 
 ## Step 0 — Preflight: name the backend before you chart
 
-**v1 has exactly one backend: local markdown** (ADR 0059). Say so in one line
-before anything else happens, even if the user never mentioned a tracker:
+**Two backends exist. Ask which one, before anything else happens** — even if
+the user never mentioned a tracker. Someone who expected their map on a shared
+board needs to learn where it lands **here**, not after spending a session
+charting.
 
-> This map will live in this repo as Markdown, under
-> `docs/decision-map/<slug>/`, and is shared the way the repo is shared — by
-> committing it. Azure DevOps and GitHub Issues are planned (phase 2) but are
-> not available yet, so nothing will appear on a board.
+| backend | where the map lives | how it is shared | needs |
+|---|---|---|---|
+| **local markdown** (default) | `docs/decision-map/<slug>/` in this repo | by committing the repo | nothing |
+| **GitHub Issues** | an issue per map, a **sub-issue** per ticket, native `blocked-by` dependencies | the repo's issue tracker — visible to anyone with access | `gh auth status` passing, and a repo you may write issues to |
 
-Someone who expected their map on a shared board needs to learn that **here**,
-not after spending a session charting. If a board is a hard requirement for
-them, stop and say decision-map cannot do that yet. Do **not** offer to install
-`ado-backlog` or `github-backlog` — neither plugin can drive a decision map, so
-offering them would be a false promise.
+Default to **local** and say so; only use GitHub if the user asks for a board or
+names a repo. Azure DevOps is **not** available (ADR 0059 — its half of the
+marker probe has never been run). If ADO specifically is a hard requirement,
+stop and say decision-map cannot do that yet.
 
-Everything from Step 1 down is backend-neutral: when phase 2 lands, only the
-script named in this step changes, not the flow, the subcommands, or the JSON.
+Do **not** offer to install `ado-backlog` or `github-backlog` in either case —
+neither plugin can drive a decision map, so offering them would be a false
+promise. `github-backlog` in particular is a *findings-to-issues* pipeline, not
+a decision map; the two write different things to the same tracker.
 
-**Ops script** (run it with `python`, from the repo root, so the map lands at
-its ADR-0042 default location):
+Then fix these two, and use them for every command from Step 1 down:
 
-```
-${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py
-```
+| | local | GitHub |
+|---|---|---|
+| **`<ops>`** | `${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py` | `${CLAUDE_PLUGIN_ROOT}/scripts/github_map_ops.py` |
+| **extra flag on every call** | *none* — `--root` defaults to `docs/decision-map` | **`--repo <owner>/<repo>`, always.** It is never inferred from the git remote: this writes issues |
+
+Run `<ops>` with `python`, from the repo root, so a local map lands at its
+ADR-0042 default location. Everything from Step 1 down is backend-neutral — the
+subcommands, the flags, the JSON shapes and the gate are identical on both
+(ADR 0062); only `<ops>` and that one flag change.
+
+**On GitHub, two limits are hard and worth knowing before you grill breadth-first:**
+a map cannot exceed **100 tickets** (GitHub's sub-issue ceiling) and a ticket
+cannot be blocked by more than **50** others. `chart` checks both before it
+writes anything rather than failing partway.
 
 **Contract** — every subcommand, flag and JSON shape used below is fixed by
 `${CLAUDE_PLUGIN_ROOT}/references/data-contracts.md`. Where this skill and the
@@ -103,7 +116,7 @@ and what makes "out of scope" decidable. Write it down before any ticket exists.
 
 It is stored as a **single line** — the tool collapses any line break to a
 space, in `title`, `destination` and `notes` alike, so that a stray newline can
-never truncate the value or inject a heading into `map.md`. Write it as prose,
+never truncate the value or inject a heading into the map document. Write it as prose,
 not as a bulleted list or a paragraph break.
 
 ### The HITL guard — it governs this step and Step 2 both
@@ -203,7 +216,7 @@ working files, never a store — the map itself is the source of truth.
 **1. Dry run.** `chart` is dry-run by default; `--real` is what writes.
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" chart --input <workdir>/map_input.json
+python "<ops>" chart --input <workdir>/map_input.json
 ```
 
 The plan lands twice: as JSON on **stdout** (machine-readable) and as a human
@@ -244,7 +257,7 @@ show the new plan.
 **4. On approval, re-run with `--real`:**
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" chart --input <workdir>/map_input.json --output <workdir>/map.json --real
+python "<ops>" chart --input <workdir>/map_input.json --output <workdir>/map.json --real
 ```
 
 Keep the returned `map.json` as this session's working file. Show the user the
@@ -252,13 +265,13 @@ map's name and its path, and the tickets by name — never a wall of bare keys.
 The script wires the **blocking edges** itself, in a second pass once every
 ticket exists. There are no parent links to wire: on the local backend
 containment *is* the directory — a ticket belongs to this map because it sits in
-that map's `tickets/` folder — and `map.md` holds no index of open tickets, only
+that map's tickets — and the map document holds no index of open tickets, only
 the "Decisions so far" list that `resolve` projects from the closed ones.
 
 **5. Check `divergence` in the result.** A non-empty list means the input asked
 for something an additive run deliberately did **not** apply — most often a
 changed `title` / `destination` / `notes` on a map that already exists. Report
-every line. The fix is to edit `map.md` by hand, never to reach for `--force`.
+every line. The fix is to edit the map document by hand, never to reach for `--force`.
 
 **On failure:** a known, actionable failure exits `2` with one line on stderr
 and **empty stdout**. That line names the field to fix. Correct
@@ -267,7 +280,7 @@ and **empty stdout**. That line names the field to fix. Correct
 **The gate will not remove a graduated fog line.** If this chart turns a line
 that already sits under "Not yet specified" into a real ticket, union never
 deletes, so the line is still sitting there. Delete it by hand from between the
-`decision-map:fog` marker comments in `map.md`, leaving the markers themselves
+`decision-map:fog` marker comments in the map document, leaving the markers themselves
 alone — otherwise the map keeps advertising fog that is now a real ticket, and
 the list slowly becomes a log of questions already answered.
 
@@ -299,7 +312,7 @@ one-ticket-per-session. For each one just created:
 2. Write each set of findings to a scratch file and post it onto its ticket:
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" resolve --map <slug> --ticket <key> --gist "<one-line answer>" --body-file <workdir>/findings-<key>.md
+python "<ops>" resolve --map <slug> --ticket <key> --gist "<one-line answer>" --body-file <workdir>/findings-<key>.md
 ```
 
 `resolve` records the resolution, closes the ticket, and re-projects the map's
@@ -311,7 +324,7 @@ it from outside knowledge. Leave the ticket **open** and note on it that it
 should be resolved via `study-design-verify` in its own session:
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" comment --map <slug> --ticket <key> --body-file <workdir>/note-<key>.md
+python "<ops>" comment --map <slug> --ticket <key> --body-file <workdir>/note-<key>.md
 ```
 
 ## Step 5 — Stop
@@ -325,7 +338,7 @@ something still looks blocked. `frontier.json` counts only the **open**
 blockers, which is the whole point of it:
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" frontier --map <slug>
+python "<ops>" frontier --map <slug>
 ```
 
 Its three buckets — `frontier`, `blocked`, `claimed` — are what you report.
@@ -341,8 +354,11 @@ Report, in this order:
 - the fog lines still unspecified;
 - what was ruled out of scope.
 
-Offer to commit the new `docs/decision-map/<slug>/` folder (assisted git —
-offer, never automatic).
+On **local**, offer to commit the new `docs/decision-map/<slug>/` folder
+(assisted git — offer, never automatic). On **GitHub** there is nothing to
+commit: the map is already live in the tracker the moment `--real` returned, so
+give the map issue's URL instead and say that anyone with repo access can see it
+now.
 
 Then suggest `/decision-map:work` for the next session, and **stop**. Do not
 claim a ticket, do not resolve one, do not start the first decision. Charting is

@@ -11,26 +11,59 @@ erDiagram
     TICKET ||--o{ TICKET : "blockedBy"
 ```
 
-## What ships, and what is specification (ADR 0059)
+## What ships, and what is specification (ADR 0059, ADR 0062)
 
-**v1 ships exactly one backend: local markdown.** `scripts/local_map_ops.py` is
-the only ops script that exists. Azure DevOps and GitHub Issues are **phase 2**,
-gated on running the six-step probe below ("Before building the join") against a
-live tracker. Read this document in two layers:
+**Two backends ship: local markdown and GitHub Issues.** Azure DevOps is still
+**phase 2**, gated on the ADO half of the six-step probe below ("Before building
+the join"). Read this document in two layers:
 
 | Part | Status |
 |---|---|
-| the subcommand contract, `map_input.json` / `map.json` / `frontier.json`, the dry-run plan and its action vocabulary, the `key`-join rules, the local file formats and their generated regions | **shipping** — implemented and tested by the local backend |
-| every tracker-specific part: the Backend-mappings table, the ADO / GitHub marker regions, "Where each field lives on a tracker", the ADO / GitHub `status` reading rules, the verification probe and its fallback ladder | **phase-2 specification** — nothing implements it yet |
+| the subcommand contract, `map_input.json` / `map.json` / `frontier.json`, the dry-run plan and its action vocabulary, the `key`-join rules, the local file formats and their generated regions | **shipping** — `scripts/local_map_ops.py` |
+| the GitHub column of Backend mappings, the GitHub marker regions and `status` rule, the GitHub specifics list, the call budget | **shipping** — `scripts/github_map_ops.py` (ADR 0062) |
+| every ADO-specific part: the ADO column of Backend mappings, the ADO marker regions, the ADO `status` reading rules, steps 1–5 of the verification probe and its fallback ladder | **specification** — nothing implements it yet |
 
-Both layers are normative, and the phase-2 layer stays here unchanged: it is the
-specification phase 2 implements, and the reasoning behind the `key` join is the
-most valuable thing in this document. But nothing in it describes code you can
-run today. Where a rule reads "every backend must …", it binds every backend
-that ships — today that is one — and every backend phase 2 adds.
+Both layers are normative, and the ADO layer stays here unchanged: it is the
+specification a third backend implements, and the reasoning behind the `key` join
+is the most valuable thing in this document. Where a rule reads "every backend
+must …", it binds both shipping backends and any that follow.
+
+The rules two backends must not disagree about live in **one module**,
+`scripts/map_core.py` — the marker invariant, the region merge,
+`validate_chart_input`, the shared map-body render, the decisions projection and
+the key join (ADR 0062). A rule below that says "every backend" is, for the
+shipping pair, a single object rather than a promise. Nothing in `map_core`
+touches a filesystem or a network.
 
 The flow skills are backend-neutral: the subcommands, flags and JSON shapes below
-do not change when a tracker lands, only which ops script the skills call.
+do not change with the backend, only which ops script the skills call.
+
+### Per-subcommand call budget (GitHub)
+
+Written down because the earlier cost analysis budgeted only the join, and the
+conclusion is the opposite of what that suggested: **`resolve` is the expensive
+subcommand, not the cheapest.**
+
+| Subcommand | Reads | Writes |
+|---|---|---|
+| `chart` (dry run) | 1 GraphQL + 1 label listing | **0** |
+| `chart --real` | the above + 1 closing GraphQL | 1 per missing label, 1 map create-or-patch, **2 per new ticket** (create, then parent), 1 per new edge |
+| `read` / `frontier` | 1 GraphQL | 0 |
+| `claim` | 1 GraphQL (+1 `gh api user` when `--user` is omitted) | 1 |
+| `block` | 1 GraphQL | 1, or **0** when the edge already exists |
+| `comment` | 1 GraphQL | 1 |
+| `resolve` | 1 GraphQL | **3** — the comment, the ticket (body *and* state in one call), the map's decisions index |
+
+A slug passed to `--map` costs one extra listing call to resolve; an issue number
+costs none. `resolve` re-projects the decisions index over every ticket, but the
+snapshot it already holds supplies each ticket's status and gist, so the
+projection adds no reads.
+
+The binding rate limit is the **secondary** one — 80 content-creating requests
+per minute — not the 5,000/hour primary. A backend must pace writes against it:
+a large additive `chart` issues roughly 2–3 writes per new ticket and will cross
+the line past ~30 tickets, and failing there leaves a half-charted map *after*
+the user approved the plan.
 
 ## Subcommand contract (identical on every backend)
 
@@ -85,6 +118,17 @@ that prints a partial document alongside an error breaks them. Return shapes:
 `block` **must not issue a write when the edge already exists** — it returns
 the same document and touches nothing. On a tracker this matters more than on
 local: a redundant link call bumps `System.Rev` and shows in the item history.
+GitHub also answers **422** on a duplicate dependency (verified live), so this
+cannot be left to the API to make idempotent.
+
+**"Does the edge exist" is a question about item identity, never about a key
+string.** `blockedBy` deliberately reports the key of a re-parented item so
+`missingBlockers` can name it, so testing membership in that list makes a *stale*
+edge indistinguishable from a live one — and then a genuine new edge to the item
+that now holds the key is never written, at exit `0`, reported as success.
+`--force` has the mirror-image bug: it must remove edges **by target identity**,
+or an edge to a re-parented blocker survives the rewrite it was announced as
+resetting, leaving the ticket blocked by something that can never close.
 
 **`--user` has no default identity.** The shipping backend writes the literal
 string `"me"` when `--user` is omitted. That is meaningless as an ADO
@@ -178,6 +222,15 @@ additive `chart` genuinely produces:
 | `merge` | the item exists and will be **modified in place, additively** — the map body gaining fog / out-of-scope lines, or a ticket gaining a `blockedBy` entry |
 | `OVERWRITE` | `--force` only: the item exists and will be fully rewritten |
 
+**Tag/label provisioning is IN the plan, not a preflight outside the gate**
+(ADR 0062). A tracker `chart` must create `decision-map:map`,
+`decision-map:ticket` and `decision-map:type:<type>` when absent, and creating a
+repository-wide label is a write — so it gets a `create` entry whose `path` is
+`label:<name>`. These entries come **first**, before the map, because they must
+exist before the map item is created with its label. That is the one place the
+plan's "map first" ordering is relaxed, and it matches execution order rather
+than contradicting it.
+
 `skip (exists)` is a promise that nothing is written; anything modified must
 be labelled `merge`, never `skip`. A `merge` entry carries a `detail` string
 naming what it will add — `unions blockedBy: fog-graduate` on a ticket,
@@ -207,20 +260,39 @@ the ADR-0039 approval gate puts in front of the user:
 }
 ```
 
-A phase-2 tracker backend emits the same document with `"backend": "ado"` /
-`"github"` and the ticket `key` (or the literal `<map>`) in `path` — see the
-`path` bullet below.
+A tracker backend emits the same document with `"backend": "github"` / `"ado"`
+and the ticket `key` (or the literal `<map>`, or `label:<name>`) in `path` — see
+the `path` bullet below. The GitHub shape, for the same map charted fresh:
+
+```json
+{
+  "backend": "github",
+  "dryRun": true,
+  "planned": [
+    { "path": "label:decision-map:map",            "action": "create", "detail": null },
+    { "path": "label:decision-map:type:grilling",  "action": "create", "detail": null },
+    { "path": "<map>",                             "action": "create", "detail": null },
+    { "path": "auth-model",                        "action": "create", "detail": null },
+    { "path": "rollout-order",                     "action": "merge",  "detail": "unions blockedBy: auth-model" }
+  ],
+  "divergence": []
+}
+```
 
 - `dryRun` is `true` only on a dry run; a real run returns `map.json` instead,
   with `divergence` added.
-- **`planned` is ordered and complete**: the map first, then one entry for
-  every item the run would touch — including an existing ticket that appears
-  only as a `blocks` target and is therefore not in `tickets[]`. Nothing the
-  run writes may be missing from it; that is the whole value of the gate.
+- **`planned` is ordered and complete**: the label entries first (they must exist
+  before the map item is created), then the map, then one entry for every item the
+  run would touch — including an existing ticket that appears only as a `blocks`
+  target and is therefore not in `tickets[]`. Nothing the run writes may be
+  missing from it; that is the whole value of the gate.
 - `path` identifies the item. The name is historical — it is the file path on
-  the local backend, and on a tracker it is the ticket **`key`**, or the
-  literal `<map>` for the map item. It is a display and correlation handle,
-  not something to parse.
+  the local backend, and on a tracker it is the ticket **`key`**, the literal
+  `<map>` for the map item, or `label:<name>` for a label the run will create.
+  It is a display and correlation handle, not something to parse.
+- An edge whose blocked ticket is itself being created or overwritten is **not**
+  announced separately: it is part of that ticket's own `create` / `OVERWRITE`
+  line, and there is no prior state on it for the edge to merge into.
 - `action` is one of the four labels above. `detail` is a one-line string on a
   `merge` entry saying what it will add, and `null` on every other action.
 - `divergence` is always present (empty list when there is nothing to report),
@@ -294,8 +366,52 @@ one relation the whole graph is built from: the input above says `auth-model`
 `"blockedBy": ["auth-model"]`. `auth-model` itself is blocked by nothing. The
 `frontier.json` example below shows the same pair the same way round.
 
-A phase-2 tracker backend emits the same fields with its own native handles —
-`"backend": "ado"`, `"id": "1235"`, `"url": "https://…"` — and the same `key`s.
+A tracker backend emits the same fields with its own native handles —
+`"backend": "github"`, `"id": "1235"`, `"url": "https://…"` — and the same `key`s.
+
+**GitHub carries three handles per item, and each answers a different question.**
+`id` is the issue **number** — what a human reads, and what `--ticket` accepts
+(`--ticket` takes a key *or* a number, because `id` is documented as being "for
+passing back to `--ticket`" and it has to actually work). `dbId` is the issue
+**database id**, an unrelated value that every sub-issue and dependency mutation
+is keyed on; emitting only one costs an extra resolve call per write. `repo` is
+the repository the issue **actually lives in**:
+
+```json
+{ "key": "auth-model", "id": "1235", "dbId": 5036168435, "repo": "acme/widgets",
+  "name": "Auth model — …", "url": "https://github.com/acme/widgets/issues/1235",
+  "type": "grilling", "mode": "HITL", "status": "open",
+  "assignee": null, "blockedBy": [], "gist": null }
+```
+
+**`repo` is not decoration and must not be assumed to be the map's.** A sub-issue
+only has to share the parent's *owner*, so it may live in another repository of
+that owner — and **issue numbers restart per repository**, so #7 in two repos are
+two different issues. A backend that keys the join on the bare number, or
+addresses per-ticket writes at the map's repo, silently reads the wrong key and
+writes to whatever unrelated issue shares the number. The join must key on
+`(repo, number)`, and every per-ticket write must be addressed at `repo`.
+
+The GitHub map object additionally carries `"key"`: the map's own slug, read back
+from its key marker, so a caller that resolved the map by issue number learns the
+slug without a second call.
+
+**Every `frontier.json` entry carries `id` *and* `key`, and `id` means the same
+thing there as in `map.json`.** They disagreed at first — `map.json` reported the
+number and `frontier.json` the key — so a skill that read one and called with the
+other broke. `id` is the native handle in both; `key` rides alongside because
+every ticket-to-ticket reference (`blockedBy`, `missingBlockers`) is a key.
+
+**The decisions index links to the ticket's full URL**, never `#N`. Inside an
+issue body `[title](#2)` is a same-page fragment that goes nowhere, so every
+entry a human is meant to click was dead. (A bare `#2` would auto-link, but the
+index format is `- [title](link) — gist`, so the link has to be real.)
+
+**Ordering is key-ascending on every backend** (ADR 0062) — `map.json.tickets[]`
+and all three `frontier.json` buckets. A tracker's natural order is creation or id
+order, so without this rule two backends emit different documents for the same
+logical state. Key-ascending is the only order that is a deterministic function of
+that state; the decisions index is ordered the same way and for the same reason.
 
 `chart` (only — not `read`) adds `"divergence"`: a list of human-readable
 strings naming anything the input asked for that an additive run deliberately
@@ -354,6 +470,24 @@ than the dependent being silently promoted onto the frontier
 On a tracker this is the common case — items get deleted, moved and
 re-parented — so a backend must implement it, not treat it as a local quirk.
 
+**On a tracker, `missingBlockers` and an ignored foreign edge look identical
+until you read the target's body — and they must not be conflated** (ADR 0062).
+A native dependency pointing at an item that is not a child of this map is one of
+two different things, and the rule below and "Foreign edge targets" further down
+point opposite ways for the same observation:
+
+| the edge target… | what it means | what the backend does |
+|---|---|---|
+| **is** a current child of this map | the ordinary case | its key goes in `blockedBy` |
+| is **not** a child but carries a `decision-map:key:` marker | it *was* a ticket of this map and is not any more — deleted from the map, or re-parented out of it | it **keeps blocking**, and its key is named in `missingBlockers` |
+| is **not** a child and carries **no** marker | a cross-map or hand-added dependency, which this design does not model | **ignored** — but a `warning:` line names it, because a silently dropped blocker reads to the user as an unblocked ticket |
+
+The GitHub backend therefore fetches each edge target's **body** in the same
+snapshot query, so telling the last two apart costs nothing. A deleted issue
+takes its dependency edges with it, so on GitHub row 2 is reached by
+re-parenting rather than by deletion — but it *is* reachable, and treating it as
+row 3 is exactly the silent promotion ADR 0061 exists to prevent.
+
 **Bucket precedence — every backend must use the same order.** A ticket can
 satisfy more than one condition at once (claimed *and* blocked is the common
 case), and it appears in **exactly one** bucket:
@@ -397,7 +531,46 @@ once per run.** Never by a global search.
 |---|---|---|
 | Local | the ticket filename stem, `tickets/<key>.md` | glob `tickets/*.md`; the stem *is* the key (a stem that is not a safe slug is not a decision-map ticket: it is ignored, and a `warning:` line naming it is written to stderr so the skip is never silent) |
 | ADO | marker line `<!-- decision-map:key:<key> -->` in `System.Description` | one WIQL/link query for the map work item's `System.LinkTypes.Hierarchy-Forward` children, then read each child's description |
-| GitHub | marker line `<!-- decision-map:key:<key> -->` in the issue body | `GET /issues/{n}/sub_issues` — **one paginated pass**, no per-ticket fetch: the response carries full issue objects, bodies included |
+| GitHub | marker line `<!-- decision-map:key:<key> -->` in the issue body | **one GraphQL request.** `repository.issue.subIssues` returns each child's `body`, `labels`, `assignees` **and** its `blockedBy` edges (including each edge target's `body`), so the whole join — plus every field `map.json` reports — arrives in a single round trip. The REST `GET /issues/{n}/sub_issues` listing carries bodies but **not** dependencies, so it costs 1 + n |
+
+**A join that truncates must fail, not truncate.** GitHub caps sub-issues at 100
+so a single `first: 100` page covers every legal map — but a backend must still
+fail loudly if the response reports more, rather than trusting that cap to hold.
+A child the join cannot see is labelled `create`, so the map is re-created and
+that is shown to the user as an ordinary approvable line. The same applies to a
+`blockedBy` connection whose `totalCount` exceeds the nodes returned: reporting a
+partial blocker list as complete releases a ticket that is still blocked.
+
+**A map may be named by its slug or by its native id.** GitHub resolves a slug by
+listing the issues carrying the `decision-map:map` label and matching the key
+marker — a **label-filtered listing**, which is strongly consistent and bounded by
+the number of maps in the repo. That is not the rejected search-API shortcut: code
+search is eventually consistent, and a stale index would mean duplicate *maps*.
+Tickets are still never resolved this way — a ticket is found only through its own
+map's children. Two issues claiming one slug is an error, not a coin flip.
+
+**The map's own membership is its key marker too — the label is decorative there
+as well, and `chart` must prove absence before it creates.** The label listing is
+a *fast path*, not the definition of a map: strip `decision-map:map` by hand and a
+label-only lookup finds nothing, so `chart` concludes the map is absent, creates a
+second one, and labels every existing ticket `create` — the silent full
+re-creation this document calls its worst failure, reached from the map end
+instead of the ticket end. So:
+
+- before `chart` may treat a map as absent it walks **every** issue in the repo
+  looking for the key marker (one call per 100 issues, once, only on the path that
+  would otherwise duplicate a map);
+- a map found that way is used, and its missing label is **restored** — announced
+  in the plan as a `merge`, not done silently;
+- **"absent" is a distinct failure from every other read failure.** Two maps
+  claiming one slug, an issue that is not a map, and a 404 that may be a
+  permission problem are *not* absence, and a backend that folds them all into
+  one "not found" creates a duplicate map for each of them;
+- an issue carrying the map label with **no** key marker is not a map. It is
+  skipped with a `warning:` naming it — not a fatal error, because the opposite
+  choice would let one hand-labelled issue make *every* map in the repo
+  unreadable. (The fatal rule is for a labelled **child of the map being read**,
+  where ignoring it hides a ticket from the join.)
 
 Both trackers use the **same marker format as the local backend's regions**, so
 one escaping rule covers all three: every user-supplied string written into a
@@ -433,8 +606,8 @@ this, a human's web-UI edit can flip a whole region to CRLF and the next
 `chart` sees every line as changed — breaking the byte-identical no-op
 guarantee and emitting divergences for text nobody touched.
 
-**GitHub specifics phase 2 must respect** (verified live 2026-08-01 unless
-marked documented):
+**GitHub specifics the backend respects** (verified live 2026-08-01 unless marked
+documented; all of these are implemented):
 
 - **A map cannot exceed 100 tickets.** GitHub documents a hard ceiling of 100
   sub-issues per parent (and 8 nesting levels). `chart` must check the count
@@ -461,10 +634,28 @@ marked documented):
   user-owned repo — which is why the type is carried by the
   `decision-map:type:<type>` label and not by the native field.
 - `gh` gained first-class `--parent` / `--blocked-by` flags in **2.94.0**
-  (2026-06-10). Either pin that as a prerequisite or drive the REST/GraphQL
-  endpoints through `gh api`, which works on any version. GraphQL can fetch the
-  map, its children, their bodies and their `blockedBy` edges in one round
-  trip — worth considering over the REST list.
+  (2026-06-10). Rather than pin that, everything goes through `gh api`, which
+  works on any version — the backend was developed against 2.93.0 precisely so
+  the flags could not be leaned on by accident.
+- **Adding a sub-issue that is already one, or a dependency that already exists,
+  answers 422** (verified). Neither mutation is idempotent, so an existing edge
+  must be detected from the join rather than left to the API to absorb — and a
+  redundant link call would show in the issue's timeline anyway. Creating a label
+  that exists answers 422 with `errors[].code == "already_exists"`, which *is*
+  the desired end state and is the one 422 worth swallowing.
+- **Payloads must travel on stdin** (`gh api --input -`), not as command-line
+  arguments: PowerShell 5.1 mangles native-exe arguments containing quotes, and a
+  ticket title or question routinely contains them.
+- **A write is any non-`GET`, not "a call with a body".** The remove-dependency
+  call on the `--force` path is a `DELETE` with no payload; pacing on the presence
+  of a body left those unthrottled, so a `--force` over a well-connected map could
+  cross the 80/minute line mid-rewrite and leave tickets half-reset.
+- **`create` then `link` is not atomic, and a failure between them is not
+  resumable.** An issue that was created but never parented carries the key marker
+  while belonging to no map, and the join only sees children — so a plain re-run
+  creates a *second* issue with the same key, and the run after that fails the
+  duplicate-key check on a map nobody can chart again. A backend must fail loudly
+  and name the orphan rather than leave that trap set.
 
 **Key format.** A key matches `[A-Za-z0-9][A-Za-z0-9_-]*` and **must not
 contain `--`**. The HTML spec forbids `--` inside comment text, so
@@ -474,8 +665,14 @@ re-creating every ticket. A double hyphen carries no meaning a single one does
 not, so the key is constrained rather than the marker syntax; the alternatives
 were encoding the key, which destroys the marker's greppability, or a
 non-comment carrier, which is either visible to readers or strippable by
-rich-text editors. The local backend rejects such a key at chart time, where
-keys are minted.
+rich-text editors. Every backend rejects such a key at chart time, where keys
+are minted.
+
+**The same rule applies to the map's own `target.slug`** (ADR 0062). On a tracker
+the slug *is* a key marker — it identifies the map item exactly as a ticket key
+identifies a ticket — so a slug the local backend accepts and a tracker cannot
+carry would make a map unmigratable. A backend-specific key rule is the same
+defect as no key rule.
 
 #### Rules for a map a human has edited
 
@@ -508,11 +705,13 @@ not situations to work around:
   fresh ticket rather than adopting the moved one. Re-parenting is not a
   supported way to move a decision between maps.
 
-### Before building the join: verify it — phase 2's first step
+### Before building the join: verify it — any new backend's first step
 
 The whole design rests on one bet — that a marker written into an item's body
 survives round trips through the tracker. **Verify that before writing join
 code**, because every fallback below is cheaper to adopt early than late.
+`scripts/probe_marker_survival.py` is the harness; it covers both trackers and
+the GitHub half has already been run through it.
 
 > **GitHub half: PASSED, 2026-08-01.** Run against a throwaway private repo.
 > The marker survives byte-for-byte through create → `GET`, through a
@@ -574,14 +773,14 @@ and the search API stay rejected at every rung**, for the reasons above:
 3. **A key prefix in `System.Title`** (`[auth-model] Auth model — …`). Ugly and
    user-visible, and a human can rename it away, but titles survive everything.
 
-### Parity gaps phase 2 must close
+### Parity gaps
 
 The local backend is the reference implementation, and an audit of it against
 this document found places where the document is silent, where it describes
 behaviour the code does not have, or where the two backends cannot both be
-right. These are phase-2 work items, not descriptions of shipped behaviour.
+right. Each is marked with whether it is now closed and where.
 
-**Closed, and fixed in the shipping backend** ([ADR 0061](../../../docs/adr/0061-a-missing-map-and-a-deleted-blocker-must-fail-loudly-not-read-as-done.md)) —
+**Closed, and implemented by both shipping backends** ([ADR 0061](../../../docs/adr/0061-a-missing-map-and-a-deleted-blocker-must-fail-loudly-not-read-as-done.md)) —
 both were the same bug shape, an *absence* read as a *resolution*:
 
 - **`frontier` on a map that does not exist now fails** (`OSError` → exit `2`,
@@ -608,7 +807,41 @@ both were the same bug shape, an *absence* read as a *resolution*:
   comparing anything, and write `\n` (see above).
 - **A tracker must not write the literal `"me"`** as an assignee.
 
-**Open — phase 2 must decide, and the probe can settle several:**
+**Closed by the GitHub backend** ([ADR 0062](../../../docs/adr/0062-github-backend-ships-on-a-shared-core-not-a-second-copy.md)):
+
+- **Ordering is key-ascending on every backend**, for `map.json.tickets[]`, all
+  three `frontier.json` buckets and the decisions index. See the rule under
+  `map.json` above.
+- **Tag/label provisioning is in the dry-run plan**, as `create` entries with a
+  `label:<name>` handle, placed before the map. See the action vocabulary above.
+- **The per-subcommand call budget is written down** — see the table near the top
+  — and it confirms the suspicion: `resolve` is the expensive one.
+- **The escaping rule is portable to GitHub.** Bodies are literal Markdown, so
+  nothing HTML-encodes user text after the escape and the local rule (flatten,
+  then escape, then touch nothing) applies unchanged. The escaped form
+  round-tripped byte-identical through the API *and* through a human's web-UI
+  edit. **This is still open for ADO**, where `System.Description` is HTML and
+  the required HTML-encoding is precisely the after-the-escape transformation
+  this contract forbids: if ADO re-encodes `&lt;` to `&amp;lt;` the no-op
+  guarantee breaks, and if it decodes back to a live `<!--` a user string forges
+  a marker.
+- **A read-failure table.** All four cases exit `2` with empty stdout and one
+  stderr line, and the line distinguishes them as far as the tracker allows:
+
+  | case | how the line reads |
+  |---|---|
+  | slug matches no map | names the slug, says the label or the key marker may have been removed by hand, and suggests passing the issue number instead |
+  | two maps claim one slug | names both issue numbers and refuses to pick |
+  | the issue does not exist, was deleted, or the token cannot see it | **one message for all three**, saying so explicitly — GitHub answers 404 for absent and for forbidden alike on a private repo, and a backend must not assert which it was |
+  | the issue exists but is not a decision-map map | says it carries no key marker, and to pass the map rather than a ticket |
+  | the map exists but the named ticket does not | names the key **or number** given and points at `read --map` for what it does have |
+
+  The first four are also distinguished **in the exception type, not only in the
+  message**, and that is load-bearing rather than tidiness: `chart` treats exactly
+  one of them — genuine absence — as "safe to create". Folding the others into the
+  same class made it create a duplicate map for each of them.
+
+**Open:**
 
 - **A human editing inside a generated region — it is adopted, not destroyed,
   and that should be written down.** Measured on the shipping backend, not
@@ -619,44 +852,18 @@ both were the same bug shape, an *absence* read as a *resolution*:
   has effectively handed their line to the tool. Only `--force` destroys it,
   along with any prose outside the regions, and it announces each file as
   `OVERWRITE` in the dry-run plan first. Nothing here is data loss; what is
-  missing is the contract saying any of it. A tracker must adopt the same rule,
-  and phase 2 should decide whether adoption deserves a divergence line so the
-  user learns their sentence is now tool-managed.
-- **A read-failure table.** Missing, not-a-map, no permission and deleted are
-  four distinguishable cases on a tracker and one on local. All four exit `2`;
-  phase 2 must decide how much the stderr line distinguishes them. (The prior
-  gap here — `frontier` returning exit 0 and empty buckets for a map that does
-  not exist — is **fixed**, see below.)
-- **Ordering is unspecified** everywhere except the decisions index. Local
-  emits `map.json.tickets[]` and the `frontier.json` buckets in key-ascending
-  order, because it globs a directory. A tracker's natural order is creation or
-  id order, so the two backends will disagree for the same logical state and
-  nothing here says which is right. Pick one and write it down.
-*(The blocker-no-longer-exists gap is **fixed**, see below.)*
-- **Tag/label provisioning is outside the dry-run plan**, which contradicts
-  "nothing the run writes may be missing from it". A tracker `chart` must
-  create `decision-map:map` / `decision-map:ticket` / `decision-map:type:*` if
-  absent. Either extend the action vocabulary to cover it or declare it a
-  preflight outside the gate — but say which.
-- **`resolve` is the most expensive operation, not the cheapest.** It
-  re-projects the decisions index by reading *every* ticket. On local that is n
-  file reads; on a tracker it is a full enumerate-and-read pass plus a comment,
-  a state change, a gist-region write and a map-body write. The cost analysis
-  above only budgets the join. Write the per-subcommand call budget down before
-  implementing, or phase 2 discovers this the slow way.
-- **The escaping rule may not be portable.** Local flattens then scrubs
-  `<!-- decision-map:` → `&lt;!-- decision-map:`, and *nothing may transform the
-  string afterwards*. ADO stores `System.Description` as HTML, so a tracker
-  backend must HTML-encode user text — a transformation applied after the
-  escape, which this contract forbids. GitHub is settled (the escaped form
-  round-tripped byte-identical through the API **and** through a web-UI edit);
-  ADO is not. If ADO re-encodes `&lt;` to `&amp;lt;` the no-op guarantee
-  breaks; if it decodes back to a live `<!--` a user string forges a marker.
-- **The write-side region check covers 3 of the 5 markers.** `_assert_regions`
-  validates `fog`, `scope` and `decisions`; `key` and `gist` are not paired
-  regions and are not counted the same way. A tracker must decide whether to
-  validate regions on **read** as well — a corrupted map is currently invisible
-  to `read`, `frontier` and a no-op `chart`.
+  missing is the contract saying any of it — and whether adoption deserves a
+  divergence line so the user learns their sentence is now tool-managed. Both
+  shipping backends behave this way; neither says so.
+- **The write-side region check covers the paired regions and the key marker,
+  but nothing validates on READ.** `assert_regions` validates `fog`, `scope`,
+  `decisions` (and, on a tracker, `gist`) plus the single-line `key` marker on
+  every write. A map whose regions a human has corrupted is still invisible to
+  `read`, `frontier` and a no-op `chart` — those paths use `region_body`, which
+  returns `None` rather than complaining. The GitHub backend does fail loudly on
+  the one corruption that matters most (a duplicate or missing **key** marker,
+  because that one silently re-creates tickets); the rest stay silent.
+- **ADO remains unimplemented and ungated** — steps 1–5 of the probe below.
 
 **Statements corrected in this document from that audit:** `chart` no longer
 claims to create parent links on every backend (local creates none); `--dry-run`
@@ -677,8 +884,9 @@ lost too.
 | close | `System.State` → `Done` (fallback `Closed` on 400) | state closed | frontmatter `status: closed` |
 | blocking | `System.LinkTypes.Dependency-Reverse` on the blocked item → predecessor | **native issue dependencies** — `POST /issues/{n}/dependencies/blocked_by` with `issue_id`; readable both directions (GA 2025-08-21, no fallback) | frontmatter `blocked_by: [slug]` |
 | resolution | work-item comment | issue comment | `## Resolution` section inside the `decision-map:resolution` markers (see below) |
-| ticket `key` | `<!-- decision-map:key:<key> -->` in `System.Description` | `<!-- decision-map:key:<key> -->` in the issue body | the filename stem `tickets/<key>.md` |
 | ticket `gist` | `decision-map:gist` region in `System.Description` | same region in the issue body | frontmatter `gist:` |
+| ticket `type` | body line `Decision-Map-Type: <type>` | label `decision-map:type:<type>` — native GitHub issue types are **organisation-scoped** and simply absent on a user-owned repo | frontmatter `type:` |
+| map `key` (the slug) | `<!-- decision-map:key:<slug> -->` in `System.Description` | `<!-- decision-map:key:<slug> -->` in the map issue body | the directory name `<slug>/` |
 | map `destination` / `notes` | prose in the map item's description | prose in the map issue body | `## Destination` / `## Notes` |
 | map `notYetSpecified` / `outOfScope` | `decision-map:fog` / `decision-map:scope` regions in the map item's description | same regions in the map issue body | the same two regions in `map.md` |
 
@@ -743,6 +951,25 @@ target state through the states API rather than guessing and catching a 400.
 `not_planned` (it now includes `duplicate` and `reopened`), so any check that
 enumerates reasons mis-reads issues that are plainly closed. `state` alone is
 the signal.
+
+**GraphQL and REST disagree on the case of `state`** — `OPEN`/`CLOSED` versus
+`open`/`closed`. A backend that reads the GraphQL value and compares it against
+`"closed"` sees every closed ticket as open, which puts resolved decisions back
+on the frontier. Normalise before comparing.
+
+**Reading `type` back, and what to do when the label is gone.** `mode` is
+*derived* from `type` and never stored, so a lost type silently changes whether a
+session runs unattended. A ticket whose `decision-map:type:<type>` label a human
+removed (or which carries two) falls back to `grilling`, deriving mode **HITL**,
+and the fallback is announced on stderr — never silent. HITL is the safe
+direction: it means the session stops and asks a human, where AFK would send an
+agent off unattended on a decision nobody chose to delegate.
+
+**`--user` on a tracker resolves a real identity.** The local backend writes the
+literal string `"me"` when `--user` is omitted, which is meaningless as a GitHub
+assignee or an ADO `System.AssignedTo`. A tracker backend resolves the caller
+itself — GitHub via `gh api user` → `login` — and must never write `"me"`. An
+explicitly empty `--user` still releases the claim.
 
 ## Local map/ticket file formats
 

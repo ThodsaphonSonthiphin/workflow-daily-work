@@ -71,14 +71,15 @@
     {
       "name": "decision-map",
       "source": "./plugins/decision-map",
-      "description": "Plan work too big for one agent session as a map of decision tickets kept in your repo as markdown. /decision-map:chart names the destination and creates the map + tickets under docs/decision-map/ (dry-run gated); /decision-map:work claims and resolves exactly one decision per session via the arc's own skills (grilling, ui-mockup, research). v1 ships the local-markdown backend only — Azure DevOps and GitHub Issues are planned for phase 2, gated on a live-API probe (ADR 0059); the GitHub half of that probe has passed (ADR 0060), the Azure DevOps half has not, so no tracker login is required and none is enough to put a map on a board yet.",
-      "version": "0.2.0",
+      "description": "Plan work too big for one agent session as a map of decision tickets, in your repo as markdown or on GitHub Issues. /decision-map:chart names the destination and creates the map + tickets behind a dry-run gate; /decision-map:work claims and resolves exactly one decision per session via the arc's own skills (grilling, ui-mockup, research). Two backends ship: local markdown under docs/decision-map/, and GitHub Issues using native sub-issues and blocked-by dependencies (ADR 0062). Azure DevOps is still gated on its half of the marker-survival probe (ADR 0059), so no tracker login is needed for local and only GitHub can put a map on a board.",
+      "version": "0.3.0",
       "author": { "name": "ThodsaphonSonthiphin", "url": "https://github.com/ThodsaphonSonthiphin" },
       "homepage": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
       "repository": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
       "license": "MIT",
       "category": "development",
-      "keywords": ["planning", "decision-tickets", "wayfinder", "multi-session", "frontier", "local-markdown", "daily-work"]
+      "keywords": ["planning", "decision-tickets", "wayfinder", "multi-session", "frontier", "local-markdown",
+        "github-issues", "daily-work"]
     }
   ]
 }

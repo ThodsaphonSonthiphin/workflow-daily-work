@@ -9,8 +9,9 @@
 >
 > | This spec says | Actually |
 > |---|---|
-> | "three backends at full parity" | **v1 ships the local Markdown backend only.** ADO and GitHub are deferred to phase 2; the ops contract is written so they can be added without changing it ([ADR 0059](../../adr/0059-v1-ships-local-backend-only-tracker-backends-deferred.md)) |
-> | offer the tracker install command when a tracker is wanted | **Never offer it.** Both skills forbid it — say decision-map cannot do that yet and stop |
+> | "three backends at full parity" | **Two of the three ship: local Markdown and GitHub Issues.** v1 shipped local only ([ADR 0059](../../adr/0059-v1-ships-local-backend-only-tracker-backends-deferred.md)); GitHub landed once its half of the marker probe passed ([ADR 0060](../../adr/0060-marker-join-verified-on-github-ado-half-of-the-gate-still-open.md), [ADR 0062](../../adr/0062-github-backend-ships-on-a-shared-core-not-a-second-copy.md)). **Azure DevOps is still not built** and its probe has never been run. The ops contract did hold: adding GitHub changed no subcommand, flag or JSON shape |
+> | offer the tracker install command when a tracker is wanted | **Never offer it.** Both skills forbid it — the tracker *plugins* (`ado-backlog`, `github-backlog`) cannot drive a decision map, and decision-map's own GitHub backend needs no plugin, only `gh` |
+> | the three backends are independent implementations | **The rules they must not disagree about live in one module**, `scripts/map_core.py` — the marker invariant, the region merge, input validation and the key join (ADR 0062) |
 > | `chart` creates a map once | **`chart` is additive**: it creates only what is absent, unions fog / out-of-scope lines, and unions a new `blockedBy` edge into an existing ticket, leaving everything else untouched ([ADR 0057](../../adr/0057-chart-is-additive-so-fog-graduation-needs-no-new-subcommand.md), [ADR 0058](../../adr/0058-additive-chart-unions-blocked-by-on-existing-tickets.md)) |
 >
 > The resolution format shown here is also pre-marker; `resolve` now writes a

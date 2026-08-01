@@ -28,8 +28,9 @@ WORK A DECISION MAP — one decision, then stop
 ─────────────────────────────────────────────
 
   ① PREFLIGHT
-  │   backend = local markdown (v1 only)
-  │   maps live in docs/decision-map/<slug>/
+  │   which backend holds THIS map?
+  │   local docs/decision-map/<slug>/
+  │   or GitHub issues (needs --repo)
   ▼
   ② FRONTIER
   │   read the map, then list the frontier
@@ -57,29 +58,36 @@ WORK A DECISION MAP — one decision, then stop
 
 ## Step 0 — Preflight: name the backend before you work
 
-**v1 has exactly one backend: local markdown** (ADR 0059). Say so in one line
-before anything else happens, even if the user never mentioned a tracker:
+**Two backends exist, and a map lives in exactly one of them.** Work out which
+before anything else happens — a session that reads the wrong backend reports an
+empty or missing map and looks like a finished effort.
 
-> This map lives in this repo as Markdown, under
-> `docs/decision-map/<slug>/`, and is shared the way the repo is shared — by
-> committing it. Azure DevOps and GitHub Issues are planned (phase 2) but are
-> not available yet, so nothing will appear on a board.
+| backend | where the map lives | how to tell |
+|---|---|---|
+| **local markdown** (default) | `docs/decision-map/<slug>/` | the directory exists in this repo |
+| **GitHub Issues** | an issue labelled `decision-map:map`, one **sub-issue** per ticket | the user names a repo or a board, or no local directory exists |
 
-Someone who expected their map on a shared board needs to learn that **here**,
-not after spending a session working it. If a board is a hard requirement for
-them, stop and say decision-map cannot do that yet. Do **not** offer to install
-`ado-backlog` or `github-backlog` — neither plugin can drive a decision map, so
-offering them would be a false promise.
+Azure DevOps is **not** available (ADR 0059). If ADO specifically is a hard
+requirement, stop and say decision-map cannot do that yet. Do **not** offer
+`ado-backlog` or `github-backlog` — neither can drive a decision map.
 
-Everything from Step 1 down is backend-neutral: when phase 2 lands, only the
-script named in this step changes, not the flow, the subcommands, or the JSON.
+Then fix these two, and use them for every command from Step 1 down:
 
-**Ops script** (run it with `python`, from the repo root, so it reads the map
-from its ADR-0042 default location):
+| | local | GitHub |
+|---|---|---|
+| **`<ops>`** | `${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py` | `${CLAUDE_PLUGIN_ROOT}/scripts/github_map_ops.py` |
+| **extra flag on every call** | *none* — `--root` defaults to `docs/decision-map` | **`--repo <owner>/<repo>`, always** |
+| **what `--map` takes** | the slug | the map's **issue number** *or* its slug |
 
-```
-${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py
-```
+Run `<ops>` with `python`, from the repo root. Everything from Step 1 down is
+backend-neutral — the subcommands, flags, JSON shapes and gates are identical on
+both (ADR 0062); only `<ops>` and that one flag change.
+
+On GitHub the map is a shared tracker, so two things follow that do not apply
+locally: **a claim is visible to everyone immediately** (which is the point —
+claim before working, so a parallel session skips the ticket), and every write
+lands in an issue's timeline, which is why `block` and an additive `chart` do not
+re-write an edge that already exists.
 
 **Contract** — every subcommand, flag and JSON shape used below is fixed by
 `${CLAUDE_PLUGIN_ROOT}/references/data-contracts.md`. Where this skill and the
@@ -90,40 +98,47 @@ The map and any repo docs a resolution produces are committed through
 
 ## Step 1 — Load the map, show the frontier
 
-If the user did not name a map, the maps are the directories under
-`docs/decision-map/` — list them and ask which one. If there is no map at all,
-this is the wrong skill: point at `/decision-map:chart`.
+If the user did not name a map, list the maps and ask which one — on local they
+are the directories under `docs/decision-map/`; on GitHub they are the issues
+labelled `decision-map:map`. If there is no map at all, this is the wrong skill:
+point at `/decision-map:chart`.
 
-**Read the map first.** It is also the existence check:
+**Read the map first**, and read it before the frontier:
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" read --map <slug>
+python "<ops>" read --map <slug>
 ```
 
-A slug that does not exist fails here, exit `2`, one line on stderr. That check
-matters, because `frontier` on an unknown slug returns three **empty buckets
-and exit 0** — indistinguishable, at a glance, from a finished map. Never open
-a session on `frontier` alone.
+A map that does not exist fails here — exit `2`, one line on stderr, empty
+stdout. `frontier` fails the same way now (ADR 0061 made it assert the map
+exists), so this is no longer the *only* guard against mistaking a missing map
+for a finished one. Read first anyway: `read` is what gives you the destination,
+every ticket's status and every gist, and the frontier alone tells you none of
+that.
 
 `read` returns the map's `id` / `name` / `url` / `destination`, and every
 ticket. It does **not** return the fog list, the out-of-scope list or the
-notes. Those live only in `map.md` — the first two between the
+notes. Those live only in the map **document** — the first two between the
 `decision-map:fog` and `decision-map:scope` marker pairs, the third under the
-`## Notes` heading — so **open the file and read them**. You need the fog list
+`## Notes` heading — so **open it and read them**. You need the fog list
 in Step 5, and again in Step 6's report — but not this same copy of it: Step 5
 changes that region twice (the gate's merge adds lines, your hand edit deletes
-the graduated one), and `frontier` carries no fog to refresh it. **Re-read
-`map.md` in Step 6**; treat what you read here as good only until Step 5 writes:
+the graduated one), and `frontier` carries no fog to refresh it. **Re-read the
+map document in Step 6**; treat what you read here as good only until Step 5
+writes:
 
-```
-docs/decision-map/<slug>/map.md
-```
+- local: the file `docs/decision-map/<slug>/map.md`
+- GitHub: the map **issue body** — `read`'s `map.url` links straight to it, or
+  `gh issue view <number> --repo <owner>/<repo> --json body`
+
+The regions are byte-identical in both, which is what lets one flow read either
+(ADR 0062).
 
 ("Decisions so far" you do not need to read: it is a projection of the closed
 tickets, and `read` returns each one's `status` and `gist` already.)
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" frontier --map <slug>
+python "<ops>" frontier --map <slug>
 ```
 
 Present it as prose, in this order:
@@ -131,7 +146,7 @@ Present it as prose, in this order:
 - the **destination** line, verbatim — it is what every choice below is
   measured against;
 - **decisions so far**, one gist each — the closed tickets in `read`'s output,
-  the same lines `map.md` indexes;
+  the same lines the map document indexes;
 - the **frontier by ticket name**, one line each with its type — never a wall
   of bare ids. The names are the question; the ids are plumbing;
 - one line of **blocked**: `<name> — waiting on <blocker name>`;
@@ -168,7 +183,7 @@ Then, the moment the user picks or accepts, **claim it — before any work at
 all**:
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" claim --map <slug> --ticket <key>
+python "<ops>" claim --map <slug> --ticket <key>
 ```
 
 The pick itself is the approval; this is a lifecycle write, not a create, so it
@@ -187,14 +202,15 @@ if you end the session holding a ticket you did not resolve (the escalation in
 Step 3 is the usual reason), edit:
 
 ```
-docs/decision-map/<slug>/tickets/<key>.md   →   frontmatter `assignee:`
+local:   docs/decision-map/<slug>/tickets/<key>.md   →   frontmatter `assignee:`
+GitHub:  the ticket issue                            →   unassign yourself
 ```
 
-That is a legitimate edit: the local backend is Markdown in the user's own repo,
-`assignee:` is ordinary frontmatter rather than a tool-owned marker region, and
-clearing it puts the ticket straight back on the frontier. Skipping it
-quarantines the ticket permanently, because every future session is told above
-not to claim over `claimed`.
+That is a legitimate edit in both: `assignee:` is ordinary frontmatter rather
+than a tool-owned marker region, and a GitHub assignee is a native field the UI
+exists to change. Clearing it puts the ticket straight back on the frontier.
+Skipping it quarantines the ticket permanently, because every future session is
+told above not to claim over `claimed`.
 
 ## Step 3 — Resolve it, by type
 
@@ -228,7 +244,7 @@ it needs `study-design-verify` in its own session, and pick something else or
 stop:
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" comment --map <slug> --ticket <key> --body-file <workdir>/note-<key>.md
+python "<ops>" comment --map <slug> --ticket <key> --body-file <workdir>/note-<key>.md
 ```
 
 **Then release the claim** — clear the ticket's `assignee:` frontmatter by hand,
@@ -254,14 +270,14 @@ Those stay **canonical**. The ticket only gists and links them; it never
 restates them:
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" resolve --map <slug> --ticket <key> --gist "<one line>" --link <adr-path-or-url>
+python "<ops>" resolve --map <slug> --ticket <key> --gist "<one line>" --link <adr-path-or-url>
 ```
 
 **2. There is no repo doc** — research findings, task facts. Then the
 resolution body **is** the record:
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" resolve --map <slug> --ticket <key> --gist "<one line>" --body-file <workdir>/body-<key>.md
+python "<ops>" resolve --map <slug> --ticket <key> --gist "<one line>" --body-file <workdir>/body-<key>.md
 ```
 
 `--gist` is required either way (without it: exit `2`, one line on stderr). It
@@ -313,7 +329,7 @@ edge onto a ticket that already exists, that edge in the new ticket's `blocks`:
 
 - Repeat `title` / `destination` / `notes` **unchanged**. An additive run does
   not apply a differing scalar — it reports it under `divergence` and leaves it
-  alone. To change one, edit `map.md` by hand.
+  alone. To change one, edit the map document by hand.
 - `blocks` is **downstream** — the tickets this one holds up. Readers see the
   upstream `blockedBy`. An edge may name a ticket that already exists without
   re-listing it in `tickets[]` (ADR 0058), but the target must exist **either in
@@ -327,7 +343,7 @@ edge onto a ticket that already exists, that edge in the new ticket's `blocks`:
 **1. Dry run.** `chart` is dry-run by default; `--real` is what writes.
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" chart --input <workdir>/map_input.json
+python "<ops>" chart --input <workdir>/map_input.json
 ```
 
 The plan lands twice: JSON on **stdout**, a human rendering on **stderr**. Show
@@ -361,11 +377,11 @@ the plan you just showed — if the input changes at all, re-run the dry run.
 **4. On approval, re-run with `--real`:**
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" chart --input <workdir>/map_input.json --output <workdir>/map.json --real
+python "<ops>" chart --input <workdir>/map_input.json --output <workdir>/map.json --real
 ```
 
 **5. Check `divergence` in the result** and report every line. The fix is a
-hand edit of `map.md`, never `--force`.
+hand edit of the map document, never `--force`.
 
 **`--force` is never the remedy here.** It discards recorded resolutions,
 claims and blocking edges on everything it rewrites — on a map you are working,
@@ -379,13 +395,13 @@ tickets, edges, fog lines and scope lines; nothing in graduation needs
 - **The graduated fog line is not removed.** Union never deletes, so the line
   you just turned into a ticket is still sitting under "Not yet specified".
   Delete it by hand from between the `decision-map:fog` marker comments in
-  `map.md`, leaving the markers themselves alone — otherwise the map keeps
+  the map document, leaving the markers themselves alone — otherwise the map keeps
   advertising fog that is now a real ticket.
 - **An edge between two tickets that both already exist needs no create at
   all.** That is `block`, a lifecycle write with no gate:
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" block --map <slug> --ticket <blocked-key> --blocked-by <blocker-key>
+python "<ops>" block --map <slug> --ticket <blocked-key> --blocked-by <blocker-key>
 ```
 
 Then re-run `frontier --map <slug>` and show the result. A graduated ticket
@@ -414,10 +430,10 @@ Re-run the frontier so the report describes the map as it now stands, not as it
 looked when the session opened:
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/local_map_ops.py" frontier --map <slug>
+python "<ops>" frontier --map <slug>
 ```
 
-**And re-read the fog region of `map.md`** — `frontier` does not carry it, and
+**And re-read the fog region of the map document** — `frontier` does not carry it, and
 the copy you read in Step 1 is stale the moment Step 5 runs: the gate's merge
 appended any new fog lines and your hand edit removed the graduated one.
 Reporting the Step 1 copy tells the user the map still asks a question they just
@@ -432,10 +448,12 @@ Report, in this order:
 - the frontier for next time, **by name**;
 - the fog lines still unspecified.
 
-Offer to commit `docs/decision-map/<slug>/` **and** any repo docs the
-resolution produced — an ADR written during a grilling ticket is exactly the
-file that gets orphaned when only the map is committed. Assisted git: offer,
-never automatic.
+Offer to commit any repo docs the resolution produced — an ADR written during a
+grilling ticket is exactly the file that gets orphaned when only the map is
+committed — **plus, on local, `docs/decision-map/<slug>/` itself**. On GitHub the
+map needs no commit (it is already live in the tracker), but the repo docs still
+do, and that is the half most easily forgotten when the map is not a file.
+Assisted git: offer, never automatic.
 
 Then suggest `/decision-map:work` for the next session, and stop.
 

@@ -23,44 +23,59 @@ historical record and is superseded in part — it carries a banner saying how.
 
 ## Backends
 
-**v1 ships exactly one backend: local markdown** (ADR 0059). Your map is repo
-docs — it lives under `docs/decision-map/<slug>/` and is shared the way the repo
-is shared, by committing it. Nothing appears on a board.
+**Two backends ship.** Local markdown is the default: your map is repo docs under
+`docs/decision-map/<slug>/`, shared the way the repo is shared, by committing it.
+GitHub Issues puts the same map on a real board.
 
 | Backend | Status | Needs | Ops script |
 |---|---|---|---|
-| Local markdown | **ships in v1** | nothing | `decision-map/scripts/local_map_ops.py` → `docs/decision-map/<slug>/` |
-| Azure DevOps | planned (phase 2) | `ado-backlog` plugin, `az login`, `AZDO_ORG`/`AZDO_PROJECT` | not built yet |
-| GitHub Issues | planned (phase 2) | `github-backlog` plugin, `gh auth login`, `GH_OWNER`/`GH_REPO` | not built yet |
+| Local markdown | **ships** (default) | nothing | `scripts/local_map_ops.py` → `docs/decision-map/<slug>/` |
+| GitHub Issues | **ships** (ADR 0062) | `gh auth status` passing, and `--repo <owner>/<repo>` on every call | `scripts/github_map_ops.py` |
+| Azure DevOps | not built | — | — |
 
 Installing `ado-backlog` or `github-backlog` does **not** give decision-map a
-tracker backend today — neither plugin can drive a map.
+backend — neither plugin can drive a map. `github-backlog` is a
+*findings-to-issues* pipeline; it writes different things to the same tracker.
 
-### What phase 2 looks like, and why it is not here
+Everything above the ops script is backend-neutral: the skills, the subcommands,
+the flags and the JSON shapes are the same on both. Only the script name and that
+one `--repo` flag change. The rules the two must not disagree about — the marker
+invariant, the region merge, input validation, the key join — live in one shared
+module, `scripts/map_core.py`.
 
-The tracker design is written down in full, not hand-waved: a map is one work
-item / issue carrying the same five marker regions the local files use
-(`key`, `gist`, `fog`, `scope`, `decisions`), its Decision tickets are its
-children, and the `key` → item join is built by enumerating those children once
-per run — never by search. All of it is specified in
-[`references/data-contracts.md`](references/data-contracts.md), which keeps its
-tracker mappings precisely because they are the phase-2 spec.
+### On GitHub
 
-What is missing is evidence. The whole scheme rests on one bet — that
-`<!-- decision-map:key:<key> -->` survives a round trip through the tracker,
-including **an edit in the Boards web UI**, where the rich-text editor (not the
-API) rewrites HTML. That bet has never been tested against a live API. If it
-loses, the per-item marker collapses to a manifest on the map item — a
-*different shape*, so both backends get rewritten rather than patched — and the
-failure is silent in the worst way: a map whose markers were stripped re-charts
-in full and is presented as a page of ordinary, approvable `create` lines.
+A map is an **issue** labelled `decision-map:map`; each Decision ticket is a
+native **sub-issue** of it; blocking uses native **issue dependencies**; a
+resolution is an issue **comment** (and a one-line gist region on the ticket, so
+`read` can report every gist without walking every ticket's comments). The
+`key` → issue join is one GraphQL round trip, and it refuses rather than
+truncates — a child the join cannot see would be re-created and shown to you as
+an ordinary approvable `create` line.
 
-So phase 2 starts with the contract's six-step verification probe ("Before
-building the join") against a live tracker, and no join code is written until it
-passes; the contract already records the fallback ladder for each way it can
-fail. Everything above the ops script is backend-neutral — the skills, the
-subcommands and the JSON shapes do not change when a tracker lands, only which
-script the skills call.
+Two GitHub limits are hard and checked before anything is written: **100 tickets
+per map** (its sub-issue ceiling) and **50 blockers per ticket**.
+
+### Why Azure DevOps is not here
+
+The whole design rests on one bet — that `<!-- decision-map:key:<key> -->`
+survives a round trip through the tracker, including **an edit in the web UI**,
+where the rich-text editor rather than the API rewrites HTML. That bet was tested
+against live GitHub and **passed**, including a human editing a body in the
+browser (ADR 0060), which is what cleared GitHub to be built.
+
+It has never been tested against ADO, and that is where all the risk is:
+`System.Description` is HTML, and Microsoft documents nothing about sanitisation
+of work-item HTML fields. If the bet loses there, the per-item marker collapses
+to a manifest on the map item — a *different shape* — and the failure is silent
+in the worst way: a map whose markers were stripped re-charts in full and is
+presented as a page of ordinary, approvable `create` lines.
+
+`scripts/probe_marker_survival.py` is the harness for that test; it covers both
+trackers and one of its six steps needs a human editing a description in the
+Boards UI. Until it runs, no ADO join code gets written. The ADO mappings stay in
+[`references/data-contracts.md`](references/data-contracts.md) because they are
+that backend's spec.
 
 ## Safety
 

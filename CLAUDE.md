@@ -39,8 +39,14 @@ plugins/ado-backlog/
 plugins/github-backlog/           same pipeline, GitHub Issues backend
 plugins/dev-workflows/            daily-work arc skills + the /daily router
   references/diagram-convention.md   canonical diagram convention (ADRs 0005-0009)
-plugins/decision-map/             multi-session planning: chart-map + work-map skills,
-                                  local-markdown backend, ops contract reference
+plugins/decision-map/             multi-session planning: chart-map + work-map skills
+  scripts/map_core.py               rules both backends share — the marker invariant,
+                                    region merge, input validation, the key join
+  scripts/local_map_ops.py          local-markdown backend (default)
+  scripts/github_map_ops.py         GitHub Issues backend (sub-issues + dependencies)
+  scripts/fake_github.py            in-memory GitHub API, for the tests
+  scripts/smoke_github_live.py      one live run — the byte-identical no-op check
+  references/data-contracts.md      the ops contract both backends answer to
 ```
 
 ## Mental model
