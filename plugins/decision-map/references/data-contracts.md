@@ -36,7 +36,7 @@ do not change when a tracker lands, only which ops script the skills call.
 
 | Subcommand | Args | Effect |
 |---|---|---|
-| `chart` | `--input <map_input.json> --output <map.json>` | create map + tickets + parent links + blocking edges, **additively** (ADR 0057/0058) — see below. **Dry-run by default**; `--real` performs the writes; `--force` is a **destructive** full rewrite that discards recorded resolutions, claims and edges. |
+| `chart` | `--input <map_input.json> --output <map.json>` | create map + tickets + blocking edges, **additively** (ADR 0057/0058) — see below. **Parent links are tracker-only**: the local backend expresses containment by directory and creates none. **Dry-run by default**; `--real` performs the writes; `--force` is a **destructive** full rewrite that discards recorded resolutions, claims and edges. |
 | `read` | `--map <id\|slug> --output <map.json>` | fetch map + children at low resolution. |
 | `frontier` | `--map <id\|slug> --output <frontier.json>` | open + unblocked + unclaimed children. |
 | `claim` | `--map <id\|slug> --ticket <id\|slug> [--user <upn>]` | assign the ticket to the caller. `--user` works on **every** backend (it sets the local `assignee:` frontmatter too); passing an empty value releases the claim. |
@@ -50,8 +50,47 @@ resolves a bare `--ticket` by global search (that is the same rejected
 search-the-tracker shortcut as in the join below). Omitting it is a usage
 error — the local backend exits `2` with `resolve needs --map`.
 
-Every subcommand also accepts `--dry-run` (print planned mutations, change
-nothing) — for `chart` that is already the default.
+Every subcommand also accepts `--dry-run` (change nothing) — for `chart` that
+is already the default. **Only `chart` renders a plan.** On `claim`, `resolve`,
+`comment` and `block` the shipping backend prints a stub,
+`{"dryRun": true, "wouldRun": <cmd>, "ticket": <ticket>}`, and does **not**
+check that the map or ticket exists. A tracker backend must match that: a
+dry-run that quietly performs lookups is not free, and one that renders a plan
+where local renders a stub is not at parity.
+
+### Exit codes and return shapes
+
+Three exit codes, on every subcommand and every backend:
+
+| Exit | Meaning | stdout | stderr |
+|---|---|---|---|
+| `0` | success | the subcommand's JSON document | empty, except `chart`'s plan rendering (dry-run) or its divergence lines (real run) |
+| `2` | a **known** failure — bad usage, missing map or ticket, validation error | **empty** | exactly one line naming the problem |
+| `1` | an unhandled crash | empty | a traceback |
+
+Exit `2` with empty stdout is the contract the flow skills rely on; a backend
+that prints a partial document alongside an error breaks them. Return shapes:
+
+| Subcommand | stdout on success |
+|---|---|
+| `chart` (dry-run) | `{backend, dryRun: true, planned[], divergence[]}` |
+| `chart --real` | the `map.json` document plus a `divergence` key |
+| `read` | `map.json` |
+| `frontier` | `frontier.json` |
+| `claim` | `{"claimed": <ticket>, "assignee": <user>}` |
+| `resolve` | `{"resolved": <ticket>, "gist": <gist **as stored**>}` — flattened and escaped, or `null` when the flattened value is empty. Never echo the raw input. |
+| `comment` | `{"commented": <ticket>}` |
+| `block` | `{"ticket": <t>, "blockedBy": [<the full list>]}` |
+
+`block` **must not issue a write when the edge already exists** — it returns
+the same document and touches nothing. On a tracker this matters more than on
+local: a redundant link call bumps `System.Rev` and shows in the item history.
+
+**`--user` has no default identity.** The shipping backend writes the literal
+string `"me"` when `--user` is omitted. That is meaningless as an ADO
+`System.AssignedTo` or a GitHub assignee, so a tracker backend must resolve the
+caller's identity itself (`az account show` / `gh api user`) and must not write
+`"me"`. Passing an empty value still releases the claim.
 
 ### `chart` is additive (ADR 0057, refined by ADR 0058)
 
@@ -104,8 +143,9 @@ Its reach is exactly the items the plan labels `OVERWRITE`:
 |---|---|---|
 | listed in `tickets[]` **and already exists** | `OVERWRITE` | **all discarded** — status back to `open`, assignee cleared, gist cleared, resolution removed, `blockedBy` reset and then re-wired from this input's `blocks` |
 | listed in `tickets[]` but **does not exist yet** | `create` | nothing to discard — `--force` does not change how a new ticket is created |
-| the map itself | `OVERWRITE` | title / destination / notes / fog / out-of-scope rewritten from the input. Fog and out-of-scope lines that existed only on the map and are absent from the input **are lost** — this is the one place additive's union guarantee does not apply |
-| named only in a `blocks` list, not in `tickets[]` | `merge` | **nothing discarded** — it gains the edge and keeps its status, assignee, gist and resolution, exactly as on the additive path |
+| the map itself | `OVERWRITE` | the **whole map document is regenerated** from the input. Fog and out-of-scope lines that existed only on the map and are absent from the input are lost — the one place additive's union guarantee does not apply — and so is any human prose added *outside* the generated regions. On a tracker that prose is the map item's description, where a team naturally adds context, and the plan shows one `OVERWRITE` line for all of it |
+| named only in a `blocks` list, not in `tickets[]`, and **does not yet hold that edge** | `merge` | **nothing discarded** — it gains the edge and keeps its status, assignee, gist and resolution, exactly as on the additive path |
+| named only in a `blocks` list and **already holds that edge** | *absent from the plan* | **untouched** — `block` and `chart` both no-op on an edge that exists, so there is nothing to announce |
 | present on the map but in neither `tickets[]` nor any `blocks` | *absent from the plan* | **untouched** — `--force` never reaches an item this input does not name |
 
 A backend must therefore not implement `--force` as "delete the map and
@@ -524,6 +564,86 @@ and the search API stay rejected at every rung**, for the reasons above:
    call per run.
 3. **A key prefix in `System.Title`** (`[auth-model] Auth model — …`). Ugly and
    user-visible, and a human can rename it away, but titles survive everything.
+
+### Parity gaps phase 2 must close
+
+The local backend is the reference implementation, and an audit of it against
+this document found places where the document is silent, where it describes
+behaviour the code does not have, or where the two backends cannot both be
+right. These are phase-2 work items, not descriptions of shipped behaviour.
+
+**Decided here, because leaving them open is how the worst failure happens:**
+
+- **The key marker is authoritative; the tag/label is decorative.** A child
+  carrying a key marker **is** a decision-map ticket whether or not it still
+  has the tag/label. Keying membership on the tag instead means one bulk tag
+  edit hides every ticket from the join, `chart` labels them all `create`, and
+  the map is silently re-created — the exact failure this contract names as the
+  worst it can produce. The tag stays for human filtering and for the
+  loud-error rule (a *tagged* child with no key marker still fails the run).
+- **Normalise line endings to `\n` on read** before parsing regions or
+  comparing anything, and write `\n` (see above).
+- **A tracker must not write the literal `"me"`** as an assignee.
+
+**Open — phase 2 must decide, and the probe can settle several:**
+
+- **A human editing inside a generated region.** The contract says regions are
+  tool-owned but never says what happens when someone types inside one. Local's
+  behaviour is three-way and undocumented: markers deleted → the merge is
+  skipped and a divergence reported; markers intact → the content between them
+  is replaced, so the human's text is destroyed without warning. On a tracker
+  the map item's description is exactly where a team adds context. Observed
+  live during the GitHub probe: a human edit landed inside a `fog` region and
+  the next `chart` would have overwritten it silently.
+- **`read` / `frontier` on a map that does not exist.** Local `read` exits `2`;
+  local `frontier` returns **exit 0 with three empty buckets**, which is
+  indistinguishable from a finished map. `work-map` uses `read` as its
+  existence check, so a tracker must not make `frontier` the check. Phase 2
+  needs a read-failure table: missing, not-a-map, no permission, and deleted
+  are four distinguishable cases on a tracker and one on local.
+- **Ordering is unspecified** everywhere except the decisions index. Local
+  emits `map.json.tickets[]` and the `frontier.json` buckets in key-ascending
+  order, because it globs a directory. A tracker's natural order is creation or
+  id order, so the two backends will disagree for the same logical state and
+  nothing here says which is right. Pick one and write it down.
+- **A blocker whose item no longer exists.** Local keeps the phantom key in
+  `map.json.blockedBy` but `frontier` silently drops it, so deleting a blocker
+  quietly unblocks its dependents. On a tracker this is the *common* case
+  (items get deleted, moved, re-parented). The "Foreign edge targets" rule
+  covers a link pointing out of the map, not a recorded key with no surviving
+  item.
+- **Tag/label provisioning is outside the dry-run plan**, which contradicts
+  "nothing the run writes may be missing from it". A tracker `chart` must
+  create `decision-map:map` / `decision-map:ticket` / `decision-map:type:*` if
+  absent. Either extend the action vocabulary to cover it or declare it a
+  preflight outside the gate — but say which.
+- **`resolve` is the most expensive operation, not the cheapest.** It
+  re-projects the decisions index by reading *every* ticket. On local that is n
+  file reads; on a tracker it is a full enumerate-and-read pass plus a comment,
+  a state change, a gist-region write and a map-body write. The cost analysis
+  above only budgets the join. Write the per-subcommand call budget down before
+  implementing, or phase 2 discovers this the slow way.
+- **The escaping rule may not be portable.** Local flattens then scrubs
+  `<!-- decision-map:` → `&lt;!-- decision-map:`, and *nothing may transform the
+  string afterwards*. ADO stores `System.Description` as HTML, so a tracker
+  backend must HTML-encode user text — a transformation applied after the
+  escape, which this contract forbids. GitHub is settled (the escaped form
+  round-tripped byte-identical through the API **and** through a web-UI edit);
+  ADO is not. If ADO re-encodes `&lt;` to `&amp;lt;` the no-op guarantee
+  breaks; if it decodes back to a live `<!--` a user string forges a marker.
+- **The write-side region check covers 3 of the 5 markers.** `_assert_regions`
+  validates `fog`, `scope` and `decisions`; `key` and `gist` are not paired
+  regions and are not counted the same way. A tracker must decide whether to
+  validate regions on **read** as well — a corrupted map is currently invisible
+  to `read`, `frontier` and a no-op `chart`.
+
+**Statements corrected in this document from that audit:** `chart` no longer
+claims to create parent links on every backend (local creates none); `--dry-run`
+no longer claims to print planned mutations for the four ticket subcommands; the
+`merge` rows now say an item already holding the edge is *absent from the plan*
+rather than labelled `merge`; and `--force` on the map is recorded as
+regenerating the whole document, so human prose outside the generated regions is
+lost too.
 
 ## Backend mappings
 
