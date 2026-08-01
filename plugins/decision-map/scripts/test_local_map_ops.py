@@ -1153,6 +1153,50 @@ class LocalMapOpsTest(unittest.TestCase):
                 self.assertIsNone(e["detail"],
                                   f"{name}: detail is only meaningful on merge")
 
+    # C2: a map-body merge came back with detail: null, so the plan rendered a
+    # bare "merge .../map.md". That contradicts the contract's own promise --
+    # "a merge entry carries a detail string naming what it will add" -- and
+    # its worked example, "adds 1 fog line". It matters most at the ADR-0039
+    # gate: work-map asks the user to approve exactly that line, and a blank
+    # one asks them to approve a write nobody described.
+    def test_map_body_merge_names_the_lines_it_adds(self):
+        self._chart()
+        base = self.root / "example-effort"
+        before = _snapshot(base)
+
+        def plan(fog, scope):
+            inp = copy.deepcopy(INPUT)
+            inp["map"] = dict(inp["map"], notYetSpecified=fog, outOfScope=scope)
+            out = ops.chart(self.root, inp, real=False)
+            entry = {Path(p["path"]).name: p for p in out["planned"]}["map.md"]
+            return inp, entry
+
+        inp, both = plan(["how to deploy", "FOG-A", "FOG-B"],
+                         ["mobile app", "SCOPE-A"])
+        self.assertEqual(both["action"], "merge")
+        self.assertEqual(both["detail"], "adds 2 fog lines, 1 out-of-scope line")
+        self.assertEqual(plan(["how to deploy", "FOG-A"], ["mobile app"])[1]["detail"],
+                         "adds 1 fog line")
+        self.assertEqual(plan(["how to deploy"],
+                              ["mobile app", "SCOPE-A", "SCOPE-B"])[1]["detail"],
+                         "adds 2 out-of-scope lines")
+        # a map body that gains nothing is still a skip, and a skip still
+        # carries no detail
+        unchanged = plan(["how to deploy"], ["mobile app"])[1]
+        self.assertEqual(unchanged["action"], "skip (exists)")
+        self.assertIsNone(unchanged["detail"])
+        # the human rendering carries the same sentence the JSON does
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            ops.chart(self.root, inp, real=False)
+        self.assertIn("adds 2 fog lines, 1 out-of-scope line", err.getvalue())
+        self.assertEqual(_snapshot(base), before, "a dry run must never write")
+        # and the plan told the truth: the real run adds exactly those lines
+        ops.chart(self.root, inp, real=True)
+        map_md = (base / "map.md").read_text(encoding="utf-8")
+        for added in ("- FOG-A", "- FOG-B", "- SCOPE-A"):
+            self.assertEqual(map_md.count(added), 1, f"{added} not added once")
+
     def test_block_does_not_rewrite_when_the_edge_is_already_present(self):
         """The byte-identical no-op depends on block() not writing at all --
         a rewrite happens to produce the same bytes for files this module

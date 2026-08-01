@@ -18,10 +18,16 @@ erDiagram
 | `chart` | `--input <map_input.json> --output <map.json>` | create map + tickets + parent links + blocking edges, **additively** (ADR 0054/0055) — see below. **Dry-run by default**; `--real` performs the writes; `--force` is a **destructive** full rewrite that discards recorded resolutions, claims and edges. |
 | `read` | `--map <id\|slug> --output <map.json>` | fetch map + children at low resolution. |
 | `frontier` | `--map <id\|slug> --output <frontier.json>` | open + unblocked + unclaimed children. |
-| `claim` | `--ticket <id\|slug>` (`--user <upn>` ADO only) | assign the ticket to the caller. |
-| `resolve` | `--ticket <id\|slug> --gist "<one line>" [--link <url>] [--body-file <md>]` | post resolution comment, close the ticket. |
-| `comment` | `--ticket <id\|slug> --body-file <md>` | plain comment. |
-| `block` | `--ticket <id\|slug> --blocked-by <id\|slug>` | dependency edge (ticket waits on blocked-by). |
+| `claim` | `--map <id\|slug> --ticket <id\|slug>` (`--user <upn>` ADO only) | assign the ticket to the caller. |
+| `resolve` | `--map <id\|slug> --ticket <id\|slug> --gist "<one line>" [--link <url>] [--body-file <md>]` | post resolution comment, close the ticket. |
+| `comment` | `--map <id\|slug> --ticket <id\|slug> --body-file <md>` | plain comment. |
+| `block` | `--map <id\|slug> --ticket <id\|slug> --blocked-by <id\|slug>` | dependency edge (ticket waits on blocked-by). |
+
+**`--map` is required on every ticket subcommand**, not only on `read` and
+`frontier`: a ticket is identified by its map plus its key, and no backend
+resolves a bare `--ticket` by global search (that is the same rejected
+search-the-tracker shortcut as in the join below). Omitting it is a usage
+error — the local backend exits `2` with `resolve needs --map`.
 
 Every subcommand also accepts `--dry-run` (print planned mutations, change
 nothing) — for `chart` that is already the default.
@@ -113,8 +119,11 @@ additive `chart` genuinely produces:
 
 `skip (exists)` is a promise that nothing is written; anything modified must
 be labelled `merge`, never `skip`. A `merge` entry carries a `detail` string
-naming what it will add (e.g. `unions blockedBy: fog-graduate`), so the
-ADR-0039 approval gate can show the reviewer every write before it happens.
+naming what it will add — `unions blockedBy: fog-graduate` on a ticket,
+`adds 2 fog lines, 1 out-of-scope line` on the map body — so the ADR-0039
+approval gate can show the reviewer every write before it happens. **No
+`merge` entry may carry `detail: null`**: the gate asks the user to approve
+that line, and a blank one asks them to approve an undescribed write.
 
 #### Dry-run plan schema
 

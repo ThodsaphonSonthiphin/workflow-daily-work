@@ -637,6 +637,39 @@ def _merge_region_lines(body, items):
     return existing or [_EMPTY_LIST_LINE]
 
 
+def _count_added_lines(body, merged_lines):
+    """How many lines the merge actually ADDS to one map.md list region.
+
+    Not `len(merged) - len(existing)`: the tool-owned "- (none)" placeholder
+    is dropped when the first real line arrives and restored when the list
+    empties, so the arithmetic is off by one in either direction. Count the
+    merged lines that were not already there instead.
+    """
+    existing = {ln for ln in (body or "").splitlines()
+                if ln.strip() and ln.strip() != _EMPTY_LIST_LINE}
+    return sum(1 for ln in merged_lines
+               if ln != _EMPTY_LIST_LINE and ln not in existing)
+
+
+def _map_merge_detail(added):
+    """The one-line `detail` for a map-body merge: what it will add.
+
+    The contract requires every `merge` entry to name what it adds, because
+    that string is what the ADR-0039 gate shows the user before the write. A
+    map-body merge that reported `detail: null` rendered as a bare
+    `merge .../map.md` -- an unnamed write, approved blind.
+
+    `added` is [(noun, count), ...] for the regions that gained lines. The
+    fallback covers the one way a merge can change bytes without adding a
+    line: a hand-edited region whose blank lines or stale placeholder the
+    merge normalises away. Saying "adds 0 lines" there would be a lie.
+    """
+    parts = [f"{n} {noun} line" + ("s" if n != 1 else "") for noun, n in added]
+    if not parts:
+        return "normalises the map body's list regions (no new lines)"
+    return "adds " + ", ".join(parts)
+
+
 def _render_map_md(m):
     """The whole map.md, as written by an initial chart or by --force."""
     fog = _region_text(_FOG_START, _FOG_END,
@@ -661,19 +694,23 @@ _SCALAR_MAP_FIELDS = ("title", "destination", "notes")
 
 
 def _plan_map_md(base, inp, force):
-    """-> (action, text_or_None, divergences) for map.md.
+    """-> (action, text_or_None, detail_or_None, divergences) for map.md.
 
     Additive by default (ADR 0054): an existing map.md keeps its authored
     prose byte-for-byte and only its fog / out-of-scope regions are merged
     into. "skip (exists)" is returned only when the merge would change
     nothing, so the dry run's promise that a skip never writes stays true.
+
+    `detail` is the contract's one-line "what this merge adds" string, and is
+    None on every action other than "merge" -- detail is meaningful only
+    where something is modified in place.
     """
     p = base / "map.md"
     m = inp["map"]
     if not p.exists():
-        return "create", _render_map_md(m), []
+        return "create", _render_map_md(m), None, []
     if force:
-        return "OVERWRITE", _render_map_md(m), []
+        return "OVERWRITE", _render_map_md(m), None, []
     existing = p.read_text(encoding="utf-8")
     div = []
     # Scalars are never rewritten on the additive path. The only way to change
@@ -692,9 +729,12 @@ def _plan_map_md(base, inp, force):
                        f"{_FORCE_COST} -- editing map.md by hand is usually "
                        "the right move instead")
     text = existing
-    for start, end, items, label in (
-            (_FOG_START, _FOG_END, m.get("notYetSpecified") or [], "notYetSpecified"),
-            (_SCOPE_START, _SCOPE_END, m.get("outOfScope") or [], "outOfScope")):
+    added = []
+    for start, end, items, label, noun in (
+            (_FOG_START, _FOG_END, m.get("notYetSpecified") or [],
+             "notYetSpecified", "fog"),
+            (_SCOPE_START, _SCOPE_END, m.get("outOfScope") or [],
+             "outOfScope", "out-of-scope")):
         body = _region_body(text, start, end)
         if body is None:
             if items:
@@ -704,11 +744,15 @@ def _plan_map_md(base, inp, force):
                     f"{label} markers to map.md by hand to enable merging; "
                     f"re-charting would also fix it, but {_FORCE_COST}")
             continue
-        merged = _region_text(start, end, _merge_region_lines(body, items))
+        merged_lines = _merge_region_lines(body, items)
+        merged = _region_text(start, end, merged_lines)
         text = _replace_region(text, start, end, merged[len(start):-len(end)])
+        gained = _count_added_lines(body, merged_lines)
+        if gained:
+            added.append((noun, gained))
     if text == existing:
-        return "skip (exists)", None, div
-    return "merge", text, div
+        return "skip (exists)", None, None, div
+    return "merge", text, _map_merge_detail(added), div
 
 
 def _chart_plan(root, inp, force):
@@ -732,8 +776,9 @@ def _chart_plan(root, inp, force):
     """
     slug = inp["target"]["slug"]
     base = _map_dir(root, slug)
-    map_action, map_text, div = _plan_map_md(base, inp, force)
-    entries = [{"path": base / "map.md", "action": map_action, "detail": None}]
+    map_action, map_text, map_detail, div = _plan_map_md(base, inp, force)
+    entries = [{"path": base / "map.md", "action": map_action,
+                "detail": map_detail}]
     by_path = {base / "map.md": entries[0]}
     action_by_key = {}
     for t in inp["tickets"]:

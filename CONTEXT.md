@@ -97,15 +97,18 @@ _Avoid_: tooltip (narrower — can't hop), glossary popup, nested sub-walkthroug
 ## Decision-map terms (decision-map plugin)
 
 **Decision map**:
-The fourth plugin (ADR 0033/0034) and its canonical artifact: one tracker item
-(tagged/labelled `decision-map:map`) that indexes a multi-session planning effort —
-the destination, decisions so far, open fog, and out-of-scope list. An **index, not
-a store**: each decision's detail lives in its Decision ticket; the map only gists
-and links.
+The fourth plugin (ADR 0033/0034) and its canonical artifact: one map item that
+indexes a multi-session planning effort — the destination, decisions so far, open
+fog, and out-of-scope list. In v1 that item is `docs/decision-map/<slug>/map.md`
+in the repo; the tracker form (a work item / issue tagged or labelled
+`decision-map:map`) is specified but deferred to phase 2 (ADR 0056). An **index,
+not a store**: each decision's detail lives in its Decision ticket; the map only
+gists and links.
 _Avoid_: wayfinder (the upstream skill it adapts), roadmap, epic.
 
 **Decision ticket**:
-A child work item of a Decision map whose resolution is a **decision** — a question
+A child item of a Decision map (in v1 a file under its `tickets/` folder, in phase
+2 a child work item / sub-issue) whose resolution is a **decision** — a question
 to settle, sized to one agent session — not a slice of a build to execute. Closed
 with the answer recorded on the ticket; the map gets a one-line gist + link. When a
 repo ADR exists for the decision, the ticket only gists and links it — the ADR stays
