@@ -35,6 +35,7 @@ Runs on **both Claude Code and Antigravity** from this one source tree.
 | `invoice-generator` | Read git commits across workspace repos into a **daily work summary**, then always reshape it for the target channel via `management-talk` (Tribletext entry, Slack, standup, email, JIRA, talking-points). |
 | `naming-audit` | Verify a list of claimed labels/values/mappings **against the authoritative system of record**, item by item — verdict card + the exact app/code path to check. Source-of-truth wins. |
 | `ticket-trace` | Two-way **commit ↔ ticket traceability**: commits always carry their ticket number, and "why was this changed?" walks `git blame` → commit → ticket → tracker (incl. attached images). |
+| `verify-then-advise` | Verification pass for any recommendation resting on **facts outside the codebase** — vendor products, certifications, exam codes, SKUs, pricing, job markets, trends. **Lifecycle-verify** against retirement registries, **hunt the counter-signal**, **count primary artifacts** before citing commentary, read the institutional incentive, then **grade every claim** by confidence. The outside-world sibling of `study-design-verify`. |
 
 Each is invoked automatically by its trigger phrases (Claude Code loads it via the
 `Skill` tool; Antigravity semantic-matches the `description` and loads the `SKILL.md`).
