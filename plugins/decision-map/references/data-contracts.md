@@ -65,9 +65,31 @@ validation error.
 
 `--force` is the explicit, dry-run-announced full rewrite. **It is
 destructive: it discards every recorded resolution, claim and blocking edge
-in the map.** It is never required to add tickets or edges — that is what
-additive `chart` is for. No message in any backend may recommend `--force`
-without stating this cost.
+on the items it rewrites.** It is never required to add tickets or edges —
+that is what additive `chart` is for. No message in any backend may recommend
+`--force` without stating this cost.
+
+**What `--force` does and does not discard, per action label.** `--force`
+does not mean "reset the map"; it means "rewrite the items in this input".
+Its reach is exactly the items the plan labels `OVERWRITE`:
+
+| the item is… | label under `--force` | what happens to its recorded state |
+|---|---|---|
+| listed in `tickets[]` | `OVERWRITE` | **all discarded** — status back to `open`, assignee cleared, gist cleared, resolution removed, `blockedBy` reset and then re-wired from this input's `blocks` |
+| the map itself | `OVERWRITE` | title / destination / notes / fog / out-of-scope rewritten from the input. Fog and out-of-scope lines that existed only on the map and are absent from the input **are lost** — this is the one place additive's union guarantee does not apply |
+| named only in a `blocks` list, not in `tickets[]` | `merge` | **nothing discarded** — it gains the edge and keeps its status, assignee, gist and resolution, exactly as on the additive path |
+| present on the map but in neither `tickets[]` nor any `blocks` | *absent from the plan* | **untouched** — `--force` never reaches an item this input does not name |
+
+A backend must therefore not implement `--force` as "delete the map and
+re-chart": that would destroy items the input does not mention, which neither
+the plan nor this contract permits. Every destructive act must appear in the
+dry-run plan as an `OVERWRITE` line before it happens.
+
+One consequence worth knowing: the "Decisions so far" index is a projection
+refreshed by `resolve`, so after a `--force` rewrite it reflects only the
+tickets this input rewrote. A ticket left closed because the input did not
+name it keeps its own closed state, but is no longer listed in the index until
+something re-projects it.
 
 #### Dry-run action vocabulary (required of every backend)
 
@@ -135,7 +157,8 @@ task=either.
   "tickets": [
     { "key": "auth-model", "id": "1235", "name": "Auth model — …",
       "url": "https://…", "type": "grilling", "mode": "HITL",
-      "status": "open", "assignee": null, "blockedBy": ["1236"], "gist": null }
+      "status": "open", "assignee": null, "blockedBy": ["rollout-order"],
+      "gist": null }
   ]
 }
 ```
@@ -151,9 +174,12 @@ ADR 0055 they are applied, and appear in the dry-run plan as a `merge`.
 that must close before this one is actionable — the same relation `frontier.json`
 reports for every blocked ticket; every backend computes this relation
 naturally from its own native dependency mechanism (see the "blocking" row of
-Backend mappings below for the exact field/label each backend uses). After
-`resolve`, `gist` holds the one-line answer. For the local backend, `id` and
-`key` are both the ticket file's slug and `url` is the repo-relative file
+Backend mappings below for the exact field/label each backend uses). **Its
+entries are `key`s, not native ids**, in every backend: a backend that stores
+the edge natively (an ADO link, a GitHub "blocked by") must resolve each
+linked item back to its key through the join above before emitting this field.
+After `resolve`, `gist` holds the one-line answer. For the local backend, `id`
+and `key` are both the ticket file's slug and `url` is the repo-relative file
 path.
 
 ## `frontier.json` (output of `frontier`)
@@ -161,10 +187,80 @@ path.
 ```json
 {
   "frontier": [ { "id": "1235", "name": "Auth model — …", "url": "https://…", "type": "grilling" } ],
-  "blocked":  [ { "id": "1236", "name": "Rollout order — …", "blockedBy": ["1235"] } ],
+  "blocked":  [ { "id": "1236", "name": "Rollout order — …", "blockedBy": ["auth-model"] } ],
   "claimed":  [ { "id": "1237", "name": "…", "assignee": "thodsaphon.sonthipin@cartagena.no" } ]
 }
 ```
+
+Closed tickets appear in none of the three buckets — a closed ticket is done,
+not actionable. `blockedBy` here carries `key`s, as it does in `map.json`.
+
+**Bucket precedence — every backend must use the same order.** A ticket can
+satisfy more than one condition at once (claimed *and* blocked is the common
+case), and it appears in **exactly one** bucket:
+
+1. `claimed` — the ticket has an assignee (whether or not it is also blocked);
+2. `blocked` — otherwise, if it has at least one **open** blocker;
+3. `frontier` — otherwise.
+
+So a ticket that is both claimed and blocked appears under `claimed` only, and
+its blockers are not listed there. That is deliberate: both answers mean "not
+available to pick up", and the blocker list remains visible in `map.json`'s
+`blockedBy` for the same ticket. A backend that ordered these the other way
+would emit a different `frontier.json` from the same state. The local backend
+pins this ordering in
+`test_additive_chart_unions_a_new_edge_into_an_existing_ticket`, which asserts
+a claimed-and-blocked ticket lands in `claimed` and not in `frontier`.
+
+Only blockers that are still **open** count — a closed blocker does not hold a
+ticket back, which is what makes `resolve` release the next decision.
+
+## The `key` → tracker-item join
+
+`key` is the stable, human-authored identity of a ticket (`auth-model`). It is
+the **only** identifier that means the same thing in every backend, and every
+ticket-to-ticket reference inside these JSON documents is a key — `blocks` in
+`map_input.json` and `blockedBy` in `map.json` / `frontier.json`. `id` and
+`url` are the backend's own native handles, for linking and for passing back
+to `--ticket`; on the local backend `id` and `key` coincide, on ADO and GitHub
+they do not.
+
+Additive `chart` **cannot work without this join**: before it can label an item
+`create`, `skip (exists)` or `merge`, it must answer *does a ticket with key X
+already exist on this map?* A backend that cannot answer re-creates every
+ticket on every run.
+
+**The rule: the key is stored on the ticket itself, in a location returned when
+the item is fetched, and the join is built by enumerating the map's children
+once per run.** Never by a global search.
+
+| Backend | Where the key lives | How the join is built |
+|---|---|---|
+| Local | the ticket filename stem, `tickets/<key>.md` | glob `tickets/*.md`; the stem *is* the key (stems that are not safe slugs are not decision-map tickets and are ignored) |
+| ADO | marker line `<!-- decision-map:key:<key> -->` in `System.Description` | one WIQL/link query for the map work item's `System.LinkTypes.Hierarchy-Forward` children, then read each child's description |
+| GitHub | marker line `<!-- decision-map:key:<key> -->` in the issue body | list the map issue's sub-issues (or parse the task list in the map body when sub-issues are unavailable), then read each issue's body |
+
+Both trackers use the **same marker format as the local backend's regions**, so
+one escaping rule covers all three: every user-supplied string written into a
+tracker item is escaped on the way in, exactly as the local backend escapes
+`<!-- decision-map:` to `&lt;!-- decision-map:`, so a `question` or `title`
+can never forge a key. The marker is tool-owned — a human editing the body must
+leave it alone.
+
+Why not a tag or a label: it would mean one tag/label per ticket ever created,
+and ADO tags are organisation-scoped while GitHub labels are repository-scoped,
+so both namespaces would grow without bound. Why not the search API: the join
+is correctness-critical, and code search is eventually consistent and rate
+limited. Enumerating the map's own children is bounded, strongly consistent,
+and needs one round trip per run regardless of ticket count.
+
+Two rules a backend must enforce rather than guess:
+
+- **Keys are unique within a map.** Finding two children with the same key is
+  an error — fail, do not pick one.
+- **A child with no key marker is not a decision-map ticket.** Ignore it (the
+  local backend does the same for a filename that is not a safe slug), so a
+  hand-created child issue cannot collide with the join.
 
 ## Backend mappings
 
@@ -172,6 +268,7 @@ path.
 |---|---|---|---|
 | map | work item `mapType`, tag `decision-map:map` | issue, label `decision-map:map` | `docs/decision-map/<slug>/map.md` |
 | ticket | child via `System.LinkTypes.Hierarchy-Reverse`, tag `decision-map:ticket`, body line `Decision-Map-Type: <type>` | sub-issue (native REST if available, else task-list in map body), labels `decision-map:ticket`, `decision-map:type:<type>` | `tickets/<slug>.md` with frontmatter |
+| ticket `key` | `<!-- decision-map:key:<key> -->` in `System.Description` | `<!-- decision-map:key:<key> -->` in the issue body | the filename stem `tickets/<key>.md` |
 | claim | `System.AssignedTo` | assignee | frontmatter `assignee:` |
 | close | `System.State` → `Done` (fallback `Closed` on 400) | state closed | frontmatter `status: closed` |
 | blocking | `System.LinkTypes.Dependency-Reverse` on the blocked item → predecessor | native "blocked by" if the plan supports it, else body line `blocked-by: #<n>` (weaker — the script labels it) | frontmatter `blocked_by: [slug]` |
@@ -252,10 +349,16 @@ Detail: <link to repo ADR / commit, when one exists (ADR 0036)>
 Four spans of a local file are **generated regions**, each delimited by an HTML
 comment pair: the resolution block in `tickets/<slug>.md`, and the
 "Decisions so far" index, the "Not yet specified" list and the "Out of scope"
-list in `map.md`. Everything else in those files is user content — an additive
-`chart` rewrites only the two list regions and leaves the rest of the file
-byte-identical. The rules, which any reader or writer of the local format must
-honour:
+list in `map.md`. Everything else in those files is user content.
+
+An additive `chart` rewrites only the two `map.md` list regions and leaves the
+rest of that file byte-identical. It leaves a ticket file byte-identical too
+**unless the ticket gains a blocking edge**, in which case exactly one line
+changes — the frontmatter `blocked_by:` list gains one entry (ADR 0055) — and
+every other byte, including the resolution region, is untouched. A ticket that
+gains no edge is not opened for writing at all.
+
+The rules, which any reader or writer of the local format must honour:
 
 - **`resolve` owns strictly the span between its markers** and rewrites it
   wholesale; it never edits, and never needs to parse, anything outside it.

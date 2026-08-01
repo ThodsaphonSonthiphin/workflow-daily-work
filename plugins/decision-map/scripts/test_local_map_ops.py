@@ -647,7 +647,8 @@ class LocalMapOpsTest(unittest.TestCase):
     # RECONSTITUTED into a live one by the very next collapse. Unpaired ->
     # MarkerIntegrityError mid-chart with map.md already on disk (R3's
     # partial-folder harm through a new door). Paired -> passed
-    # _assert_one_region and wrote live markers into a generated file, which
+    # _assert_regions (then named _assert_one_region) and wrote live markers
+    # into a generated file, which
     # falsifies the round-4 invariant outright.
     def test_split_marker_is_not_reconstituted_when_frontmatter_is_collapsed(self):
         inp = copy.deepcopy(INPUT)
@@ -1048,6 +1049,69 @@ class LocalMapOpsTest(unittest.TestCase):
         self.assertIn("divergence", err.getvalue())
         self.assertIn("destination", err.getvalue())
 
+    # U5: ADR 0055's own stated consequence -- "every write to an existing
+    # ticket must still route through the module's write path so the
+    # marker-integrity assertion keeps covering it" -- was unguarded. A mutant
+    # writing the union with write_text() instead of _save_ticket() passed all
+    # 68 tests. Corruption must make the union REFUSE, not silently write.
+    def test_union_write_is_covered_by_the_marker_assertion(self):
+        self._chart()
+        p = self.root / "example-effort" / "tickets" / "api-limits.md"
+        corrupt = p.read_text(encoding="utf-8") + "\n<!-- decision-map:bogus -->\n"
+        p.write_text(corrupt, encoding="utf-8")
+        # via block() directly ...
+        with self.assertRaises(ops.MarkerIntegrityError):
+            ops.block(self.root, "example-effort", "api-limits", "auth-model")
+        self.assertEqual(p.read_text(encoding="utf-8"), corrupt,
+                         "a refused write must leave the file untouched")
+        # ... and via the additive chart path that unions the same edge
+        with self.assertRaises(ops.MarkerIntegrityError):
+            ops.chart(self.root, self._plus_ticket(blocks=["api-limits"]), real=True)
+        self.assertEqual(p.read_text(encoding="utf-8"), corrupt)
+
+    # P1: under --force, a ticket that is BOTH listed in tickets[] and newly
+    # blocked must still be OVERWRITE, not relabelled merge. Narrowing
+    # _chart_plan's ("create", "OVERWRITE") skip to ("create",) made such a
+    # ticket a merge, which pass 1 skips -- so --force silently preserved the
+    # resolution and claim it promises to discard. That combination was
+    # untested.
+    def test_force_overwrites_a_listed_ticket_that_also_gains_an_edge(self):
+        self._chart()
+        ops.claim(self.root, "example-effort", "rollout-order", "pon")
+        ops.resolve(self.root, "example-effort", "rollout-order", "decided",
+                    link=None, body=None)
+        inp = self._plus_ticket(blocks=["rollout-order"])
+        # the plan must announce a full rewrite, not a merge
+        plan = {Path(p["path"]).name: p["action"]
+                for p in ops.chart(self.root, inp, real=False, force=True)["planned"]}
+        self.assertEqual(plan["rollout-order.md"], "OVERWRITE",
+                         f"--force must announce a full rewrite: {plan}")
+        ops.chart(self.root, inp, real=True, force=True)
+        m = ops.read_map(self.root, "example-effort")
+        ro = next(t for t in m["tickets"] if t["key"] == "rollout-order")
+        self.assertEqual(ro["status"], "open", "--force must discard the resolution")
+        self.assertIsNone(ro["assignee"], "--force must discard the claim")
+        self.assertIsNone(ro["gist"], "--force must discard the gist")
+        ticket = self._ticket_text("example-effort", "rollout-order")
+        self.assertNotIn("decided", ticket)
+        self.assertEqual(ticket.count(ops._RESOLUTION_START), 0)
+        # and the edge is still wired afterwards
+        self.assertIn("fog-graduate", ro["blockedBy"])
+        self.assertIn("auth-model", ro["blockedBy"])
+
+    def test_plan_detail_is_deduped_and_absent_on_non_merge_entries(self):
+        self._chart()
+        inp = self._plus_ticket(blocks=["api-limits", "api-limits"])
+        out = ops.chart(self.root, inp, real=False)
+        entries = {Path(p["path"]).name: p for p in out["planned"]}
+        self.assertEqual(entries["api-limits.md"]["detail"],
+                         "unions blockedBy: fog-graduate",
+                         "a repeated blocker must appear once")
+        for name, e in entries.items():
+            if e["action"] != "merge":
+                self.assertIsNone(e["detail"],
+                                  f"{name}: detail is only meaningful on merge")
+
     def test_block_does_not_rewrite_when_the_edge_is_already_present(self):
         """The byte-identical no-op depends on block() not writing at all --
         a rewrite happens to produce the same bytes for files this module
@@ -1080,8 +1144,11 @@ class LocalMapOpsTest(unittest.TestCase):
                     self.assertTrue(
                         any(w in lowered for w in ("discard", "destroy")),
                         f"{label}: advice must state the cost: {message!r}")
-                    self.assertIn("resolution", lowered,
-                                  f"{label}: name what is lost: {message!r}")
+                    # name ALL THREE kinds of recorded state, not just one --
+                    # pinning only "resolution" let a mutant drop the rest
+                    for lost in ("resolution", "claim", "blocking edge"):
+                        self.assertIn(lost, lowered,
+                                      f"{label}: must name {lost!r}: {message!r}")
                     warned += 1
             self.assertTrue(warned, f"{label}: no message mentioned re-charting")
 

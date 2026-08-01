@@ -363,7 +363,9 @@ def _validate_chart_input(inp, root=None):
       wrote outside the intended root)
     - every ticket key must be a safe slug (no path separators / '..')
     - every ticket type must be one of the four valid types
-    - every `blocks` target must be a key present in this same `inp`
+    - every `blocks` target must exist EITHER in this same `inp` OR already in
+      the map on disk (ADR 0055 -- the round-1 "must be re-listed in tickets[]"
+      rule is gone; see the check itself for why)
     """
     if not isinstance(inp, dict):
         raise ChartValidationError(
@@ -657,7 +659,10 @@ def _plan_map_md(base, inp, force):
         return "OVERWRITE", _render_map_md(m), []
     existing = p.read_text(encoding="utf-8")
     div = []
-    # Scalars are never rewritten on the additive path -- --force is for that.
+    # Scalars are never rewritten on the additive path. The only way to change
+    # them via this tool is --force, which rewrites the WHOLE map and discards
+    # every recorded resolution, claim and edge -- so the divergence message
+    # below leads with the hand-edit instead (review F2).
     # The check is containment of the flattened value in the flattened file:
     # it drives a REPORT only, never a write, so it deliberately avoids
     # splitting the document into sections to compare field-by-field.
@@ -732,7 +737,9 @@ def _chart_plan(root, inp, force):
             fm, _ = _load_ticket(root, slug, blocked)
             if t["key"] in fm.get("blocked_by", []):
                 continue                      # already unioned: genuinely no change
-            pending.setdefault(_ticket_path(root, slug, blocked), []).append(t["key"])
+            blockers = pending.setdefault(_ticket_path(root, slug, blocked), [])
+            if t["key"] not in blockers:      # `blocks` may name the same target twice
+                blockers.append(t["key"])
     for p, blockers in pending.items():
         entry = by_path.get(p)
         if entry is None:                     # target not re-listed in tickets[]
