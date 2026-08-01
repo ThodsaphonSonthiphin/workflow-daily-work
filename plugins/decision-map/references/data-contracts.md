@@ -373,6 +373,17 @@ consistent. It is **not** one round trip: on ADO it is a WIQL query returning
 ids, then `workitemsbatch` in pages of 200, so O(n/200)+1 calls; on GitHub it
 is a paginated sub-issue listing. Bounded and predictable, not constant.
 
+**Line endings are not normalised — normalise them yourself.** A tracker may
+return a body with `\r\n`, `\n`, or a mix, decided by how that text was
+submitted rather than by anything the tool controls. Verified live on GitHub:
+`cli/cli#14021` comes back CRLF and `cli/cli#14031` LF, same repo, both with
+HTML comments intact. **Every backend must normalise to `\n` on read, before
+parsing regions or comparing anything, and write `\n`.** The key marker itself
+is single-line and therefore safe either way, but region content is not: without
+this, a human's web-UI edit can flip a whole region to CRLF and the next
+`chart` sees every line as changed — breaking the byte-identical no-op
+guarantee and emitting divergences for text nobody touched.
+
 **GitHub specifics phase 2 must respect** (verified live 2026-08-01 unless
 marked documented):
 
@@ -385,8 +396,15 @@ marked documented):
   unrelated values. `map.json`'s `id` for GitHub must therefore carry the
   number (what humans and `--ticket` use) *and* the database id (what the
   mutations need), or every write costs an extra resolve call.
-- A sub-issue must share the parent's repository **owner**, so a map cannot
-  span owners.
+- **Dependencies cap at 50 issues per relationship type** (documented), a
+  tighter limit than the 100 sub-issues and a separate one — a ticket cannot be
+  blocked by more than 50 others.
+- A sub-issue must share the parent's repository **owner** — which means it may
+  legitimately live in a *different repository* of the same owner. The join must
+  therefore key on parent identity, not on "same repo as the map".
+- The remove-sub-issue path segment is **singular** (`DELETE
+  /issues/{n}/sub_issue`) and takes `sub_issue_id` in the **request body**,
+  which is unusual for a DELETE and easy to get wrong.
 - **Secondary rate limit: 80 content-creating requests per minute.** A large
   additive `chart` must pace itself; the primary 5,000/hr limit is not the
   binding one.

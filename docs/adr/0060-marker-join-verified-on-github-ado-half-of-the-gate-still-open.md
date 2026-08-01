@@ -20,8 +20,21 @@ ADR 0059 deferred both tracker backends behind a six-step probe of one bet: that
 trips through the tracker. Steps 1–5 are ADO-shaped, step 6 is GitHub.
 
 The probe was run against GitHub on 2026-08-01, in a throwaway **private** repo so
-nothing landed in a shared one. `plugins/decision-map/scripts/probe_tracker_github.py`
-is the harness; it is committed so the result is reproducible rather than anecdotal.
+nothing landed in a shared one. `plugins/decision-map/scripts/probe_marker_survival.py`
+is the harness — both trackers, dry-run by default, `--phase setup/verify/cleanup`,
+cleanup in a `try/finally`. It is committed so the result is reproducible rather than
+anecdotal, and so the ADO half is one command plus one browser edit away.
+
+Two verdicts are kept in `examples/`, and they say different things on purpose:
+
+- `probe-verdict-github-human-step3.json` — the run where **a human really did edit
+  the body in the browser**. This is the authoritative step-3 evidence.
+- `probe-verdict-github-harness-run.json` — the harness's own end-to-end run
+  (34 API calls, all steps but 3). It reports `markerSurvives: null` and refuses to
+  pick a fallback rung, because *its* step 3 was skipped. That refusal is correct
+  behaviour, not a failure: the harness will not infer survival from steps 1 and 4,
+  and `--assume-edited` is the only way to record a human edit — it must never be
+  passed unless one actually happened.
 
 ## Decision
 
@@ -33,9 +46,11 @@ Evidence for clearing GitHub:
 - A 122-char body came back **byte-identical** after create → `GET`, and again after a
   close/reopen.
 - After a human edited that body **in the web UI**, it came back as exactly the
-  original plus what was typed — all three markers intact, no line-ending rewrite, no
-  sanitiser. The edit happened to land *inside* a `decision-map:fog` region, which is
-  the scenario the design most feared.
+  original plus what was typed — all three markers intact, no sanitiser. The edit
+  happened to land *inside* a `decision-map:fog` region, which is the scenario the
+  design most feared. Line endings survived as `\n` **on this path** (created via the
+  API, then edited in the browser); see the line-ending caveat below, which is a
+  separate matter.
 - A key containing `--` survives the API verbatim. The format rule stays anyway: the
   local backend rejects such keys at mint time, and the rule exists for rich-text
   editors, which is ADO's problem, not GitHub's.
@@ -62,9 +77,19 @@ reason ADR 0059 deferred was the editor that only ADO has.
   and the enum has grown). A fourth was confirmed by accident: `body` can be JSON
   `null`, seen on two live issues, so every body read must handle it.
 - It also surfaced hard limits the contract never stated — **100 sub-issues per
-  parent**, so a map cannot exceed 100 tickets; mutations keyed on the issue
-  *database id* rather than its number; and an 80-per-minute secondary write limit
-  that paces a large `chart`.
+  parent**, so a map cannot exceed 100 tickets; **50 dependencies per relationship
+  type**; mutations keyed on the issue *database id* rather than its number; and an
+  80-per-minute secondary write limit that paces a large `chart`.
+- **Line endings are not normalised by the tracker, and the first read of this was
+  wrong.** The single probe body round-tripped as `\n`, which was taken as "GitHub
+  does not rewrite line endings" — a generalisation from one path. Both forms occur
+  in real bodies: `cli/cli#14021` returns CRLF and `cli/cli#14031` LF, same repo, both
+  with HTML comments intact. The submission path decides. Consequence, now in the
+  contract: **every backend normalises to `\n` on read before parsing or comparing,
+  and writes `\n`.** Without it a human's web-UI edit can flip a region to CRLF and
+  the next `chart` reports every line as changed — the byte-identical no-op guarantee
+  breaks on text nobody touched. The key marker is single-line and safe either way;
+  region *content* is what this protects.
 - **One gap is now concrete rather than theoretical:** the contract says generated
   regions are tool-owned but never says what happens when a human edits *inside* one.
   The probe's web-UI edit did exactly that, and the next `chart` would overwrite the
