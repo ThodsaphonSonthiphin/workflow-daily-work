@@ -14,8 +14,7 @@ flowchart TD
     R2["ring 2 — SEA"] --> B
     R3["ring 3 — Global remote"] --> B
     B --> DC["demand claims<br/>(source + posting count)"]
-    T["trend sources"] --> F["3-year triangulation<br/>(≥3 signal types)"]
-    REG["vendor cert registries"] --> C["live-verified certs only"]
+    DC --> VTA["verify-then-advise<br/>(trend triangulation ·<br/>cert registries · claim grading)"]
 ```
 
 ## Ring 1 — Thailand
@@ -42,25 +41,15 @@ flowchart TD
 | Indeed (remote filter) | fetchable | cross-check |
 | We Work Remotely / RemoteOK / Hacker News "Who's hiring" | verify at run time | volume smaller; good rarity signal for niche combos |
 
-## Trend sources (3-year triangulation — pick ≥3 signal *types*)
+## Outside this file
 
-1. **Vendor roadmaps** — e.g. Microsoft release waves / product roadmaps (fetch the
-   current wave; never cite a wave from memory).
-2. **Industry & developer surveys** — WEF Future of Jobs, Stack Overflow Developer
-   Survey, State of DevOps; use the newest published edition found at run time.
-3. **Posting-trend deltas** — `git diff` / `git log` of `market-report.md` across
-   runs in the career repo (first run: mark this signal "not yet available").
-4. **AI-absorption assessment** — for each candidate skill, argue explicitly what
-   share of the work current AI tooling already does, and the 3-year trajectory.
+The vendor certification registries, the trend-signal taxonomy (vendor
+roadmaps, industry surveys, posting-trend deltas, AI-absorption assessment),
+and the claim-grading scale are `verify-then-advise`'s method — see that skill
+for where to verify a cert, which signal types count toward the 3-year
+triangulation, and how to grade a market claim. This file's remaining job is
+only the per-ring board list above, which bounds MARKET's research cost to a
+single session (ADR 0047).
 
-## Vendor certification registries (rule 1 — live verification, NEVER memory)
-
-| Vendor | Where to verify |
-|---|---|
-| Microsoft | `learn.microsoft.com/credentials/support/retired-certification-exams` + `…/credentials/support/credential-retirement` + the exam study guide's own banner |
-| Others (AWS, GCP, Scrum.org, …) | the vendor's own certification-lifecycle / retirement page, found at run time |
-
-A cert may be recommended **only** with: exam code confirmed on a live vendor page,
-no retirement listing, and the study guide fetched (its objective domains feed
-Station 5's mini-project design). Record `verified_on` + `registry_url` in
-`growth-state.md`.
+Once a cert clears that verification, record its `verified_on` + `registry_url`
+in `growth-state.md` — that part of the state contract is career-growth's own.

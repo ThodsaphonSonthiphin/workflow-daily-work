@@ -43,8 +43,11 @@ mini_projects:                  # Station 5 output — one entry per mini projec
 - `status: retired-blocked` is set only when the registry was reachable **and**
   listed the cert as retired (ADR 0048 rule 1); the skill must then propose a
   replacement. An unreachable registry leaves the cert's status unchanged.
-- The skill updates this file **last**, after the four document artifacts, so a
-  crashed run never records a completed `last_run`.
+- The skill updates this file **only after the career-repo commit is
+  approved**, not merely after the four document artifacts are written.
+  `last_run` means "a committed round exists in the career repo" — a crashed
+  run and a commit the user declines both leave `last_run` (and the rest of
+  this file) unchanged.
 - This file is a machine-readable state file and is exempt from the diagram
   convention — the four document artifacts carry the diagrams, the same way the
   CONTEXT.md glossary is exempt.
