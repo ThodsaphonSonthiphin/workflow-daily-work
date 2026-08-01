@@ -9,10 +9,10 @@
 >
 > Specifically: **v1 ships the local backend only** — Tasks 4 and 5 (the ADO
 > and GitHub ops scripts) were **not** built and are phase 2
-> ([ADR 0056](../../adr/0056-v1-ships-local-backend-only-tracker-backends-deferred.md));
-> `chart` became **additive** ([ADR 0054](../../adr/0054-chart-is-additive-so-fog-graduation-needs-no-new-subcommand.md))
+> ([ADR 0059](../../adr/0059-v1-ships-local-backend-only-tracker-backends-deferred.md));
+> `chart` became **additive** ([ADR 0057](../../adr/0057-chart-is-additive-so-fog-graduation-needs-no-new-subcommand.md))
 > and **unions `blockedBy`** into existing tickets
-> ([ADR 0055](../../adr/0055-additive-chart-unions-blocked-by-on-existing-tickets.md));
+> ([ADR 0058](../../adr/0058-additive-chart-unions-blocked-by-on-existing-tickets.md));
 > and **Task 3's resolution format is obsolete** — it shows an unmarked
 > `## Resolution` append, which five review rounds replaced with a
 > sentinel-delimited region, because appending without a delimiter destroyed

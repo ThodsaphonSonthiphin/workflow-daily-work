@@ -11,7 +11,7 @@ erDiagram
     TICKET ||--o{ TICKET : "blockedBy"
 ```
 
-## What ships, and what is specification (ADR 0056)
+## What ships, and what is specification (ADR 0059)
 
 **v1 ships exactly one backend: local markdown.** `scripts/local_map_ops.py` is
 the only ops script that exists. Azure DevOps and GitHub Issues are **phase 2**,
@@ -36,7 +36,7 @@ do not change when a tracker lands, only which ops script the skills call.
 
 | Subcommand | Args | Effect |
 |---|---|---|
-| `chart` | `--input <map_input.json> --output <map.json>` | create map + tickets + parent links + blocking edges, **additively** (ADR 0054/0055) — see below. **Dry-run by default**; `--real` performs the writes; `--force` is a **destructive** full rewrite that discards recorded resolutions, claims and edges. |
+| `chart` | `--input <map_input.json> --output <map.json>` | create map + tickets + parent links + blocking edges, **additively** (ADR 0057/0058) — see below. **Dry-run by default**; `--real` performs the writes; `--force` is a **destructive** full rewrite that discards recorded resolutions, claims and edges. |
 | `read` | `--map <id\|slug> --output <map.json>` | fetch map + children at low resolution. |
 | `frontier` | `--map <id\|slug> --output <frontier.json>` | open + unblocked + unclaimed children. |
 | `claim` | `--map <id\|slug> --ticket <id\|slug> [--user <upn>]` | assign the ticket to the caller. `--user` works on **every** backend (it sets the local `assignee:` frontmatter too); passing an empty value releases the claim. |
@@ -53,7 +53,7 @@ error — the local backend exits `2` with `resolve needs --map`.
 Every subcommand also accepts `--dry-run` (print planned mutations, change
 nothing) — for `chart` that is already the default.
 
-### `chart` is additive (ADR 0054, refined by ADR 0055)
+### `chart` is additive (ADR 0057, refined by ADR 0058)
 
 `chart` names **two acts**: the initial charting of a map, and the incremental
 graduation of fog into fresh tickets mid-map. One create path serves both, so
@@ -68,7 +68,7 @@ never overwrites* — **not** "never touches". On a map that already exists,
   lines are appended, existing ones are never removed or reordered, and an
   input that omits a line already on disk does not delete it;
 - **unions** a new blocking edge into an existing ticket's `blockedBy`
-  (ADR 0055). That ticket gains one entry and **nothing else** — every other
+  (ADR 0058). That ticket gains one entry and **nothing else** — every other
   byte of it, including status, assignee, gist and the resolution block, is
   unchanged. Dropping the edge instead was worse: `frontier()` then reported a
   ticket as actionable while a just-created ticket was meant to block it;
@@ -86,7 +86,7 @@ overwritten, and that re-running identical input is a **no-op** — the same
 bytes out, which also makes a partially-failed chart resumable.
 
 An edge may name a ticket that already exists in the map **without re-listing
-it in `tickets[]`** (ADR 0055). A `blocks` target must exist either in this
+it in `tickets[]`** (ADR 0058). A `blocks` target must exist either in this
 input or in the map on disk; naming a target that exists in neither is a
 validation error.
 
@@ -262,7 +262,7 @@ strings naming anything the input asked for that an additive run deliberately
 did not apply — a differing `title`/`destination`/`notes`, or list lines that
 could not be merged into a `map.md` predating the list regions. Empty on an
 initial chart and on `--force`. Blocking edges are **not** listed here: since
-ADR 0055 they are applied, and appear in the dry-run plan as a `merge`.
+ADR 0058 they are applied, and appear in the dry-run plan as a `merge`.
 
 `status` ∈ `open | closed`. `blockedBy` lists upstream blockers — the tickets
 that must close before this one is actionable; every backend computes it from
@@ -586,7 +586,7 @@ list in `map.md`. Everything else in those files is user content.
 An additive `chart` rewrites only the two `map.md` list regions and leaves the
 rest of that file byte-identical. It leaves a ticket file byte-identical too
 **unless the ticket gains a blocking edge**, in which case exactly one line
-changes — the frontmatter `blocked_by:` list gains one entry (ADR 0055) — and
+changes — the frontmatter `blocked_by:` list gains one entry (ADR 0058) — and
 every other byte, including the resolution region, is untouched. A ticket that
 gains no edge is not opened for writing at all.
 

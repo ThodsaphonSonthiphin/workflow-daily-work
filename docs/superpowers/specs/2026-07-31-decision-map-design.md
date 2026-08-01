@@ -9,9 +9,9 @@
 >
 > | This spec says | Actually |
 > |---|---|
-> | "three backends at full parity" | **v1 ships the local Markdown backend only.** ADO and GitHub are deferred to phase 2; the ops contract is written so they can be added without changing it ([ADR 0056](../../adr/0056-v1-ships-local-backend-only-tracker-backends-deferred.md)) |
+> | "three backends at full parity" | **v1 ships the local Markdown backend only.** ADO and GitHub are deferred to phase 2; the ops contract is written so they can be added without changing it ([ADR 0059](../../adr/0059-v1-ships-local-backend-only-tracker-backends-deferred.md)) |
 > | offer the tracker install command when a tracker is wanted | **Never offer it.** Both skills forbid it — say decision-map cannot do that yet and stop |
-> | `chart` creates a map once | **`chart` is additive**: it creates only what is absent, unions fog / out-of-scope lines, and unions a new `blockedBy` edge into an existing ticket, leaving everything else untouched ([ADR 0054](../../adr/0054-chart-is-additive-so-fog-graduation-needs-no-new-subcommand.md), [ADR 0055](../../adr/0055-additive-chart-unions-blocked-by-on-existing-tickets.md)) |
+> | `chart` creates a map once | **`chart` is additive**: it creates only what is absent, unions fog / out-of-scope lines, and unions a new `blockedBy` edge into an existing ticket, leaving everything else untouched ([ADR 0057](../../adr/0057-chart-is-additive-so-fog-graduation-needs-no-new-subcommand.md), [ADR 0058](../../adr/0058-additive-chart-unions-blocked-by-on-existing-tickets.md)) |
 >
 > The resolution format shown here is also pre-marker; `resolve` now writes a
 > sentinel-delimited region. See the contract's "Generated regions" section.

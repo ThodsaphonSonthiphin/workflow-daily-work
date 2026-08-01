@@ -60,7 +60,7 @@ CHART A DECISION MAP — one session, then stop
 
 ## Step 0 — Preflight: name the backend before you chart
 
-**v1 has exactly one backend: local markdown** (ADR 0056). Say so in one line
+**v1 has exactly one backend: local markdown** (ADR 0059). Say so in one line
 before anything else happens, even if the user never mentioned a tracker:
 
 > This map will live in this repo as Markdown, under
@@ -350,4 +350,4 @@ one session's work, and the map — not this conversation — carries the state 
 here on.
 
 Fog graduates into new tickets later through this same Step 3 gate, driven from
-`work-map`: `chart` is one operation serving both acts (ADR 0054).
+`work-map`: `chart` is one operation serving both acts (ADR 0057).

@@ -23,7 +23,7 @@ historical record and is superseded in part — it carries a banner saying how.
 
 ## Backends
 
-**v1 ships exactly one backend: local markdown** (ADR 0056). Your map is repo
+**v1 ships exactly one backend: local markdown** (ADR 0059). Your map is repo
 docs — it lives under `docs/decision-map/<slug>/` and is shared the way the repo
 is shared, by committing it. Nothing appears on a board.
 

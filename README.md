@@ -19,7 +19,7 @@ A Claude Code **plugin marketplace** for daily-work automation. It ships five pl
   tickets you can state now, fog you cannot yet — behind a dry-run gate;
   `/decision-map:work` then claims and resolves **exactly one decision per session**
   until the way is clear. v1 keeps the map in your repo as markdown under
-  `docs/decision-map/`; Azure DevOps and GitHub Issues backends are phase 2 (ADR 0056).
+  `docs/decision-map/`; Azure DevOps and GitHub Issues backends are phase 2 (ADR 0059).
 - **`react-workflows`** — **opt-in**, frontend structure conventions for React/TSX work
   (`react-structure`): per-component file separation (UI `.tsx` / hook `.ts` / `type.ts` /
   optional Redux slice), a TypeScript + Redux Toolkit + MUI + DataGridPremium stack, and a

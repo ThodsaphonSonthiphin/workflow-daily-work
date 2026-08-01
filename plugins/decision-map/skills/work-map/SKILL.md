@@ -57,7 +57,7 @@ WORK A DECISION MAP — one decision, then stop
 
 ## Step 0 — Preflight: name the backend before you work
 
-**v1 has exactly one backend: local markdown** (ADR 0056). Say so in one line
+**v1 has exactly one backend: local markdown** (ADR 0059). Say so in one line
 before anything else happens, even if the user never mentioned a tracker:
 
 > This map lives in this repo as Markdown, under
@@ -291,7 +291,7 @@ Now ask what the answer changed:
 - Did it reveal a new blocking relationship?
 
 Graduating fog is an **additive `chart`** — one operation serves both acts, so
-there is no separate subcommand (ADR 0054). Build a `map_input.json` in your
+there is no separate subcommand (ADR 0057). Build a `map_input.json` in your
 scratch working directory containing **only the new tickets**, plus, for an
 edge onto a ticket that already exists, that edge in the new ticket's `blocks`:
 
@@ -316,7 +316,7 @@ edge onto a ticket that already exists, that edge in the new ticket's `blocks`:
   alone. To change one, edit `map.md` by hand.
 - `blocks` is **downstream** — the tickets this one holds up. Readers see the
   upstream `blockedBy`. An edge may name a ticket that already exists without
-  re-listing it in `tickets[]` (ADR 0055), but the target must exist **either in
+  re-listing it in `tickets[]` (ADR 0058), but the target must exist **either in
   this input or already on the map**: naming one that exists in neither is a
   validation error, and the run exits `2` naming the ticket and the bad target.
 - Keys are lowercase-kebab, must match `[A-Za-z0-9][A-Za-z0-9_-]*`, and **must
@@ -352,7 +352,7 @@ fog line by hand and the region is left empty — the run is restoring the
 tool-owned `- (none)` placeholder, nothing more. **A
 `merge` on an existing ticket adds exactly one `blockedBy` entry and changes
 nothing else**: its status, assignee, gist and resolution block are untouched
-(ADR 0055). If you see an `OVERWRITE` line and did not deliberately pass
+(ADR 0058). If you see an `OVERWRITE` line and did not deliberately pass
 `--force`, stop and investigate.
 
 **3. Ask for explicit approval. Never create without it.** The approval is for

@@ -4,7 +4,7 @@ r"""local_map_ops.py — decision-map local-markdown backend (ADR 0042).
 Map lives at <root>/<slug>/map.md, tickets at <root>/<slug>/tickets/<slug>.md.
 Contract: plugins/decision-map/references/data-contracts.md. Stdlib only.
 
-Re-chart policy (ADR 0054, superseding round 1's refuse-by-default):
+Re-chart policy (ADR 0057, superseding round 1's refuse-by-default):
 `chart` is ADDITIVE. It names two acts — initial charting and incremental
 fog graduation — and one code path serves both. On a map folder that already
 exists it creates only the tickets whose key is absent and merges
@@ -15,7 +15,7 @@ title/destination/notes are never rewritten additively; a difference is
 reported, not applied.
 
 Additive means UNION, and the guarantee is "never removes, never reorders,
-never overwrites" -- not "never touches" (ADR 0055). An existing ticket may
+never overwrites" -- not "never touches" (ADR 0058). An existing ticket may
 gain a `blocked_by` entry and NOTHING else: every other byte of the file is
 unchanged. That one exception exists because the alternative was worse --
 dropping the edge left `frontier()` reporting a ticket as actionable when a
@@ -88,7 +88,7 @@ anchored to the exact end of the string with `\Z` -- not `$`, which in
 Python also matches just before a trailing newline and would let e.g.
 "okname\n" slip through as a path segment), every ticket `type` must be one
 of the four valid types, and every `blocks` target must exist either in this
-same `inp` or already in the map on disk (ADR 0055 -- an edge may name an
+same `inp` or already in the map on disk (ADR 0058 -- an edge may name an
 existing ticket without re-listing it). A malformed map_input.json fails
 cleanly with
 ChartValidationError instead of writing a half-finished map folder or
@@ -155,7 +155,7 @@ _RESOLUTION_START = "<!-- decision-map:resolution:start -->"
 _RESOLUTION_END = "<!-- decision-map:resolution:end -->"
 _DECISIONS_START = "<!-- decision-map:decisions:start -->"
 _DECISIONS_END = "<!-- decision-map:decisions:end -->"
-# Task 3b / ADR 0054: `chart` is additive, so the two authored lists in the
+# Task 3b / ADR 0057: `chart` is additive, so the two authored lists in the
 # map body must be merged into rather than rewritten. They get their own
 # regions for the same reason the decisions index has one -- so the merge can
 # find exactly the lines the tool owns without splitting the document on
@@ -353,7 +353,7 @@ def _validate_chart_input(inp, root=None):
 
     `root`, when given, lets the `blocks` check accept a target that already
     exists in the map rather than requiring it to be re-listed in tickets[]
-    (ADR 0055 / review F3).
+    (ADR 0058 / review F3).
 
     - the top-level containers must be the right shape (a missing/mistyped
       "target"/"map"/"tickets" used to raise a bare KeyError/AttributeError
@@ -375,7 +375,7 @@ def _validate_chart_input(inp, root=None):
     - every ticket key must be a safe slug (no path separators / '..')
     - every ticket type must be one of the four valid types
     - every `blocks` target must exist EITHER in this same `inp` OR already in
-      the map on disk (ADR 0055 -- the round-1 "must be re-listed in tickets[]"
+      the map on disk (ADR 0058 -- the round-1 "must be re-listed in tickets[]"
       rule is gone; see the check itself for why)
     """
     if not isinstance(inp, dict):
@@ -450,7 +450,7 @@ def _validate_chart_input(inp, root=None):
                     "never appear on the frontier")
             if blocked in keys:
                 continue
-            # ADR 0055 / review F3: an edge may name a ticket that already
+            # ADR 0058 / review F3: an edge may name a ticket that already
             # exists on disk without re-listing it in tickets[]. The round-1
             # rule ("must be a key in this same input") existed only so pass 2
             # could never hit a file pass 1 had not created; additive chart
@@ -646,7 +646,7 @@ def _region_text(start, end, lines):
 def _merge_region_lines(body, items):
     """Union the existing one-line items with `items`, existing order first.
 
-    Never removes and never reorders what is already there (ADR 0054) -- new
+    Never removes and never reorders what is already there (ADR 0057) -- new
     lines are appended. The tool-owned "- (none)" placeholder is dropped as
     soon as a real line exists, and restored if the result is empty.
     """
@@ -730,7 +730,7 @@ _SCALAR_MAP_FIELDS = ("title", "destination", "notes")
 def _plan_map_md(base, inp, force):
     """-> (action, text_or_None, detail_or_None, divergences) for map.md.
 
-    Additive by default (ADR 0054): an existing map.md keeps its authored
+    Additive by default (ADR 0057): an existing map.md keeps its authored
     prose byte-for-byte and only its fog / out-of-scope regions are merged
     into. "skip (exists)" is returned only when the merge would change
     nothing, so the dry run's promise that a skip never writes stays true.
@@ -797,9 +797,9 @@ def _chart_plan(root, inp, force):
       - "skip (exists)" the file exists and will not be touched at all
       - "merge"         the file exists and is modified in place, additively:
                         map.md gaining fog / out-of-scope lines, or a ticket
-                        gaining a blockedBy entry (ADR 0055)
+                        gaining a blockedBy entry (ADR 0058)
       - "OVERWRITE"     the file exists and force=True (explicit full rewrite)
-    "refuse" is gone: ADR 0054 supersedes refuse-by-default. A "skip" must
+    "refuse" is gone: ADR 0057 supersedes refuse-by-default. A "skip" must
     never write -- the surviving guard on round 1's Critical -- which is why
     "merge" is its own label rather than being folded into "skip".
 
@@ -879,14 +879,14 @@ def chart(root, inp, real, force=False):
         # ONLY create/OVERWRITE write a fresh ticket. "merge" must fall
         # through to pass 2: it means the file exists and gains a blockedBy
         # entry, so rewriting it here would reset the very status, assignee
-        # and resolution ADR 0055 promises to preserve.
+        # and resolution ADR 0058 promises to preserve.
         if actions[base / "tickets" / (t["key"] + ".md")] not in ("create", "OVERWRITE"):
             continue
         fm = {"title": t["title"], "type": t["type"], "mode": _mode(t["type"]),
               "status": "open", "assignee": "", "blocked_by": [], "gist": ""}
         _save_ticket(root, slug, t["key"], fm,
                      f"\n## Question\n\n{_scrub(t['question'])}\n")
-    # ADR 0055: the edge is UNIONED into whatever file holds it, existing or
+    # ADR 0058: the edge is UNIONED into whatever file holds it, existing or
     # not. block() appends only when absent and does not write otherwise, so
     # an existing ticket gains one blockedBy entry and nothing else, and an
     # identical re-run stays byte-identical. It routes through _save_ticket,
@@ -962,7 +962,7 @@ def block(root, slug, ticket, blocked_by):
     deps = fm.get("blocked_by", [])
     # Union, and do not write at all when the edge is already there. The
     # no-write path is what makes an additive re-chart byte-identical rather
-    # than merely equivalent (ADR 0055) -- a rewrite would be a no-op only if
+    # than merely equivalent (ADR 0058) -- a rewrite would be a no-op only if
     # parse/dump round-trips exactly, which is not a property worth betting
     # a byte-identity guarantee on.
     if blocked_by not in deps:

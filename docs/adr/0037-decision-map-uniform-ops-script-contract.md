@@ -4,11 +4,11 @@
   and is the reason the trackers can be added without changing it, but only
   **one** of the three implementations exists: v1 ships the local `.py`
   backend, and the ADO `.cs` / GitHub `.py` scripts are phase 2
-  ([ADR 0056](0056-v1-ships-local-backend-only-tracker-backends-deferred.md)).
+  ([ADR 0059](0059-v1-ships-local-backend-only-tracker-backends-deferred.md)).
   The contract itself has also grown since: `chart` is additive
-  ([ADR 0054](0054-chart-is-additive-so-fog-graduation-needs-no-new-subcommand.md))
+  ([ADR 0057](0057-chart-is-additive-so-fog-graduation-needs-no-new-subcommand.md))
   and unions `blockedBy` into existing tickets
-  ([ADR 0055](0055-additive-chart-unions-blocked-by-on-existing-tickets.md)).
+  ([ADR 0058](0058-additive-chart-unions-blocked-by-on-existing-tickets.md)).
   `plugins/decision-map/references/data-contracts.md` is the current text.
 - **Date:** 2026-07-31
 

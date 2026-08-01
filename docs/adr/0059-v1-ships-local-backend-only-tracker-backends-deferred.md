@@ -1,4 +1,4 @@
-# ADR 0056 — v1 ships the local-markdown backend only; tracker backends deferred
+# ADR 0059 — v1 ships the local-markdown backend only; tracker backends deferred
 
 - **Status:** Accepted
 - **Date:** 2026-08-01

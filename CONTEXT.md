@@ -101,7 +101,7 @@ The fourth plugin (ADR 0033/0034) and its canonical artifact: one map item that
 indexes a multi-session planning effort — the destination, decisions so far, open
 fog, and out-of-scope list. In v1 that item is `docs/decision-map/<slug>/map.md`
 in the repo; the tracker form (a work item / issue tagged or labelled
-`decision-map:map`) is specified but deferred to phase 2 (ADR 0056). An **index,
+`decision-map:map`) is specified but deferred to phase 2 (ADR 0059). An **index,
 not a store**: each decision's detail lives in its Decision ticket; the map only
 gists and links.
 _Avoid_: wayfinder (the upstream skill it adapts), roadmap, epic.

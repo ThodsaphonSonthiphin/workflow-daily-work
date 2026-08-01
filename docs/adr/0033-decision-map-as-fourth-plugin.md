@@ -1,7 +1,7 @@
 # ADR 0033 — the wayfinder-style decision-map capability lands as a fourth plugin
 
 - **Status:** Accepted — **superseded in part by
-  [ADR 0056](0056-v1-ships-local-backend-only-tracker-backends-deferred.md)**:
+  [ADR 0059](0059-v1-ships-local-backend-only-tracker-backends-deferred.md)**:
   the fourth-plugin decision stands, but the tracker ops this ADR places in
   `ado-backlog` / `github-backlog` are deferred to phase 2 and do not exist in
   v1. The **Step-0 preflight on the backlog plugins described here is not

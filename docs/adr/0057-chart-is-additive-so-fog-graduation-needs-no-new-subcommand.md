@@ -1,4 +1,4 @@
-# ADR 0054 — `chart` is additive, so fog graduation needs no new subcommand
+# ADR 0057 — `chart` is additive, so fog graduation needs no new subcommand
 
 - **Status:** Accepted
 - **Date:** 2026-08-01
