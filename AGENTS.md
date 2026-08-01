@@ -74,8 +74,9 @@ and an add-a-skill recipe.
   `$ARGUMENTS` and are invocable as `/<plugin>:<name>`. Logic lives in the skill, not the command.
 - **Data-contract schemas are defined only** in
   `plugins/ado-backlog/references/data-contracts.md`. Never redefine them elsewhere.
-- **Keep versions in sync:** each plugin's `.Codex-plugin/plugin.json` and its entry
-  in `.Codex-plugin/marketplace.json` must always report the same version.
+- **Keep versions in sync:** each plugin's `.claude-plugin/plugin.json` and its entry
+  in `.claude-plugin/marketplace.json` must always report the same version. (The
+  directory is named `.claude-plugin` in every harness — it is not renamed per harness.)
 - **Every new skill adds one row to [PLAYBOOK.md](PLAYBOOK.md)** — the playbook is the
   discoverability map for the daily arc; a skill missing from it is invisible. Add the
   row in the same commit that adds the skill.
@@ -83,6 +84,16 @@ and an add-a-skill recipe.
   document opens with one overview Mermaid diagram; ADRs carry a small decision diagram.
   Canonical wording lives only in
   `plugins/dev-workflows/references/diagram-convention.md` (ADRs 0005–0009).
+- **Minted counters come from the global max, never from your checkout** — ADR numbers
+  *and* plugin/marketplace versions. Take the highest value across every ref and every
+  worktree, then +1; `current + 1` from the tree you happen to be sitting in is how two
+  parallel sessions mint the same value, and git merges both without conflict because
+  only the number collides, not the filename ([ADR 0056](docs/adr/0056-adr-numbers-minted-from-global-max-across-branches-and-worktrees.md)).
+  The runnable scan is the **Numbering** section of the grilling skills' `ADR-FORMAT.md`.
+  In this repo all new ADRs go in the repo-root `docs/adr/`; the per-plugin `docs/adr/`
+  directories are separate, older sequences — cite those namespaced (`ado-backlog ADR
+  0002`), never bare. Re-verify the number immediately before merging, not only when
+  you create the file.
 
 ## Key commands
 

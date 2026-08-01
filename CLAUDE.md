@@ -86,6 +86,16 @@ and an add-a-skill recipe.
   document opens with one overview Mermaid diagram; ADRs carry a small decision diagram.
   Canonical wording lives only in
   `plugins/dev-workflows/references/diagram-convention.md` (ADRs 0005–0009).
+- **Minted counters come from the global max, never from your checkout** — ADR numbers
+  *and* plugin/marketplace versions. Take the highest value across every ref and every
+  worktree, then +1; `current + 1` from the tree you happen to be sitting in is how two
+  parallel sessions mint the same value, and git merges both without conflict because
+  only the number collides, not the filename ([ADR 0056](docs/adr/0056-adr-numbers-minted-from-global-max-across-branches-and-worktrees.md)).
+  The runnable scan is the **Numbering** section of the grilling skills' `ADR-FORMAT.md`.
+  In this repo all new ADRs go in the repo-root `docs/adr/`; the per-plugin `docs/adr/`
+  directories are separate, older sequences — cite those namespaced (`ado-backlog ADR
+  0002`), never bare. Re-verify the number immediately before merging, not only when
+  you create the file.
 
 - **A superseded design doc gets its banner in the same change that supersedes it.**
   Implementation routinely invalidates the spec or plan that seeded it — and the SDD

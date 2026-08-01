@@ -1,5 +1,19 @@
 # Cross-Project Gotchas (reflect Route F) Implementation Plan
 
+> ⚠️ **EXECUTED — and its deploy step (Task 3) is now known to be wrong. Do not copy
+> it.** The plan states that "dev-workflows runs from a versioned cache, not
+> `~/.claude/skills`" (line 196) and gives a runnable hot-patch command (line 201).
+> That is false for this marketplace and always was:
+> `~/.claude/plugins/known_marketplaces.json` records `workflow-daily-work` as
+> `{"source": "directory", "path": "C:\\Repo2\\workflow daily work"}` with
+> `installLocation` = the repo itself, so **editing the repo IS the deploy** and the
+> cache is the runtime's own snapshot — it does not track repo edits and must never be
+> hand-patched. A reference-file or SKILL.md *body* edit applies on the next skill
+> invocation; only a change to the skill roster or frontmatter needs a restart.
+> Verified 2026-08-01 while implementing
+> [ADR 0056](../../adr/0056-adr-numbers-minted-from-global-max-across-branches-and-worktrees.md);
+> see that spec's "Why the cache step is wrong" section.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a cross-project "gotcha" capability to the dev-workflows `reflect` skill — a new Route F that files reusable tooling/environment traps into `~/.claude/GOTCHAS.md`, auto-loaded in every project via an `@` import in the global `~/.claude/CLAUDE.md`.
