@@ -176,14 +176,16 @@ silently replaces the first assignee, and the two sessions then resolve the same
 decision two different ways with no trace that it happened. Ask the user whether
 that session is still live, and say plainly that taking it over means the other
 session's answer will land on a ticket you have already changed. On the local
-backend the claim records that the ticket is **taken**, not by whom, so the
-files cannot tell you who holds it — only the user can.
+backend the claim records whatever `--user` you passed, and an anonymous
+claim (the bare default) names nobody, so the files cannot tell you who
+holds it. Always pass a real `--user`, as the command below does; for a claim
+already holding an anonymous value, only the user can identify it.
 
 Then, the moment the user picks or accepts, **claim it — before any work at
 all**:
 
 ```
-python "<ops>" claim --map <slug> --ticket <key>
+python "<ops>" claim --map <slug> --ticket <key> --user "<purpose>-<HHMM>"
 ```
 
 The pick itself is the approval; this is a lifecycle write, not a create, so it
@@ -191,6 +193,15 @@ needs no separate dialog (ADR 0039). Claiming first is the concurrency
 handshake: a session that starts a minute later sees the ticket under `claimed`
 and picks something else. Work first and claim later, and you have no handshake
 at all.
+
+**Claim before you IMPLEMENT, not only before you decide.** The ticket is the
+unit of work in both phases. A session that resolves one ticket and then starts
+building another ticket's content without claiming it has dropped the handshake
+exactly where two sessions collide hardest: the source tree. Seen 2026-08-02,
+`nav-registry-seam` sat open and unclaimed while two sessions each built the
+whole nav registry, caught only because one noticed an export that had not
+existed twenty minutes earlier. Note a claim does not lock files; for genuine
+isolation give each session its own git worktree.
 
 **A claim you cannot finish must be released.** There is no `unclaim`
 subcommand, but `claim --user ""` does release one: it sets `assignee:` back

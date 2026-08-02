@@ -72,7 +72,7 @@ the user approved the plan.
 | `chart` | `--input <map_input.json> --output <map.json>` | create map + tickets + blocking edges, **additively** (ADR 0057/0058) — see below. **Parent links are tracker-only**: the local backend expresses containment by directory and creates none. **Dry-run by default**; `--real` performs the writes; `--force` is a **destructive** full rewrite that discards recorded resolutions, claims and edges. |
 | `read` | `--map <id\|slug> --output <map.json>` | fetch map + children at low resolution. |
 | `frontier` | `--map <id\|slug> --output <frontier.json>` | open + unblocked + unclaimed children. |
-| `claim` | `--map <id\|slug> --ticket <id\|slug> [--user <upn>]` | assign the ticket to the caller. `--user` works on **every** backend (it sets the local `assignee:` frontmatter too); passing an empty value releases the claim. |
+| `claim` | `--map <id\|slug> --ticket <id\|slug> [--user <upn>]` | assign the ticket to the caller. `--user` works on **every** backend (it sets the local `assignee:` frontmatter too); passing an empty value releases the claim. **Omitting it is NOT equivalent across backends:** GitHub resolves the real caller via `gh api user`, but the local backend falls back to the literal string `me`, which names nobody and makes two concurrent sessions indistinguishable. On local, always pass a real `--user`. |
 | `resolve` | `--map <id\|slug> --ticket <id\|slug> --gist "<one line>" [--link <url>] [--body-file <md>]` | post resolution comment, close the ticket. |
 | `comment` | `--map <id\|slug> --ticket <id\|slug> --body-file <md>` | plain comment. |
 | `block` | `--map <id\|slug> --ticket <id\|slug> --blocked-by <id\|slug>` | dependency edge (ticket waits on blocked-by). |
