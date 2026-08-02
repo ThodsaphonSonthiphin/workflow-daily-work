@@ -116,6 +116,15 @@ for a finished one. Read first anyway: `read` is what gives you the destination,
 every ticket's status and every gist, and the frontier alone tells you none of
 that.
 
+**Check for orphaned artifacts before showing the frontier.** Run `git status` and
+look for uncommitted or untracked repo docs — an ADR, a spec, a CONTEXT.md
+edit — that name a ticket on this map. A session that produced the artifact
+and then ended before Step 4 recorded it leaves the decision **real but the map ignorant
+of it**, and usually leaves the ticket `claimed` too. The map is the state carrier; an
+orphaned ADR is that carrier having failed. Report what you find alongside the frontier
+— but do **not** record it yourself without asking, because the claiming
+session may still be live.
+
 `read` returns the map's `id` / `name` / `url` / `destination`, and every
 ticket. It does **not** return the fog list, the out-of-scope list or the
 notes. Those live only in the map **document** — the first two between the
