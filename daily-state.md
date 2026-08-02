@@ -1,7 +1,7 @@
 ---
 type: daily-state
 schema_version: 1
-updated: '2026-08-01T10:06:11+07:00'
+updated: '2026-08-01T22:18:23+07:00'
 ---
 
 # Daily state
@@ -121,3 +121,12 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
 - 2026-07-31T23:22:20+07:00 — docs(decision-map): design session — ADRs 0033-0042, spec, plan (1872a31)
 - 2026-08-01T10:01:20+07:00 — fix(dev-workflows): career-growth - stop crediting the trend taxonomy to verify-then-advise (c2469f6)
 - 2026-08-01T10:06:11+07:00 — fix(dev-workflows): commit-log hook reads git after the fact, not the command line (c545af9)
+- 2026-08-01T10:06:30+07:00 — chore: untrack __pycache__ and ignore it (fe07eea)
+- 2026-08-01T14:02:16+07:00 — docs(reflect): 2026-08-01 decision-map session — review-method + doc-staleness lessons (15336f6)
+- 2026-08-01T14:58:30+07:00 — fix(adr): mint numbers from the global max, with a runnable scan (ADR 0056) (8939311)
+- 2026-08-01T15:45:49+07:00 — feat(decision-map): run the phase-2 probe on GitHub; clear that half of the gate (ADR 0060) (bb33b9e)
+- 2026-08-01T15:52:30+07:00 — fix(decision-map): correct the line-ending claim; adopt the two-tracker probe harness (86e6e33)
+- 2026-08-01T15:57:29+07:00 — docs(decision-map): write the parity gaps phase 2 must close into the contract (ab17871)
+- 2026-08-01T16:04:16+07:00 — fix(decision-map): a missing map and a deleted blocker must fail loudly (ADR 0061) (0898ba4)
+- 2026-08-01T16:13:43+07:00 — docs(decision-map): correct the region-edit claim -- chart adopts human text, it does not destroy it (4daf142)
+- 2026-08-01T22:18:23+07:00 — feat(decision-map): GitHub Issues backend on a shared core (ADR 0062) (8e608a9)

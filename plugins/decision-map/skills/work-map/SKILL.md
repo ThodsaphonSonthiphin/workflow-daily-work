@@ -437,6 +437,18 @@ genuinely small and the map is nearly done, or this session is overreaching and
 the next decision deserves a fresh, un-anchored session. The cap is what keeps
 the map, rather than a long conversation, holding the state.
 
+**If the user directs work past the cap, the claim discipline does not lapse.**
+The cap is theirs to override -- a deadline, a follow-on they want now -- and
+their instruction wins; do not argue it. What must NOT lapse is Step 2: every
+additional ticket you touch gets **claimed before you implement it**, and
+**resolved before the session ends**. Working on past the cap *without* claiming
+is the worst of both -- past the attention budget AND off the map, so the code
+lands in git while the reasoning that produced it does not. Seen 2026-08-02: after
+resolving one ticket the session drove two more (`frontend-relocation`,
+`monorepo-import-api`) to completion, unclaimed and unrecorded, and only the user
+asking "which ticket are we on?" surfaced it. The tell is cheap -- if you cannot
+name the ticket you are on, you are off the map.
+
 Re-run the frontier so the report describes the map as it now stands, not as it
 looked when the session opened:
 

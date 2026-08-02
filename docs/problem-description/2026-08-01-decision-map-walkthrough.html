@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="th"><head><meta charset="UTF-8">
+<title>How decision-map works — the life of one Decision ticket</title>
+<style>
+  :root {
+    --bg:#0a0e14; --panel:#1a2330; --surface:#0f1722; --surface-2:#0f1419;
+    --border:#2a3441; --border-dim:#3d4a5f; --surface-active:#233040;
+    --text:#e0e6ed; --text-dim:#b8c4cf; --muted:#6b7785; --muted-2:#8a96a3;
+    --accent:#5fb4ff; --accent-bright:#7ed4ff;
+    --amber:#ffd479; --warn:#ffaa00; --warn-text:#ffaa44;
+    --magic:#b070ff; --magic-text:#d4a4ff; --magic-bg:#2a1a3a;
+    --success:#4ade80; --success-text:#a3e8b9;
+    --error:#ff5757; --error-text:#ff8888; --conflict:#ff3030;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 20px;
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', 'Sukhumvit Set', 'Tahoma', sans-serif;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+  h1 { color: var(--accent); font-size: 22px; margin: 0 0 4px; }
+  h2 { color: var(--text-dim); font-size: 13px; font-weight: 400; margin: 0 0 18px; }
+  code { background: var(--panel); padding: 1px 5px; border-radius: 3px;
+         font-family: 'Consolas', monospace; color: var(--amber); font-size: 0.9em; }
+
+  /* progress dots */
+  .step-progress { display: flex; gap: 4px; justify-content: center;
+                   margin: 12px 0 14px; flex-wrap: wrap; }
+  .step-dot { width: 22px; height: 22px; border-radius: 50%;
+              background: var(--panel); color: var(--muted);
+              display: flex; align-items: center; justify-content: center;
+              font-size: 10px; font-weight: 700; transition: all 0.3s; }
+  .step-dot.done    { background: #1a3a5f; color: var(--accent); }
+  .step-dot.current { background: var(--accent); color: var(--bg); transform: scale(1.2); }
+
+  /* narration — the canonical NESTED shape (badge+title+body inside #narration) */
+  .narration {
+    background: var(--panel); padding: 12px 18px; border-radius: 6px;
+    border-left: 3px solid var(--accent); margin-bottom: 16px;
+    font-size: 14.5px; line-height: 1.65; min-height: 60px;
+  }
+  .narration.warn    { border-color: var(--warn);    background: #2a2018; }
+  .narration.error   { border-color: var(--error);   background: #2a1818; }
+  .narration.success { border-color: var(--success); background: #182a1f; }
+  .narration.magic   { border-color: var(--magic);   background: #1f1830; }
+  .narration .step-badge { background: var(--accent); color: var(--bg);
+                           padding: 3px 10px; border-radius: 12px; font-size: 12px;
+                           font-weight: 700; display: inline-block; margin-right: 8px; }
+  .narration .step-title { color: var(--accent); font-weight: 700; font-size: 16px;
+                           display: block; margin: 8px 0 6px; }
+  .narration.warn    .step-title { color: var(--amber); }
+  .narration.error   .step-title { color: var(--error-text); }
+  .narration.success .step-title { color: var(--success-text); }
+  .narration.magic   .step-title { color: var(--magic-text); }
+
+  /* shared hidden panel (replaces the old .extra-panel/.toggleable/.key-question) */
+  .wt-panel { background: var(--panel); border-radius: 6px; padding: 14px 18px;
+              margin-bottom: 16px; font-size: 14px; line-height: 1.6; }
+  .wt-panel .wt-panel-title { font-weight: 700; margin-bottom: 6px; }
+  .wt-panel.question { background: #1f1830; border: 2px solid var(--magic); }
+  .wt-panel.question .wt-panel-title { color: var(--magic-text); }
+  .wt-panel.race     { background: #2a1818; border: 2px solid var(--error); }
+  .wt-panel.race .wt-panel-title { color: var(--error-text); }
+  .wt-panel.summary  { background: #182a1f; border: 2px solid var(--success); }
+  .wt-panel.summary .wt-panel-title { color: var(--success-text); }
+
+  /* controls */
+  .controls { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+  button { background: var(--accent); color: var(--bg); border: none;
+           padding: 10px 22px; border-radius: 6px; font-size: 14px; font-weight: 700;
+           cursor: pointer; transition: background 0.2s, transform 0.1s; }
+  button:hover:not(:disabled)  { background: var(--accent-bright); }
+  button:active:not(:disabled) { transform: scale(0.97); }
+  button.tertiary { background: var(--border); color: var(--text); }
+  button.tertiary:hover:not(:disabled) { background: var(--border-dim); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .hidden { display: none !important; }
+  
+  .sm-wrap { background: var(--surface-2); border: 1px solid var(--panel);
+             border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+  svg.sm { width: 100%; height: auto; display: block; }
+  .sm-node rect { fill: var(--panel); stroke: var(--border); stroke-width: 2; transition: all 0.4s; }
+  .sm-node .sm-label { font-family: 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700;
+                       fill: var(--text-dim); transition: fill 0.4s; }
+  .sm-node.current rect { fill: #1a3a5f; stroke: var(--accent); stroke-width: 3;
+                          filter: drop-shadow(0 0 8px #5fb4ff88); }
+  .sm-node.current .sm-label { fill: var(--accent-bright); }
+  .sm-node.passed rect { fill: #18301f; stroke: var(--success); stroke-width: 2; }
+  .sm-node.passed .sm-label { fill: var(--success-text); }
+  .sm-node.illegal rect, .sm-node.stuck rect { fill: #2a1818; stroke: var(--error); stroke-width: 3;
+                          filter: drop-shadow(0 0 8px #ff575788); }
+  .sm-node.illegal .sm-label, .sm-node.stuck .sm-label { fill: var(--error-text); }
+  .sm-node.key rect { fill: var(--magic-bg); stroke: var(--magic); stroke-width: 3;
+                      filter: drop-shadow(0 0 10px #b070ff88); }
+  .sm-node.key .sm-label { fill: var(--magic-text); }
+  .sm-node.dimmed { opacity: 0.35; }
+
+  .sm-edge { fill: none; stroke: var(--border-dim); stroke-width: 2;
+             transition: stroke 0.3s, stroke-width 0.3s; }
+  .sm-edge.active  { stroke: var(--accent); stroke-width: 3; stroke-dasharray: 8 4; animation: sm-flow 1.8s linear infinite; }
+  .sm-edge.passed  { stroke: var(--success); stroke-width: 2.5; }
+  .sm-edge.illegal { stroke: var(--error); stroke-width: 3; }
+  .sm-edge.key     { stroke: var(--magic); stroke-width: 3.5; filter: drop-shadow(0 0 4px var(--magic)); }
+  .sm-edge.dimmed  { opacity: 0.2; }
+  @keyframes sm-flow { to { stroke-dashoffset: -24; } }
+  .sm-elabel { fill: var(--muted-2); font-family: 'Consolas', monospace; font-size: 11px; }
+  .sm-elabel.illegal { fill: var(--error-text); }
+  .sm-elabel.key { fill: var(--magic-text); }
+  .sm-caption { fill: var(--muted); font-family: 'Segoe UI', sans-serif; font-size: 11px;
+                font-style: italic; }
+  
+  /* Colors are engine :root tokens (var(--token)), so a palette change in the engine
+     propagates here too; the standalone demo's :root above supplies them when opened raw. */
+  .term { border-bottom: 1px dotted var(--accent); color: var(--accent); cursor: help; }
+  .term:hover { color: var(--accent-bright); }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 340px; max-width: 86vw;
+    background: var(--panel); border-left: 2px solid var(--accent);
+    box-shadow: -8px 0 24px #00000088;
+    padding: 18px 20px; overflow-y: auto; z-index: 50;
+  }
+  .drawer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .drawer-term { color: var(--accent-bright); font-size: 17px; font-weight: 700; line-height: 1.3; }
+  .drawer-source { font-size: 10px; color: var(--muted); text-transform: uppercase;
+                   letter-spacing: 0.5px; margin: 2px 0 12px; }
+  .drawer-def { font-size: 14px; line-height: 1.7; color: var(--text); margin-bottom: 16px; }
+  .drawer-seealso-title { font-size: 11px; color: var(--muted-2); text-transform: uppercase;
+                          letter-spacing: 0.5px; margin-bottom: 8px; }
+  .seealso-chip {
+    display: inline-block; background: var(--panel); border: 1px solid var(--border);
+    color: var(--accent); border-radius: 14px; padding: 4px 12px;
+    margin: 0 6px 6px 0; font-size: 13px; cursor: pointer;
+  }
+  .seealso-chip:hover { background: var(--surface-active); border-color: var(--accent); }
+  .drawer-btns { display: flex; gap: 8px; margin-top: 18px; }
+  
+</style></head>
+<body>
+<div class="container">
+  <h1>How decision-map works — the life of one Decision ticket</h1>
+  <h2>กด <strong>ถัดไป →</strong> เพื่อดูทีละ step</h2>
+
+  <div class="step-progress" id="stepProgress"></div>
+
+  <div class="narration" id="narration">
+    <span class="step-badge" id="stepBadge">Step 0 / 0</span>
+    <span class="step-title" id="sceneTitle">เริ่มต้น</span>
+    <div id="narrationBody"></div>
+  </div>
+
+  <!-- ===== MODE CONTENT — assembly inserts the chosen mode pack's §HTML here ===== -->
+<div class="sm-wrap">
+  <svg class="sm" viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg">
+    <!-- transition labels (static) -->
+    <text class="sm-elabel" x="181" y="100" text-anchor="middle">graduate</text>
+    <text class="sm-elabel" x="376" y="100" text-anchor="middle">claim ONE</text>
+    <text class="sm-elabel" x="571" y="100" text-anchor="middle">resolve + record</text>
+    <text class="sm-elabel" x="766" y="100" text-anchor="middle">map clear</text>
+    <text class="sm-elabel" x="250" y="99" text-anchor="start">blocked-by</text>
+    <text class="sm-elabel illegal" x="474" y="52" text-anchor="start">claim while blocked &#10060;</text>
+    <text class="sm-elabel key" x="377" y="272" text-anchor="middle">resolving graduates new fog</text>
+    <text class="sm-caption" x="500" y="292" text-anchor="middle">the lifecycle of ONE Decision ticket — not of the whole effort</text>
+    <!-- edges (declared before nodes so nodes paint on top) -->
+    <path class="sm-edge" id="eFogOpen"    d="M 160 144 L 202 144" marker-end="url(#arrowhead)"/>
+    <path class="sm-edge" id="eOpenClaim"  d="M 355 144 L 397 144" marker-end="url(#arrowhead)"/>
+    <path class="sm-edge" id="eClaimRes"   d="M 550 144 L 592 144" marker-end="url(#arrowhead)"/>
+    <path class="sm-edge" id="eResHand"    d="M 745 144 L 787 144" marker-end="url(#arrowhead)"/>
+    <path class="sm-edge" id="eOpenBlock"  d="M 240 110 L 240 75"  marker-end="url(#arrowhead)"/>
+    <path class="sm-edge" id="eBlockClaim" d="M 318 50 L 466 106"  marker-end="url(#arrowhead)"/>
+    <path class="sm-edge" id="eResFog"     d="M 670 178 Q 377 278 85 178" marker-end="url(#arrowhead)"/>
+    <!-- nodes -->
+    <g class="sm-node" id="stBlocked">  <rect x="165" y="15"  width="150" height="56" rx="10"/><text class="sm-label" x="240" y="49"  text-anchor="middle">Blocked</text></g>
+    <g class="sm-node" id="stFog">      <rect x="10"  y="110" width="150" height="68" rx="10"/><text class="sm-label" x="85"  y="150" text-anchor="middle">Fog</text></g>
+    <g class="sm-node" id="stOpen">     <rect x="205" y="110" width="150" height="68" rx="10"/><text class="sm-label" x="280" y="150" text-anchor="middle">Open</text></g>
+    <g class="sm-node" id="stClaimed">  <rect x="400" y="110" width="150" height="68" rx="10"/><text class="sm-label" x="475" y="150" text-anchor="middle">Claimed</text></g>
+    <g class="sm-node" id="stResolved"> <rect x="595" y="110" width="150" height="68" rx="10"/><text class="sm-label" x="670" y="150" text-anchor="middle">Resolved</text></g>
+    <g class="sm-node" id="stHandoff">  <rect x="790" y="110" width="200" height="68" rx="10"/><text class="sm-label" x="890" y="150" text-anchor="middle">Build hand-off</text></g>
+  </svg>
+</div>
+<div class="wt-panel" id="mapState">
+  <div class="wt-panel-title">🗺️ map: <code>docs/decision-map/trip-sharing/</code></div>
+  <div id="mapStateBody"></div>
+</div>
+<div class="wt-panel question hidden" id="smQuestion">
+  <div class="wt-panel-title">💡 The key question</div>
+  <div id="smQuestionBody"></div>
+</div>
+<div class="wt-panel race hidden" id="smIllegal">
+  <div class="wt-panel-title">🚫 Why the tool refuses</div>
+  <div id="smIllegalBody"></div>
+</div>
+<div class="wt-panel summary hidden" id="smSummary">
+  <div class="wt-panel-title">✅ What you traded for it</div>
+  <div id="smSummaryBody"></div>
+</div>
+  
+
+  <div class="controls">
+    <button id="prevBtn" class="tertiary" disabled>← ย้อนกลับ</button>
+    <button id="nextBtn">ถัดไป →</button>
+    <button id="resetBtn" class="tertiary">↻ เริ่มใหม่</button>
+  </div>
+
+    <aside id="termDrawer" class="drawer hidden" aria-label="term definition">
+    <div class="drawer-head">
+      <span class="drawer-term" id="drawerTerm"></span>
+      <button class="tertiary" id="drawerClose" title="ปิด">✕</button>
+    </div>
+    <div class="drawer-source" id="drawerSource"></div>
+    <div class="drawer-def" id="drawerDef"></div>
+    <div class="drawer-seealso-title hidden" id="drawerSeeAlsoTitle">ดูเพิ่ม</div>
+    <div id="drawerSeeAlso"></div>
+    <div class="drawer-btns">
+      <button class="tertiary hidden" id="drawerBack">← ย้อน</button>
+    </div>
+  </aside>
+  
+</div>
+
+<!-- The engine owns the fixed 5 markerheads; SVG modes select from them (ADR 0022). -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <marker id="arrowhead"        markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#3d4a5f"/></marker>
+  <marker id="arrowhead-active" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#5fb4ff"/></marker>
+  <marker id="arrowhead-magic"  markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#b070ff"/></marker>
+  <marker id="arrowhead-done"   markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#4ade80"/></marker>
+  <marker id="arrowhead-error"  markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#ff5757"/></marker>
+</defs></svg>
+<script>
+let currentStep = 0;
+let TOTAL = 0;                 // the authored bootstrap sets TOTAL = scenes.length - 1
+let MODE = null;              // the authored bootstrap sets MODE = '<mode name>'
+const RENDER_HOOKS = [];      // cross-cutting per-render actions; capabilities self-register (e.g. drawer pushes closeDrawer)
+const modeRenderers = {};     // modes self-register: modeRenderers['<name>'] = { registry, clear, <setters> }
+
+function show(id) { const el = document.getElementById(id); if (el) el.classList.remove('hidden'); }
+function hide(id) { const el = document.getElementById(id); if (el) el.classList.add('hidden'); }
+
+// canonical 3-arg narration (nested shape). setSceneTitle kept for scenes that set only the title.
+function setNarration(cls, title, bodyHTML) {
+  const n = document.getElementById('narration');
+  n.className = 'narration' + (cls ? ' ' + cls : '');
+  document.getElementById('sceneTitle').textContent = title;
+  document.getElementById('narrationBody').innerHTML = bodyHTML || '';
+}
+function setSceneTitle(text) { document.getElementById('sceneTitle').textContent = text; }
+
+function buildProgressDots() {
+  const p = document.getElementById('stepProgress');
+  p.innerHTML = '';
+  for (let i = 0; i <= TOTAL; i++) {
+    const d = document.createElement('div');
+    d.className = 'step-dot'; d.textContent = i; d.id = 'dot' + i;
+    p.appendChild(d);
+  }
+}
+
+function render(step) {
+  RENDER_HOOKS.forEach(h => h());                 // runs FIRST (drawer closes here), before any paint
+  const R = modeRenderers[MODE];
+  if (R && R.clear) R.clear(R.registry);          // engine calls the mode's reset generically
+  if (typeof scenes !== 'undefined' && scenes[step]) scenes[step]();
+  for (let i = 0; i <= TOTAL; i++) {
+    const d = document.getElementById('dot' + i);
+    if (!d) continue;
+    d.classList.remove('done', 'current');
+    if (i < step)  d.classList.add('done');
+    if (i === step) d.classList.add('current');
+  }
+  document.getElementById('stepBadge').textContent = 'Step ' + step + ' / ' + TOTAL;
+  document.getElementById('prevBtn').disabled = step === 0;
+  document.getElementById('nextBtn').disabled = step === TOTAL;
+}
+
+document.getElementById('prevBtn').onclick  = () => { if (currentStep > 0)     { currentStep--; render(currentStep); } };
+document.getElementById('nextBtn').onclick  = () => { if (currentStep < TOTAL) { currentStep++; render(currentStep); } };
+document.getElementById('resetBtn').onclick = () => { currentStep = 0; render(0); };
+
+/* GLOSSARY is provided by the generated walkthrough's authored bootstrap (inlined from
+   CONTEXT.md at authoring time): an object keyed by slug -> {term, short, seeAlso, source}
+   where source is 'CONTEXT.md' | 'authored'. The §JS below only READS it; the standalone
+   demo declares a demo GLOSSARY in its DEMO-ONLY block at the bottom of this file. */
+
+let drawerStack = [];   // GLOSSARY keys visited this open, for ← back
+
+function renderTerm(key) {
+  const entry = GLOSSARY[key];
+  if (!entry) return;
+  document.getElementById('drawerTerm').textContent = entry.term;
+  document.getElementById('drawerSource').textContent =
+    entry.source === 'CONTEXT.md' ? 'จาก CONTEXT.md' : 'อธิบายเพิ่มเติม';
+  document.getElementById('drawerDef').textContent = entry.short;
+  const wrap = document.getElementById('drawerSeeAlso');
+  wrap.innerHTML = '';
+  const related = (entry.seeAlso || []).filter(k => GLOSSARY[k]);
+  if (related.length) {
+    document.getElementById('drawerSeeAlsoTitle').classList.remove('hidden');
+    related.forEach(k => {
+      const chip = document.createElement('span');
+      chip.className = 'seealso-chip';
+      chip.textContent = GLOSSARY[k].term;
+      chip.dataset.hop = k;
+      wrap.appendChild(chip);
+    });
+  } else {
+    document.getElementById('drawerSeeAlsoTitle').classList.add('hidden');
+  }
+  document.getElementById('drawerBack').classList.toggle('hidden', drawerStack.length <= 1);
+}
+
+function openTerm(key) {
+  if (!GLOSSARY[key]) return;
+  drawerStack.push(key);
+  renderTerm(key);
+  document.getElementById('termDrawer').classList.remove('hidden');
+}
+
+function hopTerm(key) {
+  if (!GLOSSARY[key]) return;
+  drawerStack.push(key);
+  renderTerm(key);
+}
+
+function backTerm() {
+  if (drawerStack.length <= 1) return;
+  drawerStack.pop();
+  renderTerm(drawerStack[drawerStack.length - 1]);
+}
+
+function closeDrawer() {
+  drawerStack = [];
+  document.getElementById('termDrawer').classList.add('hidden');
+}
+
+document.addEventListener('click', (e) => {
+  const termEl = e.target.closest('[data-term]');
+  if (termEl) { openTerm(termEl.dataset.term); return; }
+  const hopEl = e.target.closest('[data-hop]');
+  if (hopEl) { hopTerm(hopEl.dataset.hop); return; }
+});
+document.getElementById('drawerClose').onclick = closeDrawer;
+document.getElementById('drawerBack').onclick  = backTerm;
+
+// Self-register with the walkthrough engine so stepping closes the drawer
+// (Phase 2 RENDER_HOOKS model). Guarded so this file still runs standalone.
+if (typeof RENDER_HOOKS !== 'undefined' && RENDER_HOOKS.indexOf(closeDrawer) === -1) RENDER_HOOKS.push(closeDrawer);
+
+modeRenderers['state-machine'] = {
+  registry: {
+    NODE_LIST: ['stFog', 'stOpen', 'stBlocked', 'stClaimed', 'stResolved', 'stHandoff'],
+    EDGE_LIST: ['eFogOpen', 'eOpenClaim', 'eClaimRes', 'eResHand', 'eOpenBlock', 'eBlockClaim', 'eResFog'],
+  },
+  clear(reg) {
+    reg.NODE_LIST.forEach(id => { const el = document.getElementById(id); if (el) el.setAttribute('class', 'sm-node'); });
+    reg.EDGE_LIST.forEach(id => this.setEdge(id, ''));
+    document.querySelectorAll('.wt-panel').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('[data-default]').forEach(el => { el.textContent = el.dataset.default; });
+  },
+  setNode(id, state) {
+    const el = document.getElementById(id);
+    if (el) el.setAttribute('class', 'sm-node' + (state ? ' ' + state : ''));
+  },
+  setEdge(id, state) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.setAttribute('class', 'sm-edge' + (state ? ' ' + state : ''));
+    const markers = { '': 'url(#arrowhead)', dimmed: 'url(#arrowhead)', active: 'url(#arrowhead-active)',
+                      passed: 'url(#arrowhead-done)', illegal: 'url(#arrowhead-error)', key: 'url(#arrowhead-magic)' };
+    el.setAttribute('marker-end', markers[state] || 'url(#arrowhead)');
+  },
+  assertRegistryComplete() {
+    const nodes = [].map.call(document.querySelectorAll('.sm-node'), e => e.id);
+    const edges = [].map.call(document.querySelectorAll('.sm-edge'), e => e.id);
+    const all = this.registry.NODE_LIST.concat(this.registry.EDGE_LIST);
+    const miss = nodes.filter(id => !this.registry.NODE_LIST.includes(id))    // DOM not in registry
+                .concat(edges.filter(id => !this.registry.EDGE_LIST.includes(id)))
+                .concat(all.filter(id => !document.getElementById(id)));      // registry not in DOM (typo/orphan)
+    if (miss.length) throw new Error('state-machine registry/DOM mismatch: ' + miss.join(', '));
+    return true;
+  },
+};
+
+MODE = 'state-machine';
+const { setNode, setEdge } = modeRenderers[MODE];
+const ALL_NODES = modeRenderers[MODE].registry.NODE_LIST;
+
+const GLOSSARY = {
+  'decision-map': {
+    term: 'Decision map',
+    short: "One map item that indexes a multi-session planning effort - the destination, decisions so far, open fog, and out-of-scope list. In v1 that item is docs/decision-map/<slug>/map.md in the repo. An index, not a store: each decision's detail lives in its Decision ticket; the map only gists and links.",
+    seeAlso: ['decision-ticket', 'destination', 'fog'],
+    source: 'CONTEXT.md',
+  },
+  'decision-ticket': {
+    term: 'Decision ticket',
+    short: "A child item of a Decision map whose resolution is a decision - a question to settle, sized to one agent session - not a slice of a build to execute. Closed with the answer recorded on the ticket; the map gets a one-line gist plus link. Typed research, prototype, grilling, or task.",
+    seeAlso: ['decision-map', 'hitl', 'claim'],
+    source: 'CONTEXT.md',
+  },
+  'hitl': {
+    term: 'HITL / AFK ticket',
+    short: "Every Decision ticket is one or the other. HITL (human-in-the-loop) resolves only through live exchange with the human - the agent never answers its own questions (grilling, prototype). AFK is agent-driven without the human (research, some tasks). The mode determines who decides, not who executes.",
+    seeAlso: ['decision-ticket', 'frontier'],
+    source: 'CONTEXT.md',
+  },
+  'destination': {
+    term: 'destination',
+    short: "One or two sentences naming what arriving looks like, written before any ticket exists. Every ticket is measured against it, and it is what makes out-of-scope decidable. Stored as a single line - the tool collapses line breaks so a stray newline cannot truncate it.",
+    seeAlso: ['decision-map', 'fog'],
+    source: 'authored',
+  },
+  'fog': {
+    term: 'fog',
+    short: "A part of the effort you can only gesture at - you know something is there but cannot yet state the question. Fog is listed on the map but is NOT a ticket, and is deliberately not pre-sliced into ticket-sized pieces.",
+    seeAlso: ['graduate', 'decision-ticket', 'destination'],
+    source: 'authored',
+  },
+  'graduate': {
+    term: 'graduate',
+    short: "Turning fog into a real Decision ticket, once an earlier answer made the question sharp enough to state. Graduating is an additive chart operation, so it goes through the same dry-run gate as the original charting.",
+    seeAlso: ['fog', 'dry-run-gate', 'decision-ticket'],
+    source: 'authored',
+  },
+  'frontier': {
+    term: 'frontier',
+    short: "The tickets that are open AND unblocked AND unclaimed - the only ones you may take this session. Listed by name, never as a wall of bare ids.",
+    seeAlso: ['claim', 'decision-ticket'],
+    source: 'authored',
+  },
+  'claim': {
+    term: 'claim',
+    short: "Marking a ticket as taken, before any work on it. It is the concurrency guard: on the local backend the claim records that the ticket is taken, not by whom, so only the human can tell you whether another session still holds it.",
+    seeAlso: ['frontier', 'decision-ticket'],
+    source: 'authored',
+  },
+  'dry-run-gate': {
+    term: 'dry-run gate',
+    short: "Every create-class write (charting, graduating fog) is previewed first: the tool prints every label it would create, skip, or merge, and nothing is written until you say yes. Claim, comment and close ride the conversation's own confirmations instead.",
+    seeAlso: ['graduate', 'decision-map'],
+    source: 'authored',
+  },
+};
+
+function setMap(html) { show('mapState'); document.getElementById('mapStateBody').innerHTML = html; }
+function setQuestion(html) { show('smQuestion'); document.getElementById('smQuestionBody').innerHTML = html; }
+function setIllegal(html) { show('smIllegal'); document.getElementById('smIllegalBody').innerHTML = html; }
+function setSummary(html) { show('smSummary'); document.getElementById('smSummaryBody').innerHTML = html; }
+
+const MAP_IDLE = `<b>destination —</b> a locked decision set plus ADRs for two people editing one MenuNest trip. No code this round.
+  <ul>
+    <li><code>share-model</code> — invite by link, or by MenuNest account? <i>(grilling, HITL)</i></li>
+    <li><code>realtime</code> — live sync, or refresh-on-focus? <i>(research, AFK)</i></li>
+    <li><b>fog</b> — "something about two people editing the same stop at once"</li>
+  </ul>`;
+
+const scenes = [
+  // 0 — overview
+  () => {
+    setNarration('', 'The lifecycle of one Decision ticket',
+      `We are going to follow <b>one</b> ticket, <code>conflict-rule</code>, from the moment it is still
+       <span class="term" data-term="fog">fog</span> to the moment its answer is recorded. Every box is a state
+       that <i>one</i> ticket can be in — not a stage of the project. Click any dotted term to open its definition.`);
+    ALL_NODES.forEach(id => setNode(id, 'dimmed'));
+    setMap(MAP_IDLE);
+  },
+  // 1 — it starts as fog
+  () => {
+    setNarration('', 'Step 1 — It starts as fog, and stays there on purpose',
+      `During charting you could only gesture at it: <i>"something about two people editing the same stop at once."</i>
+       You cannot <b>state the question</b> yet, so it is recorded as <span class="term" data-term="fog">fog</span> on the
+       <span class="term" data-term="decision-map">map</span> and no ticket is created. This is the rule people fight hardest:
+       writing <code>conflict-rule</code> as a ticket now would mean inventing a question, and you would then dutifully answer it.`);
+    setNode('stFog', 'current');
+    setMap(MAP_IDLE);
+  },
+  // 2 — graduate
+  () => {
+    setNarration('warn', 'Step 2 — Another answer makes the question sayable',
+      `A later session resolves <code>share-model</code>: invite by <b>link</b>, so an editor may have no account.
+       Only now can the fog be stated as a question — <i>"last-write-wins, or per-field merge?"</i> — so it
+       <span class="term" data-term="graduate">graduates</span> into a real
+       <span class="term" data-term="decision-ticket">Decision ticket</span>. Because that is a create-class write, it goes
+       through the <span class="term" data-term="dry-run-gate">dry-run gate</span> first: you see the label before anything is written.`);
+    setNode('stFog', 'passed'); setEdge('eFogOpen', 'passed');
+    setNode('stOpen', 'current');
+    setMap(`<b>destination —</b> a locked decision set plus ADRs for two people editing one MenuNest trip.
+      <ul>
+        <li><code>share-model</code> — <b style="color:var(--success-text)">resolved:</b> invite by link</li>
+        <li><code>realtime</code> — open <i>(research, AFK)</i></li>
+        <li><code>conflict-rule</code> — <b style="color:var(--accent-bright)">just graduated from fog</b> — last-write-wins, or per-field merge?</li>
+      </ul>`);
+  },
+  // 3 — blocked
+  () => {
+    setNarration('warn', 'Step 3 — Open, but not takeable',
+      `<code>conflict-rule</code> declares <code>realtime</code> as its blocker, and the reason is real: if edits sync live you
+       are choosing a merge strategy, and if they only refresh on focus you are choosing a reconciliation strategy. Those are
+       different questions with different answers. An open ticket with an unresolved blocker is <b>not</b> on the
+       <span class="term" data-term="frontier">frontier</span>.`);
+    setNode('stFog', 'passed'); setEdge('eFogOpen', 'passed');
+    setNode('stOpen', 'passed'); setEdge('eOpenBlock', 'active');
+    setNode('stBlocked', 'current');
+    setMap(`<b>frontier</b> (open AND unblocked AND unclaimed):
+      <ul>
+        <li><code>realtime</code> — takeable now</li>
+        <li><code>conflict-rule</code> — <b style="color:var(--error-text)">blocked by realtime</b> — not on the frontier</li>
+      </ul>`);
+  },
+  // 4 — key question
+  () => {
+    setNarration('magic', 'Step 4 — You already know the answer you want',
+      `You open a session. You have opinions: last-write-wins is simpler, and you are fairly sure live sync is overkill for a
+       trip planner. <code>conflict-rule</code> is sitting right there, one command away.`);
+    setNode('stOpen', 'passed'); setEdge('eFogOpen', 'passed');
+    setNode('stBlocked', 'key');
+    setQuestion(`Can you just claim <code>conflict-rule</code> now and settle it — skipping <code>realtime</code>,
+      whose answer you are <i>fairly sure</i> you can predict?`);
+  },
+  // 5 — the illegal transition
+  () => {
+    setNarration('error', 'Step 5 — No: blocked tickets have no claim edge',
+      `There is no <code>Blocked → Claimed</code> transition, and the reason is not bureaucratic. Resolving a blocked ticket means
+       deciding on an <b>assumption</b> the blocker has not confirmed — but the answer gets written to the map as
+       <i>settled</i>, with no record that it rested on a guess. The next session starts cold from the map and inherits it as fact.`);
+    setNode('stFog', 'passed'); setEdge('eFogOpen', 'passed');
+    setNode('stOpen', 'passed');
+    setNode('stBlocked', 'stuck');
+    setNode('stClaimed', 'illegal'); setEdge('eBlockClaim', 'illegal');
+    setIllegal(`The map — not the conversation — is the state carrier. That is exactly why a guess must not enter it:
+      your caveat lives in the chat and dies with the session, while the answer lives in <code>map.md</code> forever.`);
+  },
+  // 6 — the blocker resolves
+  () => {
+    setNarration('success', 'Step 6 — Resolve the blocker instead',
+      `So you take <code>realtime</code> — an <span class="term" data-term="hitl">AFK</span> research ticket, so the agent works it
+       without you. Finding: refresh-on-focus is enough for a trip planner; nobody edits the same stop within seconds.
+       That closes the blocking edge, and <code>conflict-rule</code> returns to plain <b>Open</b> — now genuinely on the
+       <span class="term" data-term="frontier">frontier</span>. Note the question itself just narrowed: reconciliation, not live merge.`);
+    setNode('stFog', 'passed'); setEdge('eFogOpen', 'passed');
+    setNode('stBlocked', 'passed'); setEdge('eOpenBlock', 'passed');
+    setNode('stOpen', 'current');
+    setMap(`<b>frontier:</b>
+      <ul>
+        <li><code>realtime</code> — <b style="color:var(--success-text)">resolved:</b> refresh-on-focus is enough</li>
+        <li><code>conflict-rule</code> — <b style="color:var(--accent-bright)">unblocked, takeable</b></li>
+      </ul>`);
+  },
+  // 7 — claim
+  () => {
+    setNarration('', 'Step 7 — Claim it before doing any work',
+      `<code>local_map_ops.py claim --map trip-sharing --ticket conflict-rule</code> runs the moment you pick it, not after you have
+       thought about it. The <span class="term" data-term="claim">claim</span> is the concurrency guard, and it is weakly enforced:
+       a second claim exits 0 and <b>silently replaces</b> the first assignee, so two sessions would answer the same question two
+       different ways with no trace. Claiming first is what makes that visible to the other session.`);
+    ['stFog', 'stOpen', 'stBlocked'].forEach(id => setNode(id, 'passed'));
+    setEdge('eFogOpen', 'passed'); setEdge('eOpenBlock', 'passed');
+    setEdge('eOpenClaim', 'active');
+    setNode('stClaimed', 'current');
+  },
+  // 8 — resolve + record
+  () => {
+    setNarration('success', 'Step 8 — Resolve it, and record it on the ticket',
+      `<code>conflict-rule</code> is a <span class="term" data-term="hitl">HITL</span> grilling ticket, so it resolves through live
+       exchange — the agent must not answer it for you. Decision: <b>per-field merge on stops, last-write-wins on trip metadata.</b>
+       The answer is written onto the <span class="term" data-term="decision-ticket">ticket</span>, and the
+       <span class="term" data-term="decision-map">map</span> gets only a one-line gist plus a link. Where a repo ADR exists,
+       the ticket links it and the ADR stays canonical — so the decision has exactly one home.`);
+    ['stFog', 'stOpen', 'stBlocked', 'stClaimed'].forEach(id => setNode(id, 'passed'));
+    ['eFogOpen', 'eOpenBlock', 'eOpenClaim'].forEach(id => setEdge(id, 'passed'));
+    setEdge('eClaimRes', 'passed');
+    setNode('stResolved', 'current');
+  },
+  // 9 — counter-example
+  () => {
+    setNarration('error', 'Step 9 — What the obvious approach would have done',
+      `The instinct is to skip all of this: sit down once and write every ticket up front. Watch what that costs on this exact map.
+       <code>conflict-rule</code> would have been minted <b>before</b> <code>share-model</code> was decided — so it would have asked
+       the account-based version of the question, and you would have answered it. You would end the day with a full board, every item
+       looking settled, and no marker anywhere saying which answers were built on guesses.`);
+    setNode('stFog', 'illegal'); setEdge('eFogOpen', 'illegal');
+    setNode('stOpen', 'illegal');
+    setNode('stClaimed', 'illegal'); setNode('stResolved', 'illegal');
+    setIllegal(`Fog is not a backlog you have been too lazy to refine. It is the explicit record of
+      <b>which questions you are not yet entitled to ask</b> — which is why the tool refuses to pre-slice it.`);
+  },
+  // 10 — resolution + trade-offs
+  () => {
+    setNarration('success', 'Step 10 — The loop, and what it costs you',
+      `A resolved ticket usually sharpens other fog, which <span class="term" data-term="graduate">graduates</span> through the same
+       <span class="term" data-term="dry-run-gate">gate</span> — that is the purple edge, and it is why the map grows as you work
+       rather than being right on day one. When nothing is open and no fog remains, the map is done and you hand off to the normal
+       build flow with every decision already made.`);
+    ['stFog', 'stOpen', 'stBlocked', 'stClaimed', 'stResolved'].forEach(id => setNode(id, 'passed'));
+    ['eFogOpen', 'eOpenBlock', 'eOpenClaim', 'eClaimRes'].forEach(id => setEdge(id, 'passed'));
+    setEdge('eResFog', 'key');
+    setEdge('eResHand', 'passed');
+    setNode('stHandoff', 'current');
+    setSummary(`<ul>
+      <li><b>Calendar time.</b> One decision per session is the whole point, and it means a five-decision map is five sessions.
+          If you can already state every question, you do not need a map — use <code>grill-then-plan</code>.</li>
+      <li><b>Charting decides nothing.</b> A charting session ends with a map and zero answers. That feels like no progress; it is
+          the cost of not answering questions you could not yet state.</li>
+      <li><b>Only as good as the destination.</b> Every ticket and every out-of-scope call is measured against it — if the
+          <span class="term" data-term="destination">destination</span> is vague, so is the map.</li>
+      <li><b>Nothing appears on a board.</b> v1 is local markdown under <code>docs/decision-map/</code>, shared only by committing
+          it. Azure DevOps and GitHub Issues are phase 2, and installing those plugins does not change that today.</li>
+    </ul>`);
+  },
+];
+
+TOTAL = scenes.length - 1;
+modeRenderers[MODE].assertRegistryComplete();   // DOM ids ⊆ registry (runtime contract self-check)
+buildProgressDots();
+render(0);
+
+</script>
+</body></html>
