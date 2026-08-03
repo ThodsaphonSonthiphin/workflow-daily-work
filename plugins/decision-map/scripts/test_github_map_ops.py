@@ -1166,6 +1166,51 @@ class TestReviewRegressions(Base):
         self.assertRegex(msg, r"#\d+", "the orphan's number must be named")
 
 
+class TestPositionDiagram(Base):
+    def test_a_created_ticket_issue_body_carries_a_graph_region(self):
+        body = gh.render_ticket_issue_body("auth-model", "why?")
+        self.assertIn(map_core.GRAPH_START, body)
+        self.assertIn('ME["auth-model (this ticket)"]', body)
+        self.assertLess(body.index(map_core.GRAPH_START),
+                        body.index(map_core.GIST_START),
+                        "position before the machine-readable gist region")
+
+    def test_adding_a_dependency_patches_both_issue_bodies(self):
+        # INPUT already wires auth-model -> rollout-order, so chart() alone
+        # must leave both ends rendered
+        out = self.chart()
+        by_key = {t["key"]: int(t["id"]) for t in out["tickets"]}
+        blocked = self.fake.issue(by_key["rollout-order"])["body"]
+        blocker = self.fake.issue(by_key["auth-model"])["body"]
+        self.assertIn('P0["auth-model"] --> ME', blocked,
+                      "the blocked issue shows its blocker as a parent")
+        self.assertIn('ME --> C0["rollout-order"]', blocker,
+                      "the blocker issue shows what it unblocks as a child")
+
+    def test_block_patches_both_issue_bodies_too(self):
+        """chart() wires its edges through the same `_ensure_edge` path as
+        `block`, but exercises a different data source for the graph patch
+        (a post-write snapshot vs. block()'s pre-write one) -- so block needs
+        its own direct check that both ends render."""
+        inp = copy.deepcopy(INPUT)
+        del inp["tickets"][0]["blocks"]          # chart with NO edge yet
+        out = self.chart(inp)
+        by_key = {t["key"]: int(t["id"]) for t in out["tickets"]}
+        gh.block(self.ops, "billing", "rollout-order", "auth-model")
+        blocked = self.fake.issue(by_key["rollout-order"])["body"]
+        blocker = self.fake.issue(by_key["auth-model"])["body"]
+        self.assertIn('P0["auth-model"] --> ME', blocked)
+        self.assertIn('ME --> C0["rollout-order"]', blocker)
+
+    def test_an_over_long_gist_warns_on_the_tracker_too(self):
+        self.chart()
+        with captured_stderr() as err:
+            gh.resolve(self.ops, "billing", "auth-model",
+                       "y" * (map_core.GIST_MAX + 1), None, None)
+        self.assertIn("warning:", err.getvalue())
+        self.assertIn(str(map_core.GIST_MAX), err.getvalue())
+
+
 class GhApiSpy(gh.GhApi):
     """GhApi with the subprocess removed, so pacing can be tested without gh."""
 

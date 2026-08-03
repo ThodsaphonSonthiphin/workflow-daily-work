@@ -43,10 +43,12 @@ cheapest):
                      + 1 map create-or-patch
                      + 2 writes per new ticket (create, then link)
                      + 1 write per new edge + 1 closing GraphQL
+                     + 1 PATCH per ticket an edge touched this run, both ends
     read             1 GraphQL
     frontier         1 GraphQL
     claim            1 GraphQL + 1 PATCH               (+1 `gh api user`)
     block            1 GraphQL + 1 POST                (0 writes if it exists)
+                     + 1 PATCH per end when the edge is new (2 PATCHes)
     comment          1 GraphQL + 1 POST
     resolve          1 GraphQL + 1 comment + 1 ticket PATCH (body AND state in
                      the same call) + 1 map PATCH      = 4 calls
@@ -55,6 +57,13 @@ cheapest):
     `resolve` touches the map at all — but the snapshot it already holds
     supplies every ticket's status and gist, so re-projecting costs no extra
     reads.
+
+    The position-diagram patch on `chart` costs no extra READ: it reuses the
+    "1 closing GraphQL" snapshot above, which is fetched only after every
+    create, link and edge write, so it already carries the current state of
+    every ticket an edge touched this run. `block` writes exactly one edge, so
+    it folds that edge into each end's parent/child list BY HAND from the one
+    snapshot it already holds, rather than fetch a second one mid-call.
 
 RATE LIMITS. The binding limit is the **secondary** one — 80 content-creating
 requests per minute — not the 5,000/hour primary. `_Throttle` below counts
@@ -66,7 +75,8 @@ import argparse, json, subprocess, sys, time
 
 from map_core import (
     VALID_TICKET_TYPES,
-    KEY_MARKER, GIST_START, GIST_END,
+    KEY_MARKER, GIST_START, GIST_END, GRAPH_START, GRAPH_END,
+    GIST_MAX, GIST_TOO_LONG,
     MAP_REGIONS, TRACKER_TICKET_REGIONS,
     DECISIONS_START, DECISIONS_END,
     FORCE_COST,
@@ -77,6 +87,7 @@ from map_core import (
     region_body, replace_region, region_re,
     map_merge_detail, render_map_body, scalar_divergences, merge_map_lists,
     decisions_region, validate_chart_input, key_of_body,
+    position_diagram_region, set_graph_region,
 )
 
 MAP_LABEL = "decision-map:map"
@@ -620,15 +631,19 @@ def render_map_issue_body(m, slug):
 
 
 def render_ticket_issue_body(key, question):
-    """The ticket issue body: key marker, the question, an empty gist region.
+    """The ticket issue body: key marker, position diagram, the question, an
+    empty gist region.
 
-    The gist region is written at creation rather than inserted by `resolve`,
-    for the same reason the local backend writes its markers up front: a writer
-    that has to decide *where* a region goes is guessing at the boundary of
-    content it did not write, which is exactly the pattern that cost three
-    review rounds.
+    Every region is written at creation rather than inserted later, for the
+    same reason the local backend does the same: a writer that has to decide
+    *where* a region goes is guessing at the boundary of content it did not
+    write, which is exactly the pattern that cost three review rounds. A fresh
+    ticket has no blockers and unblocks nothing yet, so the diagram renders
+    with empty parent/child lists; `chart`'s edge-wiring pass re-renders it
+    once real edges exist.
     """
-    return (f"{KEY_MARKER % key}\n\n## Question\n\n{scrub(question)}\n\n"
+    return (f"{KEY_MARKER % key}\n\n{position_diagram_region(key, [], [])}\n"
+            f"## Question\n\n{scrub(question)}\n\n"
             f"{GIST_START}\n{GIST_END}\n")
 
 
@@ -1122,7 +1137,22 @@ def chart(ops, inp, real, force=False):
 
     for d in div:
         print(f"chart: divergence: {d}", file=sys.stderr)
-    out = ops.snapshot(str(map_number)).map_json()
+
+    # The closing snapshot below is chart()'s own return value (see the cost
+    # table's "1 closing GraphQL") -- fetched AFTER every create, link and edge
+    # write above, so it already carries every ticket this run created and
+    # every edge this run wired. Reuse it, rather than add a read, to render
+    # the position diagram of every ticket an edge touched this run, BOTH ends
+    # (spec 1, "Both ends"): the blocked ticket gains a parent node, the
+    # blocker gains a child node.
+    final_snap = ops.snapshot(str(map_number))
+    touched = set(edges) | {blocker for blockers in edges.values() for blocker in blockers}
+    for key in sorted(touched):
+        parents, _missing = final_snap.blockers_of(key)
+        _patch_graph_region(ops, final_snap, key, parents,
+                            _children_of(final_snap, key))
+
+    out = final_snap.map_json()
     out["divergence"] = div
     return out
 
@@ -1144,6 +1174,41 @@ def _ensure_edge(ops, blocked_number, blocker_db_id, repo=None):
         if "already been taken" in str(e):
             return
         raise
+
+
+def _children_of(snap, key):
+    """Every OTHER ticket in `snap` whose blockers include `key`.
+
+    A ticket's parents are its own blockedBy edges; its children are only
+    discoverable by scanning every other ticket in the snapshot -- the same
+    price the local backend pays with a directory scan (`map_core.
+    position_diagram_region` renders both ends, but only the caller can supply
+    which tickets a key unblocks).
+    """
+    return sorted(k for k in snap.keys
+                  if k != key and key in snap.blockers_of(k)[0])
+
+
+def _patch_graph_region(ops, snap, key, parents, children):
+    """Re-render `key`'s position diagram from `parents`/`children` and write
+    it back if that changes the stored body.
+
+    Takes the lists rather than deriving them itself, because the two callers
+    source them differently. `chart` reads them straight off a snapshot taken
+    AFTER every edge this run was wired, so that snapshot already reflects
+    them in full. `block` wires exactly one edge and knows both ends' new
+    parent/child by hand -- cheaper than a second snapshot fetch mid-call, and
+    the same in-memory-augmentation trick the local backend uses for the
+    ticket whose file it just wrote (spec 1, "Both ends"; both `parents` and
+    `children` are de-duplicated and sorted by `position_diagram_region`
+    itself, so a caller may pass either list with an extra entry unsorted).
+    """
+    body = norm_eol(snap.tickets[key].get("body"))
+    new_body = set_graph_region(body, position_diagram_region(key, parents, children))
+    if new_body == body:
+        return
+    _assert_ticket_body(new_body, f"ticket {key!r} (#{snap.number_of(key)})")
+    ops.patch_issue(snap.number_of(key), {"body": new_body}, repo=snap.repo_of(key))
 
 
 # ---------------------------------------------------------------------------
@@ -1245,7 +1310,17 @@ def block(ops, ref, ticket, blocked_by):
             f"ticket {key!r} already has {MAX_BLOCKERS} blockers and GitHub "
             f"allows at most {MAX_BLOCKERS} per relationship type")
     _ensure_edge(ops, number, snap.tickets[blocker_key]["databaseId"], repo=repo)
-    return {"ticket": key, "blockedBy": held + [blocker_key]}
+    new_held = held + [blocker_key]
+    # Both ends (spec 1): `key` gains a parent, `blocker_key` gains a child.
+    # `snap` predates this write, so the new edge is folded in by hand on
+    # whichever side it changes rather than re-read -- the everything-else
+    # about each ticket (its own other parents, its own other children) is
+    # unaffected by this one edge and comes straight off `snap`.
+    _patch_graph_region(ops, snap, key, new_held, _children_of(snap, key))
+    blocker_parents, _blocker_missing = snap.blockers_of(blocker_key)
+    _patch_graph_region(ops, snap, blocker_key, blocker_parents,
+                        _children_of(snap, blocker_key) + [key])
+    return {"ticket": key, "blockedBy": new_held}
 
 
 def comment(ops, ref, ticket, body_text):
@@ -1274,6 +1349,8 @@ def resolve(ops, ref, ticket, gist, link, body):
     snap = ops.snapshot(ref)
     key, number, repo = _resolve_ticket(snap, ticket)
     stored_gist = one_line(gist)
+    if len(stored_gist) > GIST_MAX:
+        print(GIST_TOO_LONG.format(n=len(stored_gist), max=GIST_MAX), file=sys.stderr)
 
     ops.add_comment(number, _resolution_comment(gist, link, body), repo=repo)
 
