@@ -1,5 +1,16 @@
 # Decision-map diagrams Implementation Plan
 
+> **SUPERSEDED IN PART — implemented 2026-08-03. Do not regenerate requirements
+> from Task 6 Step 3 as written.**
+>
+> | This plan says | What is now true |
+> |---|---|
+> | Task 6 Step 3: patch both issue bodies **inside `_ensure_edge`** | The patch lives in `chart()` and `block()`. `_ensure_edge` receives issue *numbers and database ids*, not a snapshot, so it cannot render either end; `chart()` patches from a closing snapshot taken after every edge is wired, and `block()` folds its one new edge into the pre-write snapshot by hand. The same split applies on the local backend. |
+> | Task 6 Step 3's `_children_of` sample: `snap.keys()` and `key in snap.blockers_of(k)` | `Snapshot.keys` is a **property**, so `snap.keys()` raises `TypeError`, and `blockers_of` returns a **2-tuple** `(blockers, missing)`, so `in` tests the tuple, not the list. Shipped as `snap.keys` and `key in snap.blockers_of(k)[0]`. |
+> | (silent) `--force` does not disturb a diagram | `--force` resets an OVERWRITE'd ticket's edges, which stales the diagram at **both** ends. Both backends now re-render the OVERWRITE'd ticket and any blocker that lost a child, via `map_core.force_orphaned_blockers`; the dry-run plan announces the second as a `merge`. ADR 0064 records it. |
+> | Renderer named `map_core.render_position_diagram` (Global Constraints, via the spec) | Shipped as `map_core.position_diagram_region` — it returns the whole marker-delimited region, not a bare diagram. |
+> | Baseline "84 + 87 tests" | 193 tests pass on the merged branch. |
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give every Decision ticket a generated position diagram and an authored answer diagram, so a reader sees where a ticket sits and what it decided before reading a word of prose.
