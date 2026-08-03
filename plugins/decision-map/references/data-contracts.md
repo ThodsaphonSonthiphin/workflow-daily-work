@@ -260,7 +260,7 @@ the ADR-0039 approval gate puts in front of the user:
   "dryRun": true,
   "planned": [
     { "path": "docs/decision-map/billing/map.md",                 "action": "merge",         "detail": "adds 1 fog line" },
-    { "path": "docs/decision-map/billing/tickets/auth-model.md",  "action": "skip (exists)", "detail": null },
+    { "path": "docs/decision-map/billing/tickets/auth-model.md",  "action": "merge",         "detail": "renders as a child in the graph: rollout" },
     { "path": "docs/decision-map/billing/tickets/rollout.md",     "action": "merge",         "detail": "unions blockedBy: auth-model" },
     { "path": "docs/decision-map/billing/tickets/new-thing.md",   "action": "create",        "detail": null }
   ],
@@ -864,8 +864,10 @@ both were the same bug shape, an *absence* read as a *resolution*:
   divergence line so the user learns their sentence is now tool-managed. Both
   shipping backends behave this way; neither says so.
 - **The write-side region check covers the paired regions and the key marker,
-  but nothing validates on READ.** `assert_regions` validates `fog`, `scope`,
-  `decisions` (and, on a tracker, `gist`) plus the single-line `key` marker on
+  but nothing validates on READ.** `assert_regions` validates `fog`, `scope`
+  and `decisions` (map-level, every backend), `resolution` (ticket-level,
+  local only), `graph` (ticket-level, every backend that stores text) and, on
+  a tracker, `gist` (ticket-level) — plus the single-line `key` marker — on
   every write. A map whose regions a human has corrupted is still invisible to
   `read`, `frontier` and a no-op `chart` — those paths use `region_body`, which
   returns `None` rather than complaining. The GitHub backend does fail loudly on
