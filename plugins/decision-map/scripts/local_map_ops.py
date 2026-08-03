@@ -84,6 +84,7 @@ from map_core import (
     SCALAR_MAP_FIELDS as _SCALAR_MAP_FIELDS,
     REQUIRED_MAP_FIELDS as _REQUIRED_MAP_FIELDS,
     REQUIRED_TICKET_FIELDS as _REQUIRED_TICKET_FIELDS,
+    GIST_MAX as _GIST_MAX, GIST_TOO_LONG as _GIST_TOO_LONG,
     ChartValidationError, UnsafeIdentifierError, InvalidEdgeError,
     CliUsageError, MarkerIntegrityError,
     scrub as _scrub, one_line as _one_line, mode as _mode,
@@ -661,6 +662,9 @@ def resolve(root, slug, ticket, gist, link, body):
     chance of deleting unrelated content.
     """
     fm, tbody = _load_ticket(root, slug, ticket)
+    flat = _fm_value(gist)
+    if len(flat) > _GIST_MAX:
+        print(_GIST_TOO_LONG.format(n=len(flat), max=_GIST_MAX), file=sys.stderr)
     fm["status"] = "closed"
     fm["gist"] = gist
     detail = f"\nDetail: {_scrub(link)}\n" if link else ""

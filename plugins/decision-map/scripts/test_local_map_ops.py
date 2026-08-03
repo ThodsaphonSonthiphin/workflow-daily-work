@@ -642,6 +642,28 @@ class LocalMapOpsTest(unittest.TestCase):
         self.assertNotIn("REAL-GIST", map_md)
         self.assertEqual(map_md.count("tickets/auth-model.md"), 2)
 
+    def test_an_over_long_gist_warns_but_is_still_recorded(self):
+        self._chart()
+        long_gist = "x" * (map_core.GIST_MAX + 1)
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            out = ops.resolve(self.root, "example-effort", "auth-model",
+                              long_gist, None, None)
+        self.assertIn("warning:", err.getvalue())
+        self.assertIn(str(map_core.GIST_MAX), err.getvalue())
+        self.assertEqual(out["resolved"], "auth-model")
+        text = (self.root / "example-effort" / "tickets" / "auth-model.md").read_text(
+            encoding="utf-8")
+        self.assertIn(long_gist, text, "the answer is recorded regardless (ADR 0066)")
+
+    def test_a_short_gist_warns_about_nothing(self):
+        self._chart()
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            ops.resolve(self.root, "example-effort", "auth-model", "short answer",
+                        None, None)
+        self.assertNotIn("warning:", err.getvalue())
+
     # N1, backstop: the escape is the prevention, but every write also asserts
     # the file holds at most one well-formed region. A hand-edited file with a
     # stray marker must make the module REFUSE to write, not silently corrupt.
