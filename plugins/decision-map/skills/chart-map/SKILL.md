@@ -266,7 +266,9 @@ The script wires the **blocking edges** itself, in a second pass once every
 ticket exists. There are no parent links to wire: on the local backend
 containment *is* the directory — a ticket belongs to this map because it sits in
 that map's tickets — and the map document holds no index of open tickets, only
-the "Decisions so far" list that `resolve` projects from the closed ones.
+the "Decisions so far" list that `resolve` projects from the closed ones. Each
+created ticket also carries a generated **position diagram** above `## Question`,
+written and maintained by the script rather than by you (ADR 0063/0064).
 
 **5. Check `divergence` in the result.** A non-empty list means the input asked
 for something an additive run deliberately did **not** apply — most often a

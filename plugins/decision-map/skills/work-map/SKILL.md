@@ -300,9 +300,22 @@ resolution body **is** the record:
 python "<ops>" resolve --map <slug> --ticket <key> --gist "<one line>" --body-file <workdir>/body-<key>.md
 ```
 
-`--gist` is required either way (without it: exit `2`, one line on stderr). It
-is flattened to a single line and it is what the map's index shows, so make it
-a sentence that answers the question, not a topic.
+`--gist` is required either way (without it: exit `2`, one line on stderr). It is flattened to a single line and it is what the map's index shows, so make it **one sentence that answers the question** — not one paragraph, and not a topic. `resolve` warns on stderr past 200 characters and records it anyway; the warning means the map index is now unreadable, not that the answer was rejected. Detail belongs in `--body-file` or behind `--link`, never in the gist.
+
+**Every resolution opens with one Mermaid diagram of the ANSWER** (ADR 0065) — the structure the decision creates, not the options weighed and not the process followed. A reader who opens a closed ticket should see what was decided before reading a word of prose.
+
+Match the diagram to the ticket's own `type`:
+
+| `type` | diagram | what it shows |
+|---|---|---|
+| `grilling` | `flowchart TD` | the chosen shape and what it displaces |
+| `research` | `graph TD`, or `erDiagram` for a real data model | the structure that was found |
+| `prototype` | `sequenceDiagram` if the answer is a call order, else `graph TD` | the seam that was built |
+| `task` | `graph TD` | before → after |
+
+A ticket resolving with `--link` alone still draws one, and it is **not** a copy of the ADR's. The subjects differ: the ADR draws *chosen versus rejected* (diagram convention, Rule 3); the ticket draws *what the chosen answer changes*. Two diagrams with two subjects cannot drift into contradicting each other; two copies of one diagram will.
+
+This is separate from the **position diagram** the ops script generates above `## Question` — that one is the ticket's place in the map, and you never author or edit it.
 
 `--link` and `--body-file` can both be passed — do that when there is an ADR
 *and* a confirming exchange worth keeping. **Quote the user's confirming words
