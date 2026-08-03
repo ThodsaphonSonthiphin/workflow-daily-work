@@ -1328,6 +1328,29 @@ class LocalMapOpsTest(unittest.TestCase):
                 self.assertIsNone(e["detail"],
                                   f"{name}: detail is only meaningful on merge")
 
+    # Task 4: block() now writes BOTH ends of a blocking edge (ADR 0064), so
+    # chart's dry-run plan must announce the blocker's file too, not only the
+    # blocked ticket's -- nothing the real run writes may be missing from the
+    # plan (ADR 0039).
+    def test_the_plan_announces_the_blocker_end_of_a_new_edge(self):
+        self._chart()
+        plan = ops.chart(self.root, self._plus_ticket(blocks=["api-limits"]), real=False)
+        by_path = {p["path"]: p for p in plan["planned"]}
+        blocked = next(v for k, v in by_path.items() if k.endswith("api-limits.md"))
+        self.assertEqual(blocked["action"], "merge")
+        self.assertIn("unions blockedBy", blocked["detail"])
+        # the plan must name EVERY file the real run writes -- that is the
+        # whole value of the ADR-0039 gate
+        self.assertTrue(any(k.endswith("fog-graduate.md") for k in by_path),
+                        f"the blocker end is missing from the plan: {list(by_path)}")
+
+    def test_no_merge_entry_may_carry_a_null_detail(self):
+        self._chart()
+        plan = ops.chart(self.root, self._plus_ticket(blocks=["api-limits"]), real=False)
+        for e in plan["planned"]:
+            if e["action"] == "merge":
+                self.assertIsNotNone(e["detail"], f"undescribed write: {e['path']}")
+
     # C2: a map-body merge came back with detail: null, so the plan rendered a
     # bare "merge .../map.md". That contradicts the contract's own promise --
     # "a merge entry carries a detail string naming what it will add" -- and

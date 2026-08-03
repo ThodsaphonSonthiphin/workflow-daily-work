@@ -386,6 +386,36 @@ def _chart_plan(root, inp, force):
             by_path[p] = entry
         entry["action"] = "merge"
         entry["detail"] = "unions blockedBy: " + ", ".join(blockers)
+    # The blocker end of every edge the run will write. An edge is drawn at
+    # both of its ends (ADR 0064), so the blocker's file is modified too --
+    # and nothing the run writes may be missing from the plan. A blocker that
+    # is itself being created or overwritten already carries the edge in its
+    # own line, so it is skipped here.
+    blocker_gains = {}
+    for t in inp["tickets"]:
+        for blocked in t.get("blocks") or []:
+            if action_by_key.get(t["key"]) in ("create", "OVERWRITE"):
+                continue
+            bp = _ticket_path(root, slug, t["key"])
+            if not bp.exists():
+                continue
+            fm, _ = _load_ticket(root, slug, blocked)
+            if t["key"] in fm.get("blocked_by", []):
+                continue                      # edge already there: no write
+            gained = blocker_gains.setdefault(bp, [])
+            if blocked not in gained:
+                gained.append(blocked)
+    for p, gained in blocker_gains.items():
+        entry = by_path.get(p)
+        if entry is None:
+            entry = {"path": p, "action": "skip (exists)", "detail": None}
+            entries.append(entry)
+            by_path[p] = entry
+        if entry["action"] in ("create", "OVERWRITE"):
+            continue
+        entry["action"] = "merge"
+        detail = "renders as a child in the graph: " + ", ".join(sorted(gained))
+        entry["detail"] = (entry["detail"] + "; " + detail) if entry["detail"] else detail
     return entries, map_text, div
 
 
