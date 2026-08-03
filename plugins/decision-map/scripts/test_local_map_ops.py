@@ -1351,6 +1351,64 @@ class LocalMapOpsTest(unittest.TestCase):
             if e["action"] == "merge":
                 self.assertIsNotNone(e["detail"], f"undescribed write: {e['path']}")
 
+    # Review finding (Critical): the blocker_gains loop read the BLOCKED
+    # ticket's frontmatter unconditionally, with no existence check -- but a
+    # `blocks` target may be a ticket created in this SAME input (additive
+    # chart explicitly supports mixing existing and new tickets). A
+    # pre-existing blocker naming a brand-new ticket as something it blocks
+    # crashed the dry run with an uncaught FileNotFoundError before the
+    # ADR-0039 gate ever rendered anything.
+    def test_a_pre_existing_blocker_naming_a_brand_new_ticket_does_not_crash(self):
+        self._chart()
+        inp = copy.deepcopy(INPUT)
+        # auth-model (pre-existing, "skip (exists)") now also blocks a ticket
+        # that does not exist yet anywhere -- neither on disk nor charted
+        # before this call -- only newly appended to this same tickets[].
+        inp["tickets"][0] = dict(inp["tickets"][0],
+                                 blocks=["rollout-order", "fresh-ticket"])
+        inp["tickets"].append({"key": "fresh-ticket", "title": "Fresh",
+                               "type": "task", "question": "q?", "blocks": []})
+        plan = ops.chart(self.root, inp, real=False)   # must not raise
+        by_path = {Path(p["path"]).name: p for p in plan["planned"]}
+        self.assertEqual(by_path["auth-model.md"]["action"], "merge")
+        self.assertIn("fresh-ticket", by_path["auth-model.md"]["detail"],
+                      f"the new child must be named: {by_path['auth-model.md']}")
+        # and the real run must actually touch exactly what was announced
+        ops.chart(self.root, inp, real=True)
+        auth = self._ticket_text("example-effort", "auth-model")
+        self.assertIn('ME --> C0["fresh-ticket"]', auth)
+
+    # Review finding (Important): the two tests above pass byte-for-byte
+    # identically with the entire blocker_gains block deleted -- the first is
+    # satisfied by the pre-existing `pending` loop (the BLOCKED end), the
+    # second by the unconditional per-ticket loop that seeds `by_path`. This
+    # is the scenario that actually requires blocker_gains: an EXISTING,
+    # otherwise-untouched ticket (action "skip (exists)") gains a brand-new
+    # `blocks` edge onto another EXISTING ticket in a re-chart. Neither ticket
+    # is created or overwritten by this call, so nothing else in _chart_plan
+    # would ever flip the blocker's entry to "merge".
+    def test_an_existing_ticket_gaining_a_new_blocker_role_is_announced_in_the_plan(self):
+        self._chart()
+        inp = copy.deepcopy(INPUT)
+        for t in inp["tickets"]:
+            if t["key"] == "api-limits":
+                t["blocks"] = ["rollout-order"]
+        plan = ops.chart(self.root, inp, real=False)
+        by_path = {Path(p["path"]).name: p for p in plan["planned"]}
+        self.assertEqual(by_path["auth-model.md"]["action"], "skip (exists)")
+        self.assertEqual(by_path["api-limits.md"]["action"], "merge",
+                         "the blocker's own file must be announced, not skipped")
+        self.assertIn("renders as a child in the graph: rollout-order",
+                      by_path["api-limits.md"]["detail"])
+        # the plan told the truth: the real run changes exactly those two
+        # files (map.md and auth-model.md, both "skip (exists)", must not)
+        before = _snapshot(self.root / "example-effort")
+        ops.chart(self.root, inp, real=True)
+        after = _snapshot(self.root / "example-effort")
+        changed = {k for k in after if before.get(k) != after.get(k)}
+        self.assertEqual(changed, {"tickets/api-limits.md", "tickets/rollout-order.md"},
+                         f"the plan must name exactly what the real run touches: {changed}")
+
     # C2: a map-body merge came back with detail: null, so the plan rendered a
     # bare "merge .../map.md". That contradicts the contract's own promise --
     # "a merge entry carries a detail string naming what it will add" -- and

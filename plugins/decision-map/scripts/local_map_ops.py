@@ -396,12 +396,20 @@ def _chart_plan(root, inp, force):
         for blocked in t.get("blocks") or []:
             if action_by_key.get(t["key"]) in ("create", "OVERWRITE"):
                 continue
+            # `t["key"]` is not create/OVERWRITE, so it is "skip (exists)" --
+            # which by construction (the tickets loop above) only happens
+            # when its file already exists. No separate .exists() check needed.
             bp = _ticket_path(root, slug, t["key"])
-            if not bp.exists():
-                continue
-            fm, _ = _load_ticket(root, slug, blocked)
-            if t["key"] in fm.get("blocked_by", []):
-                continue                      # edge already there: no write
+            if action_by_key.get(blocked) not in ("create", "OVERWRITE"):
+                # `blocked` already exists on disk -- read its frontmatter to
+                # tell an already-unioned edge (no write) from a new one.
+                fm, _ = _load_ticket(root, slug, blocked)
+                if t["key"] in fm.get("blocked_by", []):
+                    continue                  # edge already there: no write
+            # else: `blocked` is being freshly created/overwritten in this
+            # same input, so its file doesn't exist yet -- _load_ticket would
+            # raise. A ticket that doesn't exist yet cannot already carry the
+            # edge, so the blocker still gains a child when pass 2 unions it.
             gained = blocker_gains.setdefault(bp, [])
             if blocked not in gained:
                 gained.append(blocked)
