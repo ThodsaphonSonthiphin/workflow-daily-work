@@ -1,7 +1,7 @@
 ---
 type: daily-state
 schema_version: 1
-updated: '2026-08-03T14:08:58+07:00'
+updated: '2026-08-03T16:29:00+07:00'
 ---
 
 # Daily state
@@ -140,3 +140,12 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
 - 2026-08-03T13:51:36+07:00 — feat(decision-map): announce the blocker end of a new edge in the dry-run plan (d71cd75)
 - 2026-08-03T14:02:18+07:00 — fix(decision-map): guard blocker_gains against a not-yet-created blocked ticket (788705a)
 - 2026-08-03T14:08:58+07:00 — feat(decision-map): warn when a gist is too long for the map index (081cc36)
+- 2026-08-03T14:26:17+07:00 — reflect(2026-08-02): work-map lessons on measured gates and correcting closed tickets (293c50f)
+- 2026-08-03T14:44:38+07:00 — feat(decision-map): position diagram and gist warning on the GitHub backend (8e405fe)
+- 2026-08-03T14:59:58+07:00 — docs(decision-map): contract covers the graph region and the both-ends write (b168716)
+- 2026-08-03T15:18:30+07:00 — fix(decision-map): announce the blocker end of a new edge in the GitHub dry-run plan (8934818)
+- 2026-08-03T15:27:59+07:00 — docs(decision-map): fix contract's local dry-run example and assert_regions enumeration (1eb3955)
+- 2026-08-03T15:38:11+07:00 — docs(decision-map): resolutions open with a diagram of the answer; sharpen the gist rule (7bceb86)
+- 2026-08-03T16:28:18+07:00 — fix(decision-map): --force must not leave a diagram contradicting the map's edges (88cdbdf)
+- 2026-08-03T16:28:38+07:00 — docs(decision-map): give the answer diagram a channel on the ADR-backed resolution (04a3aae)
+- 2026-08-03T16:29:00+07:00 — docs(decision-map): supersession banners on the diagrams plan and spec (eac4513)
