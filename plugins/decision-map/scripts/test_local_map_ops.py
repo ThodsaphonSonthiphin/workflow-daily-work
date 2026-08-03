@@ -1712,6 +1712,57 @@ class LocalMapOpsCliTest(unittest.TestCase):
         return p
 
 
+class GraphRegionOnTicketTests(unittest.TestCase):
+    # Own setUp/tearDown/_chart rather than subclassing LocalMapOpsTest: that
+    # class's test_* methods would otherwise run a second time under this
+    # class's name too (unittest discovery is per-subclass), inflating the
+    # suite far past this class's own 4 tests.
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _chart(self):
+        return ops.chart(self.root, INPUT, real=True)
+
+    def test_a_created_ticket_carries_a_graph_region_above_the_question(self):
+        self._chart()
+        text = (self.root / "example-effort" / "tickets" / "api-limits.md").read_text(
+            encoding="utf-8")
+        self.assertIn(map_core.GRAPH_START, text)
+        self.assertIn(map_core.GRAPH_END, text)
+        self.assertLess(text.index(map_core.GRAPH_START), text.index("## Question"),
+                        "the position must be visible before the prose")
+        self.assertIn('ME["api-limits (this ticket)"]', text)
+
+    def test_set_graph_region_inserts_above_question_on_a_legacy_ticket(self):
+        legacy = "\n## Question\n\nold body\n"
+        out = ops._set_graph_region(legacy, "<!-- decision-map:graph:start -->\nX\n"
+                                            "<!-- decision-map:graph:end -->\n")
+        self.assertLess(out.index("decision-map:graph:start"), out.index("## Question"))
+        self.assertIn("old body", out, "legacy content must survive untouched")
+
+    def test_set_graph_region_replaces_an_existing_region_and_touches_nothing_else(self):
+        body = ("<!-- decision-map:graph:start -->\nOLD\n<!-- decision-map:graph:end -->\n"
+                "\n## Question\n\nkeep me\n")
+        out = ops._set_graph_region(body, "<!-- decision-map:graph:start -->\nNEW\n"
+                                          "<!-- decision-map:graph:end -->\n")
+        self.assertIn("NEW", out)
+        self.assertNotIn("OLD", out)
+        self.assertIn("keep me", out)
+
+    def test_children_of_finds_every_ticket_naming_this_one_as_a_blocker(self):
+        self._chart()
+        ops.block(self.root, "example-effort", "api-limits", "auth-model")
+        # INPUT already wires auth-model -> rollout-order via "blocks" at chart
+        # time, so a correct scan finds BOTH that pre-existing edge and the
+        # one block() just added -- sorted, since _children_of promises order.
+        self.assertEqual(ops._children_of(self.root, "example-effort", "auth-model"),
+                         ["api-limits", "rollout-order"])
+
+
 class PositionDiagramTests(unittest.TestCase):
     def test_renders_parents_self_and_children_sorted(self):
         r = map_core.position_diagram_region(

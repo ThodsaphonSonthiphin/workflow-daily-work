@@ -78,6 +78,7 @@ from map_core import (
     DECISIONS_START as _DECISIONS_START, DECISIONS_END as _DECISIONS_END,
     FOG_START as _FOG_START, FOG_END as _FOG_END,
     SCOPE_START as _SCOPE_START, SCOPE_END as _SCOPE_END,
+    GRAPH_START as _GRAPH_START, GRAPH_END as _GRAPH_END,
     MAP_REGIONS as _MAP_REGIONS, TICKET_REGIONS as _TICKET_REGIONS,
     EMPTY_LIST_LINE as _EMPTY_LIST_LINE, FORCE_COST as _FORCE_COST,
     SCALAR_MAP_FIELDS as _SCALAR_MAP_FIELDS,
@@ -96,6 +97,8 @@ from map_core import (
     scalar_divergences as _scalar_divergences,
     merge_map_lists as _merge_map_lists,
     decisions_region as _decisions_region,
+    position_diagram_region as _position_diagram_region,
+    set_graph_region as _set_graph_region,
     require as _require, validate_chart_input as _validate_chart_input_core,
 )
 
@@ -106,6 +109,7 @@ _LIST_FM_KEYS = {"blocked_by"}
 
 _RESOLUTION_BLOCK_RE = _region_re(_RESOLUTION_START, _RESOLUTION_END)
 _DECISIONS_BLOCK_RE = _region_re(_DECISIONS_START, _DECISIONS_END)
+_GRAPH_BLOCK_RE = _region_re(_GRAPH_START, _GRAPH_END)
 
 
 def _validate_chart_input(inp, root=None):
@@ -255,6 +259,31 @@ def _all_tickets(root, slug):
     return [p.stem for p in keep]
 
 
+def _children_of(root, slug, key):
+    """Every ticket this one unblocks -- i.e. whose blocked_by names it.
+
+    A ticket's parents are in its own frontmatter, but its children are only
+    discoverable by looking at everyone else, so rendering either end of the
+    diagram costs a scan of the map. That is the price of drawing children at
+    all (spec 1, "Both ends"); on the GitHub backend the same information is
+    already in the snapshot and costs nothing.
+    """
+    out = []
+    for other in _all_tickets(root, slug):
+        if other == key:
+            continue
+        fm, _ = _load_ticket(root, slug, other)
+        if key in fm.get("blocked_by", []):
+            out.append(other)
+    return sorted(out)
+
+
+def _graph_region_for(root, slug, key):
+    fm, _ = _load_ticket(root, slug, key)
+    return _position_diagram_region(key, fm.get("blocked_by", []),
+                                    _children_of(root, slug, key))
+
+
 def _render_map_md(m):
     """The whole map.md, as written by an initial chart or by --force.
 
@@ -393,6 +422,7 @@ def chart(root, inp, real, force=False):
         fm = {"title": t["title"], "type": t["type"], "mode": _mode(t["type"]),
               "status": "open", "assignee": "", "blocked_by": [], "gist": ""}
         _save_ticket(root, slug, t["key"], fm,
+                     f"\n{_position_diagram_region(t['key'], [], [])}"
                      f"\n## Question\n\n{_scrub(t['question'])}\n")
     # ADR 0058: the edge is UNIONED into whatever file holds it, existing or
     # not. block() appends only when absent and does not write otherwise, so

@@ -537,6 +537,30 @@ def position_diagram_region(key, parents, children):
     return GRAPH_START + "\n" + "\n".join(lines) + "\n" + GRAPH_END + "\n"
 
 
+def set_graph_region(body, region):
+    """Replace the graph region, or insert one into a ticket that predates it.
+
+    Insertion goes ABOVE "## Question" so the reader sees the position first.
+    A ticket with neither a region nor a Question heading gets the region
+    prepended -- never guess at the boundary of content the tool did not
+    write, the same conservative rule _reindex_decisions applies to a legacy
+    map.md.
+
+    `region` already carries its own trailing newline (position_diagram_region's
+    contract), and the block matched by `block_re` extends through that same
+    optional trailing newline (region_re's `\\n?`), so the substitution is used
+    as-is -- exactly how resolve()'s own `_RESOLUTION_BLOCK_RE.sub` supplies its
+    replacement block newline-and-all, with no rstrip needed on either side.
+    """
+    block_re = region_re(GRAPH_START, GRAPH_END)
+    if block_re.search(body):
+        return block_re.sub(lambda _m: region, body, count=1)
+    heading = "## Question"
+    if heading in body:
+        return body.replace(heading, region + "\n" + heading, 1)
+    return region + body
+
+
 # ---------------------------------------------------------------------------
 # input validation
 # ---------------------------------------------------------------------------
