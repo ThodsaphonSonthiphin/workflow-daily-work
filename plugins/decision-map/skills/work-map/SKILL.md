@@ -286,11 +286,11 @@ conversation is lost the moment the session ends.
 There are two shapes, and which one you use depends on whether repo docs exist:
 
 **1. The resolution produced repo docs** — an ADR, a CONTEXT.md term, a spec.
-Those stay **canonical**. The ticket only gists and links them; it never
-restates them:
+Those stay **canonical**. The ticket only gists, links and *pictures* them; it
+never restates them:
 
 ```
-python "<ops>" resolve --map <slug> --ticket <key> --gist "<one line>" --link <adr-path-or-url>
+python "<ops>" resolve --map <slug> --ticket <key> --gist "<one line>" --link <adr-path-or-url> --body-file <workdir>/body-<key>.md
 ```
 
 **2. There is no repo doc** — research findings, task facts. Then the
@@ -300,9 +300,24 @@ resolution body **is** the record:
 python "<ops>" resolve --map <slug> --ticket <key> --gist "<one line>" --body-file <workdir>/body-<key>.md
 ```
 
-`--gist` is required either way (without it: exit `2`, one line on stderr). It is flattened to a single line and it is what the map's index shows, so make it **one sentence that answers the question** — not one paragraph, and not a topic. `resolve` warns on stderr past 200 characters and records it anyway; the warning means the map index is now unreadable, not that the answer was rejected. Detail belongs in `--body-file` or behind `--link`, never in the gist.
+Both shapes pass `--body-file`, and for the same reason: it is the **only** slot
+a diagram can go in. `resolve` renders the block as gist, then a `Detail:` line
+for `--link`, then the body file — so with `--link` alone there is literally
+nowhere for a picture to land, and the ADR-backed path is the common one.
 
-**Every resolution opens with one Mermaid diagram of the ANSWER** (ADR 0065) — the structure the decision creates, not the options weighed and not the process followed. A reader who opens a closed ticket should see what was decided before reading a word of prose.
+`--gist` is required either way (without it: exit `2`, one line on stderr). It
+is flattened to a single line and it is what the map's index shows, so make it
+**one sentence that answers the question** — not one paragraph, and not a topic.
+`resolve` warns on stderr past 200 characters and records it anyway; the warning
+means the map index is now unreadable, not that the answer was rejected. Detail
+belongs in `--body-file` or behind `--link`, never in the gist.
+
+**The resolution body opens with one Mermaid diagram of the ANSWER** (ADR 0065)
+— the first block of the `--body-file`, above any prose in it. It shows the
+structure the decision creates, not the options weighed and not the process
+followed. A reader who opens a closed ticket should see what was decided before
+reading a word of prose. ("Opens with" is about the body: the gist and the
+`Detail:` line are rendered above it, and both are one line.)
 
 Match the diagram to the ticket's own `type`:
 
@@ -313,14 +328,22 @@ Match the diagram to the ticket's own `type`:
 | `prototype` | `sequenceDiagram` if the answer is a call order, else `graph TD` | the seam that was built |
 | `task` | `graph TD` | before → after |
 
-A ticket resolving with `--link` alone still draws one, and it is **not** a copy of the ADR's. The subjects differ: the ADR draws *chosen versus rejected* (diagram convention, Rule 3); the ticket draws *what the chosen answer changes*. Two diagrams with two subjects cannot drift into contradicting each other; two copies of one diagram will.
+A ticket whose answer is an ADR draws its own diagram anyway, and it is **not** a
+copy of the ADR's. The subjects differ: the ADR draws *chosen versus rejected*
+(diagram convention, Rule 3); the ticket draws *what the chosen answer changes*.
+Two diagrams with two subjects cannot drift into contradicting each other; two
+copies of one diagram will. That is why shape 1 carries a `--body-file` even
+when the ADR holds every word of the reasoning — the body file may be nothing
+but the diagram.
 
-This is separate from the **position diagram** the ops script generates above `## Question` — that one is the ticket's place in the map, and you never author or edit it.
+This is separate from the **position diagram** the ops script generates above
+`## Question` — that one is the ticket's place in the map, and you never author
+or edit it.
 
-`--link` and `--body-file` can both be passed — do that when there is an ADR
-*and* a confirming exchange worth keeping. **Quote the user's confirming words
-in the body**: the close rides the conversation's own approval, so the quote is
-the audit trail that makes that safe (ADR 0039).
+Shape 1's body file holds the diagram at minimum; add prose to it when there is
+a confirming exchange worth keeping alongside the ADR. **Quote the user's
+confirming words in the body**: the close rides the conversation's own approval,
+so the quote is the audit trail that makes that safe (ADR 0039).
 
 One call does all of it: `resolve` writes the resolution block, closes the
 ticket, and re-projects the map's "Decisions so far" index from every closed
