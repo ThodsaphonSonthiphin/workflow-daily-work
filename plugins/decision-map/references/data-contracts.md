@@ -151,10 +151,13 @@ never overwrites* — **not** "never touches". On a map that already exists,
   lines are appended, existing ones are never removed or reordered, and an
   input that omits a line already on disk does not delete it;
 - **unions** a new blocking edge into an existing ticket's `blockedBy`
-  (ADR 0058). That ticket gains one entry and **nothing else** — every other
-  byte of it, including status, assignee, gist and the resolution block, is
-  unchanged. Dropping the edge instead was worse: `frontier()` then reported a
-  ticket as actionable while a just-created ticket was meant to block it;
+  (ADR 0058). That ticket gains one `blockedBy` entry and its `graph` region
+  is re-rendered to show the new blocker (ADR 0064) — **and nothing else**:
+  status, assignee, gist and the resolution block are unchanged. **The edge
+  is written at both of its ends**, so the blocker's own `graph` region is
+  re-rendered too, to show the new child; its frontmatter is untouched.
+  Dropping the edge instead was worse: `frontier()` then reported a ticket as
+  actionable while a just-created ticket was meant to block it;
 - does **not** apply a `title` / `destination` / `notes` that differs from
   what is on disk. The difference is reported in the result's `divergence`
   list and left unapplied — silently rewriting an evolved map from a stale
@@ -162,8 +165,10 @@ never overwrites* — **not** "never touches". On a map that already exists,
   `map.md` by hand to change them.
 
 **What additive does not guarantee:** that an existing ticket file is
-byte-identical afterwards (it may gain one `blockedBy` entry), and that a
-value in the input takes effect (a divergent scalar is reported, not applied).
+byte-identical afterwards (it may gain one `blockedBy` entry and a
+re-rendered `graph` region — its own, if it is the blocked ticket, or the
+blocker's, since an edge is written at both ends), and that a value in the
+input takes effect (a divergent scalar is reported, not applied).
 It does guarantee that nothing recorded is ever removed, reordered or
 overwritten, and that re-running identical input is a **no-op** — the same
 bytes out, which also makes a partially-failed chart resumable.
@@ -234,10 +239,13 @@ than contradicting it.
 `skip (exists)` is a promise that nothing is written; anything modified must
 be labelled `merge`, never `skip`. A `merge` entry carries a `detail` string
 naming what it will add — `unions blockedBy: fog-graduate` on a ticket,
-`adds 2 fog lines, 1 out-of-scope line` on the map body — so the ADR-0039
-approval gate can show the reviewer every write before it happens. **No
-`merge` entry may carry `detail: null`**: the gate asks the user to approve
-that line, and a blank one asks them to approve an undescribed write.
+`renders as a child in the graph: api-limits` on a blocker whose diagram
+gains an entry (an edge is written at both of its ends, so the blocker's
+`merge` line names the write too — ADR 0064), `adds 2 fog lines, 1
+out-of-scope line` on the map body — so the ADR-0039 approval gate can show
+the reviewer every write before it happens. **No `merge` entry may carry
+`detail: null`**: the gate asks the user to approve that line, and a blank
+one asks them to approve an undescribed write.
 
 #### Dry-run plan schema
 
@@ -885,6 +893,7 @@ lost too.
 | blocking | `System.LinkTypes.Dependency-Reverse` on the blocked item → predecessor | **native issue dependencies** — `POST /issues/{n}/dependencies/blocked_by` with `issue_id`; readable both directions (GA 2025-08-21, no fallback) | frontmatter `blocked_by: [slug]` |
 | resolution | work-item comment | issue comment | `## Resolution` section inside the `decision-map:resolution` markers (see below) |
 | ticket `gist` | `decision-map:gist` region in `System.Description` | same region in the issue body | frontmatter `gist:` |
+| ticket position diagram | `decision-map:graph` region in `System.Description` | same region in the issue body — **shipping**, not spec-only (ADR 0063, ADR 0064) | the same region in `tickets/<slug>.md`, above `## Question` |
 | ticket `type` | body line `Decision-Map-Type: <type>` | label `decision-map:type:<type>` — native GitHub issue types are **organisation-scoped** and simply absent on a user-owned repo | frontmatter `type:` |
 | map `key` (the slug) | `<!-- decision-map:key:<slug> -->` in `System.Description` | `<!-- decision-map:key:<slug> -->` in the map issue body | the directory name `<slug>/` |
 | map `destination` / `notes` | prose in the map item's description | prose in the map issue body | `## Destination` / `## Notes` |
@@ -909,10 +918,10 @@ and must not be allowed to diverge.
 `outOfScope`, so a tracker needs the same delimited regions `map.md` uses:
 read the map item's body, replace the content between the markers, write it
 back. **Only the resolution markers are local-only** — a tracker records the
-resolution as a native comment instead. The `key`, `gist`, `fog`, `scope` and
-`decisions` markers are shared by every backend that stores text, and carry
-the same escaping rule (user-supplied strings are escaped on the way in, so
-nothing a user types can forge a marker).
+resolution as a native comment instead. The `key`, `gist`, `fog`, `scope`,
+`decisions` and `graph` markers are shared by every backend that stores text,
+and carry the same escaping rule (user-supplied strings are escaped on the way
+in, so nothing a user types can forge a marker).
 
 **Foreign edge targets.** decision-map models dependencies **within one map**.
 On write, an edge target must be in this input or already a child of this map;
@@ -1022,6 +1031,15 @@ blocked_by: []
 gist:
 ---
 
+<!-- decision-map:graph:start -->
+```mermaid
+graph TD
+    ME["<key> (this ticket)"]
+    P0["<a blocker>"] --> ME
+    ME --> C0["<a ticket this one unblocks>"]
+```
+<!-- decision-map:graph:end -->
+
 ## Question
 
 <the decision or investigation this ticket resolves>
@@ -1043,17 +1061,23 @@ Detail: <link to repo ADR / commit, when one exists (ADR 0036)>
 
 ### Generated regions in local files (local backend only)
 
-Four spans of a local file are **generated regions**, each delimited by an HTML
-comment pair: the resolution block in `tickets/<slug>.md`, and the
-"Decisions so far" index, the "Not yet specified" list and the "Out of scope"
-list in `map.md`. Everything else in those files is user content.
+Five spans of a local file are **generated regions**, each delimited by an HTML
+comment pair: the resolution block and the graph region in `tickets/<slug>.md`,
+and the "Decisions so far" index, the "Not yet specified" list and the "Out of
+scope" list in `map.md`. Everything else in those files is user content.
 
 An additive `chart` rewrites only the two `map.md` list regions and leaves the
 rest of that file byte-identical. It leaves a ticket file byte-identical too
-**unless the ticket gains a blocking edge**, in which case exactly one line
-changes — the frontmatter `blocked_by:` list gains one entry (ADR 0058) — and
-every other byte, including the resolution region, is untouched. A ticket that
-gains no edge is not opened for writing at all.
+**unless the ticket gains a blocking edge**, in which case its frontmatter
+`blocked_by:` line and its `graph` region are both re-rendered (ADR 0058,
+ADR 0064) — and every other byte, including the resolution region, the claim
+and the gist, is untouched. **An edge is written at both of its ends**, so the
+blocker's file is re-rendered too; its frontmatter is not touched at all. A
+ticket at neither end of a new edge is not opened for writing.
+
+What still holds, unchanged: nothing recorded is ever removed, reordered or
+overwritten, and re-running identical input is a **byte-identical no-op** — the
+same bytes out, which also makes a partially-failed chart resumable.
 
 The rules, which any reader or writer of the local format must honour:
 
@@ -1094,7 +1118,7 @@ The rules, which any reader or writer of the local format must honour:
 
 Only the **resolution** markers are specific to the local backend's Markdown
 files: ADO and GitHub record the resolution as a native tracker comment and
-need no equivalent. The `key`, `gist`, `fog`, `scope` and `decisions` markers
-are **shared by every backend that stores text** — see "Where each field lives
-on a tracker" above — and carry the same escaping rule and the same
-one-well-formed-region-per-kind rule stated here.
+need no equivalent. The `key`, `gist`, `fog`, `scope`, `decisions` and `graph`
+markers are **shared by every backend that stores text** — see "Where each
+field lives on a tracker" above — and carry the same escaping rule and the
+same one-well-formed-region-per-kind rule stated here.
