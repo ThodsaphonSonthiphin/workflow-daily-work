@@ -1246,6 +1246,70 @@ class TestPositionDiagram(Base):
         self.assertIn("warning:", err.getvalue())
         self.assertIn(str(map_core.GIST_MAX), err.getvalue())
 
+    def test_a_gist_of_exactly_gist_max_does_not_warn_here_either(self):
+        """The boundary itself, on both backends, because the threshold is
+        shared. `len(flat) > GIST_MAX` tested only at GIST_MAX + 1 and at a short
+        string cannot tell `>` from `>=`, and a `>=` would warn on every gist of
+        exactly the length the contract documents as fine."""
+        self.chart()
+        with captured_stderr() as err:
+            gh.resolve(self.ops, "billing", "auth-model",
+                       "y" * map_core.GIST_MAX, None, None)
+        self.assertNotIn("warning:", err.getvalue(),
+                         f"a gist of exactly {map_core.GIST_MAX} is within the limit")
+
+    def _force_only(self, keys, real=True):
+        """chart --force naming ONLY `keys`. -> (result json, stderr plan)."""
+        inp = copy.deepcopy(INPUT)
+        inp["tickets"] = [t for t in inp["tickets"] if t["key"] in keys]
+        with captured_stderr() as err:
+            out = gh.chart(self.ops, inp, real=real, force=True)
+        return out, err.getvalue()
+
+    def _body(self, key):
+        return self.fake.issue(
+            {t["key"]: int(t["id"])
+             for t in gh.read_map(self.ops, "billing")["tickets"]}[key])["body"]
+
+    def test_force_on_a_blocker_keeps_the_child_it_still_unblocks(self):
+        """--force resets the OVERWRITE'd issue's body to an EMPTY diagram. Its
+        own blockers are removed for real (documented), but the edges naming IT
+        as a blocker live on the other issues and survive -- so the dependency
+        stayed live on GitHub while the picture of it was destroyed, and no
+        later run repairs it (`chart` skips the ticket, `_ensure_edge` no-ops on
+        an edge that exists)."""
+        self.chart()
+        self.assertIn('ME --> C0["rollout-order"]', self._body("auth-model"))
+        self._force_only(["auth-model"])
+        self.assertEqual(
+            gh.read_map(self.ops, "billing")["tickets"][1]["blockedBy"],
+            ["auth-model"], "the dependency survives --force")
+        self.assertIn('ME --> C0["rollout-order"]', self._body("auth-model"),
+                      "so the picture of it must survive with it")
+
+    def test_force_clears_a_dead_edge_from_a_blocker_the_input_never_names(self):
+        """The mirror harm. --force removes rollout-order's dependencies, which
+        is documented -- but auth-model, which this input never mentions, was
+        left drawing `ME --> C0["rollout-order"]` for an edge `remove_blocked_by`
+        had just deleted. A picture of a dead edge is the staleness-read-as-fact
+        harm ADR 0064 exists to prevent."""
+        self.chart()
+        out, plan = self._force_only(["rollout-order"], real=False)
+        entry = next(e for e in out["planned"] if e["path"] == "auth-model")
+        self.assertEqual(entry["action"], "merge",
+                         "the ADR-0039 gate must show the neighbour write")
+        self.assertEqual(entry["detail"],
+                         "no longer renders as a child in the graph: rollout-order",
+                         "the contract forbids an undescribed merge")
+        self.assertIn("no longer renders as a child in the graph", plan)
+
+        self._force_only(["rollout-order"])
+        self.assertEqual(gh.read_map(self.ops, "billing")["tickets"][1]["blockedBy"], [])
+        self.assertNotIn('C0["rollout-order"]', self._body("auth-model"),
+                         "the blocker must stop drawing the edge that was removed")
+        _out2, plan2 = self._force_only(["rollout-order"], real=False)
+        self.assertNotIn("no longer renders as a child", plan2)
+
 
 class GhApiSpy(gh.GhApi):
     """GhApi with the subprocess removed, so pacing can be tested without gh."""

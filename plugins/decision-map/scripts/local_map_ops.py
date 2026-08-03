@@ -78,7 +78,6 @@ from map_core import (
     DECISIONS_START as _DECISIONS_START, DECISIONS_END as _DECISIONS_END,
     FOG_START as _FOG_START, FOG_END as _FOG_END,
     SCOPE_START as _SCOPE_START, SCOPE_END as _SCOPE_END,
-    GRAPH_START as _GRAPH_START, GRAPH_END as _GRAPH_END,
     MAP_REGIONS as _MAP_REGIONS, TICKET_REGIONS as _TICKET_REGIONS,
     EMPTY_LIST_LINE as _EMPTY_LIST_LINE, FORCE_COST as _FORCE_COST,
     SCALAR_MAP_FIELDS as _SCALAR_MAP_FIELDS,
@@ -100,6 +99,9 @@ from map_core import (
     decisions_region as _decisions_region,
     position_diagram_region as _position_diagram_region,
     set_graph_region as _set_graph_region,
+    force_orphaned_blockers as _force_orphaned_blockers,
+    force_orphan_detail as _force_orphan_detail,
+    rewired_edges as _rewired_edges,
     require as _require, validate_chart_input as _validate_chart_input_core,
 )
 
@@ -278,6 +280,25 @@ def _children_of(root, slug, key):
     return sorted(out)
 
 
+def _patchable_blockers(root, slug, key):
+    """The blockers `key` holds right now whose OWN file this backend could
+    re-render -- the narrowing `map_core.force_orphaned_blockers` asks its
+    caller for.
+
+    blocked_by is frontmatter, so it can name a ticket that was deleted or
+    hand-typed: _ticket_path would raise UnsafeIdentifierError on an unsafe
+    value and read would raise FileNotFoundError on an absent one. Neither is
+    a reason to fail a chart -- there is simply no diagram to correct.
+    """
+    out = []
+    for blocker in _load_ticket(root, slug, key)[0].get("blocked_by", []):
+        if not (isinstance(blocker, str) and _SAFE_SLUG_RE.match(blocker)):
+            continue
+        if _ticket_path(root, slug, blocker).exists():
+            out.append(blocker)
+    return out
+
+
 def _graph_region_for(root, slug, key):
     fm, _ = _load_ticket(root, slug, key)
     return _position_diagram_region(key, fm.get("blocked_by", []),
@@ -333,7 +354,8 @@ def _plan_map_md(base, inp, force):
 
 
 def _chart_plan(root, inp, force):
-    """Return (entries, map_text, divergences) for everything chart() would do.
+    """Return (entries, map_text, divergences, force_orphans) for everything
+    chart() would do.
 
     Each entry is {"path", "action", "detail"}. action is one of:
       - "create"        the file doesn't exist yet
@@ -350,6 +372,11 @@ def _chart_plan(root, inp, force):
     the ADR-0039 approval gate sees every write (review F1: they used to be
     computed after the dry-run early return, leaving the gate silent about a
     file the real run would modify).
+
+    `force_orphans` is {blocker key: [lost child, ...]} -- the neighbours whose
+    diagram --force would otherwise leave asserting a deleted edge. It is
+    returned rather than recomputed by chart(), because it is derived from the
+    blocked_by lists as they stand BEFORE pass 1 resets them.
     """
     slug = inp["target"]["slug"]
     base = _map_dir(root, slug)
@@ -415,17 +442,35 @@ def _chart_plan(root, inp, force):
             if blocked not in gained:
                 gained.append(blocked)
     for p, gained in blocker_gains.items():
-        entry = by_path.get(p)
-        if entry is None:
-            entry = {"path": p, "action": "skip (exists)", "detail": None}
-            entries.append(entry)
-            by_path[p] = entry
-        if entry["action"] in ("create", "OVERWRITE"):
-            continue
+        # `blocker_gains` is keyed by a ticket of THIS input, and the tickets
+        # loop above gave every one of those an entry -- so the lookup always
+        # hits, and the entry is "skip (exists)" (create/OVERWRITE `continue`d
+        # above) or the "merge" the `pending` pass just set.
+        entry = by_path[p]
         entry["action"] = "merge"
         detail = "renders as a child in the graph: " + ", ".join(sorted(gained))
         entry["detail"] = (entry["detail"] + "; " + detail) if entry["detail"] else detail
-    return entries, map_text, div
+    # The OTHER end of every edge --force DELETES. An OVERWRITE'd ticket's own
+    # blocked_by is reset, but the matching child line lives in the blocker's
+    # diagram, and nothing above this point looks at a removed edge -- so a
+    # blocker not re-listed in tickets[] was left drawing an edge that no longer
+    # exists, silently and for ever (the additive re-chart and `block` both
+    # correctly no-op on it afterwards). Announced here, and re-rendered by
+    # chart()'s post-write graph pass.
+    force_orphans = _force_orphaned_blockers(
+        action_by_key, lambda k: _patchable_blockers(root, slug, k),
+        _rewired_edges(inp["tickets"]))
+    for blocker, lost in force_orphans.items():
+        p = _ticket_path(root, slug, blocker)
+        entry = by_path.get(p)
+        if entry is None:                     # blocker not re-listed in tickets[]
+            entry = {"path": p, "action": "skip (exists)", "detail": None}
+            entries.append(entry)
+            by_path[p] = entry
+        entry["action"] = "merge"
+        detail = _force_orphan_detail(lost)
+        entry["detail"] = (entry["detail"] + "; " + detail) if entry["detail"] else detail
+    return entries, map_text, div, force_orphans
 
 
 def chart(root, inp, real, force=False):
@@ -434,7 +479,7 @@ def chart(root, inp, real, force=False):
     _validate_chart_input(inp, root)
     slug = inp["target"]["slug"]
     base = _map_dir(root, slug)
-    entries, map_text, div = _chart_plan(root, inp, force)
+    entries, map_text, div, force_orphans = _chart_plan(root, inp, force)
     actions = {e["path"]: e["action"] for e in entries}
     if not real:
         # The human-readable plan goes to STDERR: every subcommand's contract
@@ -476,6 +521,28 @@ def chart(root, inp, real, force=False):
     for t in inp["tickets"]:
         for blocked in t.get("blocks") or []:
             block(root, slug, blocked, t["key"])
+    # pass 3: re-render, from the map as it now stands, the diagram of every
+    # ticket --force disturbed. Two groups, one write each:
+    #
+    #   - an OVERWRITE'd ticket, whose body was reset to an EMPTY diagram in
+    #     pass 1. Its parents are gone for real, but its CHILDREN are edges
+    #     held on other tickets, which survive -- so without this the edge is
+    #     live in the model and absent from the picture, permanently (chart
+    #     skips the ticket as "no change" on every later run, and `block`
+    #     correctly refuses to rewrite an edge that already exists);
+    #   - a blocker that LOST a child to that same reset, which is the mirror
+    #     harm: an edge in the picture and gone from the model.
+    #
+    # Both are what the ADR-0064 both-ends rule requires; the plan announced
+    # each of them (the first as its own OVERWRITE line, the second as a
+    # `merge`). Sorted, so the order of writes is a function of the map.
+    refresh = sorted(set(force_orphans) | {
+        t["key"] for t in inp["tickets"]
+        if actions[base / "tickets" / (t["key"] + ".md")] == "OVERWRITE"})
+    for key in refresh:
+        fm, body = _load_ticket(root, slug, key)
+        _save_ticket(root, slug, key, fm,
+                     _set_graph_region(body, _graph_region_for(root, slug, key)))
     for d in div:
         print(f"chart: divergence: {d}", file=sys.stderr)
     out = read_map(root, slug)

@@ -2,7 +2,7 @@
 
 ```mermaid
 flowchart TD
-    Q{"does a ticket's position<br/>diagram colour its<br/>neighbours by status?"} -->|chosen| A["structure only — refreshed<br/>by chart --real and block,<br/>writing both ends of the edge"]
+    Q{"does a ticket's position<br/>diagram colour its<br/>neighbours by status?"} -->|chosen| A["structure only — refreshed<br/>by chart --real, chart --force<br/>and block, writing both ends<br/>of every edge added or removed"]
     Q -->|rejected| B["colour by status — resolve<br/>must rewrite every neighbour's<br/>file to keep it true"]
     Q -->|rejected| C["colour by status, refresh<br/>lazily — a stale 'open' reads<br/>as a blocker that is already gone"]
 ```
@@ -27,6 +27,24 @@ that misleads: a diagram still showing a blocker as open, after that blocker
 closed, tells the reader they cannot pick the ticket up when they can. That is
 the same shape ADR 0061 exists to prevent — an absence or a staleness read as a
 fact — and it would be reintroduced by a decoration.
+
+**Amendment (2026-08-03, same change as the implementation).** "The only
+subcommands that change a ticket's edges" was wrong as written, and the error was
+in the word *change*: `chart --real` and `block` are the only ones that ADD an
+edge, but `chart --force` REMOVES them — it resets an OVERWRITE'd ticket's
+`blocked_by` / `blockedBy`, which is documented and intended, while the matching
+line at the other end of each deleted edge is not its to reset. The result
+reproduced this ADR's own harm class in both directions: `--force` on a blocker
+destroyed its child line while the edge stayed live on the other ticket (a fact
+missing from the picture), and `--force` on the blocked ticket left its blocker
+drawing an edge that no longer existed anywhere (a picture of a dead edge). Both
+were permanent, because a later additive `chart` and a later `block` each
+correctly no-op on an edge whose state already matches. The decision is unchanged
+— structure only, both ends, no status. What changed is the set of writers: both
+backends now re-render the OVERWRITE'd ticket *and* any blocker that lost a child
+(`map_core.force_orphaned_blockers`, shared so the two cannot disagree), and the
+dry-run plan announces the second as a `merge` with a non-null detail so the
+ADR-0039 gate shows it before the user approves the `--force`.
 
 Nothing is lost, because status is already answered authoritatively elsewhere:
 `frontier` computes open blockers on every read and `work-map` renders it at

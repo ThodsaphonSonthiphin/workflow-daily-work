@@ -561,6 +561,72 @@ def set_graph_region(body, region):
     return region + body
 
 
+def force_orphaned_blockers(actions, blockers_of, rewired):
+    """The tickets whose position diagram `--force` would otherwise leave
+    asserting an edge that no longer exists -> {blocker key: [lost child, ...]}.
+
+    `--force` resets an OVERWRITE'd ticket's own blocking edges, and that is
+    documented and intended. What is NOT intended is the other end: the edge
+    was drawn at BOTH ends (ADR 0064), so every blocker the ticket named keeps
+    a `ME --> C<n>["<child>"]` line for an edge the same run just deleted -- a
+    picture of a dead edge, which is the "staleness read as a fact" harm ADR
+    0064 exists to prevent. Neither the `pending` nor the `blocker_gains` pass
+    sees these tickets: both are driven by the edges an input ADDS, and this is
+    an edge it REMOVES.
+
+    Shared rather than written twice because both backends must agree on which
+    neighbours a `--force` disturbs -- and therefore on which extra lines its
+    dry-run plan shows the user before they approve it (ADR 0039).
+
+    - `actions` is {key: plan action} for every key named in this input.
+    - `blockers_of(key)` returns the blockers an OVERWRITE'd key holds RIGHT
+      NOW, already narrowed by the caller to the ones that backend can actually
+      patch (a file that exists / a ticket still in the snapshot). It is called
+      only for OVERWRITE'd keys.
+    - `rewired` is {blocked key: container of blocker keys} for the edges this
+      same input wires. An edge that is removed and immediately put back is not
+      a loss, and announcing it would make an idempotent `--force` re-run report
+      a change it does not make.
+
+    A blocker that is itself create/OVERWRITE is skipped: its own plan line
+    already rewrites it whole, and the run's own graph pass re-renders it.
+    Sorted throughout, because the result feeds both a plan the user reads and
+    the bytes of a diagram (see `position_diagram_region` on determinism).
+    """
+    lost = {}
+    for key, action in actions.items():
+        if action != "OVERWRITE":
+            continue
+        for blocker in blockers_of(key):
+            if blocker in (rewired.get(key) or ()):
+                continue
+            if actions.get(blocker) in ("create", "OVERWRITE"):
+                continue
+            lost.setdefault(blocker, set()).add(key)
+    return {k: sorted(v) for k, v in sorted(lost.items())}
+
+
+def force_orphan_detail(lost):
+    """The one-line plan `detail` for a blocker that loses children to --force.
+
+    Non-null by construction: the contract forbids an undescribed `merge`, and
+    a bare `merge <path>` is an unnamed write the ADR-0039 gate asks the user to
+    approve blind."""
+    return "no longer renders as a child in the graph: " + ", ".join(sorted(lost))
+
+
+def rewired_edges(tickets):
+    """{blocked key: {blocker key, ...}} for every edge an input wires.
+
+    The `blocks` direction inverted once, in one place, so both backends feed
+    `force_orphaned_blockers` the same shape."""
+    out = {}
+    for t in tickets:
+        for blocked in t.get("blocks") or []:
+            out.setdefault(blocked, set()).add(t["key"])
+    return out
+
+
 # ---------------------------------------------------------------------------
 # input validation
 # ---------------------------------------------------------------------------

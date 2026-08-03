@@ -88,6 +88,7 @@ from map_core import (
     map_merge_detail, render_map_body, scalar_divergences, merge_map_lists,
     decisions_region, validate_chart_input, key_of_body,
     position_diagram_region, set_graph_region,
+    force_orphaned_blockers, force_orphan_detail, rewired_edges,
 )
 
 MAP_LABEL = "decision-map:map"
@@ -1024,15 +1025,34 @@ def chart_plan(ops, snap, inp, force):
             if blocked not in gained:
                 gained.append(blocked)
     for blocker_key, gained in blocker_gains.items():
+        # `blocker_gains` is keyed by a ticket of THIS input, and the tickets
+        # loop above gave every one of those an entry -- so the lookup always
+        # hits, and the entry is "skip (exists)" (create/OVERWRITE `continue`d
+        # above) or the "merge" the `pending` pass just set.
+        entry = by_key[blocker_key]
+        entry["action"] = "merge"
+        detail = "renders as a child in the graph: " + ", ".join(sorted(gained))
+        entry["detail"] = (entry["detail"] + "; " + detail) if entry["detail"] else detail
+
+    # The OTHER end of every edge --force DELETES. An OVERWRITE'd ticket's own
+    # blockedBy is reset by `remove_blocked_by`, but the matching child line
+    # lives in the blocker's diagram, and every pass above is driven by edges
+    # this input ADDS -- so a blocker not re-listed in tickets[] was left
+    # drawing an edge that no longer exists, silently and for ever. Announced
+    # here, and re-rendered by chart()'s post-write graph pass (mirrors
+    # local_map_ops.py's `force_orphans`).
+    force_orphans = force_orphaned_blockers(
+        action_by_key,
+        lambda k: [b for b in snap.blockers_of(k)[0] if b in snap.tickets],
+        rewired_edges(inp["tickets"]))
+    for blocker_key, lost in force_orphans.items():
         entry = by_key.get(blocker_key)
         if entry is None:                      # not re-listed in tickets[]
             entry = {"path": blocker_key, "action": "skip (exists)", "detail": None}
             entries.append(entry)
             by_key[blocker_key] = entry
-        if entry["action"] in ("create", "OVERWRITE"):
-            continue
         entry["action"] = "merge"
-        detail = "renders as a child in the graph: " + ", ".join(sorted(gained))
+        detail = force_orphan_detail(lost)
         entry["detail"] = (entry["detail"] + "; " + detail) if entry["detail"] else detail
 
     # Edges whose blocked ticket is being written fresh are wired unconditionally
@@ -1045,7 +1065,7 @@ def chart_plan(ops, snap, inp, force):
                 fresh.setdefault(blocked, [])
                 if t["key"] not in fresh[blocked]:
                     fresh[blocked].append(t["key"])
-    return entries, map_body, div, {**fresh, **pending}
+    return entries, map_body, div, {**fresh, **pending}, force_orphans
 
 
 def chart(ops, inp, real, force=False):
@@ -1069,7 +1089,7 @@ def chart(ops, inp, real, force=False):
     validate_chart_input(inp, ticket_exists=ticket_exists)
     slug = inp["target"]["slug"]
     snap = fetched["snap"] if "snap" in fetched else ops.try_snapshot(slug)
-    entries, map_body, div, edges = chart_plan(ops, snap, inp, force)
+    entries, map_body, div, edges, force_orphans = chart_plan(ops, snap, inp, force)
     actions = {e["path"]: e["action"] for e in entries}
 
     if not real:
@@ -1185,6 +1205,24 @@ def chart(ops, inp, real, force=False):
     # blocker gains a child node.
     final_snap = ops.snapshot(str(map_number))
     touched = set(edges) | {blocker for blockers in edges.values() for blocker in blockers}
+    # --force disturbs two more diagrams, and neither shows up in `edges`
+    # because `edges` is what this input ADDS:
+    #
+    #   - the OVERWRITE'd ticket itself, whose body was reset to an EMPTY
+    #     diagram above. Its parents are gone for real, but its CHILDREN are
+    #     edges held on other tickets, which survive -- so without this the
+    #     edge stays live in the model and absent from the picture, for ever
+    #     (a later chart skips the ticket as "no change", and `block`
+    #     correctly refuses to rewrite an edge that already exists);
+    #   - a blocker that LOST a child to `remove_blocked_by`, which is the
+    #     mirror harm: an edge in the picture and gone from the model.
+    #
+    # Both are what ADR 0064's both-ends rule requires, and the plan announced
+    # each of them. `k in final_snap.tickets` guards the ticket that is being
+    # rewritten in another repo's issue the closing snapshot cannot see.
+    touched |= {k for k, a in actions.items()
+                if a == "OVERWRITE" and k in final_snap.tickets}
+    touched |= {k for k in force_orphans if k in final_snap.tickets}
     for key in sorted(touched):
         parents, _missing = final_snap.blockers_of(key)
         _patch_graph_region(ops, final_snap, key, parents,

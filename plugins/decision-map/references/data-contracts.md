@@ -155,7 +155,10 @@ never overwrites* — **not** "never touches". On a map that already exists,
   is re-rendered to show the new blocker (ADR 0064) — **and nothing else**:
   status, assignee, gist and the resolution block are unchanged. **The edge
   is written at both of its ends**, so the blocker's own `graph` region is
-  re-rendered too, to show the new child; its frontmatter is untouched.
+  re-rendered too, to show the new child; its frontmatter values are unchanged.
+  ("Values", not "bytes": the local backend re-dumps the whole file through its
+  frontmatter writer, which is byte-identical for a file the tool wrote but
+  would drop a hand-added line carrying no colon.)
   Dropping the edge instead was worse: `frontier()` then reported a ticket as
   actionable while a just-created ticket was meant to block it;
 - does **not** apply a `title` / `destination` / `notes` that differs from
@@ -195,7 +198,17 @@ Its reach is exactly the items the plan labels `OVERWRITE`:
 | the map itself | `OVERWRITE` | the **whole map document is regenerated** from the input. Fog and out-of-scope lines that existed only on the map and are absent from the input are lost — the one place additive's union guarantee does not apply — and so is any human prose added *outside* the generated regions. On a tracker that prose is the map item's description, where a team naturally adds context, and the plan shows one `OVERWRITE` line for all of it |
 | named only in a `blocks` list, not in `tickets[]`, and **does not yet hold that edge** | `merge` | **nothing discarded** — it gains the edge and keeps its status, assignee, gist and resolution, exactly as on the additive path |
 | named only in a `blocks` list and **already holds that edge** | *absent from the plan* | **untouched** — `block` and `chart` both no-op on an edge that exists, so there is nothing to announce |
-| present on the map but in neither `tickets[]` nor any `blocks` | *absent from the plan* | **untouched** — `--force` never reaches an item this input does not name |
+| present on the map but in neither `tickets[]` nor any `blocks`, and **blocking an `OVERWRITE`'d ticket** | `merge` | **nothing discarded** — but its `graph` region is re-rendered to drop the child it just lost. The edge was written at both of its ends, so resetting one end stales the other; leaving it would make the blocker draw an edge that no longer exists (ADR 0064) |
+| present on the map but in neither `tickets[]` nor any `blocks`, and not blocking an `OVERWRITE`'d ticket | *absent from the plan* | **untouched** — `--force` never reaches an item this input does not name |
+
+**Both ends, on removal as well as addition.** An `OVERWRITE` resets the
+ticket's own `blockedBy`, and the matching child line lives in the *blocker's*
+diagram — so `--force` writes two diagrams per edge it deletes, exactly as
+additive `chart` writes two per edge it adds. The `OVERWRITE`'d ticket's own
+region is re-rendered too, because its **children** are edges held on other
+tickets and survive the reset (only its parents are discarded). Neither write
+may be silent: the first rides the `OVERWRITE` line, the second gets its own
+`merge` line with a `no longer renders as a child in the graph: …` detail.
 
 A backend must therefore not implement `--force` as "delete the map and
 re-chart": that would destroy items the input does not mention, which neither
@@ -241,8 +254,12 @@ be labelled `merge`, never `skip`. A `merge` entry carries a `detail` string
 naming what it will add — `unions blockedBy: fog-graduate` on a ticket,
 `renders as a child in the graph: api-limits` on a blocker whose diagram
 gains an entry (an edge is written at both of its ends, so the blocker's
-`merge` line names the write too — ADR 0064), `adds 2 fog lines, 1
-out-of-scope line` on the map body — so the ADR-0039 approval gate can show
+`merge` line names the write too — ADR 0064),
+`no longer renders as a child in the graph: api-limits` on a blocker whose
+diagram LOSES one because `--force` reset the other end's edges (the same
+both-ends rule, applied to a removal: the ticket named in the `OVERWRITE`
+line is not the only one whose picture that line changes), `adds 2 fog
+lines, 1 out-of-scope line` on the map body — so the ADR-0039 approval gate can show
 the reviewer every write before it happens. **No `merge` entry may carry
 `detail: null`**: the gate asks the user to approve that line, and a blank
 one asks them to approve an undescribed write.
@@ -1074,8 +1091,14 @@ rest of that file byte-identical. It leaves a ticket file byte-identical too
 `blocked_by:` line and its `graph` region are both re-rendered (ADR 0058,
 ADR 0064) — and every other byte, including the resolution region, the claim
 and the gist, is untouched. **An edge is written at both of its ends**, so the
-blocker's file is re-rendered too; its frontmatter is not touched at all. A
+blocker's file is re-rendered too; its frontmatter values are unchanged. A
 ticket at neither end of a new edge is not opened for writing.
+
+("Values", not "bytes": every local write re-dumps the whole file, frontmatter
+included, through `_fm_dump`. For a file the tool wrote that is byte-identical.
+A hand-added frontmatter line carrying no colon is not a key, so the reader
+never saw it and the re-dump does not carry it forward. The GitHub backend
+PATCHes the body only, so nothing outside the body can be affected there.)
 
 What still holds, unchanged: nothing recorded is ever removed, reordered or
 overwritten, and re-running identical input is a **byte-identical no-op** — the

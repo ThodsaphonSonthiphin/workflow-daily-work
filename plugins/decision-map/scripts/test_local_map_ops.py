@@ -664,6 +664,20 @@ class LocalMapOpsTest(unittest.TestCase):
                         None, None)
         self.assertNotIn("warning:", err.getvalue())
 
+    def test_a_gist_of_exactly_gist_max_does_not_warn(self):
+        """The boundary itself. The condition is `len(flat) > GIST_MAX`, and the
+        two tests around it pin GIST_MAX + 1 and a short string -- neither of
+        which can tell `>` from `>=`. A `>=` typo would warn on every gist of
+        exactly the documented limit, i.e. tell the user the map index is
+        unreadable at the length the contract says is fine."""
+        self._chart()
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            ops.resolve(self.root, "example-effort", "auth-model",
+                        "x" * map_core.GIST_MAX, None, None)
+        self.assertNotIn("warning:", err.getvalue(),
+                         f"a gist of exactly {map_core.GIST_MAX} is within the limit")
+
     # N1, backstop: the escape is the prevention, but every write also asserts
     # the file holds at most one well-formed region. A hand-edited file with a
     # stray marker must make the module REFUSE to write, not silently corrupt.
@@ -1882,6 +1896,62 @@ class GraphRegionOnTicketTests(unittest.TestCase):
         self.assertIn("NEW", out)
         self.assertNotIn("OLD", out)
         self.assertIn("keep me", out)
+
+    def _ticket(self, key):
+        return (self.root / "example-effort" / "tickets" / f"{key}.md").read_text(
+            encoding="utf-8")
+
+    def _force(self, keys, real=True):
+        """chart --force naming ONLY `keys`. -> (result json, stderr plan)."""
+        inp = copy.deepcopy(INPUT)
+        inp["tickets"] = [t for t in inp["tickets"] if t["key"] in keys]
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            out = ops.chart(self.root, inp, real=real, force=True)
+        return out, err.getvalue()
+
+    def test_force_on_a_blocker_keeps_the_child_it_still_unblocks(self):
+        """--force resets the OVERWRITE'd ticket's body to an EMPTY diagram. Its
+        PARENTS are discarded for real (documented), but its CHILDREN are edges
+        held in the other tickets' frontmatter and survive untouched -- so the
+        edge stayed live in the model while its picture was destroyed.
+
+        Permanent, not transient: a later additive chart skips the ticket as
+        "already exists, no change" and `block` correctly refuses to rewrite an
+        edge that already exists, so nothing ever repairs it."""
+        self._chart()
+        self.assertIn('ME --> C0["rollout-order"]', self._ticket("auth-model"))
+        self._force(["auth-model"])
+        self.assertIn("blocked_by: [auth-model]", self._ticket("rollout-order"),
+                      "the edge survives --force: it is recorded on the other end")
+        self.assertIn('ME --> C0["rollout-order"]', self._ticket("auth-model"),
+                      "so the picture of that edge must survive with it")
+
+    def test_force_clears_a_dead_edge_from_a_blocker_the_input_never_names(self):
+        """The mirror harm. --force DOES discard rollout-order's own blockers,
+        which is documented and correct -- but auth-model, which this input never
+        mentions, was left drawing `ME --> C0["rollout-order"]` for an edge that
+        no longer exists anywhere. A picture of a dead edge is exactly the
+        staleness-read-as-a-fact harm ADR 0064 exists to prevent, and the user
+        approved an OVERWRITE line that never mentioned auth-model."""
+        self._chart()
+        out, plan = self._force(["rollout-order"], real=False)
+        entry = next(e for e in out["planned"] if e["path"].endswith("auth-model.md"))
+        self.assertEqual(entry["action"], "merge",
+                         "the ADR-0039 gate must show the neighbour write")
+        self.assertEqual(entry["detail"],
+                         "no longer renders as a child in the graph: rollout-order",
+                         "the contract forbids an undescribed merge")
+        self.assertIn("no longer renders as a child in the graph", plan)
+
+        self._force(["rollout-order"])
+        self.assertIn("blocked_by: []", self._ticket("rollout-order"))
+        self.assertNotIn('C0["rollout-order"]', self._ticket("auth-model"),
+                         "the blocker must stop drawing the edge that was removed")
+        # and the correction is not re-announced: a second identical --force
+        # finds nothing left to lose, so the plan goes quiet again.
+        _out2, plan2 = self._force(["rollout-order"], real=False)
+        self.assertNotIn("no longer renders as a child", plan2)
 
     def test_children_of_finds_every_ticket_naming_this_one_as_a_blocker(self):
         self._chart()
