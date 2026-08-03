@@ -997,6 +997,44 @@ def chart_plan(ops, snap, inp, force):
         entry["action"] = "merge"
         entry["detail"] = "unions blockedBy: " + ", ".join(blockers)
 
+    # The blocker end of every edge the run will write. An edge is drawn at
+    # both of its ends (ADR 0064), so the blocker's issue is patched too by the
+    # real run's post-write graph-region pass -- and nothing the run writes may
+    # be missing from the plan. A blocker that is itself being created or
+    # overwritten already carries the edge in its own line, so it is skipped
+    # here (mirrors local_map_ops.py's `blocker_gains`).
+    blocker_gains = {}
+    for t in inp["tickets"]:
+        for blocked in t.get("blocks") or []:
+            if action_by_key.get(t["key"]) in ("create", "OVERWRITE"):
+                continue
+            # `t["key"]` is not create/OVERWRITE, so by construction of the
+            # tickets loop above it is "skip (exists)" -- an existing ticket.
+            if action_by_key.get(blocked) not in ("create", "OVERWRITE"):
+                # `blocked` already exists too -- tell an already-unioned edge
+                # (no write) from a new one, by issue IDENTITY, the same rule
+                # the `pending` pass above uses.
+                if snap is not None and blocked in snap.tickets \
+                        and t["key"] in snap.tickets and snap.holds_edge(blocked, t["key"]):
+                    continue                   # genuinely no change
+            # else: `blocked` is being freshly created/overwritten in this same
+            # input, so it cannot already hold the edge -- the blocker still
+            # gains a child once pass 2 wires it.
+            gained = blocker_gains.setdefault(t["key"], [])
+            if blocked not in gained:
+                gained.append(blocked)
+    for blocker_key, gained in blocker_gains.items():
+        entry = by_key.get(blocker_key)
+        if entry is None:                      # not re-listed in tickets[]
+            entry = {"path": blocker_key, "action": "skip (exists)", "detail": None}
+            entries.append(entry)
+            by_key[blocker_key] = entry
+        if entry["action"] in ("create", "OVERWRITE"):
+            continue
+        entry["action"] = "merge"
+        detail = "renders as a child in the graph: " + ", ".join(sorted(gained))
+        entry["detail"] = (entry["detail"] + "; " + detail) if entry["detail"] else detail
+
     # Edges whose blocked ticket is being written fresh are wired unconditionally
     # (nothing survives on it to check against) and are NOT announced separately:
     # they are part of that ticket's own `create` / `OVERWRITE` line.

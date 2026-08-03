@@ -1187,6 +1187,42 @@ class TestPositionDiagram(Base):
         self.assertIn('ME --> C0["rollout-order"]', blocker,
                       "the blocker issue shows what it unblocks as a child")
 
+    def test_an_existing_ticket_gaining_a_new_blocker_role_is_announced_in_the_plan(self):
+        """`chart_plan`'s `pending` pass announces the BLOCKED end of a new
+        edge, but had no counterpart to local's `blocker_gains` -- the pass
+        that announces the BLOCKER end when it is an existing (not created)
+        ticket. Without it, a dry-run plan was silent about an issue the real
+        run's post-write graph-region pass does patch -- both ends render
+        (ADR 0064) -- breaking the ADR-0039 gate's promise that nothing the
+        run writes is missing from the plan."""
+        inp = copy.deepcopy(INPUT)
+        inp["tickets"].append({"key": "billing-flag", "title": "Billing flag",
+                               "type": "task", "question": "flagged how?"})
+        self.chart(inp)
+        inp2 = copy.deepcopy(inp)
+        for t in inp2["tickets"]:
+            if t["key"] == "auth-model":
+                # rollout-order: already blocked by auth-model, unchanged.
+                # billing-flag: a genuinely NEW edge from an EXISTING blocker.
+                t["blocks"] = ["rollout-order", "billing-flag"]
+        out, _err = self.dry(inp2)
+        by_path = {e["path"]: e for e in out["planned"]}
+        self.assertEqual(by_path["auth-model"]["action"], "merge",
+                         "the blocker's own issue must be announced, not skipped")
+        self.assertIn("renders as a child in the graph: billing-flag",
+                      by_path["auth-model"]["detail"])
+        self.assertEqual(by_path["rollout-order"]["action"], "skip (exists)",
+                         "an edge that already exists must not be re-announced")
+
+        # the plan told the truth: the real run patches auth-model's issue too
+        self.fake.reset_counters()
+        self.chart(inp2)
+        patched = {int(p.rsplit("/", 1)[-1]) for m, p, _b in self.fake.writes if m == "PATCH"}
+        by_key = {t["key"]: int(t["id"])
+                 for t in gh.read_map(self.ops, "billing")["tickets"]}
+        self.assertIn(by_key["auth-model"], patched,
+                     "the plan promised auth-model's issue would be touched")
+
     def test_block_patches_both_issue_bodies_too(self):
         """chart() wires its edges through the same `_ensure_edge` path as
         `block`, but exercises a different data source for the graph patch
