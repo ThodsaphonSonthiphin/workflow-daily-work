@@ -1,7 +1,7 @@
 ---
 type: daily-state
 schema_version: 1
-updated: '2026-08-01T22:18:23+07:00'
+updated: '2026-08-03T14:08:58+07:00'
 ---
 
 # Daily state
@@ -130,3 +130,13 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
 - 2026-08-01T16:04:16+07:00 — fix(decision-map): a missing map and a deleted blocker must fail loudly (ADR 0061) (0898ba4)
 - 2026-08-01T16:13:43+07:00 — docs(decision-map): correct the region-edit claim -- chart adopts human text, it does not destroy it (4daf142)
 - 2026-08-01T22:18:23+07:00 — feat(decision-map): GitHub Issues backend on a shared core (ADR 0062) (8e608a9)
+- 2026-08-02T13:16:48+07:00 — reflect(2026-08-02): claim discipline past the session cap + 3 global gotchas (ae77b3a)
+- 2026-08-02T14:40:26+07:00 — reflect(2026-08-02): work-map checks git status for orphaned artifacts (b3cafdd)
+- 2026-08-03T12:43:54+07:00 — reflect(2026-08-02): correct the write-guard finding - case alternates per call (81c24b3)
+- 2026-08-03T13:12:42+07:00 — feat(decision-map): add the shared position-diagram renderer and its region markers (97a4459)
+- 2026-08-03T13:16:44+07:00 — docs(decision-map): design record for ticket diagrams - ADRs 0063-0066, spec and plan (f7eff84)
+- 2026-08-03T13:24:14+07:00 — feat(decision-map): emit a position-diagram region on every ticket, with a legacy insert path (e07390d)
+- 2026-08-03T13:39:55+07:00 — feat(decision-map): render a blocking edge at both of its ends (53deb80)
+- 2026-08-03T13:51:36+07:00 — feat(decision-map): announce the blocker end of a new edge in the dry-run plan (d71cd75)
+- 2026-08-03T14:02:18+07:00 — fix(decision-map): guard blocker_gains against a not-yet-created blocked ticket (788705a)
+- 2026-08-03T14:08:58+07:00 — feat(decision-map): warn when a gist is too long for the map index (081cc36)

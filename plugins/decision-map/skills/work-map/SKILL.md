@@ -315,6 +315,36 @@ ticket. There is no second call, and no map edit to remember. It is also
 idempotent — re-resolving replaces the previous resolution block rather than
 stacking a second one.
 
+**A measured gate must name the ref it was measured on.** A route count, a test
+tally or a file count is true of one commit, and a resolution stating it bare is
+read as describing the trunk forever. Write "24 paths on `main` (ba323d8)", never
+"24 paths". On one map `carve-core-api` recorded "20 paths with ZERO module
+routes" — correct for its branch, false on the trunk one merge later — and three
+canonical docs plus four tickets had to be amended once a later session ran it.
+
+**If the ticket's subject is runnable, RUN it.** A compile gate and a route table
+cannot see a wrong runbook. That same map had 24 closed tickets, every one gated
+on `tsc` / `dotnet build` / a route diff, and the first session to open a browser
+found the demo script wrong in six ways — a branch that had never existed, the
+wrong repo count, and every nav-item count off by one.
+
+### When a CLOSED ticket's recorded fact turns out to be false
+
+You will find these — a later session runs what an earlier one only reasoned
+about. Do **not** re-`resolve` the old ticket to overwrite its gist: the
+resolution is the audit trail of what was verified *then*, and its numbers are
+usually correct for the ref they were taken on. Instead:
+
+1. `comment` the correction onto that ticket, naming both the old claim's true
+   scope and the new measurement.
+2. Amend the **canonical doc** the gist links (the ADR) with a dated amendment
+   that *scopes* the original rather than deleting it.
+3. Carry the correction in **your** ticket's resolution too, so the map's newest
+   entry holds the truth.
+
+Overwriting the old gist loses the fact that the claim was ever believed, which
+is precisely what explains how the downstream work went wrong.
+
 ## Step 5 — Graduate the fog (through the same gate as charting)
 
 Now ask what the answer changed:
