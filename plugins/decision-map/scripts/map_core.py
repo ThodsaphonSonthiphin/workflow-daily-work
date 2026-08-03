@@ -88,15 +88,22 @@ KEY_MARKER = "<!-- decision-map:key:%s -->"
 KEY_MARKER_RE = re.compile(r"<!-- decision-map:key:([^\s>]*) -->")
 GIST_START = "<!-- decision-map:gist:start -->"
 GIST_END = "<!-- decision-map:gist:end -->"
+GRAPH_START = "<!-- decision-map:graph:start -->"
+GRAPH_END = "<!-- decision-map:graph:end -->"
 
 MAP_REGIONS = ((DECISIONS_START, DECISIONS_END),
                (FOG_START, FOG_END),
                (SCOPE_START, SCOPE_END))
-TICKET_REGIONS = ((RESOLUTION_START, RESOLUTION_END),)
+TICKET_REGIONS = ((RESOLUTION_START, RESOLUTION_END),
+                  (GRAPH_START, GRAPH_END))
 # A tracker records the resolution as a native comment, so the resolution
 # markers are local-only; the gist region is the tracker's machine-readable
-# home for the same one-liner the local backend keeps in frontmatter.
-TRACKER_TICKET_REGIONS = ((GIST_START, GIST_END),)
+# home for the same one-liner the local backend keeps in frontmatter. The
+# graph region is shared -- a position diagram is as useful on an issue as
+# in a file, and rendering it in one place is what stops the two backends
+# drifting the way _MAP_DIAGRAM already has.
+TRACKER_TICKET_REGIONS = ((GIST_START, GIST_END),
+                          (GRAPH_START, GRAPH_END))
 
 # The placeholder the tool writes into an empty list region. It is tool-owned,
 # not user content, so the merge drops it as soon as a real line arrives.
@@ -108,6 +115,20 @@ EMPTY_LIST_LINE = "- (none)"
 # toward --force must carry this.
 FORCE_COST = ("--force fully rewrites every item named in the input and "
               "DISCARDS their recorded resolutions, claims and blocking edges")
+
+# The longest gist that still reads as ONE line in the map's decisions index,
+# which is what the index renders it as. Over this, resolve() warns and writes
+# anyway (ADR 0066): failing the call would discard a resolved decision to
+# enforce a formatting rule.
+GIST_MAX = 200
+
+# One wording, printed by both backends. A user who moves a map from local
+# to GitHub must not get a different explanation of the same problem.
+GIST_TOO_LONG = (
+    "warning: this gist is {n} characters. The map's 'Decisions so far' "
+    "index renders it as ONE line, so anything past ~{max} makes the index "
+    "unreadable. Recording it anyway -- consider re-resolving with a "
+    "one-sentence gist and moving the detail into --body-file or --link.")
 
 
 class ChartValidationError(ValueError):
@@ -489,6 +510,31 @@ def decisions_region(entries):
     for title, link, gist in entries:
         lines.append(f"- [{title}]({link}) — {gist}".rstrip() + "\n")
     return f"{DECISIONS_START}\n{''.join(lines)}{DECISIONS_END}\n"
+
+
+def position_diagram_region(key, parents, children):
+    """A ticket's position: its blockers, itself, and what it unblocks.
+
+    Three levels and no more (ADR 0063) -- a map may legally hold 100 tickets
+    and a whole-map graph is unreadable long before that. Structure only, never
+    status or assignee (ADR 0064): a stale "open" on a blocker that has since
+    closed tells the reader they cannot pick the ticket up when they can, which
+    is the absence-read-as-a-fact shape ADR 0061 exists to prevent.
+
+    Node ids are positional (P0, C0, ...), NOT derived from the key: Mermaid
+    ids cannot contain "-", and mapping "-" to "_" would collide "a-b" with
+    "a_b", both of which are legal keys.
+
+    Sorted, and de-duplicated, because the bytes this returns are compared for
+    equality by the byte-identical no-op guarantee. An unsorted render would
+    make an identical re-chart report a spurious change.
+    """
+    ps, cs = sorted(set(parents)), sorted(set(children))
+    lines = ["```mermaid", "graph TD", f'    ME["{key} (this ticket)"]']
+    lines += [f'    P{i}["{p}"] --> ME' for i, p in enumerate(ps)]
+    lines += [f'    ME --> C{i}["{c}"]' for i, c in enumerate(cs)]
+    lines.append("```")
+    return GRAPH_START + "\n" + "\n".join(lines) + "\n" + GRAPH_END + "\n"
 
 
 # ---------------------------------------------------------------------------

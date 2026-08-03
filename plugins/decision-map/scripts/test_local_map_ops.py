@@ -12,6 +12,7 @@ import unittest
 from pathlib import Path
 
 import local_map_ops as ops
+import map_core
 
 
 def _snapshot(base):
@@ -1709,6 +1710,42 @@ class LocalMapOpsCliTest(unittest.TestCase):
         p = self.root / "body.md"
         p.write_text(text, encoding="utf-8")
         return p
+
+
+class PositionDiagramTests(unittest.TestCase):
+    def test_renders_parents_self_and_children_sorted(self):
+        r = map_core.position_diagram_region(
+            "carve-core-api", ["zeta-blocker", "alpha-blocker"], ["downstream-one"])
+        self.assertEqual(r, (
+            "<!-- decision-map:graph:start -->\n"
+            "```mermaid\n"
+            "graph TD\n"
+            '    ME["carve-core-api (this ticket)"]\n'
+            '    P0["alpha-blocker"] --> ME\n'
+            '    P1["zeta-blocker"] --> ME\n'
+            '    ME --> C0["downstream-one"]\n'
+            "```\n"
+            "<!-- decision-map:graph:end -->\n"))
+
+    def test_a_ticket_with_no_edges_renders_a_single_node(self):
+        r = map_core.position_diagram_region("lonely", [], [])
+        self.assertIn('    ME["lonely (this ticket)"]\n```', r)
+        self.assertNotIn("P0[", r)
+        self.assertNotIn("C0[", r)
+
+    def test_render_is_deterministic_regardless_of_input_order(self):
+        a = map_core.position_diagram_region("k", ["b", "a"], ["d", "c"])
+        b = map_core.position_diagram_region("k", ["a", "b"], ["c", "d"])
+        self.assertEqual(a, b, "input order must not change the bytes written")
+
+    def test_duplicate_edges_collapse(self):
+        r = map_core.position_diagram_region("k", ["a", "a"], [])
+        self.assertEqual(r.count('"a"'), 1)
+
+    def test_the_graph_region_is_declared_on_both_ticket_region_tuples(self):
+        pair = (map_core.GRAPH_START, map_core.GRAPH_END)
+        self.assertIn(pair, map_core.TICKET_REGIONS)
+        self.assertIn(pair, map_core.TRACKER_TICKET_REGIONS)
 
 
 if __name__ == "__main__":
