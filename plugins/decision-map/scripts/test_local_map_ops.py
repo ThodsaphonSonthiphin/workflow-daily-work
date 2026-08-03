@@ -154,6 +154,24 @@ class LocalMapOpsTest(unittest.TestCase):
         f = ops.frontier(self.root, "example-effort")
         self.assertNotIn("api-limits", [t["id"] for t in f["frontier"]])
 
+    def test_block_renders_the_edge_at_both_ends(self):
+        self._chart()
+        ops.block(self.root, "example-effort", "api-limits", "auth-model")
+        base = self.root / "example-effort" / "tickets"
+        blocked = (base / "api-limits.md").read_text(encoding="utf-8")
+        blocker = (base / "auth-model.md").read_text(encoding="utf-8")
+        self.assertIn('P0["auth-model"] --> ME', blocked,
+                      "the blocked ticket shows its blocker as a parent")
+        self.assertIn('ME --> C0["api-limits"]', blocker,
+                      "the blocker shows what it unblocks as a child")
+
+    def test_re_blocking_an_existing_edge_writes_nothing(self):
+        self._chart()
+        ops.block(self.root, "example-effort", "api-limits", "auth-model")
+        frozen = _snapshot(self.root / "example-effort")
+        ops.block(self.root, "example-effort", "api-limits", "auth-model")
+        self.assertEqual(_snapshot(self.root / "example-effort"), frozen)
+
     # ------------------------------------------------------------------
     # Fix round 1 — regression tests for review findings
     # ------------------------------------------------------------------
@@ -961,23 +979,32 @@ class LocalMapOpsTest(unittest.TestCase):
         f = ops.frontier(self.root, "example-effort")
         self.assertNotIn("api-limits", [t["id"] for t in f["frontier"]])
         self.assertIn("api-limits", [t["id"] for t in f["claimed"]])
-        # scoped identity: ONLY the blocked_by line changed
+        # scoped identity: the blocked_by line changed, and so did the graph
+        # region -- an edge is drawn at both of its ends (ADR 0064), so this
+        # test no longer pins "exactly one line". What it still pins is the
+        # thing that matters: recorded state survives a union.
         b_lines, a_lines = before_text.splitlines(), after_text.splitlines()
-        self.assertEqual(len(b_lines), len(a_lines), "line count must not change")
         differing = [i for i, (x, y) in enumerate(zip(b_lines, a_lines)) if x != y]
-        self.assertEqual(len(differing), 1,
-                         f"exactly one line may change, got {differing}")
-        self.assertTrue(a_lines[differing[0]].startswith("blocked_by:"),
-                        f"the changed line must be blocked_by, got {a_lines[differing[0]]!r}")
-        self.assertEqual(b_lines[differing[0]], "blocked_by: []")
-        self.assertEqual(a_lines[differing[0]], "blocked_by: [fog-graduate]")
+        changed = [a_lines[i] for i in differing]
+        self.assertTrue(any(ln.startswith("blocked_by:") for ln in changed),
+                        f"blocked_by must be among the changed lines, got {changed}")
+        self.assertNotIn("blocked_by: []", after_text)
+        self.assertIn("blocked_by: [fog-graduate]", after_text)
+        for ln in changed:
+            self.assertFalse(ln.startswith(("title:", "type:", "mode:", "status:",
+                                            "assignee:", "gist:")),
+                             f"a union must not touch {ln!r}")
         # the recorded state is explicitly still there
         self.assertIn("assignee: pon", after_text)
         self.assertIn("a human note", after_text)
-        # every OTHER ticket is still byte-identical
+        # every other ticket is byte-identical EXCEPT the blocker end, whose
+        # graph region gains this ticket as a child
         for path, digest in before_tree.items():
-            if path != "tickets/api-limits.md":
-                self.assertEqual(_snapshot(base)[path], digest, f"{path} changed")
+            if path in ("tickets/api-limits.md", "tickets/fog-graduate.md"):
+                continue
+            self.assertEqual(_snapshot(base)[path], digest, f"{path} changed")
+        blocker_text = (base / "tickets" / "fog-graduate.md").read_text(encoding="utf-8")
+        self.assertIn('ME --> C0["api-limits"]', blocker_text)
         # unioning the same edge again is a no-op, byte for byte
         frozen = _snapshot(base)
         ops.chart(self.root, self._plus_ticket(blocks=["api-limits"]), real=True)

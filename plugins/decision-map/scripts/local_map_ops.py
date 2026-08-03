@@ -109,7 +109,6 @@ _LIST_FM_KEYS = {"blocked_by"}
 
 _RESOLUTION_BLOCK_RE = _region_re(_RESOLUTION_START, _RESOLUTION_END)
 _DECISIONS_BLOCK_RE = _region_re(_DECISIONS_START, _DECISIONS_END)
-_GRAPH_BLOCK_RE = _region_re(_GRAPH_START, _GRAPH_END)
 
 
 def _validate_chart_input(inp, root=None):
@@ -282,6 +281,12 @@ def _graph_region_for(root, slug, key):
     fm, _ = _load_ticket(root, slug, key)
     return _position_diagram_region(key, fm.get("blocked_by", []),
                                     _children_of(root, slug, key))
+
+
+def _graph_region_for_deps(key, parents, children):
+    """Render from values held in memory, for a ticket mid-update whose file
+    on disk is still stale."""
+    return _position_diagram_region(key, parents, children)
 
 
 def _render_map_md(m):
@@ -525,7 +530,22 @@ def block(root, slug, ticket, blocked_by):
     if blocked_by not in deps:
         deps.append(blocked_by)
         fm["blocked_by"] = deps
-        _save_ticket(root, slug, ticket, fm, body)
+        # `ticket`'s own region is rendered from the in-memory `deps` because
+        # its file on disk is not written yet, and its children must be
+        # scanned BEFORE that write (below), while its own file still shows
+        # the pre-edge state to every other reader.
+        _save_ticket(root, slug, ticket, fm,
+                     _set_graph_region(body, _graph_region_for_deps(
+                         ticket, deps, _children_of(root, slug, ticket))))
+        # BOTH ends: the edge is a parent in `ticket` and a child in
+        # `blocked_by`, so the blocker's own diagram is now stale. Its
+        # frontmatter is untouched -- only the region is re-rendered. This
+        # scan runs AFTER `ticket` is written, so it actually sees the new
+        # edge.
+        b_fm, b_body = _load_ticket(root, slug, blocked_by)
+        _save_ticket(root, slug, blocked_by, b_fm,
+                     _set_graph_region(b_body,
+                                       _graph_region_for(root, slug, blocked_by)))
     return {"ticket": ticket, "blockedBy": deps}
 
 
