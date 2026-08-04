@@ -50,6 +50,8 @@ flowchart TD
     WORK -- advising on a system --> SDV["study-design-verify"]
     WORK -- advising on cert / market / vendor facts --> VTA["verify-then-advise"]
     WORK -- auditing names/mappings --> NA["naming-audit /<br/>fit-gap-analysis"]
+    WORK -- what is this? / too long, can't read --> FE["feynman-explain"]
+    FE -. want it clickable .-> PD
     WORK -- explaining a problem --> PD["problem-description"]
     WORK -- why does this exist? --> TT["ticket-trace"]
     WORK -- second opinion --> SC["scrutinize /<br/>dual-verifier"]
@@ -79,6 +81,7 @@ flowchart TD
 | advising on how a system should work | `study-design-verify` |
 | advising on cert / market / vendor facts (outside the codebase) | `verify-then-advise` |
 | auditing names / labels / mappings | `naming-audit` / `fit-gap-analysis` |
+| "what is this / how does it work?" — or an answer came back too long to read | `feynman-explain` (`/feynman`) — fixed short card: plain explanation, the fuzzy parts named, gaps filled from real evidence, 30-second line |
 | explaining a complex problem | `problem-description` |
 | "why does this code/ticket exist?" | `ticket-trace` |
 | second opinion on a plan / PR / change | `scrutinize` / `dual-verifier` |
