@@ -55,6 +55,14 @@ Build a runnable repro before anything else.
 - **Flaky repro** → the bug is not yet debuggable. Raise the rate first: loop the trigger, parallelise, add stress, narrow timing windows, inject sleeps. 50% flake is debuggable; 1% is not.
 - **No repro at all** → stop. Say so explicitly. Ask the user for env access, captured artifacts (HAR, log dump, core), or permission to instrument. Do **not** proceed to hypothesise.
 
+**Provenance before analysis - for anything not running on your machine.** A screenshot, a log
+line, or "it's broken in prod" is evidence from one *specific build*, and you cannot read the code
+until you know WHICH. Ask **local or deployed** first; if deployed, get the branch and commit the
+CI/CD system actually shipped and trace only that. Never assume the default branch: a pipeline that
+is manual-trigger, `checkout: self`, or gated on an operator's choice ships whatever ref was queued.
+Then check that ref against the tree you are about to read - a repo with several worktrees or
+long-lived branches will hand you the wrong copy without complaint.
+
 Target: a fast (1–5 s), deterministic pass/fail signal. Pin time, seed the RNG, freeze network, isolate filesystem.
 
 Once a reliable repro exists, ask **what changed**. Most bugs are regressions — `git log` / `diff` / `blame` the suspect area, and if the repro is scriptable, `git bisect` it against that pass/fail signal to pin the exact commit. The offending diff is often the whole answer.
@@ -81,6 +89,10 @@ When a candidate root cause surfaces, scrutinise it **before** testing it.
 - What is the simplest **proof**? What is the cleanest **disproof**?
 - Run the **disproof first**. If the hypothesis survives, it's real. If it dies, you saved yourself from chasing a phantom.
 - Generate 3–5 ranked hypotheses, not one. Single-hypothesis thinking anchors on the first plausible idea.
+- Rank on evidence verified for the EXACT path in question. A comment or docstring is evidence
+  about the one path it annotates, never its siblings - "this action does not do X" sitting beside
+  another action that does is enough to demote the true cause and send you chasing config and
+  permissions instead.
 
 ## 4. Every run is a breadcrumb
 
