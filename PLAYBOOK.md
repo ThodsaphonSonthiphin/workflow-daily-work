@@ -51,6 +51,8 @@ flowchart TD
     WORK -- advising on cert / market / vendor facts --> VTA["verify-then-advise"]
     WORK -- auditing names/mappings --> NA["naming-audit /<br/>fit-gap-analysis"]
     WORK -- what is this? / too long, can't read --> FE["feynman-explain"]
+    WORK -- I own this but do not understand it --> ATU["asking-to-understand<br/>(/ask)"]
+    ATU -. want it explained instead .-> FE
     FE -. want it clickable .-> PD
     WORK -- explaining a problem --> PD["problem-description"]
     WORK -- why does this exist? --> TT["ticket-trace"]
@@ -82,6 +84,7 @@ flowchart TD
 | advising on cert / market / vendor facts (outside the codebase) | `verify-then-advise` |
 | auditing names / labels / mappings | `naming-audit` / `fit-gap-analysis` |
 | "what is this / how does it work?" — or an answer came back too long to read | `feynman-explain` (`/feynman`) — fixed short card: plain explanation, the fuzzy parts named, gaps filled from real evidence, 30-second line |
+| work you OWN but do not understand — a map/plan/pipeline an AI built for you, or "ถามให้คิดหน่อย" / "grill me" | `asking-to-understand` (`/ask`) — the Socratic side of `/feynman`: one evidence-grounded question per turn, symptom pushed to mechanism, stops when you state the rule |
 | explaining a complex problem | `problem-description` |
 | "why does this code/ticket exist?" | `ticket-trace` |
 | second opinion on a plan / PR / change | `scrutinize` / `dual-verifier` |
