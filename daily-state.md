@@ -1,7 +1,7 @@
 ---
 type: daily-state
 schema_version: 1
-updated: '2026-08-03T16:50:04+07:00'
+updated: '2026-08-06T12:20:42+07:00'
 ---
 
 # Daily state
@@ -150,3 +150,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
 - 2026-08-03T16:28:38+07:00 — docs(decision-map): give the answer diagram a channel on the ADR-backed resolution (04a3aae)
 - 2026-08-03T16:29:00+07:00 — docs(decision-map): supersession banners on the diagrams plan and spec (eac4513)
 - 2026-08-03T16:50:04+07:00 — chore: daily-state commit log for the decision-map diagrams run (fd8a3aa)
+- 2026-08-03T16:55:20+07:00 — chore: daily-state commit log (b5818fb)
+- 2026-08-04T17:01:16+07:00 — feat(dev-workflows): feynman-explain - capped four-step explanation card (b975503)
+- 2026-08-04T17:06:54+07:00 — fix(dev-workflows): quote description scalars that broke YAML frontmatter (387e584)
+- 2026-08-06T12:20:42+07:00 — feat(dev-workflows): asking-to-understand - one grounded question per turn (2bf3e15)
