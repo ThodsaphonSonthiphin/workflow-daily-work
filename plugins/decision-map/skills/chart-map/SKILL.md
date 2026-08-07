@@ -54,6 +54,9 @@ CHART A DECISION MAP — one session, then stop
   ⑤ RESEARCH subagents, in parallel
   │   findings posted back with `resolve`
   ▼
+  ⑥ LINT — run the check, report it
+  │   exit 0 clean · exit 3 findings
+  ▼
   ■ STOP — report the `frontier`, hand off
      charting hand-resolves nothing
 ```
@@ -331,6 +334,18 @@ python "<ops>" comment --map <slug> --ticket <key> --body-file <workdir>/note-<k
 
 ## Step 5 — Stop
 
+**Run the check on the map you just made** (ADR 0067). `lint` reads it and writes
+nothing — exit `0` clean, exit `3` with findings:
+
+```
+python "<ops>" lint --map <slug>
+```
+
+A fresh chart should be clean. If it is not, an input that passed the gate still
+produced a broken map — a blocking cycle is the one the gate cannot see, because
+each edge is valid on its own. Fix it before reporting a map the next session
+will trip over.
+
 **Read the frontier before you report it.** The split you are about to show
 answers "what can the next session pick up", and `map.json` cannot answer that:
 its `blockedBy` deliberately lists **every** recorded blocker, open or closed.
@@ -349,6 +364,8 @@ takeable".
 
 Report, in this order:
 
+- **any `lint` finding**, errors first — and say explicitly when it came back
+  clean;
 - the map's name and path;
 - the **frontier** tickets **by name** — what the next session can pick up;
 - the **blocked** tickets by name, each with the open blocker still holding it;

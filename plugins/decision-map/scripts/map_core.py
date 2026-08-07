@@ -822,3 +822,201 @@ def key_of_body(body, what, labelled):
             f"{what} carries the key marker {key!r}, which is not a safe slug. "
             "The marker is tool-owned; correct it by hand")
     return key
+
+
+# --- lint -------------------------------------------------------------------
+#
+# Every other subcommand validates the ONE call being made and then writes.
+# lint validates the map AS IT STANDS and writes nothing, which is what makes
+# it the check an agent can run unattended: it returns a pass/fail an agent
+# reads in the conversation, instead of "looks done" being the only signal.
+#
+# Each rule exists because a flow skill states the invariant in prose and
+# nothing enforces it. Prose is advisory; this is the deterministic half.
+# Rules live here rather than in either backend so that a map lints the same
+# on both (ADR 0062), the way every other shared rule already does.
+
+# The one rule that needs the resolution BODY rather than just the gist.
+# A backend that cannot see the body declares this unchecked instead of
+# pretending; walking every ticket's comments to check it would cost one
+# API call per ticket on the command whose whole value is being cheap
+# enough to run after every session.
+RULES_NEEDING_RESOLUTION_BODY = ("resolution-without-diagram",)
+
+LINT_ERROR = "error"
+LINT_WARNING = "warning"
+
+# argparse's default for `claim --user`. An OPEN ticket still holding it names
+# nobody, which is the state work-map calls out: "the files cannot tell you
+# who holds it".
+ANONYMOUS_ASSIGNEE = "me"
+
+# The fog rule is the only heuristic one here, and a check that cries wolf is
+# worse than no check -- a warning nobody trusts trains the reader to skip the
+# errors next to it. These thresholds are deliberately strict: a fog line must
+# share at least three significant words with a ticket title AND those words
+# must be most of the shorter side before it is called a match.
+_FOG_MIN_SHARED = 3
+_FOG_MIN_RATIO = 0.7
+_FOG_STOPWORDS = frozenset("""
+a an and are as at be but by can do does for from has have how in into is it
+its need not of on or should so than that the their them then there these
+this to via we what when where which who why will with you your
+""".split())
+
+
+def _finding(rule, severity, ticket, message):
+    return {"rule": rule, "severity": severity, "ticket": ticket,
+            "message": message}
+
+
+def _significant_tokens(s):
+    return {t for t in re.findall(r"[a-z0-9]+", (s or "").lower())
+            if len(t) > 2 and t not in _FOG_STOPWORDS}
+
+
+def blocker_cycles(edges):
+    """Every strongly connected component of size > 1 in the blocked_by graph.
+
+    Reported per COMPONENT, not per member: a three-ticket cycle is one
+    problem with three names, and three findings would read as three separate
+    problems to fix. Tarjan rather than path enumeration because the latter is
+    exponential on a dense map and the cap is 100 tickets.
+
+    Self-loops are left out -- `self-blocked` names them better, and a ticket
+    appearing in a "cycle" with itself reads as noise next to it.
+    """
+    index, low, onstack, stack, counter, out = {}, {}, {}, [], [0], []
+
+    def connect(v):
+        index[v] = low[v] = counter[0]
+        counter[0] += 1
+        stack.append(v)
+        onstack[v] = True
+        for w in edges.get(v, ()):
+            if w not in index:
+                connect(w)
+                low[v] = min(low[v], low[w])
+            elif onstack.get(w):
+                low[v] = min(low[v], index[w])
+        if low[v] == index[v]:
+            comp = []
+            while True:
+                w = stack.pop()
+                onstack[w] = False
+                comp.append(w)
+                if w == v:
+                    break
+            if len(comp) > 1:
+                out.append(sorted(comp))
+
+    for v in sorted(edges):
+        if v not in index:
+            connect(v)
+    return sorted(out)
+
+
+def lint_findings(map_text, tickets, resolution_bodies=True):
+    """Every problem with one map, errors first, warnings after.
+
+    `tickets` is the read shape plus one field: each dict carries `key`,
+    `name`, `status`, `assignee`, `blockedBy`, `gist` and `resolution` -- the
+    text of the ticket's resolution region, or None when it has none. Both
+    backends assemble exactly that and call this, so "clean" means the same
+    thing on a folder of markdown and on a tracker.
+
+    `resolution_bodies` is False on a backend that cannot cheaply see a
+    resolution's body. Rules needing it are then skipped rather than
+    guessed at -- and the caller reports them under `notChecked`, because
+    a check silently not run reads as a check that passed.
+
+    Returns a list; the caller decides what an empty list is worth.
+    """
+    keys = {t["key"] for t in tickets}
+    errors, warnings, edges = [], [], {}
+
+    for t in tickets:
+        key = t["key"]
+        blockers = t.get("blockedBy") or []
+        for b in blockers:
+            if b == key:
+                errors.append(_finding(
+                    "self-blocked", LINT_ERROR, key,
+                    f"{key!r} lists itself under blocked_by, so it can never "
+                    "reach the frontier"))
+            elif b not in keys:
+                errors.append(_finding(
+                    "dangling-blocker", LINT_ERROR, key,
+                    f"{key!r} is blocked by {b!r}, which is not a ticket on "
+                    "this map; frontier counts a missing blocker as unsatisfied, "
+                    "so the ticket stays blocked forever"))
+        edges[key] = [b for b in blockers if b in keys and b != key]
+
+    for comp in blocker_cycles(edges):
+        errors.append(_finding(
+            "blocker-cycle", LINT_ERROR, comp[0],
+            "blocking cycle: " + " -> ".join(comp + [comp[0]]) +
+            " -- every ticket in it stays blocked forever, and the map reads "
+            "as stalled rather than broken"))
+
+    for t in tickets:
+        key = t["key"]
+        status = t.get("status") or "open"
+        resolution = t.get("resolution") or ""
+        if status != "open":
+            # A tracker keeps the resolution BODY in a native comment the
+            # snapshot does not hold, so there the machine-readable record is
+            # the gist region instead. Same rule, same name, the half of the
+            # record that backend actually stores.
+            what = "resolution block" if resolution_bodies else "gist"
+            record = resolution if resolution_bodies else one_line(t.get("gist") or "")
+            if not record.strip():
+                errors.append(_finding(
+                    "closed-without-resolution", LINT_ERROR, key,
+                    f"{key!r} is closed but carries no {what}, so the map "
+                    "indexes a decision whose answer was never recorded"))
+            elif resolution_bodies and "```mermaid" not in record:
+                warnings.append(_finding(
+                    "resolution-without-diagram", LINT_WARNING, key,
+                    f"{key!r} resolves without a mermaid diagram of the answer; "
+                    "a reader opening it sees prose before they see what was "
+                    "decided (ADR 0065)"))
+        gist = one_line(t.get("gist") or "")
+        if len(gist) > GIST_MAX:
+            warnings.append(_finding(
+                "gist-too-long", LINT_WARNING, key,
+                f"{key!r} carries a {len(gist)}-character gist (limit "
+                f"{GIST_MAX}); resolve warns and records it anyway, so the map "
+                "index is unreadable until it is shortened by hand"))
+        if status == "open" and (t.get("assignee") or "") == ANONYMOUS_ASSIGNEE:
+            warnings.append(_finding(
+                "anonymous-claim", LINT_WARNING, key,
+                f"{key!r} is claimed by the anonymous default "
+                f"{ANONYMOUS_ASSIGNEE!r}, so the map cannot say which session "
+                "holds it and no other session can tell whether it is live"))
+
+    by_tokens = [(t["key"], _significant_tokens(t.get("name") or t["key"]))
+                 for t in tickets]
+    fog = region_body(norm_eol(map_text or ""), FOG_START, FOG_END) or ""
+    for raw in fog.splitlines():
+        line = raw.strip()
+        if not line or line == EMPTY_LIST_LINE:
+            continue
+        ftoks = _significant_tokens(line)
+        if not ftoks:
+            continue
+        for key, ttoks in by_tokens:
+            shared = ftoks & ttoks
+            if not ttoks or len(shared) < _FOG_MIN_SHARED:
+                continue
+            if len(shared) / min(len(ftoks), len(ttoks)) < _FOG_MIN_RATIO:
+                continue
+            warnings.append(_finding(
+                "fog-line-graduated", LINT_WARNING, key,
+                f"the fog line {line.lstrip('- ')!r} reads as ticket {key!r}, "
+                "which already exists; an additive chart never deletes, so the "
+                "line has to go by hand or the map keeps advertising fog it "
+                "has already answered"))
+            break
+
+    return errors + warnings

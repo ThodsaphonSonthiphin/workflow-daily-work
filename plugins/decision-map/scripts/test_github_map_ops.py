@@ -1329,5 +1329,84 @@ class TestScriptRuns(unittest.TestCase):
         self.assertIn("--repo", p.stdout)
 
 
+class TestLint(Base):
+    """lint on a tracker answers the same question as on local markdown, from
+    the one snapshot the other read-only subcommands already take."""
+
+    def test_a_freshly_charted_map_lints_clean(self):
+        self.chart()
+        out = gh.lint(self.ops, "billing")
+        self.assertTrue(out["clean"], out["findings"])
+        self.assertEqual(out["findings"], [])
+        self.assertEqual(out["backend"], "github")
+
+    def test_a_normally_resolved_ticket_stays_clean(self):
+        self.chart()
+        with captured_stderr():
+            gh.resolve(self.ops, "billing", "auth-model", "shared keys",
+                       None, "```mermaid\ngraph TD\n  A-->B\n```\n")
+        self.assertTrue(gh.lint(self.ops, "billing")["clean"])
+
+    def test_a_closed_ticket_with_no_gist_is_an_error(self):
+        """The tracker's machine-readable record IS the gist region, so a
+        ticket closed in the UI without resolving is the same defect local
+        catches as a closed ticket with no resolution block."""
+        out = self.chart()
+        auth = next(t for t in out["tickets"] if t["key"] == "auth-model")
+        self.ops.patch_issue(int(auth["id"]), {"state": "closed"}, repo=REPO)
+        res = gh.lint(self.ops, "billing")
+        self.assertFalse(res["clean"])
+        f = next(f for f in res["findings"]
+                 if f["rule"] == "closed-without-resolution")
+        self.assertEqual(f["severity"], "error")
+        self.assertIn("gist", f["message"])
+
+    def test_the_diagram_rule_is_declared_unchecked_not_silently_dropped(self):
+        """A check that was never run reads as a check that passed. The
+        resolution body is a native comment the snapshot does not hold, so the
+        rule is named in notChecked rather than quietly skipped."""
+        self.chart()
+        out = gh.lint(self.ops, "billing")
+        self.assertIn("resolution-without-diagram", out["notChecked"])
+        self.assertEqual(out["notChecked"],
+                         list(map_core.RULES_NEEDING_RESOLUTION_BODY))
+
+    def test_lint_reads_the_snapshot_once(self):
+        """The whole value of lint is being cheap enough to run after every
+        session; one snapshot is what read and frontier each cost."""
+        self.chart()
+        before = len(self.fake.calls) if hasattr(self.fake, "calls") else None
+        gh.lint(self.ops, "billing")
+        if before is not None:
+            self.assertLessEqual(len(self.fake.calls) - before, 4,
+                                 "lint must not walk per-ticket endpoints")
+
+    def test_the_lint_result_shape_matches_the_local_backend(self):
+        """One flow reads either backend (ADR 0062), so the keys cannot differ
+        -- including notChecked, which is empty rather than absent on local."""
+        import tempfile
+        from pathlib import Path as _Path
+        import local_map_ops as local
+        self.chart()
+        gh_out = gh.lint(self.ops, "billing")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = _Path(tmp)
+            local.chart(root, {
+                "target": {"slug": "billing"},
+                "map": {"title": "t", "destination": "d", "notes": "",
+                        "notYetSpecified": [], "outOfScope": []},
+                "tickets": [{"key": "a", "title": "A?", "type": "grilling",
+                             "question": "q?"}],
+            }, real=True)
+            local_out = local.lint(root, "billing")
+        self.assertEqual(set(gh_out), set(local_out))
+        self.assertEqual(local_out["notChecked"], [])
+
+    def test_lint_on_a_map_that_does_not_exist_raises(self):
+        self.chart()
+        with self.assertRaises(Exception):
+            gh.lint(self.ops, "no-such-map")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

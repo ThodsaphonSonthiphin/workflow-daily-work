@@ -76,6 +76,7 @@ the user approved the plan.
 | `resolve` | `--map <id\|slug> --ticket <id\|slug> --gist "<one line>" [--link <url>] [--body-file <md>]` | post resolution comment, close the ticket. |
 | `comment` | `--map <id\|slug> --ticket <id\|slug> --body-file <md>` | plain comment. |
 | `block` | `--map <id\|slug> --ticket <id\|slug> --blocked-by <id\|slug>` | dependency edge (ticket waits on blocked-by). |
+| `lint` | `--map <id\|slug>` | check the map as it stands and **write nothing**. Exits `3` when it finds anything — see below. The one subcommand that answers a question about the map rather than about the call being made. |
 
 **`--map` is required on every ticket subcommand**, not only on `read` and
 `frontier`: a ticket is identified by its map plus its key, and no backend
@@ -93,13 +94,21 @@ where local renders a stub is not at parity.
 
 ### Exit codes and return shapes
 
-Three exit codes, on every subcommand and every backend:
+Four exit codes, on every subcommand and every backend:
 
 | Exit | Meaning | stdout | stderr |
 |---|---|---|---|
 | `0` | success | the subcommand's JSON document | empty, except `chart`'s plan rendering (dry-run) or its divergence lines (real run) |
 | `2` | a **known** failure — bad usage, missing map or ticket, validation error | **empty** | exactly one line naming the problem |
 | `1` | an unhandled crash | empty | a traceback |
+| `3` | **`lint` only** — the map was read successfully **and** it has findings | the `lint` document, `clean: false` | empty |
+
+Exit `3` is a third code rather than a reuse of `1` or `2` deliberately: a
+caller — a Stop hook, a CI step, a session checking its own work — has to be
+able to tell *your map has problems* (act on the findings) from *the call was
+wrong* (`2`, fix the arguments) and from *this tool is broken* (`1`, a
+traceback). Collapsing them makes an unattended run treat a crash as a dirty
+map, or a dirty map as a broken tool.
 
 Exit `2` with empty stdout is the contract the flow skills rely on; a backend
 that prints a partial document alongside an error breaks them. Return shapes:
@@ -114,6 +123,7 @@ that prints a partial document alongside an error breaks them. Return shapes:
 | `resolve` | `{"resolved": <ticket>, "gist": <gist **as stored**>}` — flattened and escaped, or `null` when the flattened value is empty. Never echo the raw input. |
 | `comment` | `{"commented": <ticket>}` |
 | `block` | `{"ticket": <t>, "blockedBy": [<the full list>]}` |
+| `lint` | `{backend, map, clean, findings[], notChecked[]}` |
 
 `block` **must not issue a write when the edge already exists** — it returns
 the same document and touches nothing. On a tracker this matters more than on
@@ -135,6 +145,46 @@ string `"me"` when `--user` is omitted. That is meaningless as an ADO
 `System.AssignedTo` or a GitHub assignee, so a tracker backend must resolve the
 caller's identity itself (`az account show` / `gh api user`) and must not write
 `"me"`. Passing an empty value still releases the claim.
+
+### `lint` — the check an agent can run (ADR 0067)
+
+Every other subcommand validates the **one call being made** and then writes.
+`lint` validates the **map as it stands** and writes nothing, which is what
+makes it usable unattended: it returns a pass/fail an agent reads in the
+conversation instead of "looks done" being the only signal available. It is
+read-only by construction, so it is also safe for a hook.
+
+Each rule exists because a flow skill states the invariant in prose and nothing
+enforced it. Prose is advisory; this is the deterministic half.
+
+| Rule | Severity | Fires when |
+|---|---|---|
+| `dangling-blocker` | error | a `blockedBy` entry is not a ticket on this map. `frontier` counts a missing blocker as **unsatisfied**, so the ticket is blocked forever rather than merely mis-linked. |
+| `self-blocked` | error | a ticket lists itself under `blockedBy`. `block` refuses this, but a hand edit of the frontmatter — which the flow skills *instruct* — bypasses that guard. |
+| `blocker-cycle` | error | two or more tickets block each other, transitively. Reported **once per component**, not once per member. Nothing in the cycle can ever reach the frontier, and the map reads as stalled rather than broken. |
+| `closed-without-resolution` | error | a ticket is closed but carries no recorded answer, so the map indexes a decision nobody can read. Keyed on the **resolution region** on local and on the **gist region** on a tracker — see `notChecked`. |
+| `resolution-without-diagram` | warning | a resolution body carries no ```` ```mermaid ```` block (ADR 0065). |
+| `gist-too-long` | warning | a stored gist exceeds `GIST_MAX`. `resolve` warns on stderr and records it anyway, so the only way to find it afterwards is here. |
+| `anonymous-claim` | warning | an **open** ticket is held by the literal `--user` default `me`, which names nobody. Structurally impossible on a tracker, where the caller is resolved for real. |
+| `fog-line-graduated` | warning | a line under "Not yet specified" reads as a ticket that already exists. An additive `chart` never deletes, so graduating fog leaves the old line behind and the map keeps advertising a question it has answered. |
+
+`fog-line-graduated` is the only **heuristic** rule: it matches significant
+words between a fog line and a ticket title, and its thresholds are deliberately
+strict (at least three shared words, and those words being most of the shorter
+side). A check that cries wolf is worse than no check — a warning nobody trusts
+trains the reader to skip the errors next to it.
+
+**`notChecked` is part of the contract, not a convenience.** A rule that was
+never run reads as a rule that passed, so any backend that cannot evaluate one
+must name it. The local backend returns `[]`. The GitHub backend returns
+`["resolution-without-diagram"]`: there the resolution body is a native comment
+that the single snapshot does not hold, and walking every ticket's comments
+would cost one API call per ticket — on the command whose entire value is being
+cheap enough to run after every session.
+
+Severity does not change the exit code: **any** finding, warning included, means
+`clean: false` and exit `3`. The caller decides what to act on; the tool does not
+decide for it by hiding half the list behind a zero.
 
 ### `chart` is additive (ADR 0057, refined by ADR 0058)
 

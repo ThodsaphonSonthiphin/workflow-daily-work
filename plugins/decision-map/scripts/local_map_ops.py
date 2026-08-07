@@ -103,6 +103,7 @@ from map_core import (
     force_orphan_detail as _force_orphan_detail,
     rewired_edges as _rewired_edges,
     require as _require, validate_chart_input as _validate_chart_input_core,
+    lint_findings as _lint_findings,
 )
 
 # The only frontmatter key that is ever written/read as a list. Every other
@@ -602,6 +603,33 @@ def frontier(root, slug):
     return out
 
 
+def lint(root, slug):
+    """Check the map as it stands and write nothing.
+
+    Read-only by construction, so it is safe at any point in a session and
+    safe for a hook to run unattended. It asserts the map exists the same way
+    read/frontier do (OSError -> exit 2): a slug that does not exist must not
+    lint clean, which would report a missing map as a healthy one.
+
+    The rules live in map_core so both backends answer identically (ADR 0062);
+    this function only assembles the shape they take -- the read shape plus
+    each ticket's resolution region.
+    """
+    map_text = (_map_dir(root, slug) / "map.md").read_text(encoding="utf-8")
+    tickets = []
+    for key in _all_tickets(root, slug):
+        _fm, body = _load_ticket(root, slug, key)
+        t = _ticket_json(root, slug, key)
+        t["resolution"] = _region_body(body, _RESOLUTION_START, _RESOLUTION_END)
+        tickets.append(t)
+    findings = _lint_findings(map_text, tickets)
+    # notChecked is always present and always empty here: this backend can
+    # see every ticket's resolution body for free. It is in the shape so
+    # that one flow reads either backend (ADR 0062) without branching.
+    return {"backend": "local", "map": slug,
+            "clean": not findings, "findings": findings, "notChecked": []}
+
+
 def claim(root, slug, ticket, user):
     fm, body = _load_ticket(root, slug, ticket)
     fm["assignee"] = user
@@ -756,6 +784,9 @@ def resolve(root, slug, ticket, gist, link, body):
 # tell "you passed something wrong" from "this tool is broken".
 EXIT_OK = 0
 EXIT_ERROR = 2
+# lint only: the map was read successfully AND it has findings. Distinct
+# from EXIT_ERROR (the call itself was wrong) and from Python's own 1.
+EXIT_FINDINGS = 3
 
 # Every failure below is the user's to act on, so each gets a one-line
 # message naming the problem AND the remedy instead of a traceback (deferred
@@ -781,6 +812,7 @@ _REQUIRED_CLI_ARGS = {
     "resolve": [("slug", "--map"), ("ticket", "--ticket"), ("gist", "--gist")],
     "comment": [("slug", "--map"), ("ticket", "--ticket"), ("body_file", "--body-file")],
     "block": [("slug", "--map"), ("ticket", "--ticket"), ("blocked_by", "--blocked-by")],
+    "lint": [("slug", "--map")],
 }
 
 
@@ -802,6 +834,8 @@ def _dispatch(a):
         return read_map(a.root, a.slug)
     if a.cmd == "frontier":
         return frontier(a.root, a.slug)
+    if a.cmd == "lint":
+        return lint(a.root, a.slug)
     if a.dry:
         # --dry-run is inert on every mutating subcommand: report, touch
         # nothing. It must still validate every identifier the real run
@@ -824,7 +858,7 @@ def _dispatch(a):
 def main():
     ap = argparse.ArgumentParser(description="decision-map local backend")
     ap.add_argument("cmd", choices=["chart", "read", "frontier", "claim",
-                                    "resolve", "comment", "block"])
+                                    "resolve", "comment", "block", "lint"])
     ap.add_argument("--root", default="docs/decision-map")
     ap.add_argument("--input"); ap.add_argument("--output")
     ap.add_argument("--map", dest="slug"); ap.add_argument("--ticket")
@@ -856,6 +890,8 @@ def main():
     if a.output:
         Path(a.output).write_text(text, encoding="utf-8")
     print(text)
+    if a.cmd == "lint" and not result["clean"]:
+        return EXIT_FINDINGS
     return EXIT_OK
 
 

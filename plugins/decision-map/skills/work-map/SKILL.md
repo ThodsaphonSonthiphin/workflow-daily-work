@@ -52,6 +52,9 @@ WORK A DECISION MAP — one decision, then stop
   ⑥ FOG — graduate through the chart gate
   │   dry run → labels → a yes → --real
   ▼
+  ⑦ LINT — run the check, report it
+  │   exit 0 clean · exit 3 findings
+  ▼
   ■ STOP — one HITL ticket per session
      wanting "just one more" = the edge
 ```
@@ -524,6 +527,21 @@ resolving one ticket the session drove two more (`frontend-relocation`,
 asking "which ticket are we on?" surfaced it. The tell is cheap -- if you cannot
 name the ticket you are on, you are off the map.
 
+**Run the check before you report** (ADR 0067). `lint` reads the map as it now
+stands and writes nothing — exit `0` clean, exit `3` with findings:
+
+```
+python "<ops>" lint --map <slug>
+```
+
+It catches what a session most plausibly just broke: the graduated fog line
+Step 5 told you to delete by hand, an edge left dangling by a hand-edited
+`assignee:`, a resolution recorded without its diagram. Report every finding
+alongside the rest of the report, and fix the **errors** before you stop; a
+warning is the user's call. Do not skip it because the session felt clean —
+"felt clean" is the only signal you have otherwise, and it is the one `lint`
+exists to replace.
+
 Re-run the frontier so the report describes the map as it now stands, not as it
 looked when the session opened:
 
@@ -539,6 +557,8 @@ answered.
 
 Report, in this order:
 
+- **any `lint` finding**, errors first — and say explicitly when it came back
+  clean, so the user knows the check ran;
 - the ticket you resolved, **by name**, with its gist and the link if there is
   one;
 - what that released — the tickets that moved onto the frontier;

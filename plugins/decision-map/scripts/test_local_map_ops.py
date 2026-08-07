@@ -1999,5 +1999,195 @@ class PositionDiagramTests(unittest.TestCase):
         self.assertIn(pair, map_core.TRACKER_TICKET_REGIONS)
 
 
+LINT_INPUT = {
+    "target": {"slug": "lint-effort"},
+    "map": {"title": "Decision map - lint", "destination": "a written spec",
+            "notes": "",
+            "notYetSpecified": ["how we shard the write path"],
+            "outOfScope": []},
+    "tickets": [
+        {"key": "alpha", "title": "Alpha question?", "type": "grilling",
+         "question": "a?", "blocks": ["beta"]},
+        {"key": "beta", "title": "Beta question?", "type": "grilling",
+         "question": "b?"},
+    ],
+}
+
+_DIAGRAM_BODY = "```mermaid\ngraph TD\n  A[\"chosen\"] --> B[\"effect\"]\n```\n"
+
+
+class LintTest(unittest.TestCase):
+    """lint is the check an agent can run: it answers pass/fail about the MAP,
+    where every other subcommand only validates the one call being made. Each
+    rule below exists because a flow skill states the invariant in prose and
+    nothing enforces it (see references/data-contracts.md, `lint`)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        ops.chart(self.root, LINT_INPUT, real=True)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _lint(self):
+        return ops.lint(self.root, "lint-effort")
+
+    def _rules(self):
+        return {f["rule"] for f in self._lint()["findings"]}
+
+    def _patch_fm(self, ticket, **fields):
+        """Hand-edit a ticket's frontmatter -- which is exactly what work-map
+        Step 2 instructs a user to do to release a claim, so every corruption
+        below is reachable by following the skill, not only by accident."""
+        fm, body = ops._load_ticket(self.root, "lint-effort", ticket)
+        fm.update(fields)
+        ops._save_ticket(self.root, "lint-effort", ticket, fm, body)
+
+    # --- the clean baseline -------------------------------------------------
+
+    def test_a_freshly_charted_map_is_clean(self):
+        out = self._lint()
+        self.assertTrue(out["clean"], out["findings"])
+        self.assertEqual(out["findings"], [])
+
+    def test_a_normally_worked_ticket_stays_clean(self):
+        """claim -> resolve is the whole happy path of work-map. resolve does
+        NOT clear `assignee`, so a rule keyed on closed+claimed would fire on
+        every correctly-worked ticket; this test is what pins that out."""
+        ops.claim(self.root, "lint-effort", "alpha", "decide-1200")
+        ops.resolve(self.root, "lint-effort", "alpha", "we chose X",
+                    None, _DIAGRAM_BODY)
+        out = self._lint()
+        self.assertTrue(out["clean"], out["findings"])
+
+    # --- edge integrity -----------------------------------------------------
+
+    def test_a_blocker_that_is_not_a_ticket_is_an_error(self):
+        self._patch_fm("beta", blocked_by=["ghost"])
+        out = self._lint()
+        self.assertIn("dangling-blocker", {f["rule"] for f in out["findings"]})
+        self.assertFalse(out["clean"])
+        f = next(f for f in out["findings"] if f["rule"] == "dangling-blocker")
+        self.assertEqual(f["severity"], "error")
+        self.assertEqual(f["ticket"], "beta")
+        self.assertIn("ghost", f["message"])
+
+    def test_a_ticket_that_blocks_itself_is_an_error(self):
+        self._patch_fm("beta", blocked_by=["beta"])
+        self.assertIn("self-blocked", self._rules())
+
+    def test_a_blocking_cycle_is_an_error(self):
+        """beta is already blocked by alpha; closing the loop makes both
+        permanently unreachable -- frontier reports them as `blocked` forever
+        and the map reads as stalled rather than broken."""
+        self._patch_fm("alpha", blocked_by=["beta"])
+        out = self._lint()
+        self.assertIn("blocker-cycle", {f["rule"] for f in out["findings"]})
+        cyc = next(f for f in out["findings"] if f["rule"] == "blocker-cycle")
+        self.assertEqual(cyc["severity"], "error")
+        self.assertIn("alpha", cyc["message"])
+        self.assertIn("beta", cyc["message"])
+
+    def test_a_cycle_is_reported_once_not_once_per_member(self):
+        self._patch_fm("alpha", blocked_by=["beta"])
+        found = [f for f in self._lint()["findings"] if f["rule"] == "blocker-cycle"]
+        self.assertEqual(len(found), 1, found)
+
+    # --- resolution integrity ----------------------------------------------
+
+    def test_a_closed_ticket_with_no_resolution_block_is_an_error(self):
+        self._patch_fm("beta", status="closed")
+        self.assertIn("closed-without-resolution", self._rules())
+
+    def test_a_resolution_without_a_mermaid_diagram_is_a_warning(self):
+        """ADR 0065: the resolution body opens with one diagram of the ANSWER."""
+        ops.resolve(self.root, "lint-effort", "alpha", "we chose X", None,
+                    "just prose, no diagram\n")
+        out = self._lint()
+        f = next(f for f in out["findings"]
+                 if f["rule"] == "resolution-without-diagram")
+        self.assertEqual(f["severity"], "warning")
+        self.assertEqual(f["ticket"], "alpha")
+
+    def test_a_gist_over_the_limit_is_a_warning(self):
+        """resolve warns past GIST_MAX on stderr and records it anyway, so the
+        over-long gist is on disk and only lint can find it afterwards."""
+        ops.resolve(self.root, "lint-effort", "alpha", "x" * (map_core.GIST_MAX + 1),
+                    None, _DIAGRAM_BODY)
+        self.assertIn("gist-too-long", self._rules())
+
+    # --- claim hygiene ------------------------------------------------------
+
+    def test_an_open_ticket_held_by_the_anonymous_default_is_a_warning(self):
+        """work-map: an anonymous claim names nobody, so the files cannot tell
+        you who holds it. "me" is argparse's default for --user."""
+        ops.claim(self.root, "lint-effort", "alpha", "me")
+        f = next(f for f in self._lint()["findings"]
+                 if f["rule"] == "anonymous-claim")
+        self.assertEqual(f["severity"], "warning")
+        self.assertEqual(f["ticket"], "alpha")
+
+    def test_a_named_claim_is_clean(self):
+        ops.claim(self.root, "lint-effort", "alpha", "decide-1200")
+        self.assertNotIn("anonymous-claim", self._rules())
+
+    # --- fog hygiene --------------------------------------------------------
+
+    def test_a_fog_line_that_became_a_ticket_is_a_warning(self):
+        """Union never deletes, so graduating fog leaves the old line behind;
+        both flow skills tell you to delete it by hand and nothing checks."""
+        ops.chart(self.root, {
+            "target": {"slug": "lint-effort"},
+            "map": {"title": "Decision map - lint", "destination": "a written spec",
+                    "notes": "", "notYetSpecified": [], "outOfScope": []},
+            "tickets": [{"key": "write-path-sharding",
+                         "title": "How we shard the write path?",
+                         "type": "grilling", "question": "which key?"}],
+        }, real=True)
+        f = next(f for f in self._lint()["findings"]
+                 if f["rule"] == "fog-line-graduated")
+        self.assertEqual(f["severity"], "warning")
+        self.assertIn("write-path-sharding", f["message"])
+
+    def test_unrelated_fog_is_not_flagged(self):
+        """A check that cries wolf is worse than no check: the fog rule is the
+        only heuristic one, so it must stay silent on an ordinary map."""
+        self.assertNotIn("fog-line-graduated", self._rules())
+
+    # --- CLI contract -------------------------------------------------------
+
+    def test_lint_on_a_map_that_does_not_exist_fails_like_read(self):
+        with self.assertRaises(OSError):
+            ops.lint(self.root, "no-such-map")
+
+    def test_findings_exit_3_not_1(self):
+        """1 is reserved: local_map_ops' exit-code comment gives it to an
+        unexpected crash, so a caller can tell "your map has problems" from
+        "this tool is broken"."""
+        self._patch_fm("beta", blocked_by=["ghost"])
+        r = subprocess.run(
+            [sys.executable, str(Path(ops.__file__)), "lint",
+             "--root", str(self.root), "--map", "lint-effort"],
+            capture_output=True, text=True)
+        self.assertEqual(r.returncode, 3, r.stderr)
+        self.assertFalse(json.loads(r.stdout)["clean"])
+
+    def test_a_clean_map_exits_0(self):
+        r = subprocess.run(
+            [sys.executable, str(Path(ops.__file__)), "lint",
+             "--root", str(self.root), "--map", "lint-effort"],
+            capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(json.loads(r.stdout)["clean"])
+
+    def test_every_finding_names_its_rule_severity_and_message(self):
+        self._patch_fm("beta", blocked_by=["ghost", "beta"])
+        for f in self._lint()["findings"]:
+            self.assertIn(f["severity"], ("error", "warning"), f)
+            self.assertTrue(f["rule"] and f["message"], f)
+            self.assertIn("ticket", f)
+
+
 if __name__ == "__main__":
     unittest.main()

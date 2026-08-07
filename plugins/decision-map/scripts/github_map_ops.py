@@ -88,6 +88,7 @@ from map_core import (
     map_merge_detail, render_map_body, scalar_divergences, merge_map_lists,
     decisions_region, validate_chart_input, key_of_body,
     position_diagram_region, set_graph_region,
+    lint_findings, RULES_NEEDING_RESOLUTION_BODY,
     force_orphaned_blockers, force_orphan_detail, rewired_edges,
 )
 
@@ -1290,6 +1291,38 @@ def _patch_graph_region(ops, snap, key, parents, children):
 # ---------------------------------------------------------------------------
 # the other subcommands
 # ---------------------------------------------------------------------------
+def lint(ops, ref):
+    """Check the map as it stands, from the one snapshot the other read-only
+    subcommands already take. Writes nothing.
+
+    Two rules behave differently here than on local markdown, and both are
+    declared rather than quietly dropped:
+
+    - `resolution-without-diagram` is NOT checked. The resolution body is a
+      native comment; the snapshot holds only the machine-readable gist region,
+      and walking every ticket's comments would cost one API call per ticket on
+      the command whose whole value is being cheap enough to run after every
+      session. It comes back under `notChecked`.
+    - `closed-without-resolution` keys on the gist region instead -- the half of
+      the record `resolve` writes into the ticket body in the same operation.
+
+    `anonymous-claim` cannot fire here at all, and that is correct rather than
+    missing: `--user` has no literal default on this backend, it resolves the
+    caller through whoami(), so there is no anonymous claim to find.
+    """
+    snap = ops.snapshot(ref)
+    tickets = []
+    for key in snap.keys:
+        t = snap.ticket_json(key)
+        t["resolution"] = None      # lives in a comment; see the docstring
+        tickets.append(t)
+    findings = lint_findings(norm_eol(snap.map.get("body")), tickets,
+                             resolution_bodies=False)
+    return {"backend": "github", "map": snap.map_json()["map"]["id"],
+            "clean": not findings, "findings": findings,
+            "notChecked": list(RULES_NEEDING_RESOLUTION_BODY)}
+
+
 def read_map(ops, ref):
     return ops.snapshot(ref).map_json()
 
@@ -1494,6 +1527,10 @@ def _reindex_decisions(ops, snap, just_closed, just_gist):
 # ---------------------------------------------------------------------------
 EXIT_OK = 0
 EXIT_ERROR = 2
+# lint only: the map was read successfully AND it has findings. Distinct
+# from EXIT_ERROR (the call itself was wrong) and from Python's own 1,
+# which an unexpected crash already uses.
+EXIT_FINDINGS = 3
 
 _REMEDY = {
     CliUsageError: "run with --help to see the arguments this subcommand needs",
@@ -1517,6 +1554,7 @@ _REQUIRED_CLI_ARGS = {
     "resolve": [("ref", "--map"), ("ticket", "--ticket"), ("gist", "--gist")],
     "comment": [("ref", "--map"), ("ticket", "--ticket"), ("body_file", "--body-file")],
     "block": [("ref", "--map"), ("ticket", "--ticket"), ("blocked_by", "--blocked-by")],
+    "lint": [("ref", "--map")],
 }
 
 
@@ -1549,6 +1587,8 @@ def _dispatch(a, api=None):
         return read_map(ops, a.ref)
     if a.cmd == "frontier":
         return frontier(ops, a.ref)
+    if a.cmd == "lint":
+        return lint(ops, a.ref)
     if a.dry:
         # Parity with the local backend, which is the point: --dry-run on a
         # mutating ticket subcommand prints a stub and performs NO lookups. A
@@ -1585,7 +1625,7 @@ def build_parser():
     ap = argparse.ArgumentParser(
         description="decision-map GitHub Issues backend")
     ap.add_argument("cmd", choices=["chart", "read", "frontier", "claim",
-                                    "resolve", "comment", "block"])
+                                    "resolve", "comment", "block", "lint"])
     ap.add_argument("--repo", help="OWNER/REPO. Required except on chart, where "
                                    "map_input.json's target.owner/target.repo "
                                    "may supply it")
@@ -1630,6 +1670,8 @@ def main(argv=None, api=None):
         with open(a.output, "w", encoding="utf-8") as fh:
             fh.write(text)
     print(text)
+    if a.cmd == "lint" and not result["clean"]:
+        return EXIT_FINDINGS
     return EXIT_OK
 
 
