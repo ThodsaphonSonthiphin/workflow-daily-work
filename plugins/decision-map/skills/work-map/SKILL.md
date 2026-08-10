@@ -12,7 +12,7 @@ description: >-
   comes back to a charted effort. Do NOT use to create a map or to add the
   first tickets to a foggy idea (that is chart-map), and do NOT use for a
   single-session design with no map behind it (that is grill-then-plan /
-  grill-with-docs). Never resolves more than one HITL ticket in a session.
+  sp-grill-with-doc). Never resolves more than one HITL ticket in a session.
 ---
 
 # work-map
@@ -193,6 +193,12 @@ claim (the bare default) names nobody, so the files cannot tell you who
 holds it. Always pass a real `--user`, as the command below does; for a claim
 already holding an anonymous value, only the user can identify it.
 
+**Taking over a `claimed` ticket does not stop the other session.** There is no
+lock: the user telling you to proceed settles who *should* own it, not who is
+still writing. Expect the other session to keep resolving and to keep charting
+— so re-read the map before every write (Step 5), and treat a second resolution
+appearing on your ticket as evidence it was live, not as your own duplicate.
+
 Then, the moment the user picks or accepts, **claim it — before any work at
 all**:
 
@@ -244,7 +250,7 @@ resolution.
 
 | Type | Mode | How you resolve it |
 |---|---|---|
-| `grilling` | HITL | Load `grill-with-docs` the way your harness loads skills — or `grill-then-plan` when this ticket's outcome is meant to be a written plan. **If the ticket is fix-shaped and the cause is not yet verified, verify the cause first with `debug-mantra`: never plan a fix on an unverified cause** (ADR 0003/0011). |
+| `grilling` | HITL | Load `dev-workflows:sp-grill-with-doc` the way your harness loads skills — or `dev-workflows:grill-then-plan` when this ticket's outcome is meant to be a written plan, and ONLY then: its Step 6 hand-off to `superpowers:writing-plans` is mandatory and terminal and its Step 0 makes the superpowers plugin a hard prerequisite, so loading it for a decision-only ticket yields a spec plus an implementation plan per ticket where the map wanted one answer. **If the ticket is fix-shaped and the cause is not yet verified, verify the cause first with `debug-mantra`: never plan a fix on an unverified cause** (ADR 0003/0011). **Pose every question in the user's terms** - name the screen, what they press, and what they would observe; when two or more paths are in play put them in a small table, and make the stake concrete ("you save it under a parent record, you delete that parent later, it disappears"). An answer that comes back as a question ("what do you mean?", "which step of the app is this?") is a framing failure: re-pose it rather than explaining it at greater length. |
 | `prototype` | HITL | Produce the cheap artifact through the ui-mockup mechanism — before the first render, read `references/ui-mockup.md` **as bundled with the dev-workflows plugin** (in this repo, `plugins/dev-workflows/references/ui-mockup.md`; once installed it sits inside that plugin's own directory, wherever your harness put it — the plugin-root path every other file reference in this skill uses points at decision-map, so it cannot address another plugin's file). A Claude Design design-system home is preferred per ADR 0032; a rendered artifact, then a self-contained local `.html`, are fallbacks 2 and 3, used only when the ones above are unavailable. The user reacts to the artifact; their reaction is the decision. Link the artifact onto the ticket with `comment`. |
 | `research` | AFK | Normally already resolved by the chart-time subagents. If it is still open: dispatch a research subagent now, the way your harness runs them, and record its findings with `--body-file` in Step 4. |
 | `task` | either | Do the thing if you can do it unattended; otherwise hand the user a **precise** checklist and wait. Record what was done, and the facts later tickets depend on — a task ticket's value to the map is the facts it leaves behind. |
@@ -350,9 +356,16 @@ so the quote is the audit trail that makes that safe (ADR 0039).
 
 One call does all of it: `resolve` writes the resolution block, closes the
 ticket, and re-projects the map's "Decisions so far" index from every closed
-ticket. There is no second call, and no map edit to remember. It is also
-idempotent — re-resolving replaces the previous resolution block rather than
-stacking a second one.
+ticket. There is no second call, and no map edit to remember.
+
+**On local it is idempotent — re-resolving replaces the previous resolution
+block. On GitHub it is NOT: the resolution is an issue comment, so a second
+`resolve` posts a SECOND `## Resolution` comment** (the ticket's gist markers
+and the map index do get replaced either way). **Count the gist yourself before
+the first call** — a `--gist` past ~200 characters is warned about only *after*
+it has been recorded, and re-resolving to shorten it leaves two resolutions on
+the timeline. Seen 2026-08-10: ticket #16 of `claude-model-router` carries four,
+two from each of two concurrent sessions.
 
 **A measured gate must name the ref it was measured on.** A route count, a test
 tally or a file count is true of one commit, and a resolution stating it bare is
@@ -459,6 +472,18 @@ tool-owned `- (none)` placeholder, nothing more. **A
 nothing else**: its status, assignee, gist and resolution block are untouched
 (ADR 0058). If you see an `OVERWRITE` line and did not deliberately pass
 `--force`, stop and investigate.
+
+**Re-read the map before you approve — the Step 1 snapshot is stale.** `read`
+and `frontier` describe the map as it was when you ran them, and a parallel
+session can create tickets, resolve them or comment *after* that. On GitHub the
+tell is cheap: issue numbers are sequential, so a ticket numbered higher than
+the highest you saw in Step 1 was written by someone else while you worked.
+Re-run `read` immediately before `--real` and diff the ticket list against your
+Step 1 copy. If something new appeared, check whether your graduation duplicates
+it BEFORE creating — `lint` reports the map clean either way. Seen 2026-08-10 on
+`claude-model-router`: `gate-rearm-scope` (#17) and `effort-ratchet-persistence`
+(#18) are the same question, charted 8 minutes apart by two sessions that had
+each resolved the same ticket.
 
 **3. Ask for explicit approval. Never create without it.** The approval is for
 the plan you just showed — if the input changes at all, re-run the dry run.

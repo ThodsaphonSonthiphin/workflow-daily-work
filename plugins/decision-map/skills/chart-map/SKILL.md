@@ -8,7 +8,7 @@ description: >-
   idea — "this is huge, where do we even start", "plan this migration", "chart
   this", "make a decision map", "map out this initiative", "too big for one
   session" — and the route to the goal is not visible yet. Do NOT use for a
-  well-scoped single-session design (that is grill-then-plan / grill-with-docs),
+  well-scoped single-session design (that is grill-then-plan / sp-grill-with-doc),
   and do NOT use to continue a map that already exists (that is work-map). If
   the opening grill surfaces no fog, this skill stops and says a map is not
   needed.
@@ -109,7 +109,7 @@ commit, never make it automatically.
 
 ## Step 1 — Name the destination
 
-Run a short grilling exchange (load `grill-with-docs` the way your harness loads
+Run a short grilling exchange (load `sp-grill-with-doc` the way your harness loads
 skills, if it is available; otherwise ask directly, one question at a time):
 **what does reaching the end look like?** A written spec, a locked decision, a
 change made in place?
