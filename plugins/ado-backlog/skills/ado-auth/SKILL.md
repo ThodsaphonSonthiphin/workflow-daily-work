@@ -10,6 +10,7 @@ description: >-
   verify snippet against the projects API, and a 401/403/wrong-org troubleshooting
   table. Invoke when someone says "I'm getting a 401 from Azure DevOps", "create-backlog
   says it can't get a token", "ado auth failing", or "check my ADO login before we run".
+effort: max
 ---
 
 # ado-auth

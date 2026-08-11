@@ -7,6 +7,7 @@ description: >-
   source was a spreadsheet (xlsx/csv). Triggers on "write the issue links back",
   "track which row got which issue", "update the spreadsheet with the GitHub IDs",
   "fill in the issue column", "close the loop on the audit sheet".
+effort: max
 ---
 
 # github-writeback-tracking

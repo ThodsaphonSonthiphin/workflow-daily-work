@@ -11,6 +11,7 @@ description: >-
   "make a backlog from this doc". If the goal is eventually GitHub Issues, this
   runs first. Hands off to triage-findings (then classify-github-issues,
   github-create-issues). Driven end-to-end by the findings-to-github-issues orchestrator.
+effort: max
 ---
 
 # extract-findings

@@ -7,6 +7,7 @@ description: >-
   work on next", "show my backlog", "read my task hub", "daily standup prep", or starts the
   day wanting their remaining work. This is step 2 of the daily-work flow (read the task
   hub). Read-only — it lists, it never changes anything.
+effort: max
 ---
 
 # my-work

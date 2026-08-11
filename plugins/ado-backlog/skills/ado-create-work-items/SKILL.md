@@ -11,6 +11,7 @@ description: >-
   real ADO backlog. This is the step that actually writes to the org, so prefer
   it over hand-rolling REST/MCP calls when a backlog_input.json exists. After
   creating, it writes backlog_result.json for ado-writeback-tracking.
+effort: max
 ---
 
 # ado-create-work-items

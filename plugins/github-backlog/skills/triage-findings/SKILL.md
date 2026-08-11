@@ -10,6 +10,7 @@ description: >-
   needs-review items", "scope down the backlog", "prioritize these findings",
   or any request to pick a subset of findings to turn into issues. Produces a
   scoped, ordered subset and hands it to classify-github-issues.
+effort: max
 ---
 
 # triage-findings

@@ -1,6 +1,7 @@
 ---
 name: sp-grill-with-doc
 description: Use when the user wants a design, plan, or approach stress-tested against the project's own domain model and documented decisions - terminology challenged, contradictions with the real code surfaced, CONTEXT.md and ADRs kept current as decisions land - and does NOT need an implementation plan produced afterward. Use grill-then-plan instead when a written plan is the required outcome.
+effort: max
 ---
 
 <what-to-do>

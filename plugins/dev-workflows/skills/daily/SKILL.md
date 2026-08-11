@@ -14,6 +14,7 @@ description: >-
   dual-verifier, drive-to-legacy, crm-archaeology, generating-test-cases), findings-to-ado-backlog or
   ado-create-work-items (github-backlog twins on request), management-talk, or
   invoice-generator.
+effort: max
 ---
 
 # daily — the one command to remember

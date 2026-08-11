@@ -13,6 +13,7 @@ description: >-
   first tickets to a foggy idea (that is chart-map), and do NOT use for a
   single-session design with no map behind it (that is grill-then-plan /
   sp-grill-with-doc). Never resolves more than one HITL ticket in a session.
+effort: max
 ---
 
 # work-map

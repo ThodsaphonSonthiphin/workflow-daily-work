@@ -10,6 +10,7 @@ description: >-
   This is the step that actually writes to the repo, so prefer it over hand-rolling
   API calls. After creating, it writes github_backlog_result.json for
   github-writeback-tracking.
+effort: max
 ---
 
 # github-create-issues

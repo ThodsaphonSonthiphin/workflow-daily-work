@@ -12,6 +12,7 @@ description: >-
   and do NOT use to continue a map that already exists (that is work-map). If
   the opening grill surfaces no fog, this skill stops and says a map is not
   needed.
+effort: max
 ---
 
 # chart-map

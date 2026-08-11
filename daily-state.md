@@ -1,7 +1,7 @@
 ---
 type: daily-state
 schema_version: 1
-updated: '2026-08-07T11:08:17+07:00'
+updated: '2026-08-10T21:02:24+07:00'
 ---
 
 # Daily state
@@ -155,3 +155,5 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
 - 2026-08-04T17:06:54+07:00 — fix(dev-workflows): quote description scalars that broke YAML frontmatter (387e584)
 - 2026-08-06T12:20:42+07:00 — feat(dev-workflows): asking-to-understand - one grounded question per turn (2bf3e15)
 - 2026-08-07T11:08:17+07:00 — feat(debug-mantra): require build provenance before reading any code (0.31.0) (1984370)
+- 2026-08-07T11:16:31+07:00 — feat: add lint command to decision-map plugin (aeab2da)
+- 2026-08-10T21:02:24+07:00 — feat(skills): sp-grill-with-doc and the ask-in-user-terms rule (dev-workflows 0.33.0) (dfb55af)

@@ -11,6 +11,7 @@ description: >-
   Runs the bundled tracking.py (add-columns + writeback). For doc/pasted-text
   input there are no rows to write to — in that case just report the created
   links instead.
+effort: max
 ---
 
 # ado-writeback-tracking

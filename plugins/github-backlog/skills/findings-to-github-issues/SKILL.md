@@ -11,6 +11,7 @@ description: >-
   you a source document and asks for it to land in GitHub. This is the headline,
   one-shot entry point (/github-backlog:run wraps it). Not for editing existing
   issues individually.
+effort: max
 ---
 
 # findings-to-github-issues (orchestrator)
