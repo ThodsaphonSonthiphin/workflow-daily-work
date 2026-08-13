@@ -12,7 +12,7 @@ description: >-
   and do NOT use to continue a map that already exists (that is work-map). If
   the opening grill surfaces no fog, this skill stops and says a map is not
   needed.
-effort: max
+effort: high
 ---
 
 # chart-map
@@ -258,6 +258,14 @@ a partially-failed chart is resumable by simply re-running it. If you see an
 the plan you just showed — if the input changes at all, re-run the dry run and
 show the new plan.
 
+**Carry the end-of-session commit offer in this same ask, on local.** In the
+same message, ask whether to commit the new `docs/decision-map/<slug>/` folder
+once the session ends, alongside any repo docs it produced -- so the session
+pauses once, here, instead of twice. This does not weaken assisted git: a
+bundled offer is still an explicit offer the user answers, and nothing is
+committed without that yes. On GitHub there is nothing to commit for the map
+itself, but any repo docs still need the same ask.
+
 **4. On approval, re-run with `--real`:**
 
 ```
@@ -374,11 +382,16 @@ Report, in this order:
 - the fog lines still unspecified;
 - what was ruled out of scope.
 
+One line per bullet, no filler, around ten lines in total -- group rather than
+itemize when a bullet would otherwise run to a list of its own.
+
 On **local**, offer to commit the new `docs/decision-map/<slug>/` folder
 (assisted git — offer, never automatic). On **GitHub** there is nothing to
 commit: the map is already live in the tracker the moment `--real` returned, so
 give the map issue's URL instead and say that anyone with repo access can see it
-now.
+now. If the Step 3 gate already carried this offer and the user approved it
+there, commit now without asking a second time -- the yes you are holding *is*
+that explicit offer, answered.
 
 Then suggest `/decision-map:work` for the next session, and **stop**. Do not
 claim a ticket, do not resolve one, do not start the first decision. Charting is

@@ -13,7 +13,7 @@ description: >-
   first tickets to a foggy idea (that is chart-map), and do NOT use for a
   single-session design with no map behind it (that is grill-then-plan /
   sp-grill-with-doc). Never resolves more than one HITL ticket in a session.
-effort: max
+effort: high
 ---
 
 # work-map
@@ -165,6 +165,10 @@ Present it as prose, in this order:
 - one line of **blocked**: `<name> — waiting on <blocker name>`;
 - one line of **claimed**, if any: another session is holding these.
 
+One line per item, no filler: aim to keep the whole presentation around ten
+lines, and on a map large enough to blow past that, group rather than itemize --
+"four tickets blocked on `<name>`" beats four lines that each say it once.
+
 A ticket sits in exactly one bucket, and the order is fixed by the contract:
 **claimed** beats **blocked** beats **frontier**. So a claimed ticket does not
 show its blockers here, and a blocked ticket lists only its *open* blockers — a
@@ -247,7 +251,9 @@ told above not to claim over `claimed`.
 The ticket's `type` picks the resolver and the mode (ADR 0038). The ticket's
 **Question** is the scope: if resolving reveals the question was wrong, do not
 silently widen it — re-scope out loud, and record the re-scope in the
-resolution.
+resolution. It is the exit condition too: the moment the Question is answerable,
+stop grilling and go record it (Step 4). Questions that sit past it belong to
+other tickets, or to fog -- breadth was chart-map's job, and it is already done.
 
 | Type | Mode | How you resolve it |
 |---|---|---|
@@ -489,6 +495,14 @@ each resolved the same ticket.
 **3. Ask for explicit approval. Never create without it.** The approval is for
 the plan you just showed — if the input changes at all, re-run the dry run.
 
+**Carry the end-of-session commit offer in this same ask, on local.** In the
+same message, ask whether to commit `docs/decision-map/<slug>/` and any repo
+docs this session produced, once the session ends -- so the session pauses once,
+here, instead of twice. This does not weaken assisted git: a bundled offer is
+still an explicit offer the user answers, and nothing is committed without that
+yes. On GitHub there is nothing to commit for the map itself, but any repo docs
+still need the same ask.
+
 **4. On approval, re-run with `--real`:**
 
 ```
@@ -592,12 +606,20 @@ Report, in this order:
 - the frontier for next time, **by name**;
 - the fog lines still unspecified.
 
+Same discipline as the Step 1 frontier: one line per bullet, no filler, around
+ten lines in total -- group rather than itemize when a bullet would otherwise run
+to a list of its own.
+
 Offer to commit any repo docs the resolution produced — an ADR written during a
 grilling ticket is exactly the file that gets orphaned when only the map is
 committed — **plus, on local, `docs/decision-map/<slug>/` itself**. On GitHub the
 map needs no commit (it is already live in the tracker), but the repo docs still
 do, and that is the half most easily forgotten when the map is not a file.
-Assisted git: offer, never automatic.
+Assisted git: offer, never automatic. If the Step 5 gate already carried this
+offer and the user approved it there, commit now without asking a second time --
+the yes you are holding *is* that explicit offer, answered. If there was no
+graduation this session, no gate ran and no offer rode along with it, so this is
+the ask, exactly as before.
 
 Then suggest `/decision-map:work` for the next session, and stop.
 
