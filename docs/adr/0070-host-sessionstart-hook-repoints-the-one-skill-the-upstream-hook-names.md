@@ -21,6 +21,29 @@ whose injected text names the vendored copies for the requests that the upstream
 hook routes to originals. Nothing is switched off, and no settings key is required
 on a colleague's machine.
 
+## Amendment — 2026-08-14: touchpoint #1 is not a reviewer dispatch
+
+[ADR 0074](0074-the-six-skills-are-vendored-whole-then-one-rewrite-pass.md) measured the
+vendoring source and found that `brainstorming/spec-document-reviewer-prompt.md` is
+referenced by nothing outside `docs/` and `RELEASE-NOTES.md`. The live step at that stage
+is an inline checklist the same agent runs — *"Fix any issues inline. No need to re-review
+— just fix and move on"* (`brainstorming/SKILL.md:219`). Touchpoint #2 in `writing-plans`
+is the same, and says so outright: *"not a subagent dispatch"* (`SKILL.md:143`).
+
+So the sentence below under *"Why not leave it alone"* — that C is *"a guaranteed
+one-touchpoint loss"* — is wrong about the mechanism, and so is the matching phrase in the
+diagram. The error was inherited from the chart's touchpoint list, not produced by any
+measurement recorded here.
+
+**The decision is unchanged and the case against option C is stronger, not weaker.** What
+the upstream hook forces is not the loss of a reviewer; it is the **entry into the upstream
+chain**. From upstream `brainstorming` the prose handoff reaches upstream `writing-plans`,
+which names `superpowers:subagent-driven-development` by qualified name, which names
+`superpowers:requesting-code-review` — and those last two hold **all four** real reviewer
+dispatches. Option C therefore risks the entire chain rather than one touchpoint. The
+3/3-against-2/2 measurement, the merged-attachment ordering finding, and the rejection of
+option B are all unaffected.
+
 ## Why the question changed
 
 ADR 0069 chose to switch the six review-carrying originals off individually with

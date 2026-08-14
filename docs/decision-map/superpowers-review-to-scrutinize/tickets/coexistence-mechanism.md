@@ -119,3 +119,35 @@ its predecessor, after I recommended a fresh session to avoid that anchoring. Th
 call, recorded here because it is the one thing a later reader cannot see.
 
 <!-- decision-map:resolution:end -->
+
+## Comment
+
+## Correction — 2026-08-14: this ticket's ADR overstated what option C loses
+
+Found while resolving `copy-granularity`. **The decision on this ticket stands** — the gist
+and the 3/3-against-2/2 measurement are unaffected — and the correction is to one supporting
+claim in the ADR, not to the answer.
+
+**What was believed:** ADR 0070's *"Why not leave it alone (option C)"* concluded that
+*"Touchpoint #1 is lost by force under C … a guaranteed one-touchpoint loss."* That treated
+`brainstorming/spec-document-reviewer-prompt.md` as a reviewer dispatch, which is what the
+chart's touchpoint list said.
+
+**What is measured** (superpowers `b36e0829c6d0`, the vendoring source): that file is
+referenced by nothing outside `docs/` and `RELEASE-NOTES.md`. The live step at that stage is
+an inline checklist the same agent runs — *"Fix any issues inline. No need to re-review — just
+fix and move on"* (`brainstorming/SKILL.md:219`). Touchpoint #2 in `writing-plans` is the
+same and says so outright: *"This is a checklist you run yourself — not a subagent dispatch"*
+(`SKILL.md:143`).
+
+**Why the conclusion survives, and hardens.** What the upstream hook forces is not the loss
+of a reviewer but the **entry into the upstream chain**: upstream `brainstorming` hands off in
+prose to upstream `writing-plans`, which names `superpowers:subagent-driven-development` by
+qualified name, which names `superpowers:requesting-code-review` — and those last two hold
+**all four** real reviewer dispatches. Option C risks the whole chain, not one touchpoint, so
+rejecting it was right for a bigger reason than the ADR gave.
+
+Recorded per the map's rule for a closed ticket's false fact: the gist is left as the audit
+trail of what was verified then, ADR 0070 carries a dated amendment that scopes the claim
+rather than deleting it, and ADR 0074 carries the measurement.
+
