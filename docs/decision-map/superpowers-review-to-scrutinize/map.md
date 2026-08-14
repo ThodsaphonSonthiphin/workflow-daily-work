@@ -15,6 +15,7 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 ## Decisions so far
 
 <!-- decision-map:decisions:start -->
+- [Ripple - which existing daily-arc handoffs get repointed at the copies?](tickets/arc-rewiring.md) — All 11 refs - one skill, 4 files - become short-form sp-writing-plans; grill-then-plan Step 0 retargets to it; PLAYBOOK and the daily router need no change, they never named superpowers.
 - [Mechanism - with per-skill disable impossible, does the plugin go fully off or stay fully on?](tickets/coexistence-mechanism.md) — Plugin stays FULLY on; this marketplace ships its OWN SessionStart hook that re-points the one skill the upstream hook names - measured 3/3 against a 2/2 control, not assumed.
 - [Coexistence - does the superpowers plugin stay enabled alongside the copies?](tickets/coexistence.md) — Plugin stays enabled; the six review-carrying originals go off via skillOverrides - the other eight skills stay live and the copies' outbound refs keep resolving.
 - [Harness behaviour - how does Claude Code resolve two skills with the same name from different plugins?](tickets/harness-skill-shadowing.md) — Both load - no collision, since plugin skills are namespaced plugin:skill; skillOverrides switches off one skill without disabling its plugin.
@@ -41,4 +42,5 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 - Changing scrutinize's own behaviour, stance or output format - it is frozen by decision.
 - Contributing any of this back upstream to obra/superpowers.
 - Copying or replacing the eight superpowers skills that carry no review step - the coexistence decision keeps them live from the upstream plugin, and two of them (using-git-worktrees, finishing-a-development-branch) are load-bearing for the copies.
+- Repointing references to superpowers skills that carry NO review touchpoint - problem-description's systematic-debugging pointer is an editorial call about this repo's own debug-mantra, not part of the review-to-scrutinize swap (ADR 0072).
 <!-- decision-map:scope:end -->
