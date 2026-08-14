@@ -20,7 +20,14 @@
   below — **B** (whole plugin off, costing 8 skills and 3 dangling refs inside the
   copies) and **C** (plugin fully on, the copies competing against a hook that
   names the originals). That re-decision is tracked as the `coexistence-mechanism`
-  ticket; this amendment does not settle it.
+  ticket, and is now settled by
+  [ADR 0070](0070-host-sessionstart-hook-repoints-the-one-skill-the-upstream-hook-names.md):
+  the plugin stays **fully** on, and this marketplace ships its own SessionStart
+  hook that re-points the one skill the upstream hook names. Note that the cost
+  figures in the bullet above are this ADR's own, unmeasured; ADR 0070 re-measured
+  them on `24a4b64` and found **one** live breaking reference in this marketplace,
+  not three, and five qualified handoffs onto two non-review skills inside the
+  copies.
 - **Date:** amended 2026-08-14
 
 ```mermaid
