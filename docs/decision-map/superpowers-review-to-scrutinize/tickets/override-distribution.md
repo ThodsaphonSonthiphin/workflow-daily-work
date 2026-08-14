@@ -43,3 +43,41 @@ that goes:
 
 Re-scope the title and question when the mechanism is decided.
 
+
+## Comment
+
+## This ticket's premise no longer holds (2026-08-14, noted from `skill-naming`)
+
+Not a resolution — a scope note left by a session working a different ticket.
+
+The title asks *"how do the six `skillOverrides` entries reach a colleague's machine?"*
+There are no `skillOverrides` entries to distribute. `skilloverrides-live-check`
+measured on Claude Code **2.1.232** that `skillOverrides` cannot reach a **plugin**
+skill by either key form, and [ADR 0070](../../../adr/0070-host-sessionstart-hook-repoints-the-one-skill-the-upstream-hook-names.md)
+replaced that lever with a host SessionStart hook shipped by this marketplace. ADR 0070
+states the consequence directly: *"no settings key is required on a colleague's
+machine."*
+
+So whoever takes this ticket should expect to **re-scope the question before answering
+it**, not answer it as written. The distribution question that survives is a different
+one, and it is narrower:
+
+- the host hook ships **inside** this marketplace, so it arrives with the plugin — that
+  half needs no distribution mechanism at all;
+- what does *not* ship inside any plugin is anything living in a colleague's own
+  `~/.claude/`. That is now charted as its own ticket, `user-command-entry`, for the
+  three commands (`/brainstorm`, `/write-plan`, `/execute-plan`) that name a
+  `superpowers:` skill directly and bypass both the hook and the descriptions.
+
+Two consequences for the frontier, which the taker should confirm rather than assume:
+
+1. `antigravity-install` is blocked on this ticket. If the answer here collapses to
+   "nothing to distribute", that blocker releases cheaply.
+2. This ticket may be closeable as out-of-scope rather than answered. That is the
+   taker's call with the user, not this session's.
+
+Also worth checking against the map's fog list: the line about Claude Code's `/skills`
+picker showing an override as applied while enforcement ignores it was written when
+`skillOverrides` was still the mechanism. With that lever abandoned, that fog line may
+be stale too.
+

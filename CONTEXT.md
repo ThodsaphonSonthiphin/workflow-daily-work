@@ -157,3 +157,23 @@ _Avoid_: epic issue (ambiguous), parent issue (not a GitHub term).
 A `size:XS` / `size:S` / `size:M` / `size:L` / `size:XL` label on a GitHub Issue
 encoding the effort estimate for that item. Maps from raw hours during classification.
 _Avoid_: story points (different concept), estimate label.
+
+## Vendored-skill terms (superpowers copies)
+
+**Vendored Skill**:
+A copy of an upstream `superpowers` **Skill** inside this **Marketplace**, taken so its
+review step routes to `scrutinize` instead of the built-in reviewer. Six exist by
+decision (ADR 0071) - the review-carrying half of upstream's 14. A Vendored Skill takes
+the **`sp-` prefix** and references its siblings by short name; the upstream original
+stays live and is never edited (ADR 0070).
+_Avoid_: fork (nothing goes back upstream - that is out of scope), shim, override
+(`skillOverrides` was measured inert against plugin skills).
+
+**`sp-` prefix**:
+The marker on every Skill in this Marketplace that belongs with `superpowers` - both a
+**Vendored Skill** (`sp-writing-plans`) and this Marketplace's own superpowers-based
+Skills (`sp-grill-with-doc`, which is *not* a copy). It means "belongs with
+superpowers", not "is a copy of superpowers", so a search for `sp-` is not by itself a
+list of Vendored Skills. No upstream Skill name begins with `sp-`, which is what makes a
+short reference unambiguous in both harnesses (ADR 0071).
+_Avoid_: namespace (the Plugin prefix is the namespace), superpowers prefix.
