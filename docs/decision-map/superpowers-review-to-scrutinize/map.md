@@ -21,6 +21,7 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 - [Granularity - whole skill directories, or just the reviewer prompt files with shims?](tickets/copy-granularity.md) — All 21 files copied verbatim plus one rewrite pass; shims are impossible - a reviewer prompt is a RELATIVE link inside the SKILL.md, so only a copied SKILL.md can redirect a dispatch.
 - [Harness behaviour - how does Claude Code resolve two skills with the same name from different plugins?](tickets/harness-skill-shadowing.md) — Both load - no collision, since plugin skills are namespaced plugin:skill; skillOverrides switches off one skill without disabling its plugin.
 - [Host plugin - do the copies live in dev-workflows or a new plugin of their own?](tickets/host-plugin.md) — The six copies live in plugins/dev-workflows - no sixth plugin: the destination needs Antigravity and its only installer is plugin-local, and ADR 0070's hook must ship beside them.
+- [Resync - what is the documented procedure for pulling upstream changes into the copies?](tickets/resync-path.md) — Resync is a checker script that reports and changes nothing, driven by ONE recorded sha plus a 21-file manifest; a person applies the 9 files edits and the exit code says done.
 - [Naming - what are the copied skills called, and what do their descriptions trigger on?](tickets/skill-naming.md) — The six copies take the sp- prefix, reference each other by short name (the eight non-copied stay superpowers:*), and each description names the upstream skill it displaces.
 - [Live check - does a plugin-qualified skillOverrides key work, and what does the hook do when its skill is off?](tickets/skilloverrides-live-check.md) — Observed on CC 2.1.232: skillOverrides cannot reach a PLUGIN skill by EITHER key form - only whole-plugin disable works, and the hook injects a file so no override touches it.
 <!-- decision-map:decisions:end -->
@@ -32,6 +33,7 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 - Whether subagent-driven-development/scripts/review-package needs to change, and what it assumes about the reviewer it packages for.
 - Whether Claude Code's /skills picker will show an override on a plugin skill as applied while enforcement ignores it - the listing UI computes the override without the plugin exemption the enforcement resolver applies, which would make any future per-skill claim about a plugin untrustworthy unless it is checked live.
 - Whether the commit-log PostToolUse hook (ADR 0054) is being retired - the working tree has emptied plugins/dev-workflows/hooks/hooks.json, which is the same file ADR 0073 puts ADR 0070's SessionStart hook in.
+- Nothing notices that upstream moved - ADR 0075 makes resync on-demand with no trigger, and this repo has no CI to hold one, so a new superpowers version can sit unpulled indefinitely.
 <!-- decision-map:fog:end -->
 
 ## Out of scope

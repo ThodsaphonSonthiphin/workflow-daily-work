@@ -20,6 +20,21 @@ Markdown lines plus 1,559 non-Markdown — and behaviour is changed only by an e
 rewrite pass over five enumerated classes of reference. Nothing is trimmed, including
 two files this ADR proves are dead upstream.
 
+## Amendment - 2026-08-14: rewrite class 2 is four sites, not three
+
+The rewrite pass below records `subagent-driven-development` referencing
+`../requesting-code-review/code-reviewer.md` "at three places". It is at **four**:
+`SKILL.md` lines **88, 117, 118 and 454**. The first three sit inside the DOT diagram's
+node labels rather than in a markdown link, which is how a read that was looking for
+links undercounted them.
+
+Measured on the `6.3.0` cache dir, verified byte-identical to the `b36e0829c6d0` dir
+apart from cache bookkeeping. Nothing else in this ADR changes: the five classes, the
+copy set and the decision all stand.
+
+[ADR 0075](0075-resync-is-a-checker-script-and-one-recorded-sha.md) takes this miscount
+as evidence and puts the site list in a checker script rather than in prose.
+
 ## Why a shim cannot work
 
 This is the finding that removes the ticket's second option entirely, so it is recorded

@@ -2,10 +2,10 @@
 title: Resync - what is the documented procedure for pulling upstream changes into the copies?
 type: grilling
 mode: HITL
-status: open
-assignee: 
+status: closed
+assignee: resync-grill-1801
 blocked_by: [copy-granularity]
-gist: 
+gist: Resync is a checker script that reports and changes nothing, driven by ONE recorded sha plus a 21-file manifest; a person applies the 9 files edits and the exit code says done.
 ---
 
 <!-- decision-map:graph:start -->
@@ -85,3 +85,51 @@ ADR 0070 already assigned both here, and ADR 0074 adds a third:
   automatically yet; whatever this ticket produces is what turns those copies into an actual
   detector.
 
+<!-- decision-map:resolution:start -->
+## Resolution
+
+Resync is a checker script that reports and changes nothing, driven by ONE recorded sha plus a 21-file manifest; a person applies the 9 files edits and the exit code says done.
+
+Detail: docs/adr/0075-resync-is-a-checker-script-and-one-recorded-sha.md
+
+```mermaid
+flowchart TD
+    M["manifest beside the copies<br/>ONE sha + 21 files, each<br/>verbatim/edited + a hash"] --> C["check_vendored_superpowers.py<br/>REPORTS, changes nothing"]
+    U["upstream ships a new version"] --> C
+    C --> L["local mode, default, offline<br/>did OUR copies drift?"]
+    C --> N["--upstream, network<br/>did upstream move?<br/>+ the 3 invisible-change traps"]
+    L --> F["exit 1 — the sites to fix, computed"]
+    N --> F
+    F --> H["a person edits the 9 files;<br/>12 are proved byte-identical"]
+    H --> C
+    C -. displaces .-> X["a prose checklist of file:line sites —<br/>ADR 0074's hand-count was already wrong"]
+    C -. displaces .-> Y["a script that re-applies the edits —<br/>a drifted anchor no-ops silently,<br/>and the built-in reviewer runs"]
+```
+
+Full reasoning is in [ADR 0075](../../../adr/0075-resync-is-a-checker-script-and-one-recorded-sha.md).
+What that ADR does not carry, and this ticket should:
+
+**The three sub-questions, answered.** *Provenance* — one sha for the whole copy set,
+never per-file, plus a 21-file manifest marking each `verbatim` or `edited` with a
+vendoring-time hash; no per-file headers, because they would make all 21 files differ
+from upstream and destroy the plain per-file diff. *Procedure* — run the checker, apply
+what it names, re-run until exit `0`. *Home and runner* —
+`plugins/dev-workflows/scripts/check_vendored_superpowers.py` and
+`plugins/dev-workflows/references/resync-superpowers.md`, run by whoever does the resync;
+there is no CI in this repo, so a session is the only possible runner.
+
+**Confirmed by the owner in three steps**, each answered `ok`: a checker rather than a
+checklist or a rewriter; one sha for the whole set rather than per-file; on demand with
+two modes and no hook.
+
+**What this ticket leaves open on purpose.** Nothing notices that upstream moved — the
+procedure has no trigger. Recorded as fog rather than closed here. And the manifest's
+file list follows the copy set, which `receiving-code-review-role` can still cut from six
+skills to five.
+
+**Correction carried from this session** — `copy-granularity` / ADR 0074 recorded rewrite
+class 2's cross-skill path at three sites; it is at four
+(`subagent-driven-development/SKILL.md` 88, 117, 118, 454). ADR 0074 now carries a dated
+amendment. The miscount is *why* the site list is computed rather than written down.
+
+<!-- decision-map:resolution:end -->

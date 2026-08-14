@@ -82,3 +82,26 @@ upstream pull re-runs it, so whether it is a documented checklist or a runnable 
 belongs to `resync-path` — which this resolution unblocks.
 
 <!-- decision-map:resolution:end -->
+
+## Comment
+
+## Correction — rewrite class 2 is four sites, not three (2026-08-14, from `resync-path`)
+
+This ticket's resolution and [ADR 0074](../../../adr/0074-the-six-skills-are-vendored-whole-then-one-rewrite-pass.md)
+record rewrite class 2 as `subagent-driven-development` referencing
+`../requesting-code-review/code-reviewer.md` **"at three places"**.
+
+Measured today on the `6.3.0` cache dir — verified byte-identical to the `b36e0829c6d0`
+dir apart from cache bookkeeping — it is at **four**: `SKILL.md` lines **88, 117, 118 and
+454**. Lines 88/117/118 sit inside the DOT diagram's node labels rather than in a markdown
+link, which is how a read looking for links undercounted them.
+
+The gist stands as recorded; only the site count is corrected. ADR 0074 now carries a
+dated amendment saying the same. Everything else in it — the five classes, the 21-file
+copy set, the shim finding — is unaffected.
+
+`resync-path` took this miscount as its central evidence: the document that *enumerated*
+the rewrite pass got its own site count wrong within a day, with the files open. That is
+why [ADR 0075](../../../adr/0075-resync-is-a-checker-script-and-one-recorded-sha.md) puts
+the site list in a checker script instead of in prose.
+
