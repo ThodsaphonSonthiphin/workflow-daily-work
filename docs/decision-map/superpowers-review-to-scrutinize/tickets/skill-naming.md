@@ -4,7 +4,7 @@ type: grilling
 mode: HITL
 status: open
 assignee: 
-blocked_by: [coexistence]
+blocked_by: [coexistence, skilloverrides-live-check]
 gist: 
 ---
 
@@ -13,6 +13,7 @@ gist:
 graph TD
     ME["skill-naming (this ticket)"]
     P0["coexistence"] --> ME
+    P1["skilloverrides-live-check"] --> ME
     ME --> C0["arc-rewiring"]
 ```
 <!-- decision-map:graph:end -->

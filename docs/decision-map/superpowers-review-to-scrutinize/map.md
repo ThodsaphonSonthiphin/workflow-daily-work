@@ -15,6 +15,7 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 ## Decisions so far
 
 <!-- decision-map:decisions:start -->
+- [Coexistence - does the superpowers plugin stay enabled alongside the copies?](tickets/coexistence.md) — Plugin stays enabled; the six review-carrying originals go off via skillOverrides - the other eight skills stay live and the copies' outbound refs keep resolving.
 - [Harness behaviour - how does Claude Code resolve two skills with the same name from different plugins?](tickets/harness-skill-shadowing.md) — Both load - no collision, since plugin skills are namespaced plugin:skill; skillOverrides switches off one skill without disabling its plugin.
 <!-- decision-map:decisions:end -->
 
@@ -24,7 +25,6 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 - Whether receiving-code-review (#6) still has a job once reviews come from scrutinize - it teaches how to TAKE feedback, not how to produce it, so it may need nothing, a light edit, or no copy at all.
 - How the swap gets verified end-to-end - what acceptance check proves a real superpowers-style run actually reached scrutinize instead of the built-in reviewer.
 - Whether subagent-driven-development/scripts/review-package needs to change, and what it assumes about the reviewer it packages for.
-- What happens long-term to the superpowers skills that carry no review step (test-driven-development, systematic-debugging, using-git-worktrees, dispatching-parallel-agents).
 - How the host plugin's version is minted and whether .claude-plugin/marketplace.json needs a new entry or only a version bump.
 <!-- decision-map:fog:end -->
 
@@ -36,4 +36,5 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 - The separate superpowers copies under .gemini/extensions and .codex/plugins.
 - Changing scrutinize's own behaviour, stance or output format - it is frozen by decision.
 - Contributing any of this back upstream to obra/superpowers.
+- Copying or replacing the eight superpowers skills that carry no review step - the coexistence decision keeps them live from the upstream plugin, and two of them (using-git-worktrees, finishing-a-development-branch) are load-bearing for the copies.
 <!-- decision-map:scope:end -->

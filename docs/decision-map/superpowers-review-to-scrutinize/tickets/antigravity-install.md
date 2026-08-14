@@ -4,7 +4,7 @@ type: task
 mode: HITL
 status: open
 assignee: 
-blocked_by: [host-plugin]
+blocked_by: [host-plugin, override-distribution]
 gist: 
 ---
 
@@ -13,6 +13,7 @@ gist:
 graph TD
     ME["antigravity-install (this ticket)"]
     P0["host-plugin"] --> ME
+    P1["override-distribution"] --> ME
 ```
 <!-- decision-map:graph:end -->
 
