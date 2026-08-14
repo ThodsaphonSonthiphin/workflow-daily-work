@@ -19,6 +19,7 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 - [Mechanism - with per-skill disable impossible, does the plugin go fully off or stay fully on?](tickets/coexistence-mechanism.md) — Plugin stays FULLY on; this marketplace ships its OWN SessionStart hook that re-points the one skill the upstream hook names - measured 3/3 against a 2/2 control, not assumed.
 - [Coexistence - does the superpowers plugin stay enabled alongside the copies?](tickets/coexistence.md) — Plugin stays enabled; the six review-carrying originals go off via skillOverrides - the other eight skills stay live and the copies' outbound refs keep resolving.
 - [Harness behaviour - how does Claude Code resolve two skills with the same name from different plugins?](tickets/harness-skill-shadowing.md) — Both load - no collision, since plugin skills are namespaced plugin:skill; skillOverrides switches off one skill without disabling its plugin.
+- [Host plugin - do the copies live in dev-workflows or a new plugin of their own?](tickets/host-plugin.md) — The six copies live in plugins/dev-workflows - no sixth plugin: the destination needs Antigravity and its only installer is plugin-local, and ADR 0070's hook must ship beside them.
 - [Naming - what are the copied skills called, and what do their descriptions trigger on?](tickets/skill-naming.md) — The six copies take the sp- prefix, reference each other by short name (the eight non-copied stay superpowers:*), and each description names the upstream skill it displaces.
 - [Live check - does a plugin-qualified skillOverrides key work, and what does the hook do when its skill is off?](tickets/skilloverrides-live-check.md) — Observed on CC 2.1.232: skillOverrides cannot reach a PLUGIN skill by EITHER key form - only whole-plugin disable works, and the hook injects a file so no override touches it.
 <!-- decision-map:decisions:end -->
@@ -29,8 +30,8 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 - Whether receiving-code-review (#6) still has a job once reviews come from scrutinize - it teaches how to TAKE feedback, not how to produce it, so it may need nothing, a light edit, or no copy at all.
 - How the swap gets verified end-to-end - what acceptance check proves a real superpowers-style run actually reached scrutinize instead of the built-in reviewer.
 - Whether subagent-driven-development/scripts/review-package needs to change, and what it assumes about the reviewer it packages for.
-- How the host plugin's version is minted and whether .claude-plugin/marketplace.json needs a new entry or only a version bump.
 - Whether Claude Code's /skills picker will show an override on a plugin skill as applied while enforcement ignores it - the listing UI computes the override without the plugin exemption the enforcement resolver applies, which would make any future per-skill claim about a plugin untrustworthy unless it is checked live.
+- Whether the commit-log PostToolUse hook (ADR 0054) is being retired - the working tree has emptied plugins/dev-workflows/hooks/hooks.json, which is the same file ADR 0073 puts ADR 0070's SessionStart hook in.
 <!-- decision-map:fog:end -->
 
 ## Out of scope

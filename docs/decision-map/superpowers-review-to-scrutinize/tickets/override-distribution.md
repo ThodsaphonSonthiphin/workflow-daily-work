@@ -81,3 +81,38 @@ picker showing an override as applied while enforcement ignores it was written w
 `skillOverrides` was still the mechanism. With that lever abandoned, that fog line may
 be stale too.
 
+
+## Comment
+
+## Note — this ticket's premise may no longer exist (not a resolution)
+
+Raised while resolving `host-plugin`; recorded so the next session checks the premise
+before grilling the question.
+
+This ticket asks how **six `skillOverrides` entries** reach a colleague's machine. There
+are no such entries any more:
+
+- `skilloverrides-live-check` measured that `skillOverrides` cannot reach a **plugin**
+  skill by either key form on Claude Code 2.1.232.
+- [ADR 0070](../../../adr/0070-host-sessionstart-hook-repoints-the-one-skill-the-upstream-hook-names.md)
+  replaced that lever with a host SessionStart hook and states outright that **"no
+  settings key is required on a colleague's machine."**
+- [ADR 0073](../../../adr/0073-vendored-review-skills-live-inside-dev-workflows-not-a-plugin-of-their-own.md)
+  puts that hook in `plugins/dev-workflows/hooks/hooks.json`, so it ships with the plugin
+  and needs no per-machine distribution step at all.
+
+So the next session should decide between two outcomes rather than answering as written:
+
+1. **Close it as void / out of scope** — nothing is distributed, because nothing is
+   configured per machine.
+2. **Re-scope it** to the distribution question that *does* survive: a colleague still
+   has to have the upstream `superpowers` plugin installed for the eight non-copied
+   skills the copies hand off to, and the host hook only steers if this marketplace is
+   installed. That is a prerequisites question, not a `skillOverrides` question.
+
+Either way it currently **blocks `antigravity-install`**, and that edge is probably
+spurious now — `host-plugin` resolving already made the installer side automatic
+(discovery iterates `PLUGIN_ROOT/skills`), so `antigravity-install`'s remaining question
+is only whether the copies introduce a `${CLAUDE_PLUGIN_ROOT}` shape outside
+`rewrite_plugin_root()`'s three handles.
+
