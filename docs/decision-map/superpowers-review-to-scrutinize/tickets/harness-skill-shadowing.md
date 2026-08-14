@@ -150,3 +150,67 @@ mechanism.
   original being lost.
 
 <!-- decision-map:resolution:end -->
+
+## Comment
+
+## Correction (2026-08-14): the second half of the gist is false for plugin skills
+
+The live check this ticket asked for (`skilloverrides-live-check`) has now run, on
+Claude Code **2.1.232**, repo at `2e535ef`. It contradicts one half of this
+ticket's recorded answer. Recording it here rather than rewriting the gist,
+because the reasoning below is the audit trail of what was verifiable from strings
+alone - and that limit is the actual lesson.
+
+**The half that stands.** Findings 1, 2, 4 and 5 are confirmed and unchanged:
+dedup is by resolved file and never by name; plugin skills are namespaced
+`plugin:skill` so two copies are two distinct names; `disableBundledSkills` does
+not touch plugins; there is no per-skill kill switch under another name. The
+conclusion that this makes `skill-naming` a *triggering* problem and not a
+collision problem is also unchanged, and is now load-bearing.
+
+**The half that is false.** Finding 3's conclusion - "a single skill can be turned
+off without disabling its plugin, via `skillOverrides`" - is true only for a
+**non-plugin** skill (`~/.claude/skills/`, `.claude/skills/`). It is false for
+every skill that comes from a plugin, which is the only case this map cares about:
+
+| `skillOverrides` payload | skills the model sees | still reachable? |
+|---|---|---|
+| *(control)* | 211 | - |
+| `superpowers:brainstorming: off` | 211 | **yes** |
+| `brainstorming: off` | 211 | **yes** |
+| `find-skills: off` (non-plugin) | 210 | no |
+
+Every string this ticket quoted is real. The schema text, the enum, both runtime
+refusal messages - all present, all accurate. What string-grepping could not
+reveal is the guard *in front of* them. The resolver exits before it reads the
+override map:
+
+```js
+if(e.type!=="prompt" || e.source==="plugin") return "on";   // plugin skills never reach skillOverrides
+```
+
+and `e.source==="plugin"` is exactly how the binary identifies a plugin skill
+(`function $9e(e){return e.source==="plugin"}`). The qualified-key lookup that
+does exist below that line (`r?.[e.name] ?? r?.[e.unqualifiedName]`) belongs to
+**directory-scoped project skills**, where the harness mints `<dir>:<name>`. It
+was never plugin namespacing.
+
+**Unknown #1 was the right thing to flag, and it is what failed.** This ticket
+named the exact inference ("treat it as inference"), named the exact experiment
+("add the override, then look for the skill in the `/skills` list"), and graduated
+it into its own ticket. The answer turned out to be "neither key form" rather than
+"one of these two" - a shape the question did not offer - which is precisely why
+the live check had to run instead of the reading being trusted.
+
+**A method lesson worth carrying.** A present, correctly-quoted string proves a
+mechanism *exists*; it cannot prove the mechanism is *reachable* for your case.
+Grep finds features, not guards. When a decision rests on a control applying to a
+specific class of thing, run it against that class.
+
+**Downstream.** `coexistence` (which cited finding 3) carries its own correction,
+ADR 0069 carries a dated amendment, and the re-decision is the new
+`coexistence-mechanism` ticket. Also still open from this ticket's own Unknowns,
+and now more interesting: the `/skills` picker computes its displayed override
+*without* the plugin guard the enforcement resolver applies, so the picker may
+show an override as applied while it does nothing. That is on the map as fog.
+

@@ -17,6 +17,7 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 <!-- decision-map:decisions:start -->
 - [Coexistence - does the superpowers plugin stay enabled alongside the copies?](tickets/coexistence.md) — Plugin stays enabled; the six review-carrying originals go off via skillOverrides - the other eight skills stay live and the copies' outbound refs keep resolving.
 - [Harness behaviour - how does Claude Code resolve two skills with the same name from different plugins?](tickets/harness-skill-shadowing.md) — Both load - no collision, since plugin skills are namespaced plugin:skill; skillOverrides switches off one skill without disabling its plugin.
+- [Live check - does a plugin-qualified skillOverrides key work, and what does the hook do when its skill is off?](tickets/skilloverrides-live-check.md) — Observed on CC 2.1.232: skillOverrides cannot reach a PLUGIN skill by EITHER key form - only whole-plugin disable works, and the hook injects a file so no override touches it.
 <!-- decision-map:decisions:end -->
 
 ## Not yet specified
@@ -26,6 +27,7 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 - How the swap gets verified end-to-end - what acceptance check proves a real superpowers-style run actually reached scrutinize instead of the built-in reviewer.
 - Whether subagent-driven-development/scripts/review-package needs to change, and what it assumes about the reviewer it packages for.
 - How the host plugin's version is minted and whether .claude-plugin/marketplace.json needs a new entry or only a version bump.
+- Whether Claude Code's /skills picker will show an override on a plugin skill as applied while enforcement ignores it - the listing UI computes the override without the plugin exemption the enforcement resolver applies, which would make any future per-skill claim about a plugin untrustworthy unless it is checked live.
 <!-- decision-map:fog:end -->
 
 ## Out of scope

@@ -1,5 +1,28 @@
 # The upstream superpowers plugin stays enabled; its six review skills are switched off one by one
 
+- **Status:** Accepted, then **amended 2026-08-14 — the chosen mechanism does not
+  exist.** `skillOverrides` has since been *observed* to have no effect on any
+  plugin-provided skill, under the qualified key (`superpowers:brainstorming`) and
+  the bare key (`brainstorming`) alike: the resolver returns `"on"` the moment it
+  sees `e.source==="plugin"`, before the override map is read. The same payload
+  removes a non-plugin skill cleanly (211 skills → 210), so the key form was never
+  the problem. Measured on Claude Code **2.1.232** with this repo at `2e535ef`;
+  the evidence and a reproduction are on the `skilloverrides-live-check` ticket of
+  the `superpowers-review-to-scrutinize` decision map.
+- **What still stands:** every rejected option below was rejected on reasoning that
+  holds, and the finding that a per-skill listing control cannot reach a hook is
+  now *stronger* than stated here — `hooks/session-start` `cat`s
+  `skills/using-superpowers/SKILL.md` off disk and injects it verbatim, so it never
+  consults the skill registry at all. The plugin can still be disabled **whole**
+  (`enabledPlugins: … false` took 211 skills → 197 and silenced the hook in the
+  same run); plugin granularity is the only thing missing.
+- **What this reopens:** the real menu collapses to the two options ruled out
+  below — **B** (whole plugin off, costing 8 skills and 3 dangling refs inside the
+  copies) and **C** (plugin fully on, the copies competing against a hook that
+  names the originals). That re-decision is tracked as the `coexistence-mechanism`
+  ticket; this amendment does not settle it.
+- **Date:** amended 2026-08-14
+
 ```mermaid
 flowchart TD
     Q{"once the review-carrying superpowers skills<br/>are vendored into this marketplace,<br/>what happens to the originals?"} -->|chosen| A["plugin stays ENABLED;<br/>the six originals get<br/>skillOverrides: off, per skill"]
