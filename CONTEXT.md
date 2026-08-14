@@ -177,3 +177,13 @@ superpowers", not "is a copy of superpowers", so a search for `sp-` is not by it
 list of Vendored Skills. No upstream Skill name begins with `sp-`, which is what makes a
 short reference unambiguous in both harnesses (ADR 0071).
 _Avoid_: namespace (the Plugin prefix is the namespace), superpowers prefix.
+
+**Reviewer prompt**:
+One of the three files in a **Vendored Skill** that dispatch a reviewer subagent -
+`code-reviewer.md`, `task-reviewer-prompt.md`, `re-review-prompt.md`. It is the
+*harness*: it supplies the per-touchpoint context (base/head sha, brief file, findings),
+states the operating rules a dispatched agent needs, and fixes the output contract the
+controller reads. The review *method* is not its job - that is delegated to `scrutinize`,
+the *engine*, whose severity words the prompt translates on the way out (ADR 0076).
+_Avoid_: reviewer skill (it is a file, not a Skill), review template (the three differ by
+touchpoint, they are not one template).
