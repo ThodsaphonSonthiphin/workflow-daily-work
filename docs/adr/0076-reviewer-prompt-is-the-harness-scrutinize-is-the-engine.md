@@ -153,3 +153,21 @@ human-facing run — *"### 3. Judge — REQUIRED SUB-SKILL: scrutinize"*, supply
 — do not duplicate or dilute it here."* This ADR applies the same split to a dispatched
 subagent, and adds the output translation that a human-facing caller does not need. This
 repo at **`dc1721d`** on `main`.
+
+## Verified live — 2026-08-15 (`short-ref-resolution`)
+
+This ADR deliberately assumed nothing about whether a **dispatched subagent** inherits
+`scrutinize`'s `effort: max`. **It does.**
+
+Measured on Claude Code **2.1.232** with two probe skills identical but for the one
+frontmatter line, three runs each: subagent thinking tokens came out **455 · 448 · 391**
+with `effort: max` against **115 · 203 · 170** without it — no overlap, the lowest `max`
+run nearly double the highest control. The main loop was measured directly as a positive
+control and moves `high` → `max` on the message after the load.
+
+The mechanism agrees. In `claude.exe` the Skill tool returns its effort as a context layer
+to **whichever loop invoked it** (`if(b!==void 0)B.push({kind:"effort",effort:b})`), and in
+a dispatched review that loop is the subagent's own. The three Reviewer prompts therefore
+run the frozen stance at the skill's declared effort, exactly as this ADR's reasoning
+needed. Evidence and reproduction:
+[`short-ref-resolution`](../decision-map/superpowers-review-to-scrutinize/tickets/short-ref-resolution.md).

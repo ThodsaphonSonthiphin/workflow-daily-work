@@ -116,3 +116,36 @@ spurious now — `host-plugin` resolving already made the installer side automat
 is only whether the copies introduce a `${CLAUDE_PLUGIN_ROOT}` shape outside
 `rewrite_plugin_root()`'s three handles.
 
+
+## Comment
+
+## Constraint from `short-ref-resolution` — a missing copy fails SILENTLY (2026-08-15)
+
+Not a resolution of this ticket. One thing a distribution answer now has to survive.
+
+Measured on Claude Code 2.1.232, 2/2 runs: when a `sp-` copy is **absent** from a machine,
+a short-form reference to it does **not** error. The model launches the nearest live twin
+instead — `sp-writing-plans` reached **`superpowers:writing-plans`**, with no error, no
+warning, and a normal-looking completion. A bare name with *no* twin is refused cleanly,
+so the substitution happens only where a twin exists, which the `sp-` convention
+guarantees for all six copies.
+
+This ticket owns how the six `skillOverrides` entries reach a colleague's machine. The
+finding widens what "reach" has to mean: **a colleague whose install is partial, stale or
+mis-scoped does not get an error — they get the upstream review skill the whole effort
+exists to displace, and no signal that it happened.** A distribution mechanism that can
+half-land is therefore not merely inconvenient; it reproduces the exact silent failure
+[ADR 0069](../../../adr/0069-the-upstream-plugin-stays-enabled-its-review-skills-go-off-per-skill.md)'s
+option C was rejected for, by a different route.
+
+Worth answering here, or splitting into its own ticket: **is there anything that makes a
+missing copy observable?** The three candidates seen so far are a startup assertion in the
+copies' own text, a check in the ADR 0075 resync checker, and accepting the risk on the
+grounds that the copies ship inside `dev-workflows` and so cannot go missing separately.
+The third is the cheapest and is probably right for Claude Code — but it is exactly the
+kind of claim that has been wrong twice on this map, and it does not obviously hold for
+the Antigravity install, which stages skill directories one at a time.
+
+Evidence and reproduction:
+[`short-ref-resolution`](short-ref-resolution.md).
+

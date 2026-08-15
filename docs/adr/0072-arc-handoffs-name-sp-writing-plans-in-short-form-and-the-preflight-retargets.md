@@ -132,3 +132,18 @@ Both checks are one command each, and both must hold after the change:
   the two READMEs returns **nothing**;
 - a search for `sp-writing-plans` returns **11** hits across the four files above,
   none of them carrying a plugin prefix.
+
+## Verified live — 2026-08-15 (`short-ref-resolution`)
+
+Decision 2 was tested on Claude Code **2.1.232** and **stands**: a bare `sp-` reference
+does reach the plugin skill, the model supplying the `dev-workflows:` prefix itself. The
+Antigravity premise this ADR inherits from ADR 0071 was re-checked statically and also
+holds — `install-antigravity.py` maps `${CLAUDE_PLUGIN_ROOT}/skills/` to `<dest>/`, so
+skills stage flat and a bare name is the exact directory name there.
+
+The caveat recorded on [ADR 0071](0071-vendored-review-skills-take-the-sp-prefix-and-displace-upstream-by-description.md)
+applies to all eleven repointed references equally: while a copy is **missing**, its
+short-form reference resolves silently to the upstream twin rather than failing. Every one
+of these eleven lines names `sp-writing-plans`, whose twin `superpowers:writing-plans` is
+live in the same session today. Evidence:
+[`short-ref-resolution`](../decision-map/superpowers-review-to-scrutinize/tickets/short-ref-resolution.md).

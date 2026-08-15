@@ -134,3 +134,20 @@ answers it in its own voice.
   `superpowers:` skill directly, and all three name skills on the copy list. A command
   bypasses the hook and the description together. That gap is out of this ticket's
   question and is charted separately.
+
+## Verified live — 2026-08-15 (`short-ref-resolution`)
+
+Decision 2 was tested on Claude Code **2.1.232** and **stands**. Told this ADR's own
+sentence with a bare `sp-` name whose skill exists, the model self-qualified it and
+launched the plugin skill — a `Skill` tool call byte-identical to the long-form control.
+The uniqueness argument holds, and the listing confirms why it has to do the bridging:
+plugin skills are surfaced **only** as `plugin:skill`, never bare.
+
+What the argument does **not** cover, measured 2/2 in the same run: when the copy is
+**absent**, the same sentence does not fail. It launches the nearest live twin —
+`sp-writing-plans` reached **`superpowers:writing-plans`**, with no error and no warning.
+A bare name with no twin at all (`sp-zzz-nonexistent`) is refused cleanly, so the
+substitution happens *only* where a twin exists — which the `sp-` prefix convention
+guarantees for all six copies, and for no other skill. Nothing on this map guards it yet.
+Evidence and reproduction:
+[`short-ref-resolution`](../decision-map/superpowers-review-to-scrutinize/tickets/short-ref-resolution.md).
