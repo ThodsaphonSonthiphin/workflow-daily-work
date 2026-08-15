@@ -11,8 +11,12 @@ actually does what it claims — within the blast radius of the task you were gi
 
 This is `scrutinize` retuned for one caller: a reviewer subagent that was dispatched,
 cannot ask the author questions, and whose report a controller parses for exact words.
-It differs from `scrutinize` in four places and nowhere else — scope, severity
-vocabulary, the cannot-verify channel, and the verdicts (ADR 0084).
+It differs from `scrutinize` in five places — scope, severity vocabulary, the
+cannot-verify channel, the verdicts, and a set of dispatch-only operating rules (no
+subagents, do not trust the implementer's report, read-only) that `scrutinize` has no
+need of since it runs in a live session with a human at the keyboard (ADR 0084). One
+check is deliberately dropped rather than retuned: the UI-mock diff, since a
+diff-scoped reviewer has no way to fetch a mock.
 
 ## Operating stance
 
@@ -29,13 +33,19 @@ vocabulary, the cannot-verify channel, and the verdicts (ADR 0084).
 
 ## Workflow
 
+Run these in order. Do not skip ahead.
+
 ### 1. Intent — what is this actually trying to do?
 
 - State the goal in one sentence, in your own words. If you cannot, say so — that is
   itself a finding about the brief.
 - Ask: **is there a simpler, smaller, or more elegant way to achieve the same goal?**
-  Consider using something that already exists instead of adding new surface, and a
-  smaller change that solves 90% of the goal with 10% of the risk.
+  Consider:
+  - Doing nothing (is the problem real / load-bearing?).
+  - Using something that already exists instead of adding new surface.
+  - A smaller change that solves 90% of the goal with 10% of the risk.
+  - Solving it at a different layer (config vs code, framework vs app, build vs
+    runtime).
 - If a better alternative exists, name it. Report it as `Important` when the change
   works but a materially simpler one was available; as `Minor` when it is taste.
   A stated rationale never downgrades a finding's severity.
@@ -124,6 +134,8 @@ Minor ships it.
 - **Distinguish claim from verification.** "The brief says X" and "I traced X and
   confirmed it" are different — keep them separate.
 - **One simpler-alternative pass is mandatory**, even on a small diff.
+- **Don't pad with style nits when there's a structural problem.** If the intent or
+  trace step surfaces a real issue, lead with it; defer nits or drop them.
 - **Do not dispatch subagents.** You are the reviewer; there is no one below you.
 - **Do not trust the implementer's report.** Read the diff. A report claiming a test
   passes is not evidence the test exists.
