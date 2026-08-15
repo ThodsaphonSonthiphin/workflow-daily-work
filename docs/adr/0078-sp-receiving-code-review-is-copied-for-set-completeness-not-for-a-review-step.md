@@ -8,6 +8,12 @@
   which measured that touchpoint #6 dispatches no reviewer, and
   [ADR 0076](0076-reviewer-prompt-is-the-harness-scrutinize-is-the-engine.md), whose
   severity translation removes the only edit this copy could plausibly have needed.
+- **Citation refreshed 2026-08-15.** ADR 0076 is superseded by
+  [ADR 0084](0084-the-dispatched-reviewer-runs-a-dispatch-tuned-copy-not-the-frozen-scrutinize.md),
+  which deletes the severity translation. **This ADR's decision is unaffected** — a routed
+  review still emits `Critical / Important / Minor`, now natively rather than by
+  translation, so this copy still has nothing to adapt to. Only the reason behind the
+  citation changed, not the conclusion.
 - **Confirms, does not amend,** [ADR 0071](0071-vendored-review-skills-take-the-sp-prefix-and-displace-upstream-by-description.md)'s
   six-name set and [ADR 0075](0075-resync-is-a-checker-script-and-one-recorded-sha.md)'s
   21-file manifest.

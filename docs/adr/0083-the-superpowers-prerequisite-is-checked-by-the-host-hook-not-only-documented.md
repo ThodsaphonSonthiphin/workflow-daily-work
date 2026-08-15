@@ -1,5 +1,34 @@
 # The superpowers prerequisite is checked by the host hook, not only documented
 
+- **Status:** Superseded in mechanism — the evidence stands, the chosen lever does not.
+- **Date:** 2026-08-15
+- **Renumbered 2026-08-15, from `0078` to `0083`.** This document was minted as ADR 0078
+  on one branch while
+  [ADR 0078](0078-sp-receiving-code-review-is-copied-for-set-completeness-not-for-a-review-step.md)
+  was minted with the same number on another. Both merged cleanly, because the numbers
+  collided but the filenames did not — the exact failure
+  [ADR 0056](0056-adr-numbers-minted-from-global-max-across-branches-and-worktrees.md)
+  predicts when the *"re-verify the number immediately before merging"* step is skipped.
+  The number was re-minted here from the global max across every ref and worktree.
+
+> **Superseded by** [ADR 0080](0080-the-preflight-warns-about-the-upstream-plugin-and-stops-blocking.md)
+> **and** [ADR 0082](0082-a-read-only-setup-check-reports-the-four-manual-steps-the-marketplace-cannot-ship.md).
+>
+> **What this ADR says:** the host `SessionStart` hook gains a `superpowers`-absence
+> check, reported before any skill runs.
+>
+> **What is now true:** the hook carries no such check. The notice is split in two —
+> ADR 0080 warns from `grill-then-plan`'s preflight at the start of a design session, and
+> ADR 0082 reports the prerequisite as step 1 of four in a read-only
+> `dev-workflows:setup-check`. Both resolve the same ticket, `override-distribution`,
+> which this ADR resolved first and ADR 0082 re-resolved after the owner chose a check
+> script over a widened warning.
+>
+> **What survives and is still cited:** everything under *"What made it a real question"* —
+> the eleven outbound references, the absent README prerequisite, and the measurement that
+> `requiredPlugins` / `peerPlugins` appear zero times in `claude.exe`. ADR 0082 rests on
+> that evidence; only the lever changed.
+
 ```mermaid
 flowchart TD
     Q{"a colleague needs the superpowers plugin<br/>before the copies can work - what makes that happen?"}

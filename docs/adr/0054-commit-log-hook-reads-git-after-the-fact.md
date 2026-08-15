@@ -1,7 +1,27 @@
 # ADR 0054 — the commit-log hook reads git after the fact, not the command line
 
-- **Status:** Accepted
+- **Status:** Retired — the hook this ADR describes is no longer registered.
 - **Date:** 2026-08-01
+- **Retired 2026-08-15**, recording a change that landed in `e7839a8` on 2026-08-15
+  without a banner. Backfilled here.
+
+> **The hook is gone.** `plugins/dev-workflows/hooks/hooks.json` is `{"hooks": {}}` at
+> `HEAD`. The `PostToolUse` registration this ADR designed was removed in **`e7839a8`**
+> ("Refactor ADR numbering documentation and remove unused hooks"), whose only stated
+> reason is *"no longer needed"*. **No ADR records why**, and this banner does not invent
+> one — if the reason matters, it needs writing down.
+>
+> **What survives:** the design itself is untouched and still correct. `PostToolUse` plus
+> `git log -1` — rather than parsing the command line — remains the right shape for any
+> future commit-logging hook, for the reasons below. This ADR is retired, not refuted.
+>
+> **Two loose ends.** `plugins/dev-workflows/hooks/commit-log.py` (5.6 KB) is still in the
+> tree and is now referenced by nothing — kept deliberately or orphaned, nobody can tell.
+> And `hooks.json` is the same file
+> [ADR 0073](0073-vendored-review-skills-live-inside-dev-workflows-not-a-plugin-of-their-own.md)
+> designates for the `SessionStart` hook
+> [ADR 0070](0070-host-sessionstart-hook-repoints-the-one-skill-the-upstream-hook-names.md)
+> requires, so the file the vendoring design depends on is currently empty.
 
 ```mermaid
 flowchart TD

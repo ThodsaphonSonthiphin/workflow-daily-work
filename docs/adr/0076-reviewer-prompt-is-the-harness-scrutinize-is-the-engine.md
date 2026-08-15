@@ -1,6 +1,25 @@
 # The reviewer prompt is the harness, scrutinize is the engine — severity is translated at the boundary
 
-- **Status:** Accepted
+> **Superseded by** [ADR 0084](0084-the-dispatched-reviewer-runs-a-dispatch-tuned-copy-not-the-frozen-scrutinize.md), 2026-08-15.
+>
+> **What this ADR says:** the prompt file stays a harness — keeping its output contract
+> *and its scoping rules* — and delegates the review method to the frozen `scrutinize`,
+> translating `blocker/major/nit` to `Critical/Important/Minor` on the way out.
+>
+> **What is now true:** the harness and the engine contradict each other on **scope** —
+> the prompt says *"do not crawl the broader codebase"* while `scrutinize` says
+> *"the diff is the entry point, not the scope"* — and this ADR states no precedence, so
+> whichever wins, one half is silently defeated. ADR 0084 removes the seam by taking the
+> escape hatch recorded at the foot of this document: the prompts name a new
+> dispatch-tuned copy, `scrutinize-dispatch`, which states one scope and emits the
+> controller's vocabulary natively. **The severity translation table below is therefore
+> obsolete** — nothing translates any more.
+>
+> **What survives:** every measurement here, including the live confirmation that a
+> dispatched subagent inherits `effort: max`, the controller's gate line numbers, and the
+> reasoning for why a thin wrapper cannot work. ADR 0084 rests on all of it.
+
+- **Status:** Superseded by [ADR 0084](0084-the-dispatched-reviewer-runs-a-dispatch-tuned-copy-not-the-frozen-scrutinize.md).
 - **Date:** 2026-08-14
 - **Answers a question left open by** [ADR 0074](0074-the-six-skills-are-vendored-whole-then-one-rewrite-pass.md),
   whose rewrite class 1 routes the three live reviewer prompts to `scrutinize` but
