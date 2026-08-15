@@ -47,7 +47,7 @@ else:
             failures.append("LICENSE-superpowers missing %r" % needle)
 
 # --- frontmatter (ADR 0071) ---
-import re
+import yaml
 NAMES = ["sp-brainstorming", "sp-writing-plans", "sp-executing-plans",
          "sp-requesting-code-review", "sp-receiving-code-review",
          "sp-subagent-driven-development"]
@@ -55,22 +55,28 @@ for name in NAMES:
     p = ROOT / name / "SKILL.md"
     if not p.is_file():
         continue
-    head = p.read_text(encoding="utf-8").split("---")
-    if len(head) < 3:
+    parts = p.read_text(encoding="utf-8").split("---")
+    if len(parts) < 3:
         failures.append("%s: no YAML frontmatter" % name)
         continue
-    fm = head[1]
-    if ("name: %s" % name) not in fm:
-        failures.append("%s: frontmatter name is not %r" % (name, name))
-    if "description:" not in fm:
+    fm = parts[1]
+    try:
+        meta = yaml.safe_load(fm)
+    except yaml.YAMLError as e:
+        failures.append("%s: frontmatter is not valid YAML (%s) - the skill would "
+                        "silently vanish from the skill list" % (name, e))
+        continue
+    if not isinstance(meta, dict):
+        failures.append("%s: frontmatter did not parse to a mapping" % name)
+        continue
+    if meta.get("name") != name:
+        failures.append("%s: frontmatter name is %r, expected %r"
+                        % (name, meta.get("name"), name))
+    desc = meta.get("description")
+    if not desc:
         failures.append("%s: no description" % name)
-    else:
-        desc = fm.split("description:", 1)[1].split("\n")[0]
-        if "superpowers" not in desc:
-            failures.append("%s: description does not name the skill it displaces" % name)
-        if ": " in desc and not desc.strip().startswith(("'", '"')):
-            failures.append("%s: unquoted description contains ': ' - strict YAML "
-                            "parsers reject it and npx skills silently skips the skill" % name)
+    elif "superpowers" not in desc:
+        failures.append("%s: description does not name the skill it displaces" % name)
 
 if failures:
     for f in failures:
