@@ -31,6 +31,7 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 - [Naming - what are the copied skills called, and what do their descriptions trigger on?](tickets/skill-naming.md) — The six copies take the sp- prefix, reference each other by short name (the eight non-copied stay superpowers:*), and each description names the upstream skill it displaces.
 - [Live check - does a plugin-qualified skillOverrides key work, and what does the hook do when its skill is off?](tickets/skilloverrides-live-check.md) — Observed on CC 2.1.232: skillOverrides cannot reach a PLUGIN skill by EITHER key form - only whole-plugin disable works, and the hook injects a file so no override touches it.
 - [Preflight - does grill-then-plan's Step 0 gate still have a job now that both skills ship in one plugin?](tickets/step0-preflight-fate.md) — Step 0 stays but stops blocking - it becomes a one-line warning about the UPSTREAM plugin, the only thing that can still be absent; the gate ADR 0072 kept passes by construction.
+- [User commands - do /brainstorm, /write-plan and /execute-plan get repointed at the copies?](tickets/user-command-entry.md) — The three commands move into plugins/dev-workflows/commands/ naming short-form sp- targets; deleting the personal originals is part of the decision, since an exact name beats autocomplete.
 <!-- decision-map:decisions:end -->
 
 ## Not yet specified
@@ -43,6 +44,7 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 - Nothing notices a routing failure during ordinary use - ADR 0079 measured that the dispatched subagent's Skill record never reaches the session log, so a review that quietly ran the built-in reviewer leaves no trace anyone can find afterwards, and the only proof is a probe arranged in advance.
 - Whether a routed review's Critical finding actually fires the controller's fix loop at subagent-driven-development/SKILL.md:356 - ADR 0075's checker asserts the three translation rows are PRESENT in the prompt files, and ADR 0079's probe stops at the reviewer loading scrutinize; neither watches the gate itself fire.
 - Nothing checks the upstream dependency at the point of USE - ADR 0080 puts the only notice at the START of a design session, two hops before sp-executing-plans reaches superpowers:finishing-a-development-branch, so a user who reads past one warning line hits a missing skill with no second notice.
+- Nothing in the marketplace can remove a personal command a colleague already wrote - ADR 0081's deletion half is manual on every machine that has one, and unlike override-distribution's settings entries there is no shipped file the install could overwrite, so a colleague's own /brainstorm keeps bypassing the copies with nothing to detect it.
 <!-- decision-map:fog:end -->
 
 ## Out of scope
