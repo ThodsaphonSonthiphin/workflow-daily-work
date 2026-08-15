@@ -1,6 +1,15 @@
 # Arc handoffs name `sp-writing-plans` in short form, and grill-then-plan's preflight retargets to it
 
-- **Status:** Accepted
+- **Status:** Accepted — **Decision 3 superseded by
+  [ADR 0080](0080-the-preflight-warns-about-the-upstream-plugin-and-stops-blocking.md)**:
+  Step 0 keeps existing but stops blocking, and it gates on the **upstream plugin**
+  rather than on `sp-writing-plans`. Decision 3 kept the block *conditionally*, on
+  `host-plugin` not yet having placed the copies; ADR 0073 then placed them in
+  `dev-workflows`, which is the condition Decision 3 named for deleting it. The gate as
+  written here can no longer fail, while the dependency the arc still reaches upstream
+  (`finishing-a-development-branch`, `using-git-worktrees`) went unchecked.
+  **Decisions 1 and 2 stand unchanged** — all eleven references are still repointed, and
+  still in short form.
 - **Date:** 2026-08-14
 - **Builds on** [ADR 0070](0070-host-sessionstart-hook-repoints-the-one-skill-the-upstream-hook-names.md),
   which keeps the upstream plugin fully enabled, and
