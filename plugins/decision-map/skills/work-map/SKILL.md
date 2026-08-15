@@ -267,6 +267,15 @@ to the user, one at a time. Your own recommended answer is a recommendation,
 never an accepted answer — do not resolve a ticket on it. Silence is not
 acceptance, and neither is a plausible-sounding default.
 
+**Frame every question in the user's terms, whatever the ticket's `type`** — name the
+screen, what they press, what they would observe. Restate where the session has got to
+*immediately before* asking: a frame set at session open goes stale across a long
+technical middle. And when a plan, ADR or standing rule already names a route, say so
+and justify any deviation rather than offering a neutral menu. This is not grilling-only
+— a `task` ticket's blocking question (which branch, which environment) fails the same
+way. An answer that comes back as a question is a framing failure: re-pose it, do not
+explain it at greater length.
+
 If the human is not available to answer, stop and say so rather than resolving
 alone. A decision recorded without them is worse than an open ticket: the map
 presents it as settled, and the next session builds on it without knowing
