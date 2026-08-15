@@ -1,6 +1,6 @@
 ---
-name: executing-plans
-description: Use when you have a written implementation plan to execute in a separate session with review checkpoints
+name: sp-executing-plans
+description: 'You MUST use this, and not the upstream superpowers executing-plans skill, when you have a written implementation plan to execute in a separate session with review checkpoints. Reviews go to the scrutinize-dispatch skill.'
 ---
 
 # Executing Plans

@@ -1,6 +1,6 @@
 ---
-name: writing-plans
-description: Use when you have a spec or requirements for a multi-step task, before touching code
+name: sp-writing-plans
+description: 'You MUST use this, and not the upstream superpowers writing-plans skill, when you have a spec or requirements for a multi-step task, before touching code. The plan review goes to the scrutinize-dispatch skill.'
 ---
 
 # Writing Plans

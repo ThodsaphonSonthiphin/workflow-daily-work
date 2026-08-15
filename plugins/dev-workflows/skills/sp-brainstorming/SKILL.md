@@ -1,6 +1,6 @@
 ---
-name: brainstorming
-description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
+name: sp-brainstorming
+description: 'You MUST use this, and not the upstream superpowers brainstorming skill, before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation. The spec review goes to the scrutinize-dispatch skill.'
 ---
 
 # Brainstorming Ideas Into Designs

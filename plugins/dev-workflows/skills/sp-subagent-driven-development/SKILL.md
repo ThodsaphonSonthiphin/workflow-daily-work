@@ -1,6 +1,6 @@
 ---
-name: subagent-driven-development
-description: Use when executing implementation plans with independent tasks in the current session
+name: sp-subagent-driven-development
+description: 'You MUST use this, and not the upstream superpowers subagent-driven-development skill, when executing implementation plans with independent tasks in the current session. Every dispatched review runs the scrutinize-dispatch skill.'
 ---
 
 # Subagent-Driven Development
