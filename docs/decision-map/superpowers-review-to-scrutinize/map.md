@@ -16,6 +16,7 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 
 <!-- decision-map:decisions:start -->
 - [Ripple - which existing daily-arc handoffs get repointed at the copies?](tickets/arc-rewiring.md) — All 11 refs - one skill, 4 files - become short-form sp-writing-plans; grill-then-plan Step 0 retargets to it; PLAYBOOK and the daily router need no change, they never named superpowers.
+- [Attribution - how is the MIT notice carried on vendored files?](tickets/attribution.md) — Upstream MIT ships verbatim in dev-workflows/LICENSE-superpowers with the sha and a MODIFIED marker, never per-file; the repo also gained the top-level LICENSE it never had.
 - [Mechanism - with per-skill disable impossible, does the plugin go fully off or stay fully on?](tickets/coexistence-mechanism.md) — Plugin stays FULLY on; this marketplace ships its OWN SessionStart hook that re-points the one skill the upstream hook names - measured 3/3 against a 2/2 control, not assumed.
 - [Coexistence - does the superpowers plugin stay enabled alongside the copies?](tickets/coexistence.md) — Plugin stays enabled; the six review-carrying originals go off via skillOverrides - the other eight skills stay live and the copies' outbound refs keep resolving.
 - [Conventions - how far must vendored copies obey this repo's skill conventions?](tickets/convention-compliance.md) — Three wiring conventions bind at zero new cost - already ADR 0074 edits, or already satisfied; the Mermaid rule does not reach the copies' output; PLAYBOOK gains six rows.
