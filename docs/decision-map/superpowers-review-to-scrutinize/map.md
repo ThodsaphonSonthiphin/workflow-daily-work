@@ -15,6 +15,7 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 ## Decisions so far
 
 <!-- decision-map:decisions:start -->
+- [Antigravity - does install-antigravity.py cover the copies, or need a new rewrite shape?](tickets/antigravity-install.md) — No installer change needed - the 21 files at b36e082 contain ZERO CLAUDE_PLUGIN_ROOT, so rewrite_plugin_root has nothing new to learn; three residual Antigravity facts recorded.
 - [Ripple - which existing daily-arc handoffs get repointed at the copies?](tickets/arc-rewiring.md) — All 11 refs - one skill, 4 files - become short-form sp-writing-plans; grill-then-plan Step 0 retargets to it; PLAYBOOK and the daily router need no change, they never named superpowers.
 - [Attribution - how is the MIT notice carried on vendored files?](tickets/attribution.md) — Upstream MIT ships verbatim in dev-workflows/LICENSE-superpowers with the sha and a MODIFIED marker, never per-file; the repo also gained the top-level LICENSE it never had.
 - [Mechanism - with per-skill disable impossible, does the plugin go fully off or stay fully on?](tickets/coexistence-mechanism.md) — Plugin stays FULLY on; this marketplace ships its OWN SessionStart hook that re-points the one skill the upstream hook names - measured 3/3 against a 2/2 control, not assumed.
@@ -45,6 +46,8 @@ Constraints fixed at chart time: scrutinize is FROZEN - the copies adapt to it a
 - Whether a routed review's Critical finding actually fires the controller's fix loop at subagent-driven-development/SKILL.md:356 - ADR 0075's checker asserts the three translation rows are PRESENT in the prompt files, and ADR 0079's probe stops at the reviewer loading scrutinize; neither watches the gate itself fire.
 - Nothing checks the upstream dependency at the point of USE - ADR 0080 puts the only notice at the START of a design session, two hops before sp-executing-plans reaches superpowers:finishing-a-development-branch, so a user who reads past one warning line hits a missing skill with no second notice.
 - Nothing in the marketplace can REMOVE a personal command a colleague already wrote - ADR 0082's setup-check now reports one as a FAIL, so it is no longer undetectable, but the deletion itself stays manual on every machine that has one and nothing makes anyone run the check.
+- install-antigravity.py rewrites and leak-checks MARKDOWN ONLY (dest.rglob('*.md')) while the copies bring 8 non-Markdown files (1559 lines) - harmless at b36e082, which has zero CLAUDE_PLUGIN_ROOT anywhere, but an upstream change that adds one to server.cjs would stage unrewritten AND unwarned, since the leftover detector cannot see the file either.
+- What ADR 0074's rewrite pass does with '../using-superpowers/references/' at executing-plans/SKILL.md:14 - it names one of the EIGHT non-copied skills, and nothing stages a using-superpowers directory into Antigravity's flat skills dir, so the path dangles there whatever Claude Code does with it.
 <!-- decision-map:fog:end -->
 
 ## Out of scope
