@@ -85,6 +85,7 @@ flowchart TD
 | auditing names / labels / mappings | `naming-audit` / `fit-gap-analysis` |
 | "what is this / how does it work?" — or an answer came back too long to read | `feynman-explain` (`/feynman`) — fixed short card: plain explanation, the fuzzy parts named, gaps filled from real evidence, 30-second line |
 | work you OWN but do not understand — a map/plan/pipeline an AI built for you, or "ถามให้คิดหน่อย" / "grill me" | `asking-to-understand` (`/ask`) — the Socratic side of `/feynman`: one evidence-grounded question per turn, symptom pushed to mechanism, stops when you state the rule |
+| the agent's *last message* lost you — "wait", "หา?", "งง", "say that again" | `wait-what` (`/wait-what`) — re-pitches that one message with a little context, in ASD-STE100 Simplified Technical English, using `CONTEXT.md`'s ubiquitous language. Vendored verbatim from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT); manual invocation only |
 | explaining a complex problem | `problem-description` |
 | "why does this code/ticket exist?" | `ticket-trace` |
 | second opinion on a plan / PR / change | `scrutinize` / `dual-verifier` |

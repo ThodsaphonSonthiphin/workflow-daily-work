@@ -3,9 +3,9 @@ title: Distribution - what makes sure a colleague has superpowers installed befo
 type: grilling
 mode: HITL
 status: closed
-assignee: override-dist-grill-0931
+assignee: override-dist-grill-0602
 blocked_by: [coexistence-mechanism]
-gist: The skillOverrides question is VOID - re-scoped to the prerequisite that survives: the host SessionStart hook checks that superpowers is installed, and the README gains the line.
+gist: Re-scoped off the void skillOverrides premise: four manual steps cannot be shipped, and a read-only dev-workflows setup-check reports all four - the ado-backlog/github-backlog pattern.
 ---
 
 <!-- decision-map:graph:start -->
@@ -152,87 +152,57 @@ Evidence and reproduction:
 <!-- decision-map:resolution:start -->
 ## Resolution
 
-The skillOverrides question is VOID - re-scoped to the prerequisite that survives: the host SessionStart hook checks that superpowers is installed, and the README gains the line.
+Re-scoped off the void skillOverrides premise: four manual steps cannot be shipped, and a read-only dev-workflows setup-check reports all four - the ado-backlog/github-backlog pattern.
 
-Detail: docs/adr/0078-the-superpowers-prerequisite-is-checked-by-the-host-hook-not-only-documented.md
+Detail: docs/adr/0082-a-read-only-setup-check-reports-the-four-manual-steps-the-marketplace-cannot-ship.md
 
 ```mermaid
 flowchart TD
-    V["CHARTED QUESTION — six skillOverrides<br/>entries reaching a colleague<br/>❌ VOID: skillOverrides measured inert"] -.->|re-scoped| S{"what survives"}
-    S --> H["the host SessionStart hook —<br/>ships INSIDE dev-workflows,<br/>✅ needs no distribution at all"]
-    S --> P["the superpowers PREREQUISITE —<br/>11 references out to 3 non-copied skills,<br/>and nothing tells a colleague to install it"]
-    P --> D1["hook CHECKS at session start<br/>+ README gains the line"]
-    P -.->|rejected| D2["README alone — found out<br/>mid-workflow, in the late steps"]
-    P -.->|impossible| D3["manifest dependency field —<br/>zero occurrences in claude.exe"]
-    D1 --> U["antigravity-install UNBLOCKS"]
-    style V fill:#eee
-    style D1 fill:#dfd
+    C["a colleague installs this marketplace"]
+    C --> SHIP["ships automatically:<br/>the six copies + the host hook (Claude Code)"]
+    C --> MAN["does NOT ship - 4 manual steps"]
+    MAN --> M1["1. install the superpowers plugin"]
+    MAN --> M2["2. delete a personal /brainstorm"]
+    MAN --> M3["3. run install-antigravity.py, and RE-run on update"]
+    MAN --> M4["4. install a superpowers skills port"]
+    MAN --> CHK["dev-workflows:setup-check<br/>read-only, PASS/WARN/FAIL, one line each"]
+    CHK -.->|complements| W["ADR 0080's automatic warning<br/>- covers step 1 only"]
+    C -.->|displaced| VOID["the original question:<br/>six skillOverrides entries - measured inert,<br/>no subject to distribute"]
 ```
 
-Detail is in ADR 0078, linked above. What belongs here is the re-scope, and the three
-measurements that turned a void ticket into a real one.
+**Re-scoped before answering, at the owner's direction.** Four earlier sessions each
+left a note that this ticket's premise was dead, and each left the void-or-re-scope call
+to the taker and the owner. Asked directly, the owner chose to re-scope and answer here
+rather than close it void. The question became: *what must a colleague do by hand that
+this marketplace cannot ship, and how do they find out?* The owner then chose the check
+script — **"สคริปต์ตรวจ"** — over documentation alone, over widening ADR 0080's warning,
+and over accepting the risk.
 
-## The re-scope
+**One thing I raised and then had to withdraw, measured rather than argued.** I first
+reported that Antigravity gets no host hook and called it a gap. It is not.
+`install-antigravity.py`'s own header records that Antigravity discovers skills by folder
+and matches on `description`; there is no plugin system and the installer stages no
+hooks. So the **upstream** hook is absent there too, the host hook has nothing to
+counter, and its absence costs nothing.
 
-The charted question is **void**, and three earlier sessions had already said so on this
-ticket without being able to act on it. `skillOverrides` is inert against plugin skills,
-so there were never six entries to distribute.
+That check did surface a real one: **ADR 0070 names no harness**, so it reads as though
+the hook mechanism is universal. A dated scope note is added to it in this same change —
+a clarification, not a supersession.
 
-It was **re-scoped rather than closed**, because a real question survives underneath and no
-other ticket owns it. `user-command-entry` owns `~/.claude/commands/`.
-`antigravity-install` owns the installer. Neither owns the prerequisite.
+**Why a check and not documentation.** The requirement is already written down, twice —
+`README.md:59` and `INSTALL.md:71` — and the gap survived both. A check is also the only
+option that emits a **positive** signal; a warning can say something is wrong, only a
+check can say everything is right, which is what a new machine actually needs.
 
-The ticket's `title` was rewritten to the surviving question in the same change, so the
-map's index no longer advertises a question this repo has abandoned.
+**Why not fold it into ADR 0080's warning.** That fires only inside `grill-then-plan`,
+while step 3's staleness degrades every skill in the plugin. The two are complements: the
+warning is automatic and narrow, the check is on demand and complete.
 
-## What was measured before anything was put to the user
+Step 3 is the one to watch. A stale Antigravity staging is not *missing* — the installer
+copies rather than links, so an out-of-date copy answers normally, in the wrong version.
+That is the same silent-failure shape `short-ref-resolution` measured 2/2, reached by a
+different route.
 
-1. **Eleven outbound references** from the six copies to three skills that are *not* being
-   copied — `finishing-a-development-branch` (7), `using-git-worktrees` (3),
-   `using-superpowers` (1). The map's out-of-scope list called two of them load-bearing;
-   this is the count.
-2. **The README does not mention `superpowers`** — four `/plugin install` lines, none of
-   them that one, and four prerequisites, none of them that one.
-3. **The harness has no dependency field** — `requiredPlugins` and `peerPlugins` occur
-   zero times in `claude.exe`. So the answer could only be documentation or a runtime
-   check, which is exactly the two-way choice that was put to the user.
-
-## One correction found while resolving
-
-Earlier comments on this ticket treat ADR 0070's host hook as something that already
-ships. It does not exist. At `e7839a8` the plugin's `hooks.json` is `{"hooks": {}}` — the
-`PostToolUse` commit-log hook was removed and no `SessionStart` hook was ever added. The
-decision recorded here therefore *adds a requirement to a file that must be written
-anyway*, which is most of why it is cheap.
-
-That same commit also retires the commit-log hook in the repository, which answers one of
-the map's four fog lines — *"whether the commit-log PostToolUse hook (ADR 0054) is being
-retired"*. It has been. That fog line was not graduated here, because it belongs to
-whoever owns ADR 0054 rather than to this ticket.
-
-## The owner's words
-
-Two options were put, with the recommendation stated first and my own bias declared — I
-counted the eleven references, so I am the reader most impressed by them. Option A was the
-README line alone; option B was the hook check plus the README line. The user chose:
-
-> **b**
-
-The user also directed that this ticket be worked in a session that had already resolved
-one, past the map's one-ticket cap. Their call, recorded because a later reader cannot see
-it.
-
-## Facts later tickets can use
-
-- **`antigravity-install` is unblocked** by this resolution and was blocked on it alone.
-- The Antigravity half of the prerequisite question is **not** answered here. No hook
-  mechanism was established for that harness, and `install-antigravity.py` is still run by
-  hand. That is `antigravity-install`'s to settle, alongside the licence-file finding
-  already recorded there.
-- A missing `superpowers` fails **loudly** — with no upstream twin present, a bare
-  reference is refused rather than silently substituted. That is the opposite of the
-  missing-copy case measured on
-  [`short-ref-resolution`](short-ref-resolution.md), and the difference is what made
-  option A defensible rather than negligent.
+Recorded in [ADR 0082](../../../adr/0082-a-read-only-setup-check-reports-the-four-manual-steps-the-marketplace-cannot-ship.md).
 
 <!-- decision-map:resolution:end -->
