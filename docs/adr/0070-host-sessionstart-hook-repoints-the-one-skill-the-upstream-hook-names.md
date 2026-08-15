@@ -6,6 +6,13 @@
   whose per-skill `skillOverrides` switch was observed not to exist for plugin
   skills. That ADR's *position* — keep the plugin enabled — survives; only its
   lever changes.
+- **Scope note added 2026-08-15 by [ADR 0082](0082-a-read-only-setup-check-reports-the-four-manual-steps-the-marketplace-cannot-ship.md)
+  — not a supersession; this decision is unchanged.** This ADR names no harness, and
+  its mechanism is **Claude Code only**: Antigravity has no plugin system and no hooks
+  (`install-antigravity.py` discovers skills by folder and stages no hooks), so neither
+  the upstream hook nor this host hook exists there. That costs nothing — there is
+  nothing to counter — but do not read this ADR as describing Antigravity behaviour.
+  Displacement there rests entirely on descriptions (ADR 0071 Decision 3).
 
 ```mermaid
 flowchart TD

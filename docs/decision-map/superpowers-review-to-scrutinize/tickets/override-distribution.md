@@ -2,10 +2,10 @@
 title: Distribution - how do the six skillOverrides entries reach a colleague's machine?
 type: grilling
 mode: HITL
-status: open
-assignee: 
+status: closed
+assignee: override-dist-grill-0602
 blocked_by: [coexistence-mechanism]
-gist: 
+gist: Re-scoped off the void skillOverrides premise: four manual steps cannot be shipped, and a read-only dev-workflows setup-check reports all four - the ado-backlog/github-backlog pattern.
 ---
 
 <!-- decision-map:graph:start -->
@@ -149,3 +149,60 @@ the Antigravity install, which stages skill directories one at a time.
 Evidence and reproduction:
 [`short-ref-resolution`](short-ref-resolution.md).
 
+<!-- decision-map:resolution:start -->
+## Resolution
+
+Re-scoped off the void skillOverrides premise: four manual steps cannot be shipped, and a read-only dev-workflows setup-check reports all four - the ado-backlog/github-backlog pattern.
+
+Detail: docs/adr/0082-a-read-only-setup-check-reports-the-four-manual-steps-the-marketplace-cannot-ship.md
+
+```mermaid
+flowchart TD
+    C["a colleague installs this marketplace"]
+    C --> SHIP["ships automatically:<br/>the six copies + the host hook (Claude Code)"]
+    C --> MAN["does NOT ship - 4 manual steps"]
+    MAN --> M1["1. install the superpowers plugin"]
+    MAN --> M2["2. delete a personal /brainstorm"]
+    MAN --> M3["3. run install-antigravity.py, and RE-run on update"]
+    MAN --> M4["4. install a superpowers skills port"]
+    MAN --> CHK["dev-workflows:setup-check<br/>read-only, PASS/WARN/FAIL, one line each"]
+    CHK -.->|complements| W["ADR 0080's automatic warning<br/>- covers step 1 only"]
+    C -.->|displaced| VOID["the original question:<br/>six skillOverrides entries - measured inert,<br/>no subject to distribute"]
+```
+
+**Re-scoped before answering, at the owner's direction.** Four earlier sessions each
+left a note that this ticket's premise was dead, and each left the void-or-re-scope call
+to the taker and the owner. Asked directly, the owner chose to re-scope and answer here
+rather than close it void. The question became: *what must a colleague do by hand that
+this marketplace cannot ship, and how do they find out?* The owner then chose the check
+script — **"สคริปต์ตรวจ"** — over documentation alone, over widening ADR 0080's warning,
+and over accepting the risk.
+
+**One thing I raised and then had to withdraw, measured rather than argued.** I first
+reported that Antigravity gets no host hook and called it a gap. It is not.
+`install-antigravity.py`'s own header records that Antigravity discovers skills by folder
+and matches on `description`; there is no plugin system and the installer stages no
+hooks. So the **upstream** hook is absent there too, the host hook has nothing to
+counter, and its absence costs nothing.
+
+That check did surface a real one: **ADR 0070 names no harness**, so it reads as though
+the hook mechanism is universal. A dated scope note is added to it in this same change —
+a clarification, not a supersession.
+
+**Why a check and not documentation.** The requirement is already written down, twice —
+`README.md:59` and `INSTALL.md:71` — and the gap survived both. A check is also the only
+option that emits a **positive** signal; a warning can say something is wrong, only a
+check can say everything is right, which is what a new machine actually needs.
+
+**Why not fold it into ADR 0080's warning.** That fires only inside `grill-then-plan`,
+while step 3's staleness degrades every skill in the plugin. The two are complements: the
+warning is automatic and narrow, the check is on demand and complete.
+
+Step 3 is the one to watch. A stale Antigravity staging is not *missing* — the installer
+copies rather than links, so an out-of-date copy answers normally, in the wrong version.
+That is the same silent-failure shape `short-ref-resolution` measured 2/2, reached by a
+different route.
+
+Recorded in [ADR 0082](../../../adr/0082-a-read-only-setup-check-reports-the-four-manual-steps-the-marketplace-cannot-ship.md).
+
+<!-- decision-map:resolution:end -->
