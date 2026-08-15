@@ -1,7 +1,7 @@
 ---
 type: daily-state
 schema_version: 1
-updated: '2026-08-12T20:42:27+07:00'
+updated: '2026-08-14T09:53:44+07:00'
 ---
 
 # Daily state
@@ -158,3 +158,4 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
 - 2026-08-07T11:16:31+07:00 — feat: add lint command to decision-map plugin (aeab2da)
 - 2026-08-10T21:02:24+07:00 — feat(skills): sp-grill-with-doc and the ask-in-user-terms rule (dev-workflows 0.33.0) (dfb55af)
 - 2026-08-12T20:42:27+07:00 — docs(reflections): 2026-08-12 second pass - four Route F findings, all about patching files through this harness (f3e7eb9)
+- 2026-08-14T09:53:44+07:00 — docs(decision-map): chart superpowers-review-to-scrutinize (11 tickets, 1 resolved) (29ff84c)

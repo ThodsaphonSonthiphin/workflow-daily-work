@@ -1,5 +1,10 @@
 {
   "worktree": {
     "baseRef": "head"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(python \"plugins/decision-map/scripts/local_map_ops.py\" read --map superpowers-review-to-scrutinize)"
+    ]
   }
 }

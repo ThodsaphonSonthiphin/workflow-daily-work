@@ -3,7 +3,7 @@ title: Distribution - how do the six skillOverrides entries reach a colleague's 
 type: grilling
 mode: HITL
 status: open
-assignee: 
+assignee: override-dist-grill-0931
 blocked_by: [coexistence-mechanism]
 gist: 
 ---

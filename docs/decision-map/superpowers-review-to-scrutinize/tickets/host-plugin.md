@@ -3,7 +3,7 @@ title: Host plugin - do the copies live in dev-workflows or a new plugin of thei
 type: grilling
 mode: HITL
 status: closed
-assignee: host-plugin-grill-1612
+assignee: host-plugin-grill-1735
 blocked_by: []
 gist: The six copies live in plugins/dev-workflows - no sixth plugin: the destination needs Antigravity and its only installer is plugin-local, and ADR 0070's hook must ship beside them.
 ---
