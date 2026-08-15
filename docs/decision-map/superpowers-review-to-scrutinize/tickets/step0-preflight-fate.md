@@ -3,7 +3,7 @@ title: Preflight - does grill-then-plan's Step 0 gate still have a job now that 
 type: grilling
 mode: HITL
 status: open
-assignee: 
+assignee: preflight-grill-0541
 blocked_by: []
 gist: 
 ---
