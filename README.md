@@ -19,7 +19,8 @@ A Claude Code **plugin marketplace** for daily-work automation. It ships five pl
   tickets you can state now, fog you cannot yet — behind a dry-run gate;
   `/decision-map:work` then claims and resolves **exactly one decision per session**
   until the way is clear. v1 keeps the map in your repo as markdown under
-  `docs/decision-map/`; Azure DevOps and GitHub Issues backends are phase 2 (ADR 0059).
+  `docs/decision-map/`, and can also put the same map on GitHub Issues. Azure DevOps
+  stays deferred pending marker-survival validation (ADRs 0059 and 0062).
 - **`react-workflows`** — **opt-in**, frontend structure conventions for React/TSX work
   (`react-structure`): per-component file separation (UI `.tsx` / hook `.ts` / `type.ts` /
   optional Redux slice), a TypeScript + Redux Toolkit + MUI + DataGridPremium stack, and a
@@ -122,7 +123,7 @@ plugins/ado-backlog/
 plugins/github-backlog/                # same pipeline, GitHub Issues backend
 plugins/dev-workflows/                 # the daily-work arc — /daily router + design/debug/review/study/comms skills
 plugins/react-workflows/               # opt-in React/TSX structure conventions (react-structure)
-plugins/decision-map/                  # multi-session planning — chart-map + work-map, local-markdown backend
+plugins/decision-map/                  # multi-session planning — chart-map + work-map, local-markdown + GitHub backends
 scripts/sync-personal-skills.ps1       # mirror dev-workflows skills into ~/.claude/skills
 ```
 
