@@ -195,3 +195,54 @@ env -u CLAUDE_EFFORT claude -p "Load the sp-writing-plans skill through your har
 ```
 
 <!-- decision-map:resolution:end -->
+
+## Comment
+
+## Correction to §6 — `toolStats` cannot answer identity questions (2026-08-15, from `review-acceptance-check`)
+
+§6 records, as a fact for later tickets:
+
+> The `Agent` tool's `toolUseResult` is the only place a subagent's usage is recorded —
+> `agentId`, `resolvedModel`, `totalTokens`, `totalDurationMs`, `toolStats` and
+> per-iteration thinking tokens. Reach for it whenever a future ticket needs to observe
+> subagent behaviour.
+
+**True scope of that claim:** *usage*. Everything §6 names is there and is correct, and §4's
+`effort: max` finding rests on `usage.output_tokens_details.thinking_tokens`, which is
+unaffected.
+
+**What it does not cover, measured 2026-08-15 on Claude Code 2.1.233:** *identity* — which
+skill, or which tool, a subagent actually invoked. A subagent that loaded
+`dev-workflows:scrutinize` and stopped returned
+
+```json
+{"readCount":0,"searchCount":0,"bashCount":0,
+ "editFileCount":0,"linesAdded":0,"linesRemoved":0,"otherToolCount":1}
+```
+
+`toolStats` is a **bucketed counter**: every tool that is not a read, search, bash or edit
+lands in `otherToolCount`. It cannot separate a `Skill` call from a `WebFetch`, and it
+never carries the skill name. A future ticket following §6's pointer to answer "did the
+subagent load X?" would find the field present, the count plausible, and no way to tell.
+
+**Where identity does live**, and the other half of §4's own finding: §4 established that
+subagent turns reach **no session file**. They do reach the **live stream**. Under
+`--output-format stream-json --verbose` the subagent's own `Skill` tool_use is emitted as an
+assistant message stamped `parent_tool_use_id` with the dispatching `Agent` call's id, and
+its input names the skill —
+`{"type":"assistant","parent_tool_use_id":"toolu_…","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"dev-workflows:scrutinize"}}]}}`
+— answered by the harness's own `"Launching skill: dev-workflows:scrutinize"`.
+
+Confirmed by direct check of `/root/.claude/projects/<slug>/*.jsonl`: the parent's `Agent`
+tool_use rows are present, and **no** `Skill` tool_use row exists in any of them. The
+record is live-stream-only and cannot be recovered after the run.
+
+Full reasoning, the negative control, and the recipe:
+[ADR 0079](../../../adr/0079-routing-proof-is-the-dispatch-streams-skill-record-measured-once.md)
+and [`review-acceptance-check`](review-acceptance-check.md).
+
+**One methodology note for §5's re-run and any future probe:** pass `env -u CLAUDE_SESSION_ID`
+alongside `-u CLAUDE_EFFORT`. Without it a nested `claude -p` reuses the parent's session id
+and writes its records into the parent's own log file, which makes "read the child's jsonl"
+silently read the wrong file.
+
