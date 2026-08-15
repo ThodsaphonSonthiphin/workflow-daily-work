@@ -2,10 +2,10 @@
 title: Antigravity - does install-antigravity.py cover the copies, or need a new rewrite shape?
 type: task
 mode: HITL
-status: open
-assignee: 
+status: closed
+assignee: antigravity-task-0610
 blocked_by: [host-plugin, override-distribution]
-gist: 
+gist: No installer change needed - the 21 files at b36e082 contain ZERO CLAUDE_PLUGIN_ROOT, so rewrite_plugin_root has nothing new to learn; three residual Antigravity facts recorded.
 ---
 
 <!-- decision-map:graph:start -->
@@ -83,3 +83,80 @@ Two further facts from the same read, both useful here:
 
 Evidence: [`short-ref-resolution`](short-ref-resolution.md).
 
+<!-- decision-map:resolution:start -->
+## Resolution
+
+No installer change needed - the 21 files at b36e082 contain ZERO CLAUDE_PLUGIN_ROOT, so rewrite_plugin_root has nothing new to learn; three residual Antigravity facts recorded.
+
+```mermaid
+graph TD
+    B["BEFORE - open question:<br/>do the copies need a 4th rewrite shape?"]
+    B --> M["measured against the real vendoring source<br/>obra/superpowers @ b36e082"]
+    M --> A["AFTER - NO installer change needed"]
+    A --> R1["discover_skills() has no allowlist<br/>-> all six stage automatically"]
+    A --> R2["copytree stages the whole dir<br/>-> all 21 files, scripts/ included"]
+    A --> R3["ZERO CLAUDE_PLUGIN_ROOT in all 21 files<br/>-> rewrite_plugin_root has nothing to do"]
+    A -.->|facts left behind| F["3 residual findings, none blocking"]
+```
+
+**Resolved by measurement, not reasoning.** `obra/superpowers` was cloned at
+`b36e082` — the exact sha the map records as the vendoring source — and the six skill
+directories check out against ADR 0074 to the digit: **21 files, 2407 Markdown lines and
+1559 non-Markdown**. So what follows describes the real thing that will be copied, not a
+reconstruction of it.
+
+## The answer
+
+`install-antigravity.py` **covers the copies as written**. No new rewrite shape, no
+change to `rewrite_plugin_root()`.
+
+Three independent reasons, each measured:
+
+1. `discover_skills()` (lines 50-52) enumerates every directory under `skills/` holding
+   a `SKILL.md`, with no allowlist and no per-skill flag. Six new directories are staged
+   the moment they exist.
+2. Staging is `shutil.copytree(skill, out)` — the whole directory. The copies' `scripts/`
+   trees and their prompt files arrive with them; nothing enumerates file types.
+3. **Not one of the 21 files contains `${CLAUDE_PLUGIN_ROOT}`** — Markdown or otherwise.
+   The three shapes `rewrite_plugin_root()` knows are not merely sufficient; on these
+   files the rewriter has no work at all. ADR 0074's one plugin-root-relative site,
+   `brainstorming/SKILL.md:250`, is the bare path `skills/brainstorming/visual-companion.md`
+   with no variable in it, and ADR 0074 already turns it skill-relative — which is the
+   form Antigravity resolves natively.
+
+## Three facts left behind
+
+**1. The rewriter and its own safety net are Markdown-only.** Both the rewrite loop and
+the leftover detector iterate `dest.rglob("*.md")`. The copies bring 8 non-Markdown files
+(1559 lines). Today that costs nothing — those files hold no plugin-root reference — but
+it is a property of the tool, not a guarantee about the future: an upstream change that
+introduces one into `server.cjs` would stage unrewritten *and* unwarned, because the
+detector cannot see the file either. Worth a line in ADR 0075's resync checker.
+
+**2. One non-Markdown path assumption changes meaning under flat staging.**
+`brainstorming/scripts/server.cjs:209` computes `path.join(__dirname, '../../..')`. From
+`<plugin>/skills/brainstorming/scripts/` that is the plugin root; from Antigravity's
+`<dest>/sp-brainstorming/scripts/` it is the **parent of the skills directory**. It is
+used only by `readSuperpowersVersion()`, whose manifest reads are `try`/`catch`-guarded
+and fall through, so it degrades to an unknown version rather than failing. Every other
+path in the 8 files is self-relative (`__dirname`, `$(cd "$(dirname "$0")" && pwd)`) and
+survives staging unchanged.
+
+**3. One relative reference dangles on Antigravity, and it is not the installer's
+fault.** Flat staging makes sibling paths work: after ADR 0074's rewrite,
+`../sp-requesting-code-review/code-reviewer.md` resolves correctly from
+`<dest>/sp-subagent-driven-development/` (and 3 of those 4 sites — `SKILL.md` lines 88,
+117, 118 — are graphviz label text rather than live links; only line 454 is a real link).
+But `../using-superpowers/references/` at `executing-plans/SKILL.md:14` names one of the
+**eight non-copied** skills. Nothing stages a `using-superpowers` directory into
+`<dest>/`, so that path dangles there whatever the rewrite pass does with it. It belongs
+to ADR 0074/0075's rewrite pass, not to the installer, and is recorded here rather than
+decided.
+
+## Scope note
+
+This ticket asked about the installer, and the installer is fine. Findings 2 and 3 are
+about the *content* being staged, not the staging mechanism, so they are recorded as
+facts for the rewrite pass rather than resolved here.
+
+<!-- decision-map:resolution:end -->
