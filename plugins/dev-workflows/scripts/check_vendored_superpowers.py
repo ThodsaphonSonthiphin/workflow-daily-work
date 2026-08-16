@@ -482,6 +482,76 @@ def check_upstream_files(root, upstream_root, manifest):
 
 
 
+def check_upstream_traps(upstream_root, manifest):
+    """Checks 8-10 - the three upstream changes that show up as no broken
+    link and no failed build (ADR 0075).
+
+    Trap 1  brainstorming still hands off by BARE name, so the host hook can
+            keep winning that seam on specificity.
+    Trap 2  the skills the host hook names still exist, and there are no more
+            of them. Assert the set, never eyeball it.
+    Trap 3  the two dead document-reviewer prompts stay unreferenced by live
+            upstream code. Reviving either is two new review touchpoints
+            arriving with no announcement."""
+    traps = manifest["upstream_traps"]
+    up_skills = upstream_skills_dir(upstream_root, manifest)
+    out = []
+
+    seam_dir = traps["no_qualified_ref_dir"]
+    for dirpath, _, names in os.walk(os.path.join(up_skills, seam_dir)):
+        for fn in sorted(names):
+            path = os.path.join(dirpath, fn)
+            rel = os.path.relpath(path, up_skills).replace("\\", "/")
+            for match in QUALIFIED.finditer(read_text(path)):
+                out.append(finding(
+                    "upstream/trap-1", rel,
+                    "upstream added a qualified reference (%s) inside %s/"
+                    % (match.group(), seam_dir),
+                    "the host hook wins that seam because the reference is "
+                    "contestable prose. A qualified reference makes it forced, "
+                    "and the hook stops winning. Re-decide the hook"))
+
+    hook_path = os.path.join(up_skills, traps["hook_source"])
+    if not os.path.isfile(hook_path):
+        out.append(finding(
+            "upstream/trap-2", traps["hook_source"],
+            "the upstream file our host hook mirrors is gone",
+            "re-derive the hook against upstream's new entry point"))
+    else:
+        found = sorted(set(QUALIFIED.findall(read_text(hook_path))))
+        expected = sorted(traps["hook_named_skills"])
+        if found != expected:
+            out.append(finding(
+                "upstream/trap-2", traps["hook_source"],
+                "hook-named skills changed: expected %s, found %s"
+                % (expected, found),
+                "a rename makes our hook a silent no-op; a third name means "
+                "the hook's coverage is incomplete from this version on"))
+
+    for stem in traps["dead_prompts"]:
+        for live_dir in traps["dead_prompt_live_dirs"]:
+            base = os.path.join(upstream_root, live_dir)
+            if not os.path.isdir(base):
+                continue
+            for dirpath, _, names in os.walk(base):
+                for fn in sorted(names):
+                    if fn == stem + ".md":
+                        continue          # the dead file itself
+                    path = os.path.join(dirpath, fn)
+                    if stem in read_text(path):
+                        rel = os.path.relpath(
+                            path, upstream_root).replace("\\", "/")
+                        out.append(finding(
+                            "upstream/trap-3", rel,
+                            "a live upstream file references the dead prompt "
+                            "`%s`" % stem,
+                            "upstream is reviving the document-review system: "
+                            "two new review touchpoints, arriving unannounced. "
+                            "Decide whether they must route too"))
+    return sorted(out, key=lambda f: (f["check"], f["path"]))
+
+
+
 def main(argv):
     ap = argparse.ArgumentParser(
         description="Report drift in the vendored superpowers copies.")

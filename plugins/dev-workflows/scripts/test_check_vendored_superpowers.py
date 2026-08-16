@@ -14,7 +14,8 @@ from check_vendored_superpowers import (normalize, read_normalized,
                                         check_frozen, bare_name_re,
                                         check_bare_names, check_qualified_refs,
                                         check_routing, emit_manifest,
-                                        check_upstream_files)
+                                        check_upstream_files,
+                                        check_upstream_traps)
 
 
 def _write(path, text, eol="\n"):
@@ -596,6 +597,72 @@ def test_upstream_adding_a_file_is_flagged(tmp_path=None):
         _write(os.path.join(up, "skills/alpha/NEW.md"), "new\n", eol="\n")
         out = check_upstream_files(root, up, m)
         assert [f["check"] for f in out] == ["upstream/added"]
+
+
+def _trap_tree(d):
+    up = os.path.join(d, "upstream")
+    _write(os.path.join(up, "skills/brainstorming/SKILL.md"),
+           "no qualified refs here\n", eol="\n")
+    _write(os.path.join(up, "skills/using-superpowers/SKILL.md"),
+           "use superpowers:brainstorming then "
+           "superpowers:systematic-debugging\n", eol="\n")
+    _write(os.path.join(up, "skills/brainstorming/"
+                            "spec-document-reviewer-prompt.md"),
+           "dead file\n", eol="\n")
+    _write(os.path.join(up, "docs/history.md"),
+           "we once used spec-document-reviewer-prompt\n", eol="\n")
+    manifest = {
+        "upstream": {"skills_subdir": "skills"},
+        "upstream_traps": {
+            "no_qualified_ref_dir": "brainstorming",
+            "hook_source": "using-superpowers/SKILL.md",
+            "hook_named_skills": ["brainstorming", "systematic-debugging"],
+            "dead_prompts": ["spec-document-reviewer-prompt"],
+            "dead_prompt_live_dirs": ["skills", "hooks", "scripts"]},
+    }
+    return up, manifest
+
+
+def test_all_three_traps_hold(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        up, m = _trap_tree(d)
+        assert check_upstream_traps(up, m) == []
+
+
+def test_trap_1_qualified_ref_inside_brainstorming(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        up, m = _trap_tree(d)
+        _write(os.path.join(up, "skills/brainstorming/SKILL.md"),
+               "next use superpowers:writing-plans\n", eol="\n")
+        out = check_upstream_traps(up, m)
+        assert [f["check"] for f in out] == ["upstream/trap-1"]
+
+
+def test_trap_2_a_third_hook_named_skill(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        up, m = _trap_tree(d)
+        _write(os.path.join(up, "skills/using-superpowers/SKILL.md"),
+               "superpowers:brainstorming superpowers:systematic-debugging "
+               "superpowers:test-driven-development\n", eol="\n")
+        out = check_upstream_traps(up, m)
+        assert [f["check"] for f in out] == ["upstream/trap-2"]
+
+
+def test_trap_3_a_dead_prompt_is_revived(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        up, m = _trap_tree(d)
+        _write(os.path.join(up, "skills/brainstorming/SKILL.md"),
+               "dispatch spec-document-reviewer-prompt now\n", eol="\n")
+        out = check_upstream_traps(up, m)
+        assert [f["check"] for f in out] == ["upstream/trap-3"]
+
+
+def test_trap_3_ignores_docs_and_the_file_itself(tmp_path=None):
+    """docs/ mentions are how upstream looks TODAY - only skills/, hooks/ and
+    scripts/ count as a revival."""
+    with tempfile.TemporaryDirectory() as d:
+        up, m = _trap_tree(d)
+        assert check_upstream_traps(up, m) == []
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
