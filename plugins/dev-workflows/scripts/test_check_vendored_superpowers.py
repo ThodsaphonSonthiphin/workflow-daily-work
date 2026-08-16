@@ -13,7 +13,8 @@ from check_vendored_superpowers import (normalize, read_normalized,
                                         check_copy_set, check_hashes,
                                         check_frozen, bare_name_re,
                                         check_bare_names, check_qualified_refs,
-                                        check_routing, emit_manifest)
+                                        check_routing, emit_manifest,
+                                        check_upstream_files)
 
 
 def _write(path, text, eol="\n"):
@@ -544,6 +545,57 @@ def test_emit_manifest_without_upstream_exits_2(tmp_path=None):
         assert main(["--emit-manifest", "--root", d,
                      "--manifest", os.path.join(d, "absent.json")]) == 2
 
+
+
+def _upstream_pair(d, ours="body\n", theirs="body\n", state="verbatim"):
+    root = os.path.join(d, "skills")
+    up = os.path.join(d, "upstream")
+    _write(os.path.join(root, "sp-alpha/SKILL.md"), ours, eol="\r\n")
+    _write(os.path.join(up, "skills/alpha/SKILL.md"), theirs, eol="\n")
+    manifest = {
+        "upstream": {"skills_subdir": "skills"},
+        "copy_set": {"files": [{"path": "sp-alpha/SKILL.md",
+                                "upstream_path": "alpha/SKILL.md",
+                                "state": state, "sha256": "x"}]},
+    }
+    return root, up, manifest
+
+
+def test_verbatim_file_matching_upstream_is_clean(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, up, m = _upstream_pair(d)
+        assert check_upstream_files(root, up, m) == []
+
+
+def test_verbatim_file_that_upstream_moved_is_flagged(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, up, m = _upstream_pair(d, ours="body\n", theirs="body v2\n")
+        out = check_upstream_files(root, up, m)
+        assert [f["check"] for f in out] == ["upstream/moved"]
+
+
+def test_edited_file_identical_to_upstream_is_flagged(tmp_path=None):
+    """The rewrite pass was lost - the copy no longer differs from upstream."""
+    with tempfile.TemporaryDirectory() as d:
+        root, up, m = _upstream_pair(d, state="edited")
+        out = check_upstream_files(root, up, m)
+        assert [f["check"] for f in out] == ["upstream/moved"]
+
+
+def test_upstream_deleting_a_copied_file_is_flagged(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, up, m = _upstream_pair(d)
+        os.remove(os.path.join(up, "skills/alpha/SKILL.md"))
+        out = check_upstream_files(root, up, m)
+        assert [f["check"] for f in out] == ["upstream/mapping"]
+
+
+def test_upstream_adding_a_file_is_flagged(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, up, m = _upstream_pair(d)
+        _write(os.path.join(up, "skills/alpha/NEW.md"), "new\n", eol="\n")
+        out = check_upstream_files(root, up, m)
+        assert [f["check"] for f in out] == ["upstream/added"]
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 

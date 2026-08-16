@@ -423,6 +423,65 @@ def emit_manifest(root, upstream_root, previous):
     return manifest
 
 
+
+def upstream_skills_dir(upstream_root, manifest):
+    """--upstream-dir is the upstream PLUGIN ROOT; the skills live under it."""
+    return os.path.join(upstream_root,
+                        manifest["upstream"].get("skills_subdir", "skills"))
+
+
+def check_upstream_files(root, upstream_root, manifest):
+    """Check 7 - per-file comparison against upstream, plus the 1:1 mapping
+    ADR 0074 depends on. All comparisons CR-normalized (ADR 0086)."""
+    up_skills = upstream_skills_dir(upstream_root, manifest)
+    declared_up = {f["upstream_path"] for f in manifest["copy_set"]["files"]}
+    out = []
+
+    for f in manifest["copy_set"]["files"]:
+        our_path = os.path.join(root, f["path"])
+        up_path = os.path.join(up_skills, f["upstream_path"])
+        if not os.path.isfile(up_path):
+            out.append(finding(
+                "upstream/mapping", f["upstream_path"],
+                "upstream no longer carries this file",
+                "decide whether to drop the copy or keep it deliberately, "
+                "then record which in the manifest"))
+            continue
+        if not os.path.isfile(our_path):
+            continue          # already reported by check_copy_set
+        ours = read_normalized(our_path)
+        theirs = read_normalized(up_path)
+        if f["state"] == "verbatim" and ours != theirs:
+            out.append(finding(
+                "upstream/moved", f["path"],
+                "recorded verbatim, but it now differs from upstream",
+                "re-copy the file, re-apply the rewrite pass if it needs one, "
+                "then re-emit the manifest"))
+        elif f["state"] == "edited" and ours == theirs:
+            out.append(finding(
+                "upstream/moved", f["path"],
+                "recorded edited, but it is now identical to upstream - the "
+                "rewrite pass looks lost",
+                "re-apply the rewrite classes for this file, or correct its "
+                "state if upstream adopted our wording"))
+
+    for name in upstream_skill_names(manifest):
+        base = os.path.join(up_skills, name)
+        for dirpath, _, names in os.walk(base):
+            for fn in names:
+                rel = os.path.relpath(os.path.join(dirpath, fn),
+                                      up_skills).replace("\\", "/")
+                if rel not in declared_up:
+                    out.append(finding(
+                        "upstream/added", rel,
+                        "upstream added a file to a vendored skill directory",
+                        "copy it in and add it to the manifest, or record why "
+                        "it is deliberately not copied. An uncopied new file "
+                        "is a review touchpoint arriving unannounced"))
+    return sorted(out, key=lambda f: (f["check"], f["path"]))
+
+
+
 def main(argv):
     ap = argparse.ArgumentParser(
         description="Report drift in the vendored superpowers copies.")
