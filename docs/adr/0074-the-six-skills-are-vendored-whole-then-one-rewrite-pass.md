@@ -59,6 +59,17 @@ literally, and following it as written would re-route a future resync to the fro
 human-facing skill — the exact seam ADR 0084 exists to remove. Read class 1 as:
 **`code-reviewer.md` and `task-reviewer-prompt.md` are routed to `scrutinize-dispatch`.**
 
+**What class 1 actually replaces, for a resyncer re-applying it.** In each of the two
+files it replaces **four** sections, not one — the reviewer's own stance/checklist,
+`## Calibration`, `## Output Format` with all its subsections, and (in
+`code-reviewer.md`) `## Critical Rules` — with a single `## Review method` block that
+delegates to `scrutinize-dispatch`. It also **deletes** `code-reviewer.md`'s
+`## Example Output` section outright and rewrites the `**Reviewer returns:**` line in
+both files. Upstream's Calibration says *"Acknowledge what was done well"* and its
+Critical Rules say *"Acknowledge strengths"*, while `scrutinize-dispatch` states there
+is no Strengths section — leaving either in place would ship a prompt demanding output
+its own engine forbids.
+
 ### Rewrite class 6 — upstream's `Strengths:` line is dropped from two example transcripts
 
 A sixth class, undeclared until now. This ADR states that *"everything not on this list is
@@ -66,8 +77,8 @@ byte-identical to upstream"*, and these two sites were on no list:
 
 | site | edit |
 |---|---|
-| `sp-subagent-driven-development/SKILL.md:529` | upstream's `Strengths: …` clause removed from the example reviewer output |
-| `sp-requesting-code-review/SKILL.md:65` | upstream's `Strengths: …` line removed from the example reviewer output |
+| `sp-subagent-driven-development/SKILL.md:529` | upstream's `Strengths: …` clause **substituted**, not merely dropped: the line now reads `Issues: None. Ready to merge: Yes. Task quality: Approved.` |
+| `sp-requesting-code-review/SKILL.md:65` | upstream's `Strengths: Clean architecture, real tests` **substituted** with `Spec Compliance: ✅ Spec compliant` |
 
 Reason: `scrutinize-dispatch/SKILL.md:151` forbids a Strengths section outright (*"There
 is no Strengths section"*), so an example transcript showing one contradicts the engine
@@ -76,23 +87,26 @@ intended class rather than unexplained drift.
 
 ### Resync diffs must ignore CR at end of line
 
-Measured at `d385a88`, against the `b36e0829c6d0` cache dir:
+Measured at `f349ec0`, against the `b36e0829c6d0` cache dir:
 
 - **The committed blobs are all LF.** `core.autocrlf=true` with no `.gitattributes`
   normalises CRLF away on `git add`, so `git cat-file blob` on every one of the 21 files
   returns LF. A blob-to-blob comparison is therefore already CR-clean.
-- **The working tree is mixed.** Six of the 21 files are CRLF — exactly the six the
-  rewrite pass edited on Windows (`sp-brainstorming/SKILL.md`, `sp-writing-plans/SKILL.md`,
+- **The working tree is mixed, and not in the obvious way.** **Eleven** of the 21
+  files are CRLF, and they split two ways. **Six** are the files the rewrite pass
+  edited on Windows (`sp-brainstorming/SKILL.md`, `sp-writing-plans/SKILL.md`,
   `sp-executing-plans/SKILL.md`, `sp-requesting-code-review/code-reviewer.md`,
-  `sp-subagent-driven-development/SKILL.md` and `.../task-reviewer-prompt.md`). The other
-  15 are LF and match upstream's own endings, including the five files upstream itself
-  ships CRLF.
+  `sp-subagent-driven-development/SKILL.md` and `.../task-reviewer-prompt.md`).
+  The other **five** are CRLF in *both* trees because upstream itself ships them
+  that way (`sp-brainstorming/scripts/frame-template.html` and `.../server.cjs`,
+  `sp-subagent-driven-development/scripts/review-package`, `.../sdd-workspace`
+  and `.../task-brief`). The remaining **ten** are LF and match upstream exactly.
 
 None of this is a defect to fix. But it does qualify this ADR's headline consequence that
 *"resync stays a plain per-file diff against a known sha"*: **a plain `diff` over the
 working tree reports effectively every line changed in those six files.** Measured on
-`sp-subagent-driven-development/SKILL.md`: **1134** changed lines plain, **20** with
-`--strip-trailing-cr` — and 20 is the real rewrite-pass delta. Any resync comparison that
+`sp-subagent-driven-development/SKILL.md`: **1136** changed lines plain, **24** with
+`--strip-trailing-cr` — and 24 is the real rewrite-pass delta, a figure that moves as the pass is amended. Any resync comparison that
 touches a working tree **must** use `diff --strip-trailing-cr` (or
 `git diff --ignore-cr-at-eol`).
 
