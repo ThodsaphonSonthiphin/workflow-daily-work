@@ -11,7 +11,8 @@ from check_vendored_superpowers import (normalize, read_normalized,
                                         copied_skill_dirs,
                                         upstream_skill_names, main,
                                         check_copy_set, check_hashes,
-                                        check_frozen)
+                                        check_frozen, bare_name_re,
+                                        check_bare_names)
 
 
 def _write(path, text, eol="\n"):
@@ -274,6 +275,98 @@ def test_valid_manifest_with_empty_sha256_in_frozen(tmp_path=None):
         # Should load successfully (not validate the value, just the presence of key)
         loaded = load_manifest(p)
         assert loaded == manifest
+
+
+def test_bare_name_re_ignores_prefixed_forms():
+    pat = bare_name_re(["brainstorming", "writing-plans"])
+    assert pat.search("then use writing-plans next")           # bare - a hit
+    assert not pat.search("see superpowers:writing-plans")     # qualified
+    assert not pat.search("load sp-writing-plans now")         # our copy
+    assert pat.search("digraph brainstorming {")               # bare - a hit
+
+
+def _permit_tree(d):
+    """A copy set holding one permitted bare name and nothing else.
+
+    BOTH `brainstorming` and `writing-plans` must be in the copy set: the name
+    set the checker searches for is DERIVED from it, so a name absent here can
+    never be found anywhere."""
+    root = os.path.join(d, "skills")
+    permitted = "digraph brainstorming {"
+    _write(os.path.join(root, "sp-brainstorming/SKILL.md"),
+           "header\n%s\nsee sp-writing-plans and superpowers:using-git-worktrees\n"
+           % permitted, eol="\r\n")
+    _write(os.path.join(root, "sp-writing-plans/SKILL.md"),
+           "a second copied skill, carrying no bare names\n", eol="\r\n")
+    manifest = {
+        "copy_set": {"files": [
+            {"path": "sp-brainstorming/SKILL.md",
+             "upstream_path": "brainstorming/SKILL.md",
+             "state": "edited", "sha256": "x"},
+            {"path": "sp-writing-plans/SKILL.md",
+             "upstream_path": "writing-plans/SKILL.md",
+             "state": "edited", "sha256": "x"}]},
+        "permit_list": [{"file": "sp-brainstorming/SKILL.md",
+                         "text": permitted,
+                         "why": "DOT graph identifier, not a skill reference"}],
+    }
+    return root, manifest, permitted
+
+
+def test_permitted_line_is_not_a_finding(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, m, _ = _permit_tree(d)
+        assert check_bare_names(root, m) == []
+
+
+def test_new_bare_name_is_a_NEW_finding(tmp_path=None):
+    """The Plan A Critical, reproduced: a bare short name that resolves to the
+    UNVENDORED upstream skill, with no error message."""
+    with tempfile.TemporaryDirectory() as d:
+        root, m, permitted = _permit_tree(d)
+        p = os.path.join(root, "sp-brainstorming/SKILL.md")
+        _write(p, "header\n%s\nwriting-plans is the next step\n" % permitted,
+               eol="\r\n")
+        out = check_bare_names(root, m)
+        assert [f["check"] for f in out] == ["permit-list/NEW"]
+        assert "writing-plans is the next step" in out[0]["message"]
+
+
+def test_reworded_permit_line_is_a_STALE_finding(tmp_path=None):
+    """The reworded line still holds a bare name, so it is BOTH a STALE entry
+    and a NEW unlisted line. The runner must see both."""
+    with tempfile.TemporaryDirectory() as d:
+        root, m, _ = _permit_tree(d)
+        p = os.path.join(root, "sp-brainstorming/SKILL.md")
+        _write(p, "header\ndigraph brainstorming {  // renamed\n", eol="\r\n")
+        checks = sorted(f["check"] for f in check_bare_names(root, m))
+        assert checks == ["permit-list/NEW", "permit-list/STALE"]
+
+
+def test_two_permit_entries_need_two_occurrences(tmp_path=None):
+    """Two entries claiming one line are not satisfied by a single occurrence."""
+    with tempfile.TemporaryDirectory() as d:
+        root, m, _ = _permit_tree(d)
+        m["permit_list"].append(dict(m["permit_list"][0]))
+        out = check_bare_names(root, m)
+        assert [f["check"] for f in out] == ["permit-list/STALE"]
+
+
+def test_permit_entry_awaiting_review_is_flagged(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, m, _ = _permit_tree(d)
+        m["permit_list"][0]["why"] = "REVIEW: state why this is inert"
+        out = check_bare_names(root, m)
+        assert [f["check"] for f in out] == ["permit-list/UNREVIEWED"]
+
+
+def test_permitted_line_matches_anywhere_not_by_line_number(tmp_path=None):
+    """ADR 0075: no line numbers - upstream may insert a paragraph above."""
+    with tempfile.TemporaryDirectory() as d:
+        root, m, permitted = _permit_tree(d)
+        p = os.path.join(root, "sp-brainstorming/SKILL.md")
+        _write(p, "a\nb\nc\nd\ne\n%s\n" % permitted, eol="\r\n")
+        assert check_bare_names(root, m) == []
 
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

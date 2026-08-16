@@ -214,6 +214,68 @@ def check_frozen(root, manifest):
     return out
 
 
+def bare_name_re(names):
+    """Match an upstream short name that is NOT prefixed.
+
+    The lookbehind rejects `superpowers:brainstorming` (preceded by ':') and
+    `sp-brainstorming` (preceded by '-'), which is exactly ADR 0071's check:
+    a search for any of the six upstream short names, unprefixed, must return
+    nothing. Longest-first alternation so a longer name cannot be shadowed."""
+    alt = "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True))
+    return re.compile(r"(?<![\w:-])(" + alt + r")\b")
+
+
+def check_bare_names(root, manifest):
+    """Check 3 - ADR 0071's check, run against the files.
+
+    NEW        a bare short name on a line the permit list does not hold.
+    STALE      a permitted line that is no longer present in its file.
+    UNREVIEWED a permit entry whose `why` is still a REVIEW: placeholder."""
+    pattern = bare_name_re(upstream_skill_names(manifest))
+
+    declared = Counter((e["file"], e["text"]) for e in manifest["permit_list"])
+    why_of = {(e["file"], e["text"]): str(e.get("why", ""))
+              for e in manifest["permit_list"]}
+
+    out = []
+    actual = Counter()
+    for f in manifest["copy_set"]["files"]:
+        rel = f["path"]
+        path = os.path.join(root, rel)
+        if not os.path.isfile(path):
+            continue          # already reported by check_copy_set
+        for line in read_text(path).split("\n"):
+            if not pattern.search(line):
+                continue
+            if (rel, line) in declared:
+                actual[(rel, line)] += 1
+                continue
+            out.append(finding(
+                "permit-list/NEW", rel,
+                "bare upstream skill name on an unlisted line: %s"
+                % line.strip()[:160],
+                "if it is a handoff, give it the sp- prefix - a bare name "
+                "resolves to the UNVENDORED upstream skill with no error. If "
+                "it is genuinely inert, add the line to permit_list with a why"))
+
+    for (rel, text), want in sorted(declared.items()):
+        got = actual[(rel, text)]
+        if got < want:
+            out.append(finding(
+                "permit-list/STALE", rel,
+                "permit list claims this line %d time(s), found %d: %s"
+                % (want, got, text.strip()[:160]),
+                "the line moved, was reworded or was deleted. Re-confirm it "
+                "is still inert, then update permit_list"))
+        elif why_of[(rel, text)].startswith("REVIEW:"):
+            out.append(finding(
+                "permit-list/UNREVIEWED", rel,
+                "permit entry still carries a REVIEW: placeholder",
+                "state why this bare name is inert, then replace the why. An "
+                "unreviewed entry permits a line nobody has judged"))
+    return out
+
+
 def main(argv):
     ap = argparse.ArgumentParser(
         description="Report drift in the vendored superpowers copies.")
