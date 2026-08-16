@@ -95,6 +95,23 @@ flowchart TD
 | need a repeatable test-case suite (feature / change / fixed bug) | `generating-test-cases` |
 | planning my own growth / quarterly career review | `career-growth` |
 
+### Vendored superpowers skills (ADRs 0071, 0074, 0084)
+
+Six upstream `superpowers` skills are vendored here under an `sp-` prefix so their
+reviewer dispatches reach this repo's reviewer instead of the built-in one. Prefer the
+`sp-` copy over the upstream skill of the same name; every *other* superpowers skill is
+unchanged and used as normal.
+
+| When… | Reach for |
+|---|---|
+| a dispatched reviewer subagent needs to run a review | `scrutinize-dispatch` — the scoped counterpart to `scrutinize`; emits `Critical/Important/Minor` and a spec-compliance verdict. Not for human-facing review — that is `scrutinize` |
+| brainstorming a feature before implementation | `sp-brainstorming` — displaces `superpowers:brainstorming` |
+| writing an implementation plan from a spec | `sp-writing-plans` — displaces `superpowers:writing-plans` |
+| executing a written plan in a separate session | `sp-executing-plans` — displaces `superpowers:executing-plans` |
+| executing a plan task-by-task with dispatched subagents | `sp-subagent-driven-development` — displaces `superpowers:subagent-driven-development`; its reviewer dispatches route to `scrutinize-dispatch`, except the re-review, which is deliberately left unrouted (ADR 0084) |
+| requesting a code review before merge | `sp-requesting-code-review` — displaces `superpowers:requesting-code-review` |
+| receiving and triaging review feedback | `sp-receiving-code-review` — displaces `superpowers:receiving-code-review` |
+
 ### The debug chain (ADRs 0003 + 0011)
 
 ```

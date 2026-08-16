@@ -5,7 +5,7 @@ mode: HITL
 status: closed
 assignee: acceptance-check-grill-0522
 blocked_by: []
-gist: The proof is the subagent's own Skill tool_use naming dev-workflows:scrutinize - harness-written so unfakeable; toolStats cannot see it and it never persists, so the check is a run not a gate.
+gist: The proof is the subagent's own harness-written Skill tool_use naming dev-workflows:scrutinize-dispatch, not a substring of the session log; the check is a run not a gate.
 ---
 
 <!-- decision-map:graph:start -->
@@ -22,9 +22,20 @@ ADR 0076 has the Reviewer prompt translate scrutinize's blocker/major/nit into u
 <!-- decision-map:resolution:start -->
 ## Resolution
 
-The proof is the subagent's own Skill tool_use naming dev-workflows:scrutinize - harness-written so unfakeable; toolStats cannot see it and it never persists, so the check is a run not a gate.
+The proof is the subagent's own harness-written Skill tool_use naming dev-workflows:scrutinize-dispatch, not a substring of the session log; the check is a run not a gate.
 
-Detail: docs/adr/0079-routing-proof-is-the-dispatch-streams-skill-record-measured-once.md
+Detail: docs/adr/0084-the-dispatched-reviewer-runs-a-dispatch-tuned-copy-not-the-frozen-scrutinize.md
+
+> **Skill renamed 2026-08-15 by [ADR 0084](../../../adr/0084-the-dispatched-reviewer-runs-a-dispatch-tuned-copy-not-the-frozen-scrutinize.md).**
+> ADR 0084 renamed the routed dispatch target from `scrutinize` to `scrutinize-dispatch`.
+> The proof mechanism this ticket resolved is unchanged - the subagent's own
+> harness-written `Skill` `tool_use` record, not a substring of the session log - only
+> the skill name it must name is corrected. **The original resolution is preserved
+> unchanged beneath this banner.**
+
+---
+
+## The original resolution, preserved
 
 ```mermaid
 flowchart TD
@@ -91,3 +102,11 @@ the three Reviewer prompts themselves, because the six copies do not exist yet; 
 is written to be run when they land.
 
 <!-- decision-map:resolution:end -->
+
+## Discharged by
+
+The recipe this ticket specifies was run at `d385a88` against the six copies, which
+now exist. The result -- the observed harness-written `Skill` record naming
+`dev-workflows:scrutinize-dispatch`, the two negative controls the probe was seen to
+fail, and the Step 3 control recorded honestly as NOT RUN -- is
+[the acceptance probe result](../../../superpowers/plans/2026-08-16-acceptance-probe-result.md).
