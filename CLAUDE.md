@@ -110,7 +110,7 @@ and an add-a-skill recipe.
   what those sets contain; the two overlap, so their sizes do not add. Run it with `--strict`
   before merging anything that touches `skills/sp-*` or `skills/scrutinize/`. Never glob
   `skills/sp-*` to find the copy set — `sp-grill-with-doc` wears the prefix and is not a
-  copy. The procedure is `references/resync-superpowers.md` (ADRs 0075, 0085-0088).
+  copy. The procedure is `references/resync-superpowers.md` (ADRs 0075, 0085-0089).
 
 - **A superseded design doc gets its banner in the same change that supersedes it.**
   Implementation routinely invalidates the spec or plan that seeded it — and the SDD

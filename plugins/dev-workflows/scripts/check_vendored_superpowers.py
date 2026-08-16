@@ -413,8 +413,14 @@ def emit_manifest(root, upstream_root, previous):
     prints it. NOTHING is written to disk (ADR 0075).
 
     Requires upstream, because `state` is verbatim-or-edited against it and a
-    guessed state is worse than no state. `previous` supplies the human-written
-    `why` strings, carried over by exact text match."""
+    guessed state is worse than no state.
+
+    `previous` is carried over WHOLESALE (`dict(previous)`) and then selectively
+    overwritten - it is not a `why`-strings lookup, though the `why` strings are
+    the part people notice. Two consequences worth knowing: any key nobody
+    recomputes survives untouched, which is what protects hand-written sections;
+    and `upstream.sha` therefore has to be recomputed explicitly, because
+    surviving untouched is exactly the wrong behaviour for it (ADR 0089)."""
     up_skills = os.path.join(upstream_root,
                              (previous or {}).get("upstream", {})
                              .get("skills_subdir", "skills"))
