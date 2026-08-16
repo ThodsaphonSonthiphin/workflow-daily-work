@@ -355,6 +355,74 @@ def check_routing(root, manifest):
     return out
 
 
+def emit_manifest(root, upstream_root, previous):
+    """Compute a complete manifest from the tree. Returns a dict; the caller
+    prints it. NOTHING is written to disk (ADR 0075).
+
+    Requires upstream, because `state` is verbatim-or-edited against it and a
+    guessed state is worse than no state. `previous` supplies the human-written
+    `why` strings, carried over by exact text match."""
+    up_skills = os.path.join(upstream_root,
+                             (previous or {}).get("upstream", {})
+                             .get("skills_subdir", "skills"))
+    prior_why = {}
+    for entry in (previous or {}).get("permit_list", []):
+        prior_why[(entry["file"], entry["text"])] = entry.get("why", "")
+
+    files = []
+    for skill_dir in sorted(os.listdir(root)):
+        base = os.path.join(root, skill_dir)
+        if not os.path.isdir(base) or not skill_dir.startswith("sp-"):
+            continue
+        upstream_name = skill_dir[len("sp-"):]
+        if not os.path.isdir(os.path.join(up_skills, upstream_name)):
+            continue          # not a vendored copy - e.g. sp-grill-with-doc
+        for dirpath, _, names in sorted(os.walk(base)):
+            for name in sorted(names):
+                rel = os.path.relpath(os.path.join(dirpath, name),
+                                      root).replace("\\", "/")
+                up_rel = upstream_name + rel[len(skill_dir):]
+                ours = read_normalized(os.path.join(root, rel))
+                up_path = os.path.join(up_skills, up_rel)
+                state = "edited"
+                if os.path.isfile(up_path) and read_normalized(up_path) == ours:
+                    state = "verbatim"
+                files.append({"path": rel, "upstream_path": up_rel,
+                              "state": state, "sha256": content_hash(ours)})
+
+    manifest = dict(previous or {})
+    manifest["copy_set"] = {"root": "plugins/dev-workflows/skills",
+                            "files": files}
+
+    scratch = {"copy_set": manifest["copy_set"]}
+    pattern = bare_name_re(upstream_skill_names(scratch))
+    permit, census = [], {}
+    for f in files:
+        rel = f["path"]
+        for line in read_text(os.path.join(root, rel)).split("\n"):
+            if pattern.search(line):
+                permit.append({
+                    "file": rel, "text": line,
+                    "why": prior_why.get((rel, line))
+                           or "REVIEW: state why this bare name is inert"})
+            for match in QUALIFIED.finditer(line):
+                census[match.group(1)] = census.get(match.group(1), 0) + 1
+    manifest["permit_list"] = permit
+    manifest["qualified_refs"] = census
+
+    for key, default in (("upstream", {}), ("routing_marker",
+                                            "scrutinize-dispatch"),
+                         ("routed_prompts", []), ("unrouted_prompts", []),
+                         ("frozen", []), ("upstream_traps", {})):
+        manifest.setdefault(key, default)
+
+    for entry in manifest["frozen"]:
+        path = os.path.join(root, entry["path"])
+        if os.path.isfile(path):
+            entry["sha256"] = content_hash(read_normalized(path))
+    return manifest
+
+
 def main(argv):
     ap = argparse.ArgumentParser(
         description="Report drift in the vendored superpowers copies.")
@@ -373,6 +441,36 @@ def main(argv):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, ValueError):  # pragma: no cover
         pass
+
+    if args.emit_manifest:
+        if not args.upstream_dir:
+            print("ERROR: --emit-manifest requires --upstream-dir: `state` is "
+                  "verbatim-or-edited against upstream, and a guessed state "
+                  "is worse than no state.")
+            return 2
+        if not os.path.isdir(args.upstream_dir):
+            print("ERROR: --upstream-dir not found: %s" % args.upstream_dir)
+            return 2
+        previous = None
+        if os.path.exists(args.manifest):
+            if os.path.getsize(args.manifest) == 0:
+                print("ERROR: %s exists but is empty. That is what a shell "
+                      "redirect onto the manifest leaves behind - it truncates "
+                      "the file before this program starts, so every "
+                      "hand-written key would be read as absent and dropped. "
+                      "Emit to a temp file, then move it into place."
+                      % args.manifest)
+                return 2
+            try:
+                previous = load_manifest(args.manifest)
+            except ValueError as e:
+                print("ERROR: refusing to emit from an unreadable manifest - "
+                      "%s. Fix or delete it first; emitting now would silently "
+                      "drop every hand-written key." % e)
+                return 2
+        out = emit_manifest(args.root, args.upstream_dir, previous)
+        print(json.dumps(out, indent=2, ensure_ascii=False))
+        return 0
 
     try:
         manifest = load_manifest(args.manifest)

@@ -1,0 +1,259 @@
+{
+  "copy_set": {
+    "root": "plugins/dev-workflows/skills",
+    "files": [
+      {
+        "path": "sp-brainstorming/SKILL.md",
+        "upstream_path": "brainstorming/SKILL.md",
+        "state": "edited",
+        "sha256": "8992d036ef515da77c022e4298fb12bf168a79267480d80907be2ebfcc0267b5"
+      },
+      {
+        "path": "sp-brainstorming/spec-document-reviewer-prompt.md",
+        "upstream_path": "brainstorming/spec-document-reviewer-prompt.md",
+        "state": "verbatim",
+        "sha256": "95a0a195de9d984be2fffa95bab16fc8c563bc296a9cfc5e9c29cb3ece0d7457"
+      },
+      {
+        "path": "sp-brainstorming/visual-companion.md",
+        "upstream_path": "brainstorming/visual-companion.md",
+        "state": "verbatim",
+        "sha256": "77eb44a4ec3408bb3dafb872288ecd94beb8cf21da4f2bafa54fd08255d7808b"
+      },
+      {
+        "path": "sp-brainstorming/scripts/frame-template.html",
+        "upstream_path": "brainstorming/scripts/frame-template.html",
+        "state": "verbatim",
+        "sha256": "6a8a4e58bd6a44b904e2e3c57de774481d909204597e1498de53f1b2fecc4c4e"
+      },
+      {
+        "path": "sp-brainstorming/scripts/helper.js",
+        "upstream_path": "brainstorming/scripts/helper.js",
+        "state": "verbatim",
+        "sha256": "43c6d69954a46ec34a2a262bcc62a9a7e83e839c739f199cb72646d397c686e3"
+      },
+      {
+        "path": "sp-brainstorming/scripts/server.cjs",
+        "upstream_path": "brainstorming/scripts/server.cjs",
+        "state": "verbatim",
+        "sha256": "2d2961ea8d11f56c5f4c3a1a68d22709efa5d7601a2246d8c880774e7e9e8412"
+      },
+      {
+        "path": "sp-brainstorming/scripts/start-server.sh",
+        "upstream_path": "brainstorming/scripts/start-server.sh",
+        "state": "verbatim",
+        "sha256": "a4e5ae84275bcaacd2f84345afeabe59cf7b00ba080e123da7cc1fb226f12847"
+      },
+      {
+        "path": "sp-brainstorming/scripts/stop-server.sh",
+        "upstream_path": "brainstorming/scripts/stop-server.sh",
+        "state": "verbatim",
+        "sha256": "0b5ccbbd57f62d3ed88993f7940b5ee0e5c0fc9b21c550c623da4f6292e47daf"
+      },
+      {
+        "path": "sp-executing-plans/SKILL.md",
+        "upstream_path": "executing-plans/SKILL.md",
+        "state": "edited",
+        "sha256": "75a8b3b111c25d72a6d900a964cc2a898ca6a47267dca04b2862f79ffc2e1591"
+      },
+      {
+        "path": "sp-receiving-code-review/SKILL.md",
+        "upstream_path": "receiving-code-review/SKILL.md",
+        "state": "edited",
+        "sha256": "c4b3110532a8a0f19e44f1eb2a5d0098c15ca52edc6b262437ffdac1de9b5b8a"
+      },
+      {
+        "path": "sp-requesting-code-review/SKILL.md",
+        "upstream_path": "requesting-code-review/SKILL.md",
+        "state": "edited",
+        "sha256": "131f46a8e9d9ef82a5ad3d79c16a2f44f69d4a85f4fdd6f3e83e7d846fb8ddbd"
+      },
+      {
+        "path": "sp-requesting-code-review/code-reviewer.md",
+        "upstream_path": "requesting-code-review/code-reviewer.md",
+        "state": "edited",
+        "sha256": "b3a944088e7d6d38a5e0086d583d2b496a059081a766be21cc9c710b71d37bfc"
+      },
+      {
+        "path": "sp-subagent-driven-development/SKILL.md",
+        "upstream_path": "subagent-driven-development/SKILL.md",
+        "state": "edited",
+        "sha256": "6ae2bd837facc09db33cd86c517588d1fde8b70cd100e59fbe9dc2ef26e4506c"
+      },
+      {
+        "path": "sp-subagent-driven-development/implementer-prompt.md",
+        "upstream_path": "subagent-driven-development/implementer-prompt.md",
+        "state": "verbatim",
+        "sha256": "81dd9d5a3fb0b09b96b5829f03b9796842f3199ef7591d1ba1c2db2a515f64d0"
+      },
+      {
+        "path": "sp-subagent-driven-development/re-review-prompt.md",
+        "upstream_path": "subagent-driven-development/re-review-prompt.md",
+        "state": "verbatim",
+        "sha256": "db0d5849478bc79cbde97b9b2cf0e58b50be8b8ed18464b0252c2bf27b6440a6"
+      },
+      {
+        "path": "sp-subagent-driven-development/task-reviewer-prompt.md",
+        "upstream_path": "subagent-driven-development/task-reviewer-prompt.md",
+        "state": "edited",
+        "sha256": "6c6ba2f0237df8354115f6f3cd4f92d190fac8126425f0bb731cb082fd969b60"
+      },
+      {
+        "path": "sp-subagent-driven-development/scripts/review-package",
+        "upstream_path": "subagent-driven-development/scripts/review-package",
+        "state": "verbatim",
+        "sha256": "fac3d4bd7f94369e8037b9ead2a8a502dca6ab333902b560b9455dbb3c450ebe"
+      },
+      {
+        "path": "sp-subagent-driven-development/scripts/sdd-workspace",
+        "upstream_path": "subagent-driven-development/scripts/sdd-workspace",
+        "state": "verbatim",
+        "sha256": "95a09d9d3983ad1aafd093ca72b4587946dea885c6e302caa02a779a2f911c31"
+      },
+      {
+        "path": "sp-subagent-driven-development/scripts/task-brief",
+        "upstream_path": "subagent-driven-development/scripts/task-brief",
+        "state": "verbatim",
+        "sha256": "d6954ef7841c7da3d77373e6ff5118b3f2f2e998606fd95d33e6527851bce044"
+      },
+      {
+        "path": "sp-writing-plans/SKILL.md",
+        "upstream_path": "writing-plans/SKILL.md",
+        "state": "edited",
+        "sha256": "d2d4d0b8624c71f4201a14d9e686f672b5f5bdb1eca4bdec21167ca1d0dddc80"
+      },
+      {
+        "path": "sp-writing-plans/plan-document-reviewer-prompt.md",
+        "upstream_path": "writing-plans/plan-document-reviewer-prompt.md",
+        "state": "verbatim",
+        "sha256": "aa728b96aad603c8be28875a4305637f6c984aa81ffcadcb13e743202fa2a0c7"
+      }
+    ]
+  },
+  "permit_list": [
+    {
+      "file": "sp-brainstorming/SKILL.md",
+      "text": "description: 'You MUST use this, and not the upstream superpowers brainstorming skill, before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation. The spec review is a quick inline self-check, and the next step is the sp-writing-plans skill.'",
+      "why": "our own displacement description - names the upstream skill it replaces (ADR 0071 decision 3)"
+    },
+    {
+      "file": "sp-brainstorming/SKILL.md",
+      "text": "# Brainstorming Ideas Into Designs",
+      "why": "markdown heading using the word as a title, not a skill reference"
+    },
+    {
+      "file": "sp-brainstorming/SKILL.md",
+      "text": "digraph brainstorming {",
+      "why": "DOT graph identifier, not a skill reference"
+    },
+    {
+      "file": "sp-brainstorming/SKILL.md",
+      "text": "invoke after brainstorming is sp-writing-plans — never frontend-design,",
+      "why": "activity noun, not a skill reference"
+    },
+    {
+      "file": "sp-brainstorming/SKILL.md",
+      "text": "A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.",
+      "why": "activity noun, not a skill reference"
+    },
+    {
+      "file": "sp-brainstorming/visual-companion.md",
+      "text": "Browser-based visual brainstorming companion for showing mockups, diagrams, and options.",
+      "why": "activity noun, not a skill reference"
+    },
+    {
+      "file": "sp-brainstorming/scripts/frame-template.html",
+      "text": "  <title>Superpowers Brainstorming</title>",
+      "why": "HTML <title> tag using the word as a page title, not a skill reference"
+    },
+    {
+      "file": "sp-executing-plans/SKILL.md",
+      "text": "description: 'You MUST use this, and not the upstream superpowers executing-plans skill, when you have a written implementation plan to execute in a separate session with review checkpoints. Review checkpoints are run in-session by you, not dispatched to a reviewer subagent.'",
+      "why": "our own displacement description - names the upstream skill it replaces (ADR 0071 decision 3)"
+    },
+    {
+      "file": "sp-executing-plans/SKILL.md",
+      "text": "**Announce at start:** \"I'm using the executing-plans skill to implement this plan.\"",
+      "why": "upstream's verbatim announce line - it tells the agent to SAY a name, not to LOAD one. Same textual shape as a handoff; inert only because of what it instructs"
+    },
+    {
+      "file": "sp-receiving-code-review/SKILL.md",
+      "text": "description: 'You MUST use this, and not the upstream superpowers receiving-code-review skill, when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation.'",
+      "why": "our own displacement description - names the upstream skill it replaces (ADR 0071 decision 3)"
+    },
+    {
+      "file": "sp-requesting-code-review/SKILL.md",
+      "text": "description: 'You MUST use this, and not the upstream superpowers requesting-code-review skill, when completing tasks, implementing major features, or before merging to verify work meets requirements. The review itself runs the scrutinize-dispatch skill.'",
+      "why": "our own displacement description - names the upstream skill it replaces (ADR 0071 decision 3)"
+    },
+    {
+      "file": "sp-subagent-driven-development/SKILL.md",
+      "text": "description: 'You MUST use this, and not the upstream superpowers subagent-driven-development skill, when executing implementation plans with independent tasks in the current session. Dispatched task and whole-branch reviews run the scrutinize-dispatch skill; the re-review is deliberately unrouted.'",
+      "why": "our own displacement description - names the upstream skill it replaces (ADR 0071 decision 3)"
+    },
+    {
+      "file": "sp-writing-plans/SKILL.md",
+      "text": "description: 'You MUST use this, and not the upstream superpowers writing-plans skill, when you have a spec or requirements for a multi-step task, before touching code. The plan review is a checklist you run yourself, and execution hands off to sp-subagent-driven-development or sp-executing-plans.'",
+      "why": "our own displacement description - names the upstream skill it replaces (ADR 0071 decision 3)"
+    },
+    {
+      "file": "sp-writing-plans/SKILL.md",
+      "text": "**Announce at start:** \"I'm using the writing-plans skill to create the implementation plan.\"",
+      "why": "upstream's verbatim announce line - it tells the agent to SAY a name, not to LOAD one. Same textual shape as a handoff; inert only because of what it instructs"
+    },
+    {
+      "file": "sp-writing-plans/SKILL.md",
+      "text": "If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.",
+      "why": "activity noun, not a skill reference"
+    }
+  ],
+  "qualified_refs": {
+    "using-superpowers": 1,
+    "using-git-worktrees": 3,
+    "finishing-a-development-branch": 5
+  },
+  "upstream": {
+    "url": "https://github.com/obra/superpowers",
+    "sha": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797",
+    "license": "MIT (c) 2025 Jesse Vincent",
+    "vendored_at": "2026-08-16",
+    "skills_subdir": "skills"
+  },
+  "routing_marker": "scrutinize-dispatch",
+  "routed_prompts": [
+    "sp-requesting-code-review/code-reviewer.md",
+    "sp-subagent-driven-development/task-reviewer-prompt.md"
+  ],
+  "unrouted_prompts": [
+    "sp-subagent-driven-development/re-review-prompt.md"
+  ],
+  "frozen": [
+    {
+      "path": "scrutinize/SKILL.md",
+      "sha256": "baa2651cfba6dcf23dbae0dde1ae4d3542aae96fa8d22006b096bf415233839e",
+      "why": "owner constraint - the declared fork scrutinize-dispatch must not drift from something that moved underneath it (ADR 0084)"
+    },
+    {
+      "path": "sp-subagent-driven-development/re-review-prompt.md",
+      "sha256": "db0d5849478bc79cbde97b9b2cf0e58b50be8b8ed18464b0252c2bf27b6440a6",
+      "why": "deliberately unrouted and byte-identical to upstream (ADR 0084 amendment)"
+    }
+  ],
+  "upstream_traps": {
+    "no_qualified_ref_dir": "brainstorming",
+    "hook_source": "using-superpowers/SKILL.md",
+    "hook_named_skills": [
+      "brainstorming",
+      "systematic-debugging"
+    ],
+    "dead_prompts": [
+      "spec-document-reviewer-prompt",
+      "plan-document-reviewer-prompt"
+    ],
+    "dead_prompt_live_dirs": [
+      "skills",
+      "hooks",
+      "scripts"
+    ]
+  }
+}

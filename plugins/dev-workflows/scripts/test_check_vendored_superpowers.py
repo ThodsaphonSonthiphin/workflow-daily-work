@@ -13,7 +13,7 @@ from check_vendored_superpowers import (normalize, read_normalized,
                                         check_copy_set, check_hashes,
                                         check_frozen, bare_name_re,
                                         check_bare_names, check_qualified_refs,
-                                        check_routing)
+                                        check_routing, emit_manifest)
 
 
 def _write(path, text, eol="\n"):
@@ -481,6 +481,68 @@ def test_unrouted_prompt_gaining_the_marker_is_flagged(tmp_path=None):
                "Load the `scrutinize-dispatch` skill.\n", eol="\r\n")
         out = check_routing(root, m)
         assert [f["path"] for f in out] == ["sp-x/re-review-prompt.md"]
+
+
+def test_emit_manifest_round_trips_clean(tmp_path=None):
+    """A manifest emitted from a tree must find that tree clean."""
+    with tempfile.TemporaryDirectory() as d:
+        root = os.path.join(d, "skills")
+        up = os.path.join(d, "upstream")
+        _write(os.path.join(root, "sp-alpha/SKILL.md"), "body\n", eol="\r\n")
+        _write(os.path.join(up, "skills/alpha/SKILL.md"), "body\n", eol="\n")
+        m = emit_manifest(root, up, None)
+        assert check_copy_set(root, m) == []
+        assert check_hashes(root, m) == []
+        # identical content, different EOL -> verbatim (ADR 0086)
+        assert m["copy_set"]["files"][0]["state"] == "verbatim"
+
+
+def test_emit_manifest_marks_an_edited_file(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root = os.path.join(d, "skills")
+        up = os.path.join(d, "upstream")
+        _write(os.path.join(root, "sp-alpha/SKILL.md"), "ours\n", eol="\r\n")
+        _write(os.path.join(up, "skills/alpha/SKILL.md"), "theirs\n", eol="\n")
+        m = emit_manifest(root, up, None)
+        assert m["copy_set"]["files"][0]["state"] == "edited"
+
+
+def test_emit_manifest_carries_over_a_reviewed_why(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root = os.path.join(d, "skills")
+        up = os.path.join(d, "upstream")
+        line = "digraph brainstorming {"
+        _write(os.path.join(root, "sp-brainstorming/SKILL.md"),
+               "%s\n" % line, eol="\r\n")
+        _write(os.path.join(up, "skills/brainstorming/SKILL.md"),
+               "%s\n" % line, eol="\n")
+        previous = {"permit_list": [{"file": "sp-brainstorming/SKILL.md",
+                                     "text": line, "why": "DOT identifier"}]}
+        m = emit_manifest(root, up, previous)
+        assert m["permit_list"][0]["why"] == "DOT identifier"
+        m2 = emit_manifest(root, up, None)
+        assert m2["permit_list"][0]["why"].startswith("REVIEW:")
+
+
+def test_emit_refuses_when_the_manifest_was_truncated(tmp_path=None):
+    """Redirecting --emit-manifest onto its own input truncates it first.
+    Emitting from the empty file would drop every hand-written key in silence,
+    so the program must refuse instead."""
+    with tempfile.TemporaryDirectory() as d:
+        root = os.path.join(d, "skills")
+        up = os.path.join(d, "upstream")
+        _write(os.path.join(root, "sp-alpha/SKILL.md"), "body\n", eol="\r\n")
+        _write(os.path.join(up, "skills/alpha/SKILL.md"), "body\n", eol="\n")
+        p = os.path.join(d, "m.json")
+        open(p, "w").close()                 # exactly what `>` leaves behind
+        assert main(["--emit-manifest", "--root", root,
+                     "--manifest", p, "--upstream-dir", up]) == 2
+
+
+def test_emit_manifest_without_upstream_exits_2(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        assert main(["--emit-manifest", "--root", d,
+                     "--manifest", os.path.join(d, "absent.json")]) == 2
 
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
