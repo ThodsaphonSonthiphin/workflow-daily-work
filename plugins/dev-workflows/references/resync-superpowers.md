@@ -1,14 +1,9 @@
 # Resyncing the vendored superpowers copies
 
-This is the procedure a person follows to bring the 21 vendored copies under
-`plugins/dev-workflows/skills/sp-*` back in line with a new upstream
-`obra/superpowers` commit, using `check_vendored_superpowers.py` to drive the
-loop and to prove when it is done.
-
 ```mermaid
 graph TD
     A["resolve upstream sha (git ls-remote)"] --> B["re-copy all 21 files"]
-    B --> C["re-apply the six rewrite classes"]
+    B --> C["re-apply the seven rewrite classes"]
     C --> D["run the checker (local + upstream mode)"]
     D --> E{"any findings?"}
     E -->|"yes"| F["repair per the checker's fix: text"]
@@ -17,10 +12,14 @@ graph TD
     G --> H["commit copies + manifest together"]
 ```
 
-The loop is: resolve the sha upstream is now at, re-copy the whole set, re-apply
-the rewrites that make the copies ours, run the checker, repair whatever it
-names, re-run until it is clean, re-emit the manifest, then commit copies and
-manifest together. The sections below fill in each box.
+This is the procedure a person follows to bring the 21 vendored copies under
+`plugins/dev-workflows/skills/sp-*` back in line with a new upstream
+`obra/superpowers` commit, using `check_vendored_superpowers.py` to drive the
+loop and to prove when it is done. The loop is: resolve the sha upstream is
+now at, re-copy the whole set, re-apply the rewrites that make the copies
+ours, run the checker, repair whatever it names, re-run until it is clean,
+re-emit the manifest, then commit copies and manifest together. The sections
+below fill in each box.
 
 ## The one network step
 
@@ -36,6 +35,15 @@ writing: `b36e0829c6d0140e93cfef2ca599b1b07d4a7797`, vendored
 `2026-08-16`). If the two match, upstream has not moved since the last vendor
 and there is nothing to resync — stop here.
 
+If they differ, obtain `$UP` — a local checkout of upstream's plugin root, at
+the sha `git ls-remote` just returned:
+
+```bash
+git clone https://github.com/obra/superpowers /tmp/superpowers-upstream
+cd /tmp/superpowers-upstream && git checkout <sha-from-ls-remote>
+export UP=/tmp/superpowers-upstream
+```
+
 ## Why all 21 files are re-copied, never a subset
 
 The manifest currently governs 21 files across the 6 wrapped skills
@@ -45,18 +53,28 @@ The manifest currently governs 21 files across the 6 wrapped skills
 single `upstream.sha`.
 
 That single sha is what makes the checker's per-file `state` (`verbatim` or
-`edited`) meaningful: `check_hashes` and `check_upstream_files` both compare
-"what we have" against "what upstream has right now," and that comparison only
-means something if every file was captured at the same instant. Re-copy a
-subset at a new sha while leaving the rest at the old one, and the manifest can
-no longer tell "we edited this" from "upstream moved this out from under us" —
-the two explanations become indistinguishable for every file that wasn't
-touched in this pass (ADR 0075). Re-copy the whole set every time, even the
-files that turn out unchanged.
+`edited`) meaningful: `check_upstream_files` compares "what we have" against
+"what upstream has right now" (`check_hashes` only compares against the
+manifest's own recorded `sha256` from vendor time — it never reads upstream),
+and that live comparison only means something if every file was captured at
+the same instant. Re-copy a subset at a new sha while leaving the rest at the
+old one, and the manifest can no longer tell "we edited this" from "upstream
+moved this out from under us" — the two explanations become indistinguishable
+for every file that wasn't touched in this pass (ADR 0075). Re-copy the whole
+set every time, even the files that turn out unchanged.
 
-## The six rewrite classes
+**Doing the copy is a manual step — no script under
+`plugins/dev-workflows/scripts/` performs it.** Only the checker exists there;
+nothing automates the file-by-file copy. The authoritative copy plan is the
+manifest itself: for every entry in `copy_set.files`, copy
+`$UP/skills/<upstream_path>` over `plugins/dev-workflows/skills/<path>`. Read
+both columns straight out of the manifest (`path` is ours, `upstream_path` is
+upstream's, both relative to their respective skills roots) rather than
+guessing a mapping by hand.
 
-After re-copying, six categories of hand-rewrite get re-applied on top of the
+## The seven rewrite classes
+
+After re-copying, seven categories of hand-rewrite get re-applied on top of the
 fresh upstream text. Look for these patterns; none of them is a file:line
 location, because upstream can move where they land.
 
@@ -93,6 +111,22 @@ location, because upstream can move where they land.
 - **Class 6 — the two example transcripts.** Upstream's `Strengths:` clause is
   substituted with different wording in two example transcripts, because the
   dispatch engine's output format forbids a `Strengths:` section.
+- **Class 7 — the review-model-selection statement.** `sp-requesting-code-review`'s
+  `SKILL.md` and `code-reviewer.md` each carry a REQUIRED reviewer
+  model-selection statement that upstream does not have — a Model Selection
+  section in the skill, plus a `model:` field in the dispatch template — and
+  both cross-reference `sp-subagent-driven-development`'s own native Model
+  Selection section rather than duplicating it. Don't confuse the two:
+  upstream's `subagent-driven-development` already has its own native Model
+  Selection section; the one added here lives in `requesting-code-review`,
+  which upstream leaves without any model guidance at all. It exists because
+  an omitted model silently inherits the dispatching session's, usually the
+  most expensive one available. **This class is invisible to
+  `check_upstream_files`'s "rewrite pass looks lost" finding** — that finding
+  only fires when an `edited` file becomes byte-identical to upstream, and
+  these two files still differ from upstream for other reasons (frontmatter,
+  Class 1's collapsed sections), so a re-copy that drops this class produces
+  no finding at all. Re-apply it by hand every time.
 
 ## The three upstream traps
 
@@ -193,8 +227,15 @@ State these plainly; neither is settled by a green checker run.
 - **The checker asserts that the routing reference exists, not that a dispatch
   obeys it.** `check_routing` confirms `task-reviewer-prompt.md` still names
   the `scrutinize-dispatch` marker — it does not confirm anything ever
-  dispatches through that file. `task-reviewer-prompt.md` has never been
-  driven live; only `code-reviewer.md` has.
+  dispatches through that file. `task-reviewer-prompt.md` **has** been used to
+  dispatch reviews, but no run through it was ever instrumented to confirm the
+  skill actually loaded; only `code-reviewer.md` has an instrumented run. Per
+  ADR 0079 that is by design, not a gap — one instrumented run establishes the
+  harness mechanism once, and per-file wiring (this checker) is what covers
+  the rest. A review report having the right headings is not evidence the
+  skill loaded: a capable reviewer holding the output contract produces the
+  same headings without loading anything, which is why the signal is the
+  tool_use record, not the report's content.
 - **Whether the harness accepts a bare skill literal is still unmeasured.** The
   bare-name check (class 4, and `check_bare_names`) asserts that no
   *unintended* bare name exists in the copies. It says nothing about whether a
