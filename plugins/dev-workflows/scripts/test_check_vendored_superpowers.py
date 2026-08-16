@@ -15,7 +15,7 @@ from check_vendored_superpowers import (normalize, read_normalized,
                                         check_bare_names, check_qualified_refs,
                                         check_routing, emit_manifest,
                                         check_upstream_files,
-                                        check_upstream_traps)
+                                        check_upstream_traps, run_checks)
 
 
 def _write(path, text, eol="\n"):
@@ -80,7 +80,7 @@ def _valid_manifest():
         "upstream": {},
         "copy_set": {"files": [
             {"path": "sp-test/SKILL.md", "upstream_path": "test/SKILL.md",
-             "sha256": "0" * 64}
+             "sha256": "0" * 64, "state": "verbatim"}
         ]},
         "permit_list": [],
         "qualified_refs": [],
@@ -673,6 +673,43 @@ def test_trap_3_ignores_docs_and_the_file_itself(tmp_path=None):
                "# Spec Document Reviewer Prompt Template\n"
                "invoke me as spec-document-reviewer-prompt\n", eol="\n")
         assert check_upstream_traps(up, m) == []
+
+def test_strict_exits_1_only_when_there_are_findings(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _tiny_tree(d)
+        m["upstream"]["skills_subdir"] = "skills"
+        p = os.path.join(d, "m.json")
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(m, f)
+        assert main(["--manifest", p, "--root", root, "--strict"]) == 0
+        _write(os.path.join(root, "sp-beta/SKILL.md"), "tampered\n",
+               eol="\r\n")
+        assert main(["--manifest", p, "--root", root]) == 0        # report
+        assert main(["--manifest", p, "--root", root, "--strict"]) == 1
+
+
+def test_missing_upstream_dir_exits_2(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _tiny_tree(d)
+        p = os.path.join(d, "m.json")
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(m, f)
+        assert main(["--manifest", p, "--root", root,
+                     "--upstream-dir", os.path.join(d, "absent")]) == 2
+
+
+def test_the_real_repo_tree_is_clean(tmp_path=None):
+    """THE REGRESSION GUARD. This is the test that would have caught the
+    Critical: a bare short name inside a copy, resolving to the unvendored
+    upstream skill with no error message.
+
+    Skips only if the manifest has not been generated yet (Task 5)."""
+    import check_vendored_superpowers as mod
+    if not os.path.isfile(mod.DEFAULT_MANIFEST):
+        print("SKIP  test_the_real_repo_tree_is_clean: no manifest yet")
+        return
+    assert main(["--strict"]) == 0
+
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 

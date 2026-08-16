@@ -552,6 +552,42 @@ def check_upstream_traps(upstream_root, manifest):
 
 
 
+def run_checks(root, upstream_root, manifest):
+    """Every check, in report order. Upstream checks run only when an upstream
+    tree was supplied."""
+    findings = []
+    findings += check_copy_set(root, manifest)
+    findings += check_hashes(root, manifest)
+    findings += check_bare_names(root, manifest)
+    findings += check_qualified_refs(root, manifest)
+    findings += check_routing(root, manifest)
+    findings += check_frozen(root, manifest)
+    if upstream_root:
+        findings += check_upstream_files(root, upstream_root, manifest)
+        findings += check_upstream_traps(upstream_root, manifest)
+    return findings
+
+
+def report(findings, summary):
+    if not findings:
+        print("OK: %s" % summary)
+        return
+    print("%d finding(s) - the copies do not match what the manifest records:"
+          % len(findings))
+    print("  a [hash] finding is the symptom; a [permit-list], "
+          "[qualified-ref] or [routing] finding on the same file is the "
+          "diagnosis. Repair the second and the first goes away.")
+    grouped = {}
+    for f in findings:
+        grouped.setdefault(f["check"], []).append(f)
+    for check in sorted(grouped):
+        print("\n  [%s]" % check)
+        for f in grouped[check]:
+            print("    %s" % f["path"])
+            print("      %s" % f["message"])
+            print("      fix: %s" % f["repair"])
+
+
 def main(argv):
     ap = argparse.ArgumentParser(
         description="Report drift in the vendored superpowers copies.")
@@ -607,9 +643,30 @@ def main(argv):
         print("ERROR: %s" % e)
         return 2
 
-    findings = []
-    print("OK: manifest loaded (%d files declared)."
-          % len(manifest["copy_set"]["files"]))
+    if args.upstream_dir and not os.path.isdir(args.upstream_dir):
+        print("ERROR: --upstream-dir not found: %s" % args.upstream_dir)
+        return 2
+    if not os.path.isdir(args.root):
+        print("ERROR: skills root not found: %s" % args.root)
+        return 2
+
+    try:
+        findings = run_checks(args.root, args.upstream_dir, manifest)
+    except OSError as e:
+        print("ERROR: cannot read a declared file: %s" % e)
+        return 2
+
+    summary = ("%d copied files (%d verbatim), %d permitted bare names, "
+               "%d frozen files%s"
+               % (len(manifest["copy_set"]["files"]),
+                  sum(1 for f in manifest["copy_set"]["files"]
+                      if f["state"] == "verbatim"),
+                  len(manifest["permit_list"]),
+                  len(manifest["frozen"]),
+                  "" if not args.upstream_dir
+                  else " - and upstream matches at %s"
+                       % manifest["upstream"].get("sha", "?")[:12]))
+    report(findings, summary)
     return 1 if (findings and args.strict) else 0
 
 
