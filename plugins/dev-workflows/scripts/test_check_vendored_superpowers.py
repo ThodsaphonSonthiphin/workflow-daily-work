@@ -75,7 +75,8 @@ def _valid_manifest():
     return {
         "upstream": {},
         "copy_set": {"files": [
-            {"path": "sp-test/SKILL.md", "upstream_path": "test/SKILL.md"}
+            {"path": "sp-test/SKILL.md", "upstream_path": "test/SKILL.md",
+             "sha256": "0" * 64}
         ]},
         "permit_list": [],
         "qualified_refs": [],
@@ -222,6 +223,57 @@ def test_frozen_file_change_is_flagged(tmp_path=None):
         out = check_frozen(root, m)
         assert len(out) == 1
         assert "owner constraint" in out[0]["message"]
+
+
+def test_missing_frozen_file_is_flagged_and_copy_set_ignores_it(tmp_path=None):
+    """The frozen-file missing-file branch: check_frozen reports it, check_copy_set returns empty.
+    This tests the split: frozen files are NOT governed by check_copy_set."""
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _tiny_tree(d)
+        os.remove(os.path.join(root, "frozen/SKILL.md"))
+        # check_copy_set should not report the missing frozen file (not in governed dirs)
+        copy_set_out = check_copy_set(root, m)
+        assert copy_set_out == []
+        # check_frozen should report it
+        frozen_out = check_frozen(root, m)
+        assert len(frozen_out) == 1
+        assert frozen_out[0]["path"] == "frozen/SKILL.md"
+
+
+def test_copy_set_file_missing_sha256_exits_2(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "m.json")
+        manifest = _valid_manifest()
+        # Remove sha256 from the copy_set file entry
+        manifest["copy_set"]["files"][0].pop("sha256", None)
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(manifest, f)
+        assert main(["--manifest", p, "--root", d]) == 2
+
+
+def test_frozen_entry_missing_sha256_exits_2(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "m.json")
+        manifest = _valid_manifest()
+        # Add a frozen entry without sha256
+        manifest["frozen"] = [{"path": "frozen/SKILL.md", "why": "test"}]
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(manifest, f)
+        assert main(["--manifest", p, "--root", d]) == 2
+
+
+def test_valid_manifest_with_empty_sha256_in_frozen(tmp_path=None):
+    """Task 5 bootstrap writes empty sha256 initially, so empty string is permitted."""
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "m.json")
+        manifest = _valid_manifest()
+        # Add a frozen entry with empty sha256 (Task 5 bootstrap case)
+        manifest["frozen"] = [{"path": "frozen/SKILL.md", "sha256": "", "why": "test"}]
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(manifest, f)
+        # Should load successfully (not validate the value, just the presence of key)
+        loaded = load_manifest(p)
+        assert loaded == manifest
 
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

@@ -104,6 +104,21 @@ def load_manifest(path):
         if "upstream_path" not in entry:
             raise ValueError("copy_set.files[%d] is missing required key: upstream_path"
                            % i)
+        if "sha256" not in entry:
+            raise ValueError("copy_set.files[%d] is missing required key: sha256"
+                           % i)
+
+    # Validate frozen list
+    frozen = manifest.get("frozen")
+    if not isinstance(frozen, list):
+        raise ValueError("frozen must be a list")
+    for i, entry in enumerate(frozen):
+        if not isinstance(entry, dict):
+            raise ValueError("frozen[%d] must be a dict" % i)
+        if "path" not in entry:
+            raise ValueError("frozen[%d] is missing required key: path" % i)
+        if "sha256" not in entry:
+            raise ValueError("frozen[%d] is missing required key: sha256" % i)
 
     return manifest
 
