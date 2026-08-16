@@ -12,7 +12,8 @@ from check_vendored_superpowers import (normalize, read_normalized,
                                         upstream_skill_names, main,
                                         check_copy_set, check_hashes,
                                         check_frozen, bare_name_re,
-                                        check_bare_names)
+                                        check_bare_names, check_qualified_refs,
+                                        check_routing)
 
 
 def _write(path, text, eol="\n"):
@@ -402,6 +403,84 @@ def test_unreviewed_detected_regardless_of_entry_order(tmp_path=None):
         checks_second = sorted(f["check"] for f in out_second_order)
         assert checks_first == ["permit-list/UNREVIEWED"]
         assert checks_second == ["permit-list/UNREVIEWED"]
+
+
+def _ref_tree(d):
+    root = os.path.join(d, "skills")
+    _write(os.path.join(root, "sp-alpha/SKILL.md"),
+           "see superpowers:using-git-worktrees for isolation\n", eol="\r\n")
+    manifest = {
+        "copy_set": {"files": [{"path": "sp-alpha/SKILL.md",
+                                "upstream_path": "alpha/SKILL.md",
+                                "state": "edited", "sha256": "x"}]},
+        "qualified_refs": {"using-git-worktrees": 1},
+    }
+    return root, manifest
+
+
+def test_reference_to_a_non_copied_skill_is_clean(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _ref_tree(d)
+        assert check_qualified_refs(root, m) == []
+
+
+def test_reference_to_a_copied_skill_is_flagged(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _ref_tree(d)
+        _write(os.path.join(root, "sp-alpha/SKILL.md"),
+               "hand off to superpowers:alpha now\n", eol="\r\n")
+        out = check_qualified_refs(root, m)
+        assert any(f["check"] == "qualified-ref" for f in out)
+
+
+def test_census_change_is_flagged(tmp_path=None):
+    """A NEW upstream name is legitimate but must be seen, not absorbed."""
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _ref_tree(d)
+        _write(os.path.join(root, "sp-alpha/SKILL.md"),
+               "see superpowers:using-git-worktrees and "
+               "superpowers:test-driven-development\n", eol="\r\n")
+        out = check_qualified_refs(root, m)
+        assert [f["check"] for f in out] == ["qualified-ref/census"]
+
+
+def _route_tree(d):
+    root = os.path.join(d, "skills")
+    _write(os.path.join(root, "sp-x/code-reviewer.md"),
+           "Load the `scrutinize-dispatch` skill.\n", eol="\r\n")
+    _write(os.path.join(root, "sp-x/re-review-prompt.md"),
+           "Verdict each finding ADDRESSED or NOT ADDRESSED.\n", eol="\r\n")
+    manifest = {
+        "routing_marker": "scrutinize-dispatch",
+        "routed_prompts": ["sp-x/code-reviewer.md"],
+        "unrouted_prompts": ["sp-x/re-review-prompt.md"],
+    }
+    return root, manifest
+
+
+def test_routed_and_unrouted_prompts_are_clean(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _route_tree(d)
+        assert check_routing(root, m) == []
+
+
+def test_routed_prompt_losing_the_marker_is_flagged(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _route_tree(d)
+        _write(os.path.join(root, "sp-x/code-reviewer.md"),
+               "Review the diff yourself.\n", eol="\r\n")
+        out = check_routing(root, m)
+        assert [f["path"] for f in out] == ["sp-x/code-reviewer.md"]
+
+
+def test_unrouted_prompt_gaining_the_marker_is_flagged(tmp_path=None):
+    """ADR 0084's amendment: re-review is deliberately unrouted."""
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _route_tree(d)
+        _write(os.path.join(root, "sp-x/re-review-prompt.md"),
+               "Load the `scrutinize-dispatch` skill.\n", eol="\r\n")
+        out = check_routing(root, m)
+        assert [f["path"] for f in out] == ["sp-x/re-review-prompt.md"]
 
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

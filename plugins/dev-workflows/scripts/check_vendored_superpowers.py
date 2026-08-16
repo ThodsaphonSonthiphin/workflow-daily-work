@@ -45,6 +45,8 @@ REQUIRED_KEYS = ("upstream", "copy_set", "permit_list", "qualified_refs",
                  "routing_marker", "routed_prompts", "unrouted_prompts",
                  "frozen", "upstream_traps")
 
+QUALIFIED = re.compile(r"superpowers:([a-z][a-z0-9-]*)")
+
 
 def normalize(data):
     """CR-normalize a byte string (ADR 0086). CRLF -> LF, nothing else."""
@@ -273,6 +275,83 @@ def check_bare_names(root, manifest):
                 "permit entry still carries a REVIEW: placeholder",
                 "state why this bare name is inert, then replace the why. An "
                 "unreviewed entry permits a line nobody has judged"))
+    return out
+
+
+def check_qualified_refs(root, manifest):
+    """Check 4 - no qualified reference names a skill that IS in the copy set,
+    and the census of the rest is unchanged.
+
+    ADR 0071 tabulates only two names with counts 5 and 3. A third,
+    `using-superpowers`, is legitimately present (rewrite class 2), so an
+    exact-match assertion on that table would fail on a correct tree. The
+    rule is 'none of the copied names'; the census is reported separately."""
+    copied = set(upstream_skill_names(manifest))
+    census = {}
+    out = []
+    for f in manifest["copy_set"]["files"]:
+        rel = f["path"]
+        path = os.path.join(root, rel)
+        if not os.path.isfile(path):
+            continue
+        for lineno, line in enumerate(read_text(path).split("\n"), 1):
+            for match in QUALIFIED.finditer(line):
+                name = match.group(1)
+                census[name] = census.get(name, 0) + 1
+                if name in copied:
+                    out.append(finding(
+                        "qualified-ref", rel,
+                        "line %d names superpowers:%s, which IS in the copy "
+                        "set" % (lineno, name),
+                        "rewrite it to the short sp-%s name - left as is, the "
+                        "arc re-enters the upstream original one handoff "
+                        "later (ADR 0074 class 4)" % name))
+    recorded = dict(manifest["qualified_refs"])
+    if census != recorded:
+        out.append(finding(
+            "qualified-ref/census", "-",
+            "qualified reference census changed: recorded %s, found %s"
+            % (recorded, census),
+            "confirm every new or changed reference names a skill that stays "
+            "upstream, then update qualified_refs"))
+    return out
+
+
+def check_routing(root, manifest):
+    """Check 5 - the routed reviewer prompts name the dispatch engine, and the
+    deliberately unrouted one does not (ADR 0084 and its amendment).
+
+    Only the prompt FILES are asserted. Two `description:` fields also mention
+    the marker; asserting a raw repo-wide count would couple this check to
+    description wording."""
+    marker = manifest["routing_marker"]
+    out = []
+    for rel in manifest["routed_prompts"]:
+        path = os.path.join(root, rel)
+        if not os.path.isfile(path):
+            out.append(finding("routing", rel, "routed prompt is missing",
+                               "restore it"))
+            continue
+        if marker not in read_text(path):
+            out.append(finding(
+                "routing", rel,
+                "routed reviewer prompt no longer names `%s`" % marker,
+                "restore the delegation line. Without it the dispatch falls "
+                "back to the built-in reviewer, with no error and no warning "
+                "- the exact failure this vendoring exists to remove"))
+    for rel in manifest["unrouted_prompts"]:
+        path = os.path.join(root, rel)
+        if not os.path.isfile(path):
+            out.append(finding("routing", rel, "unrouted prompt is missing",
+                               "restore it"))
+            continue
+        if marker in read_text(path):
+            out.append(finding(
+                "routing", rel,
+                "deliberately unrouted prompt now names `%s`" % marker,
+                "remove it. A re-review verdicts each prior finding ADDRESSED "
+                "or NOT ADDRESSED, which that engine has no way to express "
+                "(ADR 0084, amendment of 2026-08-16)"))
     return out
 
 
