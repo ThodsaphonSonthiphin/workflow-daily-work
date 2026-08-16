@@ -102,3 +102,11 @@ the three Reviewer prompts themselves, because the six copies do not exist yet; 
 is written to be run when they land.
 
 <!-- decision-map:resolution:end -->
+
+## Discharged by
+
+The recipe this ticket specifies was run at `d385a88` against the six copies, which
+now exist. The result -- the observed harness-written `Skill` record naming
+`dev-workflows:scrutinize-dispatch`, the two negative controls the probe was seen to
+fail, and the Step 3 control recorded honestly as NOT RUN -- is
+[the acceptance probe result](../../../superpowers/plans/2026-08-16-acceptance-probe-result.md).

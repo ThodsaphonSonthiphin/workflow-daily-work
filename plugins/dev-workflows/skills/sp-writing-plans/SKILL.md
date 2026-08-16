@@ -1,6 +1,6 @@
 ---
 name: sp-writing-plans
-description: 'You MUST use this, and not the upstream superpowers writing-plans skill, when you have a spec or requirements for a multi-step task, before touching code. The plan review goes to the scrutinize-dispatch skill.'
+description: 'You MUST use this, and not the upstream superpowers writing-plans skill, when you have a spec or requirements for a multi-step task, before touching code. The plan review is a checklist you run yourself, and execution hands off to sp-subagent-driven-development or sp-executing-plans.'
 ---
 
 # Writing Plans
@@ -158,7 +158,7 @@ After saving the plan, offer execution choice:
 
 **1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
 
-**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
+**2. Inline Execution** - Execute tasks in this session using sp-executing-plans, batch execution with checkpoints
 
 **Which approach?"**
 

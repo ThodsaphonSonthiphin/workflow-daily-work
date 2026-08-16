@@ -40,13 +40,68 @@ as evidence and puts the site list in a checker script rather than in prose.
 **Amended 2026-08-16:** rewrite class 1, below, covers `code-reviewer.md` and
 `task-reviewer-prompt.md` only. `re-review-prompt.md` is excluded from the class: a
 re-review verdicts prior findings as ADDRESSED / NOT ADDRESSED, a concept
-`scrutinize-dispatch` has no notion of (controller Ruling 5). `re-review-prompt.md` stays
+`scrutinize-dispatch` has no notion of. `re-review-prompt.md` stays
 vendored verbatim exactly as before — this narrows which files get *rewritten*, not which
 files get *copied*, and the 1:1 upstream mapping this ADR requires for resync depends only
 on the latter (the same reasoning as "Why the two dead files are copied anyway", below,
 applied to a routed file that is now unrouted instead of a dead one).
 
 The original decision text is left as written below; only this amendment narrows class 1.
+This amendment — not any session-local ruling record — is the committed source for the
+two-routed-prompts rule.
+
+**The class-1 target name is `scrutinize-dispatch`, not `scrutinize`.** Class 1 below
+still reads *"are routed to `scrutinize`"*. That target was changed by
+[ADR 0084](0084-the-dispatched-reviewer-runs-a-dispatch-tuned-copy-not-the-frozen-scrutinize.md):
+the routed prompts name `scrutinize-dispatch`, and `scrutinize` is deliberately not
+referenced by any prompt at all. Class 1 is the enumerated site list a resyncer follows
+literally, and following it as written would re-route a future resync to the frozen
+human-facing skill — the exact seam ADR 0084 exists to remove. Read class 1 as:
+**`code-reviewer.md` and `task-reviewer-prompt.md` are routed to `scrutinize-dispatch`.**
+
+### Rewrite class 6 — upstream's `Strengths:` line is dropped from two example transcripts
+
+A sixth class, undeclared until now. This ADR states that *"everything not on this list is
+byte-identical to upstream"*, and these two sites were on no list:
+
+| site | edit |
+|---|---|
+| `sp-subagent-driven-development/SKILL.md:529` | upstream's `Strengths: …` clause removed from the example reviewer output |
+| `sp-requesting-code-review/SKILL.md:65` | upstream's `Strengths: …` line removed from the example reviewer output |
+
+Reason: `scrutinize-dispatch/SKILL.md:151` forbids a Strengths section outright (*"There
+is no Strengths section"*), so an example transcript showing one contradicts the engine
+the prompt now routes to. Declared here so the next resync reads these two sites as an
+intended class rather than unexplained drift.
+
+### Resync diffs must ignore CR at end of line
+
+Measured at `d385a88`, against the `b36e0829c6d0` cache dir:
+
+- **The committed blobs are all LF.** `core.autocrlf=true` with no `.gitattributes`
+  normalises CRLF away on `git add`, so `git cat-file blob` on every one of the 21 files
+  returns LF. A blob-to-blob comparison is therefore already CR-clean.
+- **The working tree is mixed.** Six of the 21 files are CRLF — exactly the six the
+  rewrite pass edited on Windows (`sp-brainstorming/SKILL.md`, `sp-writing-plans/SKILL.md`,
+  `sp-executing-plans/SKILL.md`, `sp-requesting-code-review/code-reviewer.md`,
+  `sp-subagent-driven-development/SKILL.md` and `.../task-reviewer-prompt.md`). The other
+  15 are LF and match upstream's own endings, including the five files upstream itself
+  ships CRLF.
+
+None of this is a defect to fix. But it does qualify this ADR's headline consequence that
+*"resync stays a plain per-file diff against a known sha"*: **a plain `diff` over the
+working tree reports effectively every line changed in those six files.** Measured on
+`sp-subagent-driven-development/SKILL.md`: **1134** changed lines plain, **20** with
+`--strip-trailing-cr` — and 20 is the real rewrite-pass delta. Any resync comparison that
+touches a working tree **must** use `diff --strip-trailing-cr` (or
+`git diff --ignore-cr-at-eol`).
+
+A separate, related caveat: the five vendored shell scripts (`start-server.sh`,
+`stop-server.sh`, `review-package`, `sdd-workspace`, `task-brief`) are committed `100644`
+where upstream is `100755`. Inert on Windows under `core.fileMode=false`, but they would
+need `chmod +x` to run on Linux or macOS — and three of them (`review-package`,
+`sdd-workspace`, `task-brief`) are CRLF in **both** trees, so they would need LF conversion
+too. That last part is an upstream condition, not something this vendoring introduced.
 
 ## Why a shim cannot work
 

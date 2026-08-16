@@ -1,6 +1,6 @@
 ---
 name: sp-subagent-driven-development
-description: 'You MUST use this, and not the upstream superpowers subagent-driven-development skill, when executing implementation plans with independent tasks in the current session. Every dispatched review runs the scrutinize-dispatch skill.'
+description: 'You MUST use this, and not the upstream superpowers subagent-driven-development skill, when executing implementation plans with independent tasks in the current session. Dispatched task and whole-branch reviews run the scrutinize-dispatch skill; the re-review is deliberately unrouted.'
 ---
 
 # Subagent-Driven Development
@@ -38,7 +38,7 @@ digraph when_to_use {
     "Tasks mostly independent?" [shape=diamond];
     "Stay in this session?" [shape=diamond];
     "subagent-driven-development" [shape=box];
-    "executing-plans" [shape=box];
+    "sp-executing-plans" [shape=box];
     "Manual execution or brainstorm first" [shape=box];
 
     "Have implementation plan?" -> "Tasks mostly independent?" [label="yes"];
@@ -46,7 +46,7 @@ digraph when_to_use {
     "Tasks mostly independent?" -> "Stay in this session?" [label="yes"];
     "Tasks mostly independent?" -> "Manual execution or brainstorm first" [label="no - tightly coupled"];
     "Stay in this session?" -> "subagent-driven-development" [label="yes"];
-    "Stay in this session?" -> "executing-plans" [label="no - parallel session"];
+    "Stay in this session?" -> "sp-executing-plans" [label="no - parallel session"];
 }
 ```
 

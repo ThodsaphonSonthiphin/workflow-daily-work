@@ -21,6 +21,36 @@ flowchart TD
     A --> R["translation layer deleted;<br/>ADR 0075's checker asserts a<br/>reference, not 3 severity rows"]
 ```
 
+## Amendment — 2026-08-16: two routed prompts, not three
+
+**Amended 2026-08-16.** This ADR was written when class 1 of
+[ADR 0074](0074-the-six-skills-are-vendored-whole-then-one-rewrite-pass.md) covered
+**three** live reviewer prompts. It covers **two**. Only `code-reviewer.md` and
+`task-reviewer-prompt.md` name `scrutinize-dispatch`.
+
+`re-review-prompt.md` is deliberately **unrouted**. A re-review verdicts each prior
+finding as ADDRESSED / NOT ADDRESSED — a concept `scrutinize-dispatch` has no notion of,
+since that skill emits Critical/Important/Minor findings against a diff, not a
+disposition against an earlier report. Routing it would hand the re-reviewer an output
+contract that cannot express its verdict. The file is still vendored **verbatim** from
+upstream, because ADR 0074's 1:1 upstream mapping depends on which files are *copied*,
+not on which are *rewritten*.
+
+**ADR 0075's checker must therefore assert two references, not three.** This corrects the
+line under *Consequences* below (*"it asserts that each of the three prompt files
+references `scrutinize-dispatch`"*), which specifies exactly what that checker asserts and
+so propagates into its design. The same count is stale wherever this ADR says "three
+prompt files" — in *The decision* (*"The three live reviewer prompts name **it** instead
+of `scrutinize`"*), in *Why this is cheaper than the precedence line*, in *The cost,
+recorded honestly*, and in *Measured for this decision*. Read "three prompt files" as
+"the two routed prompt files, plus `re-review-prompt.md` unrouted" throughout. The four
+reviewer *dispatches* and the three vendored prompt *files* are unchanged; only how many
+of them carry a `scrutinize-dispatch` reference changes.
+
+The original decision text is left as written below; only this amendment narrows the
+count. This amendment — not any session-local ruling record — is the committed source for
+the routing-target rule.
+
 ## The seam this removes
 
 ADR 0076 split the dispatch in two: the prompt file is the **harness** — it keeps its

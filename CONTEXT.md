@@ -161,9 +161,15 @@ _Avoid_: story points (different concept), estimate label.
 ## Vendored-skill terms (superpowers copies)
 
 **Vendored Skill**:
-A copy of an upstream `superpowers` **Skill** inside this **Marketplace**, taken so its
-review step routes to `scrutinize-dispatch` - a dispatch-tuned copy of the frozen
-`scrutinize` - instead of the built-in reviewer (ADR 0084). Six exist by decision
+A copy of an upstream `superpowers` **Skill** inside this **Marketplace**, taken so that
+**where a review step dispatches, it routes to** `scrutinize-dispatch` - a dispatch-tuned
+copy of the frozen `scrutinize` - instead of to the built-in reviewer (ADR 0084). Two of
+the six dispatch: `sp-requesting-code-review` and `sp-subagent-driven-development`. The
+other four are copied for **chain integrity**, not for a review step of their own -
+`sp-brainstorming` and `sp-writing-plans` review inline (their document-reviewer prompts
+are dead files, ADR 0074), `sp-receiving-code-review` teaches how to *take* feedback
+(ADR 0078), and `sp-executing-plans` reviews the plan itself. Leave any of the four
+upstream and the arc re-enters the originals one handoff later. Six exist by decision
 (ADR 0071) - the review-carrying half of upstream's 14. A Vendored Skill takes the
 **`sp-` prefix** and references its siblings by short name; the upstream original stays
 live and is never edited (ADR 0070).
@@ -184,11 +190,13 @@ One of **three** files in a **Vendored Skill** that dispatch a reviewer subagent
 `code-reviewer.md`, `task-reviewer-prompt.md`, `re-review-prompt.md` - but only the first
 two are routed. `re-review-prompt.md` is deliberately left unrouted: a re-review verdicts
 prior findings as ADDRESSED / NOT ADDRESSED, a concept `scrutinize-dispatch` has no notion
-of (controller Ruling 5). For the two that are routed, the file is the *harness*: it
-supplies the per-touchpoint context (base/head sha, brief file, findings), states the
-operating rules a dispatched agent needs, and fixes the output contract the controller
-reads. The review *method* is not its job - that is delegated to `scrutinize-dispatch`,
-the *engine*, which emits `Critical`/`Important`/`Minor` natively, with no translation at
-the boundary (ADR 0084, superseding ADR 0076).
+of (ADR 0074, amendment of 2026-08-16). For the two that are routed, the file is the
+*harness*: it supplies the per-touchpoint context (base/head sha, brief file, findings)
+and states the operating rules a dispatched agent needs. It does **not** carry the output
+contract - both `## Output Format` sections were deleted from the routed prompts, and the
+contract now lives only in `scrutinize-dispatch/SKILL.md:79-115`. The review *method* and
+the report shape are both delegated to `scrutinize-dispatch`, the *engine*, which emits
+`Critical`/`Important`/`Minor` natively, with no translation at the boundary (ADR 0084,
+superseding ADR 0076).
 _Avoid_: reviewer skill (it is a file, not a Skill), review template (the three differ by
 touchpoint, they are not one template).

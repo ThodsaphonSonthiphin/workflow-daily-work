@@ -38,10 +38,12 @@ TEXT = (
     "you MUST invoke dev-workflows:sp-brainstorming, dev-workflows:sp-writing-plans, "
     "dev-workflows:sp-executing-plans, dev-workflows:sp-subagent-driven-development, "
     "dev-workflows:sp-requesting-code-review or dev-workflows:sp-receiving-code-review "
-    "instead of the upstream skill of the same name. This is not a preference: the "
-    "upstream copies send every code review to the built-in reviewer, and the sp- "
-    "copies send it to dev-workflows:scrutinize-dispatch, which is the whole reason "
-    "they exist. Every other superpowers skill is unchanged - use it as normal."
+    "instead of the upstream skill of the same name. This is not a preference: where "
+    "the upstream copies dispatch a code review, they send it to the built-in reviewer, "
+    "and the sp- copies route that dispatch to dev-workflows:scrutinize-dispatch. The "
+    "sp- copies that dispatch nothing themselves are vendored so the handoff chain "
+    "stays inside this set. Every other superpowers skill is unchanged - use it as "
+    "normal."
 )
 
 print(json.dumps({

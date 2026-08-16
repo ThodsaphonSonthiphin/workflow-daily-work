@@ -4,27 +4,29 @@
 · **Branch:** `claude/route-reviews-to-scrutinize-dispatch` · **HEAD at probe time:** `9a8bfda`
 · **Model:** `claude-opus-5[1m]`
 
-This is the Task 7 probe required by
-[ADR 0079](../../adr/0079-routing-proof-is-the-dispatch-streams-skill-record-measured-once.md).
-It is the only evidence that the six vendored `sp-` skills actually re-point their reviewer
-dispatches at the local `scrutinize-dispatch` skill. **Verdict: the acceptance criterion was
-met.**
-
 ```mermaid
 flowchart TD
     P["parent session, cwd = this repo<br/>claude -p --output-format stream-json"] --> H["SessionStart hook fires<br/>system/hook_response"]
     H --> S1["parent loads<br/>dev-workflows:sp-requesting-code-review"]
-    S1 --> D["Agent dispatch, general-purpose<br/>id toolu_013pRRyKEQf2epBz95ABTGya"]
-    D --> R["reviewer subagent reads<br/>code-reviewer.md (bare name)"]
-    R --> K["Skill tool_use, parent_tool_use_id set<br/>input.skill = dev-workflows:scrutinize-dispatch"]
+    S1 --> RD["PARENT reads code-reviewer.md<br/>and embeds its bare-name instruction<br/>into the dispatch prompt"]
+    RD --> D["Agent dispatch, general-purpose<br/>id toolu_013pRRyKEQf2epBz95ABTGya"]
+    D --> K["reviewer subagent's FIRST action:<br/>Skill tool_use, parent_tool_use_id set<br/>input.skill = dev-workflows:scrutinize-dispatch"]
     K --> V["PASS - harness answers<br/>'Launching skill: dev-workflows:scrutinize-dispatch'"]
     H --> N1["negative control 1:<br/>same hook, NO dispatch"] --> F1["probe FAILS (correct)<br/>naive grep would have passed: 6 hits"]
     V --> N2["negative control 2:<br/>the persisted session log"] --> F2["probe FAILS (correct)<br/>naive grep would have passed: 84 hits"]
 ```
 
+This is the Task 7 probe required by
+[ADR 0079](../../adr/0079-routing-proof-is-the-dispatch-streams-skill-record-measured-once.md).
+It is the only evidence that the **routed reviewer prompts** re-point their dispatches at
+the local `scrutinize-dispatch` skill. **Verdict: the acceptance criterion was met.**
+
 The diagram shows the one chain that constitutes the proof, and the two controls that show
 the check discriminates. The signal is the `Skill` record at `K` — written by the harness,
-linked to the dispatch by `parent_tool_use_id`, and not authorable by the subagent.
+linked to the dispatch by `parent_tool_use_id`, and not authorable by the subagent. Note
+who reads the prompt file: the **parent** reads `code-reviewer.md` and carries its
+instruction into the dispatch prompt. The subagent never opened that file — its first
+action was the `Skill` call.
 
 ## Step-by-step outcome
 
@@ -68,13 +70,25 @@ The check used instead looks for an `assistant` event that carries a `parent_too
 `tool_use` named `Skill`:
 
 ```python
-for line in open(path, encoding="utf-8", errors="replace"):
+import json, sys
+
+found = False
+for line in open(sys.argv[1], encoding="utf-8", errors="replace"):
     d = json.loads(line)
     if d.get("type") == "assistant" and d.get("parent_tool_use_id"):
         for c in d["message"]["content"]:
             if c.get("type") == "tool_use" and c["name"] == "Skill":
                 print(d["parent_tool_use_id"], c["input"])
+                if c["input"]["skill"].endswith("scrutinize-dispatch"):
+                    found = True
+sys.exit(0 if found else 1)
 ```
+
+The `endswith` test rather than an equality test is the suffix conclusion of Step 5, below:
+the recorded identifier was plugin-qualified, so an equality check against the bare name
+the prompt file uses would have failed on a passing run. The explicit `sys.exit` is what
+makes the "FAIL (exit 1)" column of the negative-control table below mean something — the
+loop alone prints every subagent `Skill` call regardless of name and asserts nothing.
 
 ## Step 5 — the result, and the identifier as observed
 
@@ -96,10 +110,22 @@ harness answer      : "Launching skill: dev-workflows:scrutinize-dispatch"
 
 This answers the question addendum Amendment 2 left open. The prompt file uses the **bare**
 name (`code-reviewer.md:48` and `task-reviewer-prompt.md:104` both say *"Load the
-`scrutinize-dispatch` skill"*, per controller Ruling 2, so the files also work on Antigravity
-where skills stage flat). **The harness resolved that bare name to the plugin-qualified form
-before recording it.** A probe asserting on the bare string would therefore not have matched;
-future checks should match on a suffix, not on equality.
+`scrutinize-dispatch` skill"* — the bare form is required so the files also work on
+Antigravity, where skills stage flat; ADR 0084's 2026-08-16 amendment carries the routed
+set). **What was observed: given the bare name in the prompt, the model emitted the
+plugin-qualified identifier on Claude Code.**
+
+That is an observation about the **model**, not about the harness. A `Skill` tool_use's
+`input` is authored by the model, and this subagent's init listed
+`dev-workflows:scrutinize-dispatch` among its available skills — so the qualified form was
+already to hand and nothing shows the harness rewriting anything. **The open question:
+whether the harness accepts a bare literal `skill` value at all is still unmeasured**, and
+that is exactly the Antigravity case this design depends on.
+
+The practical conclusion is unchanged and better justified: a probe asserting on the bare
+string would not have matched what was recorded here, so future checks should match on a
+**suffix**, not on equality. Suffix-matching is correct whether the emitter qualifies the
+name or not.
 
 The returned report carried these headings — `## Spec Compliance` plus two of the three
 severity headings, satisfying the brief's requirement of at least one:
@@ -203,13 +229,15 @@ inline above rather than merely cited.
 - `plugins/dev-workflows/skills/sp-subagent-driven-development/re-review-prompt.md` — touched
   by exactly **one** commit in this plan, `2aa0d72`, the verbatim vendoring commit that
   created it. No later commit modified it, and it contains **zero** occurrences of
-  `scrutinize` — deliberately unrouted, as controller Ruling 5 requires.
+  `scrutinize` — deliberately unrouted, as ADR 0074's 2026-08-16 amendment requires.
 
 ## What this probe does not prove
 
 - It stops at the reviewer **loading** the skill. Nothing here watches the controller's
   fix-loop gate actually fire on a routed `Critical` finding — the map's own fog already
-  records that gap, and ADR 0076's translation is asserted statically rather than observed.
+  records that gap. The unobserved thing is the **gate itself**, not a severity
+  translation: ADR 0084 deleted that layer outright, so `scrutinize-dispatch` emits
+  `Critical`/`Important`/`Minor` natively and there is nothing left to translate.
 - The review this probe drove returned `Important` and `Minor` findings only, so even the
   severity path to `Critical` went unexercised.
 - **The Antigravity half is untested by this plan.** ADR 0079 records why it is untestable in

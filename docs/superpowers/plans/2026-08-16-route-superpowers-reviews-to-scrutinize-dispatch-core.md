@@ -1,5 +1,40 @@
 # Route superpowers reviews to scrutinize-dispatch — Plan A, the routing core
 
+> **Executed and completed at `d385a88`. Several steps below were amended in flight and no
+> longer describe what shipped — do not re-derive requirements from this file.**
+>
+> This plan is kept as a **historical record**. The SDD flow generates each implementer's
+> requirements from the plan file, so the amendments are listed here rather than patched
+> into the body.
+>
+> **What the body says vs what is now true:**
+>
+> - **Three routed prompt files** (Task 4) — it is **two**. `code-reviewer.md` and
+>   `task-reviewer-prompt.md` name `scrutinize-dispatch`; `re-review-prompt.md` is
+>   deliberately left unrouted and vendored verbatim, because a re-review verdicts prior
+>   findings as ADDRESSED / NOT ADDRESSED and `scrutinize-dispatch` has no concept of that.
+>   See [ADR 0074](../../adr/0074-the-six-skills-are-vendored-whole-then-one-rewrite-pass.md),
+>   amendment of 2026-08-16.
+> - **The routing target** is `scrutinize-dispatch`, not `scrutinize`
+>   ([ADR 0084](../../adr/0084-the-dispatched-reviewer-runs-a-dispatch-tuned-copy-not-the-frozen-scrutinize.md)),
+>   which also **deleted** ADR 0076's severity-translation layer that parts of this body
+>   still assume.
+> - **Task 6's glossary and assertion steps were replaced** in flight; the glossary wording
+>   that shipped is in `CONTEXT.md`, not here.
+> - **Task 7 Steps 2–5 were replaced** by a headless probe recipe (`claude -p
+>   --output-format stream-json --include-hook-events`). Step 3's control is recorded as
+>   **NOT RUN / contaminated**, not as a pass.
+> - **`scripts/assert_*.py` no longer exist.** The four assertion scripts referenced
+>   throughout this plan were deleted by Task 7 by design; their last passing output is
+>   transcribed in the result document. The permanent replacement is ADR 0075's resync
+>   checker, deferred to Plan B.
+> - A later fix wave applied rewrite class 4 to **bare** skill names as well as qualified
+>   ones (ADR 0071 Decision 2), which this plan's class-4 steps and their assertion did not
+>   cover.
+>
+> **The outcome of record is**
+> [`2026-08-16-acceptance-probe-result.md`](2026-08-16-acceptance-probe-result.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make every dispatched superpowers reviewer run this repo's `scrutinize-dispatch` instead of the built-in reviewer, and prove it with a live probe.
