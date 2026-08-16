@@ -123,6 +123,82 @@ def upstream_skill_names(manifest):
                    for f in manifest["copy_set"]["files"]})
 
 
+def check_copy_set(root, manifest):
+    """Check 1 - every declared file exists, and no undeclared file sits
+    inside a directory this manifest governs.
+
+    Governed = the vendored skill dirs PLUS the top-level directory of every
+    frozen file, so a file dropped beside a frozen one is seen too. A frozen
+    file's own absence is reported by check_frozen, not here."""
+    out = []
+    declared = {f["path"] for f in manifest["copy_set"]["files"]}
+    known = declared | {e["path"] for e in manifest.get("frozen", [])}
+    for rel in sorted(declared):
+        if not os.path.isfile(os.path.join(root, rel)):
+            out.append(finding(
+                "copy-set", rel, "declared file is missing from the tree",
+                "restore it from upstream, or re-emit the manifest if the "
+                "copy set genuinely shrank"))
+    governed = set(copied_skill_dirs(manifest))
+    governed |= {e["path"].split("/")[0]
+                 for e in manifest.get("frozen", []) if "/" in e["path"]}
+    for skill_dir in sorted(governed):
+        base = os.path.join(root, skill_dir)
+        for dirpath, _, names in os.walk(base):
+            for name in names:
+                rel = os.path.relpath(os.path.join(dirpath, name),
+                                      root).replace("\\", "/")
+                if rel not in known:
+                    out.append(finding(
+                        "copy-set", rel,
+                        "file inside a directory this manifest governs is "
+                        "not declared in it",
+                        "if it came from upstream, copy it in properly and "
+                        "add it; if it is ours, it does not belong beside a "
+                        "vendored copy or a frozen file"))
+    return sorted(out, key=lambda f: f["path"])
+
+
+def check_hashes(root, manifest):
+    """Check 2 - each copied file still hashes to its vendored value."""
+    out = []
+    for f in manifest["copy_set"]["files"]:
+        path = os.path.join(root, f["path"])
+        if not os.path.isfile(path):
+            continue          # already reported by check_copy_set
+        actual = content_hash(read_normalized(path))
+        if actual != f["sha256"]:
+            out.append(finding(
+                "hash", f["path"],
+                "content changed since vendoring (%s -> %s)"
+                % (f["sha256"][:12], actual[:12]),
+                "revert the edit, or re-vendor the set and re-emit the "
+                "manifest. An edit inside a copy can break its route to "
+                "scrutinize-dispatch with no error message"))
+    return out
+
+
+def check_frozen(root, manifest):
+    """Check 6 - the frozen files are unchanged (ADR 0088)."""
+    out = []
+    for entry in manifest["frozen"]:
+        path = os.path.join(root, entry["path"])
+        if not os.path.isfile(path):
+            out.append(finding(
+                "frozen", entry["path"], "frozen file is missing",
+                "restore it - %s" % entry["why"]))
+            continue
+        actual = content_hash(read_normalized(path))
+        if actual != entry["sha256"]:
+            out.append(finding(
+                "frozen", entry["path"],
+                "FROZEN file changed - %s" % entry["why"],
+                "revert it. If the change is genuinely required it needs a "
+                "decision first (ADR 0084's escape hatch), then a manifest "
+                "update in the same commit"))
+    return out
+
+
 def main(argv):
     ap = argparse.ArgumentParser(
         description="Report drift in the vendored superpowers copies.")

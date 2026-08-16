@@ -9,7 +9,9 @@ import tempfile
 from check_vendored_superpowers import (normalize, read_normalized,
                                         content_hash, load_manifest,
                                         copied_skill_dirs,
-                                        upstream_skill_names, main)
+                                        upstream_skill_names, main,
+                                        check_copy_set, check_hashes,
+                                        check_frozen)
 
 
 def _write(path, text, eol="\n"):
@@ -112,6 +114,114 @@ def test_manifest_missing_copy_set_files_exits_2(tmp_path=None):
         with open(p, "w", encoding="utf-8") as f:
             json.dump(manifest, f)
         assert main(["--manifest", p, "--root", d]) == 2
+
+
+def _tiny_tree(d):
+    """A miniature copy set: two vendored skills, one non-copy that wears the
+    sp- prefix, one frozen file. Returns (root, manifest)."""
+    root = os.path.join(d, "skills")
+    files = {
+        "sp-alpha/SKILL.md": "---\nname: sp-alpha\n---\nbody\n",
+        "sp-alpha/prompt.md": "Load the `scrutinize-dispatch` skill.\n",
+        "sp-beta/SKILL.md": "second skill, no bare names\n",
+        "sp-grill-with-doc/SKILL.md": "not a copy - must be ignored\n",
+        "frozen/SKILL.md": "frozen body\n",
+    }
+    for rel, text in files.items():
+        _write(os.path.join(root, rel), text, eol="\r\n")   # CRLF on purpose
+
+    def h(rel):
+        return content_hash(read_normalized(os.path.join(root, rel)))
+
+    manifest = {
+        "upstream": {"url": "https://example.invalid/x", "sha": "0" * 40},
+        "copy_set": {"files": [
+            {"path": "sp-alpha/SKILL.md", "upstream_path": "alpha/SKILL.md",
+             "state": "edited", "sha256": h("sp-alpha/SKILL.md")},
+            {"path": "sp-alpha/prompt.md", "upstream_path": "alpha/prompt.md",
+             "state": "edited", "sha256": h("sp-alpha/prompt.md")},
+            {"path": "sp-beta/SKILL.md", "upstream_path": "beta/SKILL.md",
+             "state": "verbatim", "sha256": h("sp-beta/SKILL.md")}]},
+        "permit_list": [],
+        "qualified_refs": {},
+        "routing_marker": "scrutinize-dispatch",
+        "routed_prompts": ["sp-alpha/prompt.md"],
+        "unrouted_prompts": [],
+        "frozen": [{"path": "frozen/SKILL.md", "sha256": h("frozen/SKILL.md"),
+                    "why": "owner constraint"}],
+        "upstream_traps": {},
+    }
+    return root, manifest
+
+
+def test_clean_tiny_tree_has_no_findings(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _tiny_tree(d)
+        assert check_copy_set(root, m) == []
+        assert check_hashes(root, m) == []
+        assert check_frozen(root, m) == []
+
+
+def test_edited_copy_is_flagged_by_hash(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _tiny_tree(d)
+        _write(os.path.join(root, "sp-beta/SKILL.md"), "tampered\n", eol="\r\n")
+        out = check_hashes(root, m)
+        assert len(out) == 1
+        assert out[0]["path"] == "sp-beta/SKILL.md"
+
+
+def test_eol_flip_alone_is_not_a_finding(tmp_path=None):
+    """ADR 0086: the same content rewritten LF instead of CRLF must be clean."""
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _tiny_tree(d)
+        _write(os.path.join(root, "sp-beta/SKILL.md"),
+               "second skill, no bare names\n", eol="\n")
+        assert check_hashes(root, m) == []
+
+
+def test_missing_declared_file_is_flagged(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _tiny_tree(d)
+        os.remove(os.path.join(root, "sp-beta/SKILL.md"))
+        out = check_copy_set(root, m)
+        assert [f["path"] for f in out] == ["sp-beta/SKILL.md"]
+
+
+def test_undeclared_file_under_a_vendored_dir_is_flagged(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _tiny_tree(d)
+        _write(os.path.join(root, "sp-alpha/sneaked.md"), "hi\n", eol="\r\n")
+        out = check_copy_set(root, m)
+        assert [f["path"] for f in out] == ["sp-alpha/sneaked.md"]
+
+
+def test_sp_grill_with_doc_is_not_treated_as_a_copy(tmp_path=None):
+    """The sp- prefix means 'belongs with superpowers', NOT 'is a copy'.
+    A glob of sp-* collects 24 files in the real repo, not 21."""
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _tiny_tree(d)
+        _write(os.path.join(root, "sp-grill-with-doc/EXTRA.md"), "x\n",
+               eol="\r\n")
+        assert check_copy_set(root, m) == []
+
+
+def test_undeclared_file_beside_a_frozen_file_is_flagged(tmp_path=None):
+    """A frozen file is guarded by its hash; its NEIGHBOURS are guarded here."""
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _tiny_tree(d)
+        _write(os.path.join(root, "frozen/EXTRA.md"), "new\n", eol="\r\n")
+        out = check_copy_set(root, m)
+        assert [f["path"] for f in out] == ["frozen/EXTRA.md"]
+
+
+def test_frozen_file_change_is_flagged(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _tiny_tree(d)
+        _write(os.path.join(root, "frozen/SKILL.md"), "edited\n", eol="\r\n")
+        out = check_frozen(root, m)
+        assert len(out) == 1
+        assert "owner constraint" in out[0]["message"]
 
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
