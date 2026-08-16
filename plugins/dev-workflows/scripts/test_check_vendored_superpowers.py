@@ -255,12 +255,34 @@ def test_copy_set_file_missing_sha256_exits_2(tmp_path=None):
         assert main(["--manifest", p, "--root", d]) == 2
 
 
+def test_copy_set_file_missing_state_exits_2(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "m.json")
+        manifest = _valid_manifest()
+        # Remove state from the copy_set file entry
+        manifest["copy_set"]["files"][0].pop("state", None)
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(manifest, f)
+        assert main(["--manifest", p, "--root", d]) == 2
+
+
 def test_frozen_entry_missing_sha256_exits_2(tmp_path=None):
     with tempfile.TemporaryDirectory() as d:
         p = os.path.join(d, "m.json")
         manifest = _valid_manifest()
         # Add a frozen entry without sha256
         manifest["frozen"] = [{"path": "frozen/SKILL.md", "why": "test"}]
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(manifest, f)
+        assert main(["--manifest", p, "--root", d]) == 2
+
+
+def test_frozen_entry_missing_why_exits_2(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "m.json")
+        manifest = _valid_manifest()
+        # Add a frozen entry without why
+        manifest["frozen"] = [{"path": "frozen/SKILL.md", "sha256": "0" * 64}]
         with open(p, "w", encoding="utf-8") as f:
             json.dump(manifest, f)
         assert main(["--manifest", p, "--root", d]) == 2
@@ -405,6 +427,38 @@ def test_unreviewed_detected_regardless_of_entry_order(tmp_path=None):
         checks_second = sorted(f["check"] for f in out_second_order)
         assert checks_first == ["permit-list/UNREVIEWED"]
         assert checks_second == ["permit-list/UNREVIEWED"]
+
+
+def test_long_lines_differing_past_160_chars_stay_distinguishable(tmp_path=None):
+    """A permitted line over 160 chars, reworded only past character 160,
+    must yield a NEW finding and a STALE finding whose messages actually show
+    what differs - not two reports truncated down to an identical prefix."""
+    with tempfile.TemporaryDirectory() as d:
+        root = os.path.join(d, "skills")
+        filler = "A" * 200
+        declared_line = "digraph brainstorming { %s tailDECLARED" % filler
+        actual_line = "digraph brainstorming { %s tailACTUAL" % filler
+        assert declared_line[:160] == actual_line[:160]
+        assert len(declared_line) > 160 and len(actual_line) > 160
+        _write(os.path.join(root, "sp-brainstorming/SKILL.md"),
+               "header\n%s\n" % actual_line, eol="\r\n")
+        manifest = {
+            "copy_set": {"files": [
+                {"path": "sp-brainstorming/SKILL.md",
+                 "upstream_path": "brainstorming/SKILL.md",
+                 "state": "edited", "sha256": "x"}]},
+            "permit_list": [{"file": "sp-brainstorming/SKILL.md",
+                             "text": declared_line,
+                             "why": "DOT graph identifier, not a skill reference"}],
+        }
+        out = check_bare_names(root, manifest)
+        by_check = {f["check"]: f["message"] for f in out}
+        assert sorted(by_check) == ["permit-list/NEW", "permit-list/STALE"]
+        new_msg = by_check["permit-list/NEW"]
+        stale_msg = by_check["permit-list/STALE"]
+        assert new_msg != stale_msg
+        assert "tailACTUAL" in new_msg and "tailDECLARED" not in new_msg
+        assert "tailDECLARED" in stale_msg and "tailACTUAL" not in stale_msg
 
 
 def _ref_tree(d):
@@ -677,7 +731,6 @@ def test_trap_3_ignores_docs_and_the_file_itself(tmp_path=None):
 def test_strict_exits_1_only_when_there_are_findings(tmp_path=None):
     with tempfile.TemporaryDirectory() as d:
         root, m = _tiny_tree(d)
-        m["upstream"]["skills_subdir"] = "skills"
         p = os.path.join(d, "m.json")
         with open(p, "w", encoding="utf-8") as f:
             json.dump(m, f)
@@ -696,6 +749,16 @@ def test_missing_upstream_dir_exits_2(tmp_path=None):
             json.dump(m, f)
         assert main(["--manifest", p, "--root", root,
                      "--upstream-dir", os.path.join(d, "absent")]) == 2
+
+
+def test_missing_root_exits_2(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        root, m = _tiny_tree(d)
+        p = os.path.join(d, "m.json")
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(m, f)
+        assert main(["--manifest", p,
+                     "--root", os.path.join(d, "absent")]) == 2
 
 
 def test_the_real_repo_tree_is_clean(tmp_path=None):

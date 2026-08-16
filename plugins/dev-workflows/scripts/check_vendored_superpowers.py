@@ -109,6 +109,9 @@ def load_manifest(path):
         if "sha256" not in entry:
             raise ValueError("copy_set.files[%d] is missing required key: sha256"
                            % i)
+        if "state" not in entry:
+            raise ValueError("copy_set.files[%d] is missing required key: state"
+                           % i)
 
     # Validate frozen list
     frozen = manifest.get("frozen")
@@ -121,6 +124,8 @@ def load_manifest(path):
             raise ValueError("frozen[%d] is missing required key: path" % i)
         if "sha256" not in entry:
             raise ValueError("frozen[%d] is missing required key: sha256" % i)
+        if "why" not in entry:
+            raise ValueError("frozen[%d] is missing required key: why" % i)
 
     return manifest
 
@@ -253,7 +258,7 @@ def check_bare_names(root, manifest):
             out.append(finding(
                 "permit-list/NEW", rel,
                 "bare upstream skill name on an unlisted line: %s"
-                % line.strip()[:160],
+                % line.strip(),
                 "if it is a handoff, give it the sp- prefix - a bare name "
                 "resolves to the UNVENDORED upstream skill with no error. If "
                 "it is genuinely inert, add the line to permit_list with a why"))
@@ -264,7 +269,7 @@ def check_bare_names(root, manifest):
             out.append(finding(
                 "permit-list/STALE", rel,
                 "permit list claims this line %d time(s), found %d: %s"
-                % (want, got, text.strip()[:160]),
+                % (want, got, text.strip()),
                 "the line moved, was reworded or was deleted. Re-confirm it "
                 "is still inert, then update permit_list"))
         elif any(str(e.get("why", "")).startswith("REVIEW:")
