@@ -200,3 +200,42 @@ the report shape are both delegated to `scrutinize-dispatch`, the *engine*, whic
 superseding ADR 0076).
 _Avoid_: reviewer skill (it is a file, not a Skill), review template (the three differ by
 touchpoint, they are not one template).
+
+**Resync checker**:
+The program `plugins/dev-workflows/scripts/check_vendored_superpowers.py`. It reads the
+**Vendoring manifest**, reports, and changes nothing - a person makes the repairs it names
+and re-runs it until it exits `0` (ADR 0075). It has two modes: **local** (default, no
+network) asks whether *our* copies changed since they were vendored; **`--upstream-dir`**
+asks which of the 21 files upstream changed, by comparing against an upstream tree the
+runner supplies. Every hash and every comparison is CR-normalized first (ADR 0086).
+_Avoid_: resync script (it re-applies nothing - a rewriter was rejected in ADR 0075),
+linter, validator (`validate_model.py` is a different thing), CI check (there is no CI).
+
+**Vendoring manifest**:
+The JSON file `plugins/dev-workflows/references/vendored-superpowers.json`, read only by
+the **Resync checker**. It holds one upstream sha for the whole copy set - never per-file -
+the 21 copied files each marked `verbatim` or `edited` with a CR-normalized hash, the
+**Permit list**, and the frozen set (ADR 0075, ADR 0085, ADR 0088). It carries *data*; the
+rules that read it live in the checker.
+_Avoid_: lockfile (nothing resolves or installs from it), inventory, provenance header
+(per-file headers were rejected in ADR 0075 - they would destroy the per-file diff).
+
+**Permit list**:
+The entry in the **Vendoring manifest** naming every line that may legitimately hold a bare
+upstream Skill name - 13 today. Each entry stores the line's **exact text**, matched
+anywhere in its file, with no line number, so upstream may move it (ADR 0087). It exists
+because ADR 0071's check - *a search for any of the six upstream short names, unprefixed,
+must return nothing* - has 13 true exceptions. A bare name on an unlisted line is a **NEW**
+finding; a listed line that has moved or been reworded is a **STALE** finding.
+_Avoid_: allowlist/whitelist (this repo says permit list), exclusions, ignore list (an
+ignored line is never re-read; a permitted one is re-confirmed at every resync).
+
+**Frozen file**:
+A file that must not be edited, for a reason that no compile step or test can see. Two
+exist: `skills/scrutinize/SKILL.md`, frozen by the owner's constraint so the declared fork
+`scrutinize-dispatch` cannot drift from something that moved underneath it (ADR 0084); and
+`skills/sp-subagent-driven-development/re-review-prompt.md`, deliberately unrouted and
+byte-identical to upstream (ADR 0084 amendment). The **Resync checker** reports a change to
+either (ADR 0088). Reporting is all it does - it does not judge whether the change was
+good.
+_Avoid_: read-only (nothing on disk enforces it), immutable, locked, deprecated.
