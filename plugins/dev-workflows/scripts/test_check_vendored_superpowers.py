@@ -681,6 +681,31 @@ def _trap_tree(d):
     return up, manifest
 
 
+def test_trap_3_one_dead_prompt_may_name_the_other(tmp_path=None):
+    """Two corpses referring to each other is not a revival. Skipping only the
+    current stem's own file would make a cross-reference between the two dead
+    prompts fire a false alarm - and the alarm's repair text tells the reader
+    upstream is reviving the document-review system, which would be wrong."""
+    with tempfile.TemporaryDirectory() as d:
+        up, m = _trap_tree(d)
+        m["upstream_traps"]["dead_prompts"] = [
+            "spec-document-reviewer-prompt", "plan-document-reviewer-prompt"]
+        _write(os.path.join(up, "skills/brainstorming/"
+                                "plan-document-reviewer-prompt.md"),
+               "the sibling of spec-document-reviewer-prompt\n", eol="\n")
+        assert check_upstream_traps(up, m) == []
+
+
+def test_trap_3_still_catches_a_genuinely_live_caller(tmp_path=None):
+    """The widened skip must not swallow the finding it exists to make."""
+    with tempfile.TemporaryDirectory() as d:
+        up, m = _trap_tree(d)
+        _write(os.path.join(up, "skills/brainstorming/SKILL.md"),
+               "now dispatch spec-document-reviewer-prompt\n", eol="\n")
+        out = check_upstream_traps(up, m)
+        assert [f["check"] for f in out] == ["upstream/trap-3"], out
+
+
 def test_all_three_traps_hold(tmp_path=None):
     with tempfile.TemporaryDirectory() as d:
         up, m = _trap_tree(d)

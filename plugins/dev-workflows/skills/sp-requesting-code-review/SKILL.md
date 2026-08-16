@@ -28,14 +28,20 @@ explicitly in the dispatch**. An omitted model inherits your session's model —
 often the most capable and most expensive — so a two-file diff gets reviewed at
 architecture-tier cost, silently and with no error.
 
-Scale it to the diff's size, complexity and risk:
+Scale it to **the reading the review requires, not the diff's line count.**
+The diff is the obvious input and the misleading one. What actually drives a
+review's cost is the scope *you* assign in the prompt: a single 200-line file
+checked for consistency against twenty others is a twenty-file review, while a
+thousand-line mechanical rename read on its own is a small one. Size the model
+to the reading — and notice that the reading is something you chose.
 
-- **Small, mechanical diff** (one or two files, clear spec, no concurrency or
-  security surface): a fast, cheap model.
+- **Small, mechanical diff, read on its own** (one or two files, clear spec,
+  no concurrency or security surface): a fast, cheap model.
 - **Multi-file or judgment-heavy diff** (cross-module coordination, subtle
   state, non-obvious failure modes): a standard model.
-- **Whole-branch review before merge, or anything touching concurrency,
-  security, or data integrity**: the most capable available model.
+- **Whole-branch review before merge; anything touching concurrency, security
+  or data integrity; or any review whose assignment sends the reviewer across
+  many files it must hold at once**: the most capable available model.
 
 This is the same rule sp-subagent-driven-development applies to every seat it
 dispatches; that skill's

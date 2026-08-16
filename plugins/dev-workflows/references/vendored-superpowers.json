@@ -66,7 +66,7 @@
         "path": "sp-requesting-code-review/SKILL.md",
         "upstream_path": "requesting-code-review/SKILL.md",
         "state": "edited",
-        "sha256": "75e5f8e7ee15a7216beffb2cfe954aaaa70f67d683fab39e070da300d04b8f76"
+        "sha256": "459b3480dd92b676a300f175dd886444230e0495f8d5477942fb69fe60a82dfa"
       },
       {
         "path": "sp-requesting-code-review/code-reviewer.md",
@@ -78,7 +78,7 @@
         "path": "sp-subagent-driven-development/SKILL.md",
         "upstream_path": "subagent-driven-development/SKILL.md",
         "state": "edited",
-        "sha256": "6ae2bd837facc09db33cd86c517588d1fde8b70cd100e59fbe9dc2ef26e4506c"
+        "sha256": "bd042f0512688f75a9aace9996a55acdf81e74de17704936d8b5cac07d6ef4bc"
       },
       {
         "path": "sp-subagent-driven-development/implementer-prompt.md",

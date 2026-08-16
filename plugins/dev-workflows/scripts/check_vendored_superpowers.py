@@ -627,6 +627,10 @@ def check_upstream_traps(upstream_root, manifest):
                 "a rename makes our hook a silent no-op; a third name means "
                 "the hook's coverage is incomplete from this version on"))
 
+    # A dead prompt naming itself is a corpse, not a caller - and so is a dead
+    # prompt naming its twin. Skipping only the current stem's own file would
+    # let a cross-reference between the two dead prompts read as a revival.
+    dead_files = {s + ".md" for s in traps["dead_prompts"]}
     for stem in traps["dead_prompts"]:
         for live_dir in traps["dead_prompt_live_dirs"]:
             base = os.path.join(upstream_root, live_dir)
@@ -634,8 +638,8 @@ def check_upstream_traps(upstream_root, manifest):
                 continue
             for dirpath, _, names in os.walk(base):
                 for fn in sorted(names):
-                    if fn == stem + ".md":
-                        continue          # the dead file itself
+                    if fn in dead_files:
+                        continue          # a dead prompt, not a live caller
                     path = os.path.join(dirpath, fn)
                     if stem in read_text(path):
                         rel = os.path.relpath(

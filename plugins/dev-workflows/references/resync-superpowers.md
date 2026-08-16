@@ -124,23 +124,36 @@ location, because upstream can move where they land.
 - **Class 6 — the two example transcripts.** Upstream's `Strengths:` clause is
   substituted with different wording in two example transcripts, because the
   dispatch engine's output format forbids a `Strengths:` section.
-- **Class 7 — the review-model-selection statement.** `sp-requesting-code-review`'s
-  `SKILL.md` and `code-reviewer.md` each carry a REQUIRED reviewer
-  model-selection statement that upstream does not have — a Model Selection
-  section in the skill, plus a `model:` field in the dispatch template. The
-  section cross-references `sp-subagent-driven-development`'s own native Model
-  Selection section rather than duplicating it; the template points at its own
-  sibling `SKILL.md`, one hop closer. Don't confuse the two:
-  upstream's `subagent-driven-development` already has its own native Model
-  Selection section; the one added here lives in `requesting-code-review`,
-  which upstream leaves without any model guidance at all. It exists because
-  an omitted model silently inherits the dispatching session's, usually the
-  most expensive one available. **This class is invisible to
-  `check_upstream_files`'s "rewrite pass looks lost" finding** — that finding
-  only fires when an `edited` file becomes byte-identical to upstream, and
-  these two files still differ from upstream for other reasons (frontmatter,
-  Class 1's collapsed sections), so a re-copy that drops this class produces
-  no finding at all. Re-apply it by hand every time.
+- **Class 7 — the review-model-selection statement.** Three files carry a
+  reviewer model-selection statement that upstream does not have:
+
+  - `sp-requesting-code-review/SKILL.md` — a whole `## Model Selection`
+    section. Upstream's `requesting-code-review` has no model guidance at all.
+  - `sp-requesting-code-review/code-reviewer.md` — a REQUIRED `model:` field
+    in the dispatch template, plus a `[MODEL]` placeholder entry. It points at
+    its own sibling `SKILL.md`; the section in turn points at
+    `sp-subagent-driven-development`'s fuller treatment rather than
+    duplicating it.
+  - `sp-subagent-driven-development/SKILL.md` — one added paragraph under
+    *Turn count beats token price*, tying a reviewer's turn count to the
+    **assignment** rather than to the diff. Upstream has the surrounding
+    section natively; this paragraph is ours.
+
+  Don't confuse the two skills: upstream's `subagent-driven-development`
+  already has its own native Model Selection section, so only the one
+  paragraph there is a rewrite. The whole section in `requesting-code-review`
+  is ours. All of it exists because an omitted model silently inherits the
+  dispatching session's, usually the most expensive one available — the SDD
+  path forced a model choice and the ad hoc path did not, though both follow
+  the same principle.
+
+  **This class is invisible to `check_upstream_files`'s "rewrite pass looks
+  lost" finding** — that finding only fires when an `edited` file becomes
+  byte-identical to upstream, and all three files still differ from upstream
+  for other reasons (frontmatter, Class 1's collapsed sections), so a re-copy
+  that drops this class produces no finding at all. Re-apply it by hand every
+  time, and check all three files, not just the two in
+  `sp-requesting-code-review`.
 
 ## The three upstream traps
 
