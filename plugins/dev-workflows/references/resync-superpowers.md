@@ -147,13 +147,20 @@ location, because upstream can move where they land.
   path forced a model choice and the ad hoc path did not, though both follow
   the same principle.
 
-  **This class is invisible to `check_upstream_files`'s "rewrite pass looks
-  lost" finding** — that finding only fires when an `edited` file becomes
+  **This class is invisible to every check that infers.** `check_upstream_files`'s
+  "rewrite pass looks lost" finding only fires when an `edited` file becomes
   byte-identical to upstream, and all three files still differ from upstream
-  for other reasons (frontmatter, Class 1's collapsed sections), so a re-copy
-  that drops this class produces no finding at all. Re-apply it by hand every
-  time, and check all three files, not just the two in
-  `sp-requesting-code-review`.
+  for other reasons (frontmatter, Class 1's collapsed sections). `check_hashes`
+  cannot help either: the re-emit that ends every resync records whatever the
+  files then say as the new truth, so a dropped rewrite becomes the baseline.
+
+  That is why this class alone is asserted **directly**, by
+  `check_required_strings` reading the manifest's `required_strings`
+  entries — one anchor per file, with the reason it matters. Removing any of
+  the three from a copy of the real tree makes that check the *only* one that
+  fires; the other eight report clean. Re-apply the class by hand on every
+  re-copy, across all three files, and let that check tell you if you
+  missed one.
 
 ## The three upstream traps
 
@@ -195,10 +202,11 @@ file under `upstream_traps.dead_prompt_live_dirs` (`skills`, `hooks`,
 
 ## Running the checker
 
-Local mode runs six checks, in this order: `check_copy_set`, `check_hashes`,
-`check_bare_names`, `check_qualified_refs`, `check_routing`, `check_frozen`.
-Upstream mode runs those same six and then two more on top: `check_upstream_files`
-and `check_upstream_traps` — eight checks total (`run_checks`).
+Local mode runs seven checks, in this order: `check_copy_set`, `check_hashes`,
+`check_bare_names`, `check_qualified_refs`, `check_routing`, `check_frozen`,
+`check_required_strings`. Upstream mode runs those same seven and then two more
+on top: `check_upstream_files` and `check_upstream_traps` — nine checks total
+(`run_checks`).
 
 ```bash
 python plugins/dev-workflows/scripts/check_vendored_superpowers.py --strict
@@ -250,6 +258,13 @@ and is lost, silently, with no error from the program. (The program does
 detect the resulting empty file on the *next* run and refuses with exit 2
 rather than emitting from it — but that is the recovery check, not a reason to
 skip the temp file. Emit to a temp file and move it every time.)
+
+`required_strings` is hand-written and the emit never recomputes it — that is
+the property that makes `check_required_strings` work. Everything derived from the tree records
+whatever the tree currently says, so only a hand-written assertion survives a
+re-copy that dropped something. Add an entry whenever a rewrite class becomes
+invisible to the derived checks; never "fix" a `required-string` finding by
+deleting its entry.
 
 Any `permit_list` entry the emit marks `REVIEW:` is a new bare-name hit nobody
 has judged yet — a person must decide why it is inert (or that it isn't) and

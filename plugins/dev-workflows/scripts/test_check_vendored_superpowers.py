@@ -16,7 +16,8 @@ from check_vendored_superpowers import (normalize, read_normalized,
                                         check_routing, emit_manifest,
                                         check_upstream_files,
                                         check_upstream_traps, run_checks,
-                                        EmitRefused, resolve_upstream_sha)
+                                        EmitRefused, resolve_upstream_sha,
+                                        check_required_strings)
 
 
 def _write(path, text, eol="\n"):
@@ -801,6 +802,67 @@ def test_the_real_repo_tree_is_clean(tmp_path=None):
         print("SKIP  test_the_real_repo_tree_is_clean: no manifest yet")
         return
     assert main(["--strict"]) == 0
+
+
+def test_required_string_present_is_clean():
+    with tempfile.TemporaryDirectory() as d:
+        _write(os.path.join(d, "sp-x/SKILL.md"), "before\n## Model Selection\n")
+        m = {"required_strings": [{"file": "sp-x/SKILL.md",
+                                   "text": "## Model Selection",
+                                   "why": "class 7"}]}
+        assert check_required_strings(d, m) == []
+
+
+def test_required_string_removed_is_flagged():
+    """The whole point: this is the ONE rewrite class no other check can see.
+
+    check_upstream_files only fires when an `edited` file becomes byte-
+    identical to upstream, which these never do; and check_hashes cannot help
+    either, because the re-emit that ends every resync records whatever the
+    files then say as the new truth. Drop the rewrite and re-emit, and without
+    this check the tree reads as clean forever."""
+    with tempfile.TemporaryDirectory() as d:
+        _write(os.path.join(d, "sp-x/SKILL.md"), "before\nafter\n")
+        m = {"required_strings": [{"file": "sp-x/SKILL.md",
+                                   "text": "## Model Selection",
+                                   "why": "class 7 - the guard rail"}]}
+        out = check_required_strings(d, m)
+        assert [f["check"] for f in out] == ["required-string"], out
+        assert "class 7 - the guard rail" in out[0]["message"]
+
+
+def test_required_strings_are_checked_on_the_real_tree():
+    """A synthetic fixture proves the function works, not that the real
+    manifest names anything. An empty required_strings list would pass every
+    test above while asserting nothing at all."""
+    import check_vendored_superpowers as mod
+    if not os.path.isfile(mod.DEFAULT_MANIFEST):
+        print("SKIP  test_required_strings_are_checked_on_the_real_tree")
+        return
+    m = load_manifest(mod.DEFAULT_MANIFEST)
+    entries = m.get("required_strings", [])
+    assert len(entries) >= 3, "the real manifest asserts no rewrites"
+    assert check_required_strings(mod.DEFAULT_ROOT, m) == []
+    # And each anchor must really be in its file - not merely absent-and-
+    # unchecked because the path is wrong.
+    for e in entries:
+        path = os.path.join(mod.DEFAULT_ROOT, e["file"])
+        assert os.path.isfile(path), "%s does not exist" % e["file"]
+
+
+def test_required_strings_bad_shape_is_a_shape_error():
+    with tempfile.TemporaryDirectory() as d:
+        m = _valid_manifest()
+        m["required_strings"] = [{"file": "a", "text": ""}]
+        p = os.path.join(d, "m.json")
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(m, f)
+        try:
+            load_manifest(p)
+        except ValueError as e:
+            assert "required_strings[0]" in str(e)
+        else:
+            raise AssertionError("an empty required text loaded cleanly")
 
 
 def _emit_tree(d, skills=("alpha", "beta")):

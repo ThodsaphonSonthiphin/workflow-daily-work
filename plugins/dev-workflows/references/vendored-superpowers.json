@@ -255,5 +255,22 @@
       "hooks",
       "scripts"
     ]
-  }
+  },
+  "required_strings": [
+    {
+      "file": "sp-requesting-code-review/SKILL.md",
+      "text": "## Model Selection",
+      "why": "rewrite class 7 - the Model Selection section. Upstream's requesting-code-review has no model guidance at all, so a re-copy drops the whole section and the ad hoc review path loses its guard rail against inheriting the session's model."
+    },
+    {
+      "file": "sp-requesting-code-review/code-reviewer.md",
+      "text": "model: [MODEL",
+      "why": "rewrite class 7 - the REQUIRED model field in the dispatch template. Without it a mid-session review dispatch states no model and silently inherits the session's, usually the most expensive one."
+    },
+    {
+      "file": "sp-subagent-driven-development/SKILL.md",
+      "text": "the turn count follows the",
+      "why": "rewrite class 7 - the paragraph tying a reviewer's turn count to the assignment rather than the diff. The surrounding Model Selection section is native to upstream, so a re-copy restores the section and drops only this paragraph."
+    }
+  ]
 }

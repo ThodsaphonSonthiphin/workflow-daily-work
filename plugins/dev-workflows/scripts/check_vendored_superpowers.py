@@ -167,6 +167,17 @@ def load_manifest(path):
             raise ValueError("upstream.mapping[%r] must be a string naming "
                              "the upstream skill directory" % k)
 
+    required = manifest.get("required_strings", [])
+    if not isinstance(required, list):
+        raise ValueError("required_strings must be a list")
+    for i, entry in enumerate(required):
+        if not isinstance(entry, dict):
+            raise ValueError("required_strings[%d] must be a dict" % i)
+        for key in ("file", "text", "why"):
+            if not isinstance(entry.get(key), str) or not entry[key]:
+                raise ValueError("required_strings[%d] is missing required "
+                                 "key: %s" % (i, key))
+
     for i, entry in enumerate(manifest["permit_list"]):
         if not isinstance(entry, dict):
             raise ValueError("permit_list[%d] must be a dict" % i)
@@ -370,6 +381,39 @@ def check_qualified_refs(root, manifest):
     return out
 
 
+def check_required_strings(root, manifest):
+    """Check 7 - each rewrite that a re-copy would silently lose is still there.
+
+    Most rewrite classes are self-announcing: drop one and some other check
+    fires. Class 7 (the reviewer model-selection statement) is not. That
+    finding only fires when an `edited` file becomes byte-identical to
+    upstream, and these files differ from upstream for several other reasons,
+    so a re-copy that drops the statement produces no finding at all - and
+    `check_hashes` cannot help either, because the re-emit that follows every
+    resync records whatever the files then say as the new truth.
+
+    So the invariant is asserted directly, from hand-written entries the emit
+    carries over untouched. This is the same shape as `routing_marker`,
+    generalized: a file, a string that must appear in it, and why."""
+    out = []
+    for entry in manifest.get("required_strings", []):
+        rel = entry["file"]
+        path = os.path.join(root, rel)
+        if not os.path.isfile(path):
+            out.append(finding("required-string", rel,
+                               "file is missing", "restore it"))
+            continue
+        if entry["text"] not in read_text(path):
+            out.append(finding(
+                "required-string", rel,
+                "a required rewrite is gone: %s" % entry["why"],
+                "re-apply it. Nothing else will report this - the rewrite "
+                "classes that a re-copy silently drops are exactly the ones "
+                "no other check can see, which is why they are listed here "
+                "by hand rather than derived"))
+    return out
+
+
 def check_routing(root, manifest):
     """Check 5 - the routed reviewer prompts name the dispatch engine, and the
     deliberately unrouted one does not (ADR 0084 and its amendment).
@@ -533,7 +577,7 @@ def upstream_skills_dir(upstream_root, manifest):
 
 
 def check_upstream_files(root, upstream_root, manifest):
-    """Check 7 - per-file comparison against upstream, plus the 1:1 mapping
+    """Check 8 - per-file comparison against upstream, plus the 1:1 mapping
     ADR 0074 depends on. All comparisons CR-normalized (ADR 0086)."""
     up_skills = upstream_skills_dir(upstream_root, manifest)
     declared_up = {f["upstream_path"] for f in manifest["copy_set"]["files"]}
@@ -588,7 +632,7 @@ def check_upstream_files(root, upstream_root, manifest):
 
 
 def check_upstream_traps(upstream_root, manifest):
-    """Check 8 - the three upstream changes that show up as no broken
+    """Check 9 - the three upstream changes that show up as no broken
     link and no failed build (ADR 0075).
 
     Trap 1  brainstorming still hands off by BARE name, so the host hook can
@@ -671,6 +715,7 @@ def run_checks(root, upstream_root, manifest):
     findings += check_qualified_refs(root, manifest)
     findings += check_routing(root, manifest)
     findings += check_frozen(root, manifest)
+    findings += check_required_strings(root, manifest)
     if upstream_root:
         findings += check_upstream_files(root, upstream_root, manifest)
         findings += check_upstream_traps(upstream_root, manifest)
