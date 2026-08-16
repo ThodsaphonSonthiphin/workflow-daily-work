@@ -103,6 +103,14 @@ and an add-a-skill recipe.
   0002`), never bare. Re-verify the number immediately before merging, not only when
   you create the file.
 
+- **The vendored `superpowers` copies are guarded by a checker, not by review.**
+  `plugins/dev-workflows/scripts/check_vendored_superpowers.py` reports drift in the 21
+  copies and the 2 frozen files against
+  `plugins/dev-workflows/references/vendored-superpowers.json`. Run it with `--strict`
+  before merging anything that touches `skills/sp-*` or `skills/scrutinize/`. Never glob
+  `skills/sp-*` to find the copy set — `sp-grill-with-doc` wears the prefix and is not a
+  copy. The procedure is `references/resync-superpowers.md` (ADRs 0075, 0085-0088).
+
 - **A superseded design doc gets its banner in the same change that supersedes it.**
   Implementation routinely invalidates the spec or plan that seeded it — and the SDD
   flow generates each implementer's requirements *from the plan file*, so a stale plan
@@ -126,6 +134,11 @@ dotnet run "plugins/ado-backlog/scripts/create-backlog.cs" -- "<workdir>/backlog
 # Real run — only after explicit user approval of the dry-run result
 $env:AZDO_DRY_RUN = "false"
 dotnet run "plugins/ado-backlog/scripts/create-backlog.cs" -- "<workdir>/backlog_input.json"
+```
+
+```bash
+# Check the vendored superpowers copies (report-only; --strict to gate)
+python plugins/dev-workflows/scripts/check_vendored_superpowers.py --strict
 ```
 
 Run scripts by type: `.cs` → `dotnet run` (file-based app, .NET 10), `.py` → `python`,
