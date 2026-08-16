@@ -4,12 +4,15 @@
 graph TD
     A["resolve upstream sha (git ls-remote)"] --> B["re-copy all 21 files"]
     B --> C["re-apply the seven rewrite classes"]
-    C --> D["run the checker (local + upstream mode)"]
-    D --> E{"any findings?"}
+    C --> D["run the checker (upstream mode)"]
+    D --> E{"findings other than [hash]?"}
     E -->|"yes"| F["repair per the checker's fix: text"]
     F --> D
-    E -->|"no, exit 0"| G["re-emit the manifest"]
-    G --> H["commit copies + manifest together"]
+    E -->|"no - only [hash] is left"| G["re-emit the manifest"]
+    G --> H["run the checker again, both modes"]
+    H --> I{"clean, exit 0?"}
+    I -->|"no"| F
+    I -->|"yes"| J["commit copies + manifest together"]
 ```
 
 This is the procedure a person follows to bring the 21 vendored copies under
@@ -17,9 +20,19 @@ This is the procedure a person follows to bring the 21 vendored copies under
 `obra/superpowers` commit, using `check_vendored_superpowers.py` to drive the
 loop and to prove when it is done. The loop is: resolve the sha upstream is
 now at, re-copy the whole set, re-apply the rewrites that make the copies
-ours, run the checker, repair whatever it names, re-run until it is clean,
-re-emit the manifest, then commit copies and manifest together. The sections
-below fill in each box.
+ours, run the checker, repair whatever it names, re-emit the manifest, run the
+checker once more to prove the result is clean, then commit copies and
+manifest together. The sections below fill in each box.
+
+**`[hash]` findings are the expected output of a correct re-copy, not
+defects.** `check_hashes` compares each file against the hash recorded when it
+was last vendored, so every file whose content upstream changed reports one —
+and those findings clear only when you re-emit the manifest, which is what
+records the new hashes. That is why re-emit comes *before* the final clean
+run, not after it: waiting for a clean run first would wait forever. Read the
+first checker pass for everything *except* `[hash]`, and never "repair" a
+`[hash]` finding by reverting a copy you meant to update — that throws the
+resync away and leaves the tree looking correct.
 
 ## The one network step
 
@@ -114,9 +127,10 @@ location, because upstream can move where they land.
 - **Class 7 — the review-model-selection statement.** `sp-requesting-code-review`'s
   `SKILL.md` and `code-reviewer.md` each carry a REQUIRED reviewer
   model-selection statement that upstream does not have — a Model Selection
-  section in the skill, plus a `model:` field in the dispatch template — and
-  both cross-reference `sp-subagent-driven-development`'s own native Model
-  Selection section rather than duplicating it. Don't confuse the two:
+  section in the skill, plus a `model:` field in the dispatch template. The
+  section cross-references `sp-subagent-driven-development`'s own native Model
+  Selection section rather than duplicating it; the template points at its own
+  sibling `SKILL.md`, one hop closer. Don't confuse the two:
   upstream's `subagent-driven-development` already has its own native Model
   Selection section; the one added here lives in `requesting-code-review`,
   which upstream leaves without any model guidance at all. It exists because
@@ -190,11 +204,19 @@ Exit codes:
   malformed, or missing a required key; `--root` or `--upstream-dir` is not a
   directory; or a declared file could not be read.
 
-Exit 2 also covers two manifest-shape failures that matter because hand-editing
-the manifest is a documented workflow (see the next section): a `copy_set.files`
-entry missing its `state` key, and a `frozen` entry missing its `why` key. Both
-are validated by `load_manifest` before any check runs, so a bad hand-edit fails
-cleanly at exit 2 instead of the checker crashing partway through a check.
+Exit 2 also covers manifest-shape failures, which matter because hand-editing
+the manifest is a documented workflow (see the next section). `load_manifest`
+validates the whole shape before any check runs — every required key, the type
+of each top-level section, and the required keys inside `copy_set.files`,
+`frozen` and `permit_list` entries — so a bad hand-edit fails cleanly at exit 2
+naming the offending path, instead of the checker crashing partway through a
+check.
+
+That distinction is load-bearing, not cosmetic: **exit 1 is the `--strict`
+findings code the merge gate keys on.** A shape error that escaped validation
+would surface as an unhandled traceback and exit 1, making a fat-fingered
+manifest indistinguishable from real drift — the gate would fail for the wrong
+reason and the operator would go looking for a rewrite that was never lost.
 
 ## Re-emitting the manifest
 
@@ -219,6 +241,39 @@ skip the temp file. Emit to a temp file and move it every time.)
 Any `permit_list` entry the emit marks `REVIEW:` is a new bare-name hit nobody
 has judged yet — a person must decide why it is inert (or that it isn't) and
 replace the placeholder before that manifest is committed.
+
+`upstream.sha` is **re-read from `$UP` itself** (`git -C "$UP" rev-parse
+HEAD`), never carried over from the manifest being replaced. The sha has to
+describe the tree the new hashes were computed from; a carried-over value
+would stamp fresh files with stale provenance and leave the stop condition in
+[The one network step](#the-one-network-step) permanently unreachable, because
+the recorded sha could never catch up to upstream's HEAD. If `$UP` is not a
+git checkout the emit writes a `REVIEW:` placeholder there too — it will not
+invent a sha.
+
+**A refusal you may hit: `refusing to emit - sp-<name> has no counterpart
+under upstream's skills/`.** Upstream renamed or deleted a skill we still
+vendor. The emit stops rather than continue, because the copy set is built by
+matching `sp-<name>` against upstream's `skills/<name>`, and a name that no
+longer matches would simply be omitted — dropping a file we still ship out of
+the manifest, and therefore out of every check, while the copy sits on disk
+looking fine.
+
+Resolve it deliberately, by which case it is:
+
+- **Upstream renamed the skill.** Add the new name to `upstream.mapping` and
+  re-run: `"mapping": {"sp-beta": "gamma"}` compares our `sp-beta/` against
+  upstream's `skills/gamma/`. This is the usual case, and it is preferred over
+  renaming our own copy — our copy's name is how every routing reference in
+  this marketplace addresses it, and it should not change because upstream
+  reorganised.
+- **Upstream deleted the skill.** Decide whether we still want it. Drop our
+  copy, or keep it and remove its entry from `copy_set.files` by hand. Keeping
+  both the copy and the entry re-fires the `upstream/mapping` finding on every
+  run, because `state` is recomputed against upstream each time.
+
+Do not work around the refusal by deleting the entry and re-emitting: that is
+the silent drop the refusal exists to prevent, done by hand.
 
 ## Two honest limits
 

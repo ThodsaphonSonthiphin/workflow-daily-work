@@ -15,7 +15,8 @@ from check_vendored_superpowers import (normalize, read_normalized,
                                         check_bare_names, check_qualified_refs,
                                         check_routing, emit_manifest,
                                         check_upstream_files,
-                                        check_upstream_traps, run_checks)
+                                        check_upstream_traps, run_checks,
+                                        EmitRefused, resolve_upstream_sha)
 
 
 def _write(path, text, eol="\n"):
@@ -83,12 +84,15 @@ def _valid_manifest():
              "sha256": "0" * 64, "state": "verbatim"}
         ]},
         "permit_list": [],
-        "qualified_refs": [],
+        # A census (name -> count) and a trap table, both dicts. This helper
+        # had them as lists, which no real manifest ever is - the shape checks
+        # in load_manifest are what surfaced it.
+        "qualified_refs": {},
         "routing_marker": "",
         "routed_prompts": [],
         "unrouted_prompts": [],
         "frozen": [],
-        "upstream_traps": []
+        "upstream_traps": {}
     }
 
 
@@ -772,6 +776,167 @@ def test_the_real_repo_tree_is_clean(tmp_path=None):
         print("SKIP  test_the_real_repo_tree_is_clean: no manifest yet")
         return
     assert main(["--strict"]) == 0
+
+
+def _emit_tree(d, skills=("alpha", "beta")):
+    """A root + upstream pair where every sp-<name> has an upstream match."""
+    root = os.path.join(d, "skills")
+    up = os.path.join(d, "upstream")
+    for name in skills:
+        _write(os.path.join(root, "sp-" + name, "SKILL.md"), "# %s\n" % name)
+        _write(os.path.join(up, "skills", name, "SKILL.md"), "# %s\n" % name)
+    return root, up
+
+
+def test_emit_refuses_when_upstream_renamed_a_governed_skill():
+    """The branch's own failure mode, inside the tool built to prevent it.
+
+    emit_manifest skips any sp-<name> with no upstream counterpart, because
+    that is how sp-grill-with-doc is excluded. But an upstream RENAME reaches
+    the same line, and skipping there deletes a still-vendored file from the
+    copy set - silently. check_copy_set cannot then report it, because it
+    derives the governed set from the very manifest the file just left.
+
+    Telling the two apart needs the previous manifest: sp-grill-with-doc was
+    never governed, a renamed skill was."""
+    with tempfile.TemporaryDirectory() as d:
+        root, up = _emit_tree(d)
+        base = emit_manifest(root, up, None)
+        assert len(base["copy_set"]["files"]) == 2
+
+        os.rename(os.path.join(up, "skills", "beta"),
+                  os.path.join(up, "skills", "gamma"))
+        try:
+            emit_manifest(root, up, base)
+        except EmitRefused as e:
+            assert "sp-beta" in str(e)
+        else:
+            raise AssertionError("emit dropped sp-beta from the copy set "
+                                 "instead of refusing")
+
+
+def test_emit_still_skips_a_never_governed_sp_dir():
+    """The benign half of the same line: sp-grill-with-doc carries the prefix
+    but is not a copy, so it must keep being skipped without complaint."""
+    with tempfile.TemporaryDirectory() as d:
+        root, up = _emit_tree(d)
+        _write(os.path.join(root, "sp-grill-with-doc", "SKILL.md"), "# ours\n")
+        out = emit_manifest(root, up, emit_manifest(root, up, None))
+        assert [f["path"] for f in out["copy_set"]["files"]] == [
+            "sp-alpha/SKILL.md", "sp-beta/SKILL.md"]
+
+
+def test_upstream_mapping_follows_a_rename_without_renaming_our_copy():
+    """The escape hatch the refusal points at. Without it the only way to
+    follow an upstream rename is to rename our own copy, which changes a
+    skill's name in this marketplace for a reason external to it."""
+    with tempfile.TemporaryDirectory() as d:
+        root, up = _emit_tree(d)
+        base = emit_manifest(root, up, None)
+        os.rename(os.path.join(up, "skills", "beta"),
+                  os.path.join(up, "skills", "gamma"))
+        base["upstream"] = dict(base.get("upstream", {}),
+                                mapping={"sp-beta": "gamma"})
+        out = emit_manifest(root, up, base)
+        entry = [f for f in out["copy_set"]["files"]
+                 if f["path"] == "sp-beta/SKILL.md"]
+        assert entry, "the mapped copy fell out of the copy set"
+        assert entry[0]["upstream_path"] == "gamma/SKILL.md"
+
+
+def test_bad_upstream_mapping_shape_is_a_shape_error():
+    with tempfile.TemporaryDirectory() as d:
+        m = _valid_manifest()
+        m["upstream"] = {"mapping": {"sp-beta": None}}
+        p = os.path.join(d, "m.json")
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(m, f)
+        try:
+            load_manifest(p)
+        except ValueError as e:
+            assert "upstream.mapping" in str(e)
+        else:
+            raise AssertionError("a null mapping target loaded cleanly")
+
+
+def test_emit_never_carries_a_stale_upstream_sha_forward():
+    """The manifest records ONE sha for the whole copy set, and it is the only
+    record of which upstream commit the copies came from. Carrying the prior
+    value forward stamps freshly-copied files with the old provenance, and the
+    procedure's stop condition (upstream HEAD == recorded sha) then can never
+    be reached - it would compare new files against a sha they never had."""
+    with tempfile.TemporaryDirectory() as d:
+        root, up = _emit_tree(d)
+        stale = "0" * 40
+        out = emit_manifest(root, up, {"upstream": {"sha": stale}})
+        assert out["upstream"]["sha"] != stale
+        # Not a git checkout, so it must say so rather than invent a sha.
+        assert out["upstream"]["sha"].startswith("REVIEW:")
+
+
+def test_emit_manifest_via_main_writes_a_loadable_manifest():
+    """The command the procedure document tells operators to run. Its success
+    path in main() had no test at all, so every defect above could ship."""
+    with tempfile.TemporaryDirectory() as d:
+        root, up = _emit_tree(d)
+        out_path = os.path.join(d, "emitted.json")
+        import io
+        import contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = main(["--emit-manifest", "--root", root,
+                       "--upstream-dir", up,
+                       "--manifest", os.path.join(d, "absent.json")])
+        assert rc == 0, "emit exited %d" % rc
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(buf.getvalue())
+        # The emitted manifest must satisfy the loader that will read it back.
+        loaded = load_manifest(out_path)
+        assert len(loaded["copy_set"]["files"]) == 2
+
+
+def test_manifest_shape_errors_exit_2_not_1():
+    """Exit 1 is the --strict findings code the merge gate keys on. A manifest
+    whose shape is wrong is an operational error (exit 2); letting it surface
+    as an unhandled traceback made it exit 1, i.e. indistinguishable from
+    real drift."""
+    cases = [
+        ("qualified_refs", [], "qualified_refs must be a dict"),
+        ("upstream", "not-a-dict", "upstream must be a dict"),
+        ("routed_prompts", "not-a-list", "routed_prompts must be a list"),
+        ("permit_list", [{"text": "x"}], "missing required key: file"),
+        ("permit_list", [{"file": "x"}], "missing required key: text"),
+    ]
+    with tempfile.TemporaryDirectory() as d:
+        for key, value, expected in cases:
+            m = _valid_manifest()
+            m[key] = value
+            p = os.path.join(d, "m.json")
+            with open(p, "w", encoding="utf-8") as f:
+                json.dump(m, f)
+            try:
+                load_manifest(p)
+            except ValueError as e:
+                assert expected in str(e), "%s -> %s" % (key, e)
+            else:
+                raise AssertionError("%s=%r loaded without complaint"
+                                     % (key, value))
+
+
+def test_null_path_in_copy_set_is_a_shape_error_not_a_crash():
+    """A null path used to reach the sort as a None and raise TypeError."""
+    with tempfile.TemporaryDirectory() as d:
+        m = _valid_manifest()
+        m["copy_set"]["files"][0]["path"] = None
+        p = os.path.join(d, "m.json")
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(m, f)
+        try:
+            load_manifest(p)
+        except ValueError as e:
+            assert "missing required key: path" in str(e)
+        else:
+            raise AssertionError("a null path loaded without complaint")
 
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

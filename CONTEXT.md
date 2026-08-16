@@ -222,10 +222,12 @@ _Avoid_: lockfile (nothing resolves or installs from it), inventory, provenance 
 
 **Permit list**:
 The entry in the **Vendoring manifest** naming every line that may legitimately hold a bare
-upstream Skill name - 13 today. Each entry stores the line's **exact text**, matched
+upstream Skill name. Each entry stores the line's **exact text**, matched
 anywhere in its file, with no line number, so upstream may move it (ADR 0087). It exists
 because ADR 0071's check - *a search for any of the six upstream short names, unprefixed,
-must return nothing* - has 13 true exceptions. A bare name on an unlisted line is a **NEW**
+must return nothing* - has true exceptions. How many is a property of the manifest, which
+grows whenever a rewrite adds a permitted line; read it there rather than from this page.
+A bare name on an unlisted line is a **NEW**
 finding; a listed line that has moved or been reworded is a **STALE** finding.
 _Avoid_: allowlist/whitelist (this repo says permit list), exclusions, ignore list (an
 ignored line is never re-read; a permitted one is re-confirmed at every resync).

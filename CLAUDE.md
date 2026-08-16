@@ -104,9 +104,10 @@ and an add-a-skill recipe.
   you create the file.
 
 - **The vendored `superpowers` copies are guarded by a checker, not by review.**
-  `plugins/dev-workflows/scripts/check_vendored_superpowers.py` reports drift in the 21
-  copies and the 2 frozen files against
-  `plugins/dev-workflows/references/vendored-superpowers.json`. Run it with `--strict`
+  `plugins/dev-workflows/scripts/check_vendored_superpowers.py` reports drift in the
+  vendored copies and the frozen files against
+  `plugins/dev-workflows/references/vendored-superpowers.json` — which is the authority on
+  what those sets contain; the two overlap, so their sizes do not add. Run it with `--strict`
   before merging anything that touches `skills/sp-*` or `skills/scrutinize/`. Never glob
   `skills/sp-*` to find the copy set — `sp-grill-with-doc` wears the prefix and is not a
   copy. The procedure is `references/resync-superpowers.md` (ADRs 0075, 0085-0088).

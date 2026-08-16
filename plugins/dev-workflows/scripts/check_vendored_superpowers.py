@@ -32,6 +32,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 from collections import Counter
 
@@ -71,6 +72,30 @@ def finding(check, path, message, repair):
     return {"check": check, "path": path, "message": message, "repair": repair}
 
 
+class EmitRefused(Exception):
+    """--emit-manifest found something it must not resolve on its own."""
+
+
+def resolve_upstream_sha(upstream_root):
+    """The commit `--upstream-dir` is actually checked out at, or None.
+
+    The manifest records ONE sha for the whole copy set, and it is the only
+    thing that says which upstream commit the copies came from. Carrying the
+    previous value forward would leave new files stamped with the old sha -
+    and the procedure's stop condition ("does upstream's HEAD match the
+    recorded sha?") could then never be reached.
+    """
+    try:
+        out = subprocess.run(["git", "-C", upstream_root,
+                              "rev-parse", "HEAD"],
+                             capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    sha = out.stdout.strip()
+    return sha if out.returncode == 0 and re.fullmatch(r"[0-9a-f]{40}",
+                                                       sha) else None
+
+
 def load_manifest(path):
     """Read the manifest. Raises ValueError if it cannot be trusted."""
     try:
@@ -100,18 +125,10 @@ def load_manifest(path):
     for i, entry in enumerate(copy_set["files"]):
         if not isinstance(entry, dict):
             raise ValueError("copy_set.files[%d] must be a dict" % i)
-        if "path" not in entry:
-            raise ValueError("copy_set.files[%d] is missing required key: path"
-                           % i)
-        if "upstream_path" not in entry:
-            raise ValueError("copy_set.files[%d] is missing required key: upstream_path"
-                           % i)
-        if "sha256" not in entry:
-            raise ValueError("copy_set.files[%d] is missing required key: sha256"
-                           % i)
-        if "state" not in entry:
-            raise ValueError("copy_set.files[%d] is missing required key: state"
-                           % i)
+        for key in ("path", "upstream_path", "sha256", "state"):
+            if not isinstance(entry.get(key), str):
+                raise ValueError("copy_set.files[%d] is missing required "
+                                 "key: %s" % (i, key))
 
     # Validate frozen list
     frozen = manifest.get("frozen")
@@ -126,6 +143,37 @@ def load_manifest(path):
             raise ValueError("frozen[%d] is missing required key: sha256" % i)
         if "why" not in entry:
             raise ValueError("frozen[%d] is missing required key: why" % i)
+
+    # Validate the remaining sections. The manifest is a documented hand-edit
+    # surface (permit_list `why` strings especially), and an unvalidated shape
+    # error surfaces as an unhandled traceback at exit 1 - the same code
+    # --strict uses for findings, so a fat-fingered manifest reads as drift.
+    for key, kind, label in (("upstream", dict, "a dict"),
+                             ("qualified_refs", dict, "a dict"),
+                             ("upstream_traps", dict, "a dict"),
+                             ("permit_list", list, "a list"),
+                             ("routed_prompts", list, "a list"),
+                             ("unrouted_prompts", list, "a list")):
+        if not isinstance(manifest[key], kind):
+            raise ValueError("%s must be %s" % (key, label))
+
+    # Optional, but if present it steers which upstream directory each copy is
+    # compared against - a bad shape here would silently mis-map the set.
+    mapping = manifest["upstream"].get("mapping", {})
+    if not isinstance(mapping, dict):
+        raise ValueError("upstream.mapping must be a dict")
+    for k, v in mapping.items():
+        if not isinstance(v, str):
+            raise ValueError("upstream.mapping[%r] must be a string naming "
+                             "the upstream skill directory" % k)
+
+    for i, entry in enumerate(manifest["permit_list"]):
+        if not isinstance(entry, dict):
+            raise ValueError("permit_list[%d] must be a dict" % i)
+        for key in ("file", "text"):
+            if not isinstance(entry.get(key), str):
+                raise ValueError("permit_list[%d] is missing required key: %s"
+                                 % (i, key))
 
     return manifest
 
@@ -374,13 +422,34 @@ def emit_manifest(root, upstream_root, previous):
     for entry in (previous or {}).get("permit_list", []):
         prior_why[(entry["file"], entry["text"])] = entry.get("why", "")
 
+    # Directories the PREVIOUS manifest governed. A dir in this set with no
+    # upstream counterpart is a rename or a deletion upstream - never
+    # sp-grill-with-doc, which was never in the copy set to begin with.
+    # `upstream.mapping` overrides the sp-<name> -> <name> default for skills
+    # upstream has RENAMED. Without it the only way to follow a rename is to
+    # rename our copy too, which changes the skill's own name in this
+    # marketplace for a reason that has nothing to do with us.
+    mapping = (previous or {}).get("upstream", {}).get("mapping", {})
+
+    # `previous` may be a partial hand-written manifest with no copy_set yet
+    # (the first-ever emit), in which case nothing was governed before.
+    was_governed = set()
+    if isinstance((previous or {}).get("copy_set"), dict) \
+            and isinstance(previous["copy_set"].get("files"), list):
+        was_governed = set(copied_skill_dirs(previous))
+    unmapped = []
+
     files = []
     for skill_dir in sorted(os.listdir(root)):
         base = os.path.join(root, skill_dir)
         if not os.path.isdir(base) or not skill_dir.startswith("sp-"):
             continue
-        upstream_name = skill_dir[len("sp-"):]
+        upstream_name = mapping.get(skill_dir, skill_dir[len("sp-"):])
         if not os.path.isdir(os.path.join(up_skills, upstream_name)):
+            # Two very different situations reach this line. Only one of them
+            # is benign, and telling them apart needs the previous manifest.
+            if skill_dir in was_governed:
+                unmapped.append(skill_dir)
             continue          # not a vendored copy - e.g. sp-grill-with-doc
         for dirpath, _, names in sorted(os.walk(base)):
             for name in sorted(names):
@@ -394,6 +463,19 @@ def emit_manifest(root, upstream_root, previous):
                     state = "verbatim"
                 files.append({"path": rel, "upstream_path": up_rel,
                               "state": state, "sha256": content_hash(ours)})
+
+    if unmapped:
+        raise EmitRefused(
+            "%s has no counterpart under upstream's skills/, but the current "
+            "manifest governs it. Emitting now would DROP it from the copy "
+            "set silently - the copy would stay on disk, ungoverned, and "
+            "check_copy_set could not report it because it derives the "
+            "governed set from this manifest. Upstream almost certainly "
+            "renamed the skill: add `\"%s\": \"<its new upstream name>\"` to "
+            "`upstream.mapping` and re-run. If upstream DELETED it, decide "
+            "deliberately - drop our copy, or keep it and remove it from the "
+            "copy set by hand - but do not let an emit make that choice."
+            % (", ".join(unmapped), unmapped[0]))
 
     manifest = dict(previous or {})
     manifest["copy_set"] = {"root": "plugins/dev-workflows/skills",
@@ -420,6 +502,15 @@ def emit_manifest(root, upstream_root, previous):
                          ("routed_prompts", []), ("unrouted_prompts", []),
                          ("frozen", []), ("upstream_traps", {})):
         manifest.setdefault(key, default)
+
+    # The sha must describe the tree these hashes were just computed from.
+    # Carrying `previous`'s value forward is the one mistake that makes the
+    # whole manifest lie: new files, old provenance, and a stop condition
+    # ("is upstream's HEAD still the recorded sha?") that can never be met.
+    manifest["upstream"] = dict(manifest["upstream"])
+    manifest["upstream"]["sha"] = resolve_upstream_sha(upstream_root) or (
+        "REVIEW: --upstream-dir is not a git checkout - record the upstream "
+        "commit by hand")
 
     for entry in manifest["frozen"]:
         path = os.path.join(root, entry["path"])
@@ -449,8 +540,11 @@ def check_upstream_files(root, upstream_root, manifest):
             out.append(finding(
                 "upstream/mapping", f["upstream_path"],
                 "upstream no longer carries this file",
-                "decide whether to drop the copy or keep it deliberately, "
-                "then record which in the manifest"))
+                "if upstream renamed it, map the skill in `upstream.mapping` "
+                "and re-emit. If upstream deleted it, either delete our copy "
+                "or drop its entry from `copy_set.files` by hand - keeping "
+                "the copy and the entry re-fires this finding every run, "
+                "because `state` is recomputed against upstream each time"))
             continue
         if not os.path.isfile(our_path):
             continue          # already reported by check_copy_set
@@ -488,7 +582,7 @@ def check_upstream_files(root, upstream_root, manifest):
 
 
 def check_upstream_traps(upstream_root, manifest):
-    """Checks 8-10 - the three upstream changes that show up as no broken
+    """Check 8 - the three upstream changes that show up as no broken
     link and no failed build (ADR 0075).
 
     Trap 1  brainstorming still hands off by BARE name, so the host hook can
@@ -638,7 +732,11 @@ def main(argv):
                       "%s. Fix or delete it first; emitting now would silently "
                       "drop every hand-written key." % e)
                 return 2
-        out = emit_manifest(args.root, args.upstream_dir, previous)
+        try:
+            out = emit_manifest(args.root, args.upstream_dir, previous)
+        except EmitRefused as e:
+            print("ERROR: refusing to emit - %s" % e)
+            return 2
         print(json.dumps(out, indent=2, ensure_ascii=False))
         return 0
 
@@ -661,6 +759,20 @@ def main(argv):
         print("ERROR: cannot read a declared file: %s" % e)
         return 2
 
+    # Name the commit we actually compared against, not the one the manifest
+    # remembers - those differ during every resync, and printing the recorded
+    # sha here made the line assert a match it had never checked.
+    compared_at = ""
+    if args.upstream_dir:
+        sha = resolve_upstream_sha(args.upstream_dir)
+        if sha:
+            compared_at = (" - and the copies match the upstream tree at %s"
+                           % sha[:12])
+        else:
+            compared_at = (" - and the copies match the given upstream tree "
+                           "(--upstream-dir is not a git checkout, so its "
+                           "commit is unknown)")
+
     summary = ("%d copied files (%d verbatim), %d permitted bare names, "
                "%d frozen files%s"
                % (len(manifest["copy_set"]["files"]),
@@ -668,9 +780,7 @@ def main(argv):
                       if f["state"] == "verbatim"),
                   len(manifest["permit_list"]),
                   len(manifest["frozen"]),
-                  "" if not args.upstream_dir
-                  else " - and upstream matches at %s"
-                       % manifest["upstream"].get("sha", "?")[:12]))
+                  "" if not args.upstream_dir else compared_at))
     report(findings, summary)
     return 1 if (findings and args.strict) else 0
 
