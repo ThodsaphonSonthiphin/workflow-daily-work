@@ -98,6 +98,32 @@ for d in VENDORED_DIRS:
                 failures.append("%s still references the plugin-qualified %s - the six "
                                  "copied names must be short-formed to sp-*" % (p, name))
 
+# class 5 - the host SessionStart hook re-points arc entry to sp-brainstorming
+import json
+hj = pathlib.Path("plugins/dev-workflows/hooks/hooks.json")
+if not hj.is_file():
+    failures.append("hooks.json is missing")
+else:
+    cfg = json.loads(hj.read_text(encoding="utf-8"))
+    ss = cfg.get("hooks", {}).get("SessionStart")
+    if not ss:
+        failures.append("no SessionStart hook registered")
+    else:
+        blob = json.dumps(ss)
+        if "session-start.py" not in blob:
+            failures.append("SessionStart does not call session-start.py")
+        if "${CLAUDE_PLUGIN_ROOT}" not in blob:
+            failures.append("hook command must use ${CLAUDE_PLUGIN_ROOT}, not a hard-coded path")
+hp = pathlib.Path("plugins/dev-workflows/hooks/session-start.py")
+if not hp.is_file():
+    failures.append("session-start.py is missing")
+else:
+    t = hp.read_text(encoding="utf-8")
+    if "sp-brainstorming" not in t:
+        failures.append("hook text does not name sp-brainstorming")
+    if "instead of" not in t.lower():
+        failures.append("hook text does not name the conflict outright (ADR 0070)")
+
 if failures:
     for f in failures:
         print("FAIL: %s" % f)
