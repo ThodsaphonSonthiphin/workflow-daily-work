@@ -15,7 +15,19 @@ import io, json, os, sys, pathlib
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 root = pathlib.Path(os.environ.get("CLAUDE_PLUGIN_ROOT", ""))
-if not (root / "skills" / "sp-brainstorming" / "SKILL.md").is_file():
+# All six vendored copies, named explicitly -- never a "sp-*" glob, which would
+# also match sp-grill-with-doc, an unrelated pre-existing skill that is not one
+# of the six (controller Ruling 16). A partial install (any one of the six
+# missing) must degrade to silence, the same as a fully absent install.
+REQUIRED_COPIES = (
+    "sp-brainstorming",
+    "sp-writing-plans",
+    "sp-executing-plans",
+    "sp-requesting-code-review",
+    "sp-receiving-code-review",
+    "sp-subagent-driven-development",
+)
+if not all((root / "skills" / name / "SKILL.md").is_file() for name in REQUIRED_COPIES):
     sys.exit(0)
 
 TEXT = (

@@ -35,6 +35,19 @@ copy set and the decision all stand.
 [ADR 0075](0075-resync-is-a-checker-script-and-one-recorded-sha.md) takes this miscount
 as evidence and puts the site list in a checker script rather than in prose.
 
+## Amendment — 2026-08-16: rewrite class 1 narrows to two prompt files
+
+**Amended 2026-08-16:** rewrite class 1, below, covers `code-reviewer.md` and
+`task-reviewer-prompt.md` only. `re-review-prompt.md` is excluded from the class: a
+re-review verdicts prior findings as ADDRESSED / NOT ADDRESSED, a concept
+`scrutinize-dispatch` has no notion of (controller Ruling 5). `re-review-prompt.md` stays
+vendored verbatim exactly as before — this narrows which files get *rewritten*, not which
+files get *copied*, and the 1:1 upstream mapping this ADR requires for resync depends only
+on the latter (the same reasoning as "Why the two dead files are copied anyway", below,
+applied to a routed file that is now unrouted instead of a dead one).
+
+The original decision text is left as written below; only this amendment narrows class 1.
+
 ## Why a shim cannot work
 
 This is the finding that removes the ticket's second option entirely, so it is recorded
