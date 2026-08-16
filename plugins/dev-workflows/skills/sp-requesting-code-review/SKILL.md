@@ -62,7 +62,7 @@ HEAD_SHA=$(git rev-parse HEAD)
   HEAD_SHA: 3df7661
 
 [Subagent returns]:
-  Strengths: Clean architecture, real tests
+  Spec Compliance: ✅ Spec compliant
   Issues:
     Important: Missing progress indicators
     Minor: Magic number (100) for reporting interval

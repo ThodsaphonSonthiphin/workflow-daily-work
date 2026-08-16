@@ -32,6 +32,7 @@ for rel in PROMPTS:
 for rel in ["sp-subagent-driven-development/SKILL.md", "sp-executing-plans/SKILL.md"]:
     p = ROOT / rel
     if not p.is_file():
+        failures.append("missing file %s" % p)
         continue
     t = p.read_text(encoding="utf-8")
     if "../requesting-code-review/" in t:
@@ -42,12 +43,16 @@ for rel in ["sp-subagent-driven-development/SKILL.md", "sp-executing-plans/SKILL
 
 # class 3 - plugin-root-relative path becomes skill-relative
 p = ROOT / "sp-brainstorming/SKILL.md"
-if p.is_file() and "skills/brainstorming/visual-companion.md" in p.read_text(encoding="utf-8"):
+if not p.is_file():
+    failures.append("missing file %s" % p)
+elif "skills/brainstorming/visual-companion.md" in p.read_text(encoding="utf-8"):
     failures.append("sp-brainstorming/SKILL.md still uses a plugin-root path for its own file")
 
 # class 4 - qualified handoffs among the six become short sp- names
 p = ROOT / "sp-writing-plans/SKILL.md"
-if p.is_file():
+if not p.is_file():
+    failures.append("missing file %s" % p)
+else:
     t = p.read_text(encoding="utf-8")
     for bad in ("superpowers:executing-plans", "superpowers:subagent-driven-development"):
         if bad in t:
@@ -65,6 +70,21 @@ VENDORED_DIRS = [
     "sp-receiving-code-review",
     "sp-subagent-driven-development",
 ]
+# 3b - reintroducing a plugin-qualified reference to any of the six copied
+# skills, anywhere in the six vendored directories, is a regression: those six
+# names are the ones this task short-formed to sp-*.
+QUALIFIED_COPY_NAMES = [
+    "superpowers:brainstorming",
+    "superpowers:writing-plans",
+    "superpowers:executing-plans",
+    "superpowers:requesting-code-review",
+    "superpowers:receiving-code-review",
+    "superpowers:subagent-driven-development",
+]
+
+missing_dirs = [d for d in VENDORED_DIRS if not (ROOT / d).is_dir()]
+if missing_dirs:
+    failures.append("missing vendored directories: %s" % ", ".join(missing_dirs))
 for d in VENDORED_DIRS:
     dpath = ROOT / d
     if not dpath.is_dir():
@@ -73,6 +93,10 @@ for d in VENDORED_DIRS:
         t = p.read_text(encoding="utf-8")
         if "scrutinize" in t and "scrutinize-dispatch" not in t:
             failures.append("%s references scrutinize but not scrutinize-dispatch" % p)
+        for name in QUALIFIED_COPY_NAMES:
+            if name in t:
+                failures.append("%s still references the plugin-qualified %s - the six "
+                                 "copied names must be short-formed to sp-*" % (p, name))
 
 if failures:
     for f in failures:

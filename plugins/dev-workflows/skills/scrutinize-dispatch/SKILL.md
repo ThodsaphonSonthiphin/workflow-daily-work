@@ -80,6 +80,9 @@ Run these in order. Do not skip ahead.
 
 Emit exactly these sections, in this order.
 
+Your final message is the report itself: begin directly with the Spec Compliance
+verdict. No preamble, no process narration, no closing summary.
+
 ```
 ## Spec Compliance
 
@@ -126,11 +129,16 @@ Both `Critical` and `Important` trigger the controller's fix loop. `Minor` never
 Mis-labelling a nitpick as Critical burns a fix round; mis-labelling a real defect as
 Minor ships it.
 
+If the plan or the brief explicitly mandates something this rubric calls a defect,
+report it as **Important**, labeled *plan-mandated*. The plan's authorship does not
+grade its own work; the human decides.
+
 ## Operating rules
 
 - **No rubber-stamps.** "LGTM" is not an output.
 - **Cite or it didn't happen.** Every claim about the code references a specific path,
-  file, or line. No vague "this might break under load."
+  file, or line — including any check you would otherwise answer with a bare "yes".
+  No vague "this might break under load."
 - **Distinguish claim from verification.** "The brief says X" and "I traced X and
   confirmed it" are different — keep them separate.
 - **One simpler-alternative pass is mandatory**, even on a small diff.

@@ -91,6 +91,14 @@ Subagent (general-purpose):
     Re-running the suite to regenerate what you failed to read is not
     verification; illegibility of the evidence is not invalidation of it.
 
+    ## Batched briefs
+
+    If the brief lists several files each with its own change (a batched
+    dispatch), check the diff against that list file by file: every listed
+    file must have its corresponding hunk. A listed file the diff never
+    touches is a Missing finding, no matter how clean the rest of the
+    batch looks.
+
     ## Review method
 
     Load the `scrutinize-dispatch` skill through your harness's skill mechanism, and
@@ -98,8 +106,9 @@ Subagent (general-purpose):
     trace discipline, the severity calibration and the output format — do not
     duplicate or dilute it here, and do not substitute your own checklist for it.
 
-    Everything in this prompt outside this section still applies: the context above,
-    the operational rules below, and the report file you write to.
+    Everything else in this prompt still applies — the context sections and the
+    operational rules above. Your review is your final message; it is not written to a
+    file.
 ```
 
 **Placeholders:**

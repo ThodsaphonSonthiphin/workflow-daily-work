@@ -50,8 +50,9 @@ Subagent (general-purpose):
     trace discipline, the severity calibration and the output format — do not
     duplicate or dilute it here, and do not substitute your own checklist for it.
 
-    Everything in this prompt outside this section still applies: the context above,
-    the operational rules below, and the report file you write to.
+    Everything else in this prompt still applies — the context sections and the
+    operational rules above. Your review is your final message; it is not written to a
+    file.
 ```
 
 **Placeholders:**
