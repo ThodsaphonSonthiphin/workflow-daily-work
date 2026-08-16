@@ -108,7 +108,7 @@ unchanged and used as normal.
 | brainstorming a feature before implementation | `sp-brainstorming` — displaces `superpowers:brainstorming` |
 | writing an implementation plan from a spec | `sp-writing-plans` — displaces `superpowers:writing-plans` |
 | executing a written plan in a separate session | `sp-executing-plans` — displaces `superpowers:executing-plans` |
-| executing a plan task-by-task with dispatched subagents | `sp-subagent-driven-development` — displaces `superpowers:subagent-driven-development`; all four reviewer dispatches route to `scrutinize-dispatch` |
+| executing a plan task-by-task with dispatched subagents | `sp-subagent-driven-development` — displaces `superpowers:subagent-driven-development`; its reviewer dispatches route to `scrutinize-dispatch`, except the re-review, which is deliberately left unrouted (ADR 0084) |
 | requesting a code review before merge | `sp-requesting-code-review` — displaces `superpowers:requesting-code-review` |
 | receiving and triaging review feedback | `sp-receiving-code-review` — displaces `superpowers:receiving-code-review` |
 
