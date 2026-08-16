@@ -21,6 +21,28 @@ Dispatch a code reviewer subagent to catch issues before they cascade. The revie
 - Before refactoring (baseline check)
 - After fixing complex bug
 
+## Model Selection
+
+Use the least powerful model that can handle the review, and **always state it
+explicitly in the dispatch**. An omitted model inherits your session's model —
+often the most capable and most expensive — so a two-file diff gets reviewed at
+architecture-tier cost, silently and with no error.
+
+Scale it to the diff's size, complexity and risk:
+
+- **Small, mechanical diff** (one or two files, clear spec, no concurrency or
+  security surface): a fast, cheap model.
+- **Multi-file or judgment-heavy diff** (cross-module coordination, subtle
+  state, non-obvious failure modes): a standard model.
+- **Whole-branch review before merge, or anything touching concurrency,
+  security, or data integrity**: the most capable available model.
+
+This is the same rule sp-subagent-driven-development applies to every seat it
+dispatches; that skill's
+[Model Selection](../sp-subagent-driven-development/SKILL.md#model-selection)
+section is the fuller treatment, including fix-loop escalation and why turn
+count beats token price.
+
 ## How to Request
 
 **1. Get git SHAs:**
@@ -34,6 +56,7 @@ HEAD_SHA=$(git rev-parse HEAD)
 Dispatch a `general-purpose` subagent, filling the template at [code-reviewer.md](code-reviewer.md)
 
 **Placeholders:**
+- `{MODEL}` - REQUIRED. The reviewer's model, per Model Selection above.
 - `{DESCRIPTION}` - Brief summary of what you built
 - `{PLAN_OR_REQUIREMENTS}` - What it should do
 - `{BASE_SHA}` - Starting commit
@@ -56,6 +79,7 @@ BASE_SHA=$(git log --oneline | grep "Task 1" | head -1 | awk '{print $1}')
 HEAD_SHA=$(git rev-parse HEAD)
 
 [Dispatch code reviewer subagent]
+  MODEL: a fast, cheap model - two functions, clear spec
   DESCRIPTION: Added verifyIndex() and repairIndex() with 4 issue types
   PLAN_OR_REQUIREMENTS: Task 2 from docs/superpowers/plans/deployment-plan.md
   BASE_SHA: a7981ec
@@ -77,6 +101,7 @@ You: [Fix progress indicators]
 | Excuse | Reality |
 |--------|---------|
 | "I'll just review the diff myself instead of dispatching a reviewer" | You're the coordinator — reviewing the diff inline burns the context window you need to keep driving the work. Dispatch a reviewer subagent: the diff and the evaluation live in its context, and only the findings come back to you. |
+| "I'll leave the model off and let it pick" | There is no "it" that picks. An omitted model inherits your session's, which is usually the most expensive one you have - so the cheapest review you could have run costs the most. State the model on every dispatch. |
 | "The reviewer needs my whole session history to understand the change" | Hand it precisely crafted context, never your session's history. That keeps the reviewer on the work product, not your thought process. |
 
 ## Red Flags

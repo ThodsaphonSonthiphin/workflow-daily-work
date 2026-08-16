@@ -66,13 +66,13 @@
         "path": "sp-requesting-code-review/SKILL.md",
         "upstream_path": "requesting-code-review/SKILL.md",
         "state": "edited",
-        "sha256": "131f46a8e9d9ef82a5ad3d79c16a2f44f69d4a85f4fdd6f3e83e7d846fb8ddbd"
+        "sha256": "75e5f8e7ee15a7216beffb2cfe954aaaa70f67d683fab39e070da300d04b8f76"
       },
       {
         "path": "sp-requesting-code-review/code-reviewer.md",
         "upstream_path": "requesting-code-review/code-reviewer.md",
         "state": "edited",
-        "sha256": "b3a944088e7d6d38a5e0086d583d2b496a059081a766be21cc9c710b71d37bfc"
+        "sha256": "f9b3247f8967de09ac0c9f9fb4299c4bf0b341267b9e67490665b3c29df1a16a"
       },
       {
         "path": "sp-subagent-driven-development/SKILL.md",
