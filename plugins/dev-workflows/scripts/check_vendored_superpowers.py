@@ -222,7 +222,7 @@ def bare_name_re(names):
     a search for any of the six upstream short names, unprefixed, must return
     nothing. Longest-first alternation so a longer name cannot be shadowed."""
     alt = "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True))
-    return re.compile(r"(?<![\w:-])(" + alt + r")\b")
+    return re.compile(r"(?<![\w:-])(" + alt + r")\b", re.IGNORECASE)
 
 
 def check_bare_names(root, manifest):
@@ -234,8 +234,6 @@ def check_bare_names(root, manifest):
     pattern = bare_name_re(upstream_skill_names(manifest))
 
     declared = Counter((e["file"], e["text"]) for e in manifest["permit_list"])
-    why_of = {(e["file"], e["text"]): str(e.get("why", ""))
-              for e in manifest["permit_list"]}
 
     out = []
     actual = Counter()
@@ -267,7 +265,9 @@ def check_bare_names(root, manifest):
                 % (want, got, text.strip()[:160]),
                 "the line moved, was reworded or was deleted. Re-confirm it "
                 "is still inert, then update permit_list"))
-        elif why_of[(rel, text)].startswith("REVIEW:"):
+        elif any(str(e.get("why", "")).startswith("REVIEW:")
+                 for e in manifest["permit_list"]
+                 if e["file"] == rel and e["text"] == text):
             out.append(finding(
                 "permit-list/UNREVIEWED", rel,
                 "permit entry still carries a REVIEW: placeholder",

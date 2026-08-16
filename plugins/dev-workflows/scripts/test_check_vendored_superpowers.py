@@ -369,6 +369,41 @@ def test_permitted_line_matches_anywhere_not_by_line_number(tmp_path=None):
         assert check_bare_names(root, m) == []
 
 
+def test_bare_name_re_is_case_insensitive():
+    """Case-insensitive matching catches capitalized mentions like 'Brainstorming'."""
+    pat = bare_name_re(["brainstorming", "writing-plans"])
+    assert pat.search("Brainstorming Ideas Into Designs")  # capitalized
+    assert pat.search("WRITING-PLANS are next")            # all caps
+    assert pat.search("brainstorming in lowercase")        # original case
+
+
+def test_unreviewed_detected_regardless_of_entry_order(tmp_path=None):
+    """UNREVIEWED must be detected regardless of permit entry order.
+
+    Two entries claim the same line, both occurrences present in the file, one
+    REVIEW: and one with a real reason. The check must flag UNREVIEWED
+    regardless of which order the entries appear in the manifest."""
+    with tempfile.TemporaryDirectory() as d:
+        root, m, permitted = _permit_tree(d)
+        # Write the line twice so both permit entries are satisfied
+        p = os.path.join(root, "sp-brainstorming/SKILL.md")
+        _write(p, "header\n%s\n%s\n" % (permitted, permitted), eol="\r\n")
+        # Add a second entry for the same line, one reviewed and one not
+        m["permit_list"].append(
+            {"file": "sp-brainstorming/SKILL.md",
+             "text": permitted,
+             "why": "REVIEW: state why this is inert"})
+        out_first_order = check_bare_names(root, m)
+        # Reverse the order: REVIEW entry first, reviewed entry second
+        m["permit_list"].reverse()
+        out_second_order = check_bare_names(root, m)
+        # Both should report UNREVIEWED regardless of order
+        checks_first = sorted(f["check"] for f in out_first_order)
+        checks_second = sorted(f["check"] for f in out_second_order)
+        assert checks_first == ["permit-list/UNREVIEWED"]
+        assert checks_second == ["permit-list/UNREVIEWED"]
+
+
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 if __name__ == "__main__":
