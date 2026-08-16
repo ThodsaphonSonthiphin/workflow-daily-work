@@ -91,100 +91,15 @@ Subagent (general-purpose):
     Re-running the suite to regenerate what you failed to read is not
     verification; illegibility of the evidence is not invalidation of it.
 
-    ## Part 1: Spec Compliance
+    ## Review method
 
-    Compare the diff against What Was Requested:
+    Load the `scrutinize-dispatch` skill through your harness's skill mechanism, and
+    run its workflow against the diff above. That skill owns the review stance, the
+    trace discipline, the severity calibration and the output format — do not
+    duplicate or dilute it here, and do not substitute your own checklist for it.
 
-    - **Missing:** requirements they skipped, missed, or claimed without
-      implementing
-    - **Extra:** features that weren't requested, over-engineering, unneeded
-      "nice to haves"
-    - **Misunderstood:** right feature built the wrong way, wrong problem
-      solved
-
-    If the brief lists several files each with its own change (a batched
-    dispatch), check the diff against that list file by file: every listed
-    file must have its corresponding hunk. A listed file the diff never
-    touches is a Missing finding, no matter how clean the rest of the
-    batch looks.
-
-    If a requirement cannot be verified from this diff alone (it lives in
-    unchanged code or spans tasks), report it as a ⚠️ item instead of
-    broadening your search.
-
-    ## Part 2: Code Quality
-
-    **Code quality:**
-    - Clean separation of concerns?
-    - Proper error handling?
-    - DRY without premature abstraction?
-    - Edge cases handled?
-
-    **Tests:**
-    - Do the new and changed tests verify real behavior, not mocks?
-    - Are the task's edge cases covered?
-
-    **Structure:**
-    - Does each file have one clear responsibility with a well-defined interface?
-    - Are units decomposed so they can be understood and tested independently?
-    - Is the implementation following the file structure from the plan?
-    - Did this change create new files that are already large, or
-      significantly grow existing files? (Don't flag pre-existing file
-      sizes — focus on what this change contributed.)
-
-    Your report should point at evidence: file:line references for every
-    finding and for any check you would otherwise answer with a bare
-    "yes." A tight report that cites lines gives the controller everything
-    it needs.
-
-    Your final message is the report itself: begin directly with the
-    spec-compliance verdict. Every line is a verdict, a finding with
-    file:line, or a check you ran — no preamble, no process narration,
-    no closing summary.
-
-    ## Calibration
-
-    Categorize issues by actual severity. Not everything is Critical.
-    Important means this task cannot be trusted until it is fixed: incorrect
-    or fragile behavior, a missed requirement, or maintainability damage you
-    would block a merge over — verbatim duplication of a logic block,
-    swallowed errors, tests that assert nothing. "Coverage could be broader"
-    and polish suggestions are Minor.
-    If the plan or brief explicitly mandates something this rubric calls a
-    defect (a test that asserts nothing, verbatim duplication of a logic
-    block), that IS a finding — report it as Important, labeled
-    plan-mandated. The plan's authorship does not grade its own work; the
-    human decides.
-    Acknowledge what was done well before listing issues — accurate praise
-    helps the implementer trust the rest of the feedback.
-
-    ## Output Format
-
-    ### Spec Compliance
-
-    - ✅ Spec compliant | ❌ Issues found: [what's missing/extra/misunderstood,
-      with file:line references]
-    - ⚠️ Cannot verify from diff: [requirements you could not verify from the
-      diff alone, and what the controller should check — report alongside the
-      ✅/❌ verdict for everything you could verify]
-
-    ### Strengths
-    [What's well done? Be specific.]
-
-    ### Issues
-
-    #### Critical (Must Fix)
-    #### Important (Should Fix)
-    #### Minor (Nice to Have)
-
-    For each issue: file:line, what's wrong, why it matters, how to fix
-    (if not obvious).
-
-    ### Assessment
-
-    **Task quality:** [Approved | Needs fixes]
-
-    **Reasoning:** [1-2 sentence technical assessment]
+    Everything in this prompt outside this section still applies: the context above,
+    the operational rules below, and the report file you write to.
 ```
 
 **Placeholders:**
@@ -203,5 +118,5 @@ Subagent (general-purpose):
   package to (`scripts/review-package PLAN_FILE BASE HEAD` prints the unique
   path it wrote; the package never enters the controller's context)
 
-**Reviewer returns:** Spec Compliance verdict (✅/❌/⚠️), Strengths, Issues
-(Critical/Important/Minor), Task quality verdict
+**Reviewer returns:** Spec Compliance verdict (✅/❌/⚠️), Issues
+(Critical/Important/Minor), Recommendations, Assessment (Ready to merge, Task quality)
