@@ -84,6 +84,27 @@ def load_manifest(path):
     if missing:
         raise ValueError("manifest is missing required key(s): %s"
                          % ", ".join(missing))
+
+    # Validate copy_set structure
+    copy_set = manifest.get("copy_set")
+    if not isinstance(copy_set, dict):
+        raise ValueError("copy_set must be a dict")
+    if "files" not in copy_set:
+        raise ValueError("copy_set is missing required key: files")
+    if not isinstance(copy_set["files"], list):
+        raise ValueError("copy_set.files must be a list")
+
+    # Validate each file entry
+    for i, entry in enumerate(copy_set["files"]):
+        if not isinstance(entry, dict):
+            raise ValueError("copy_set.files[%d] must be a dict" % i)
+        if "path" not in entry:
+            raise ValueError("copy_set.files[%d] is missing required key: path"
+                           % i)
+        if "upstream_path" not in entry:
+            raise ValueError("copy_set.files[%d] is missing required key: upstream_path"
+                           % i)
+
     return manifest
 
 

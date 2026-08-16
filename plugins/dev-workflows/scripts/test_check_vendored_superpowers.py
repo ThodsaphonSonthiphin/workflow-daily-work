@@ -68,6 +68,52 @@ def test_manifest_missing_a_required_key_exits_2(tmp_path=None):
         assert main(["--manifest", p, "--root", d]) == 2
 
 
+def _valid_manifest():
+    """Build a manifest with all 9 REQUIRED_KEYS and a proper copy_set.files."""
+    return {
+        "upstream": {},
+        "copy_set": {"files": [
+            {"path": "sp-test/SKILL.md", "upstream_path": "test/SKILL.md"}
+        ]},
+        "permit_list": [],
+        "qualified_refs": [],
+        "routing_marker": "",
+        "routed_prompts": [],
+        "unrouted_prompts": [],
+        "frozen": [],
+        "upstream_traps": []
+    }
+
+
+def test_valid_manifest_returns_intact(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "m.json")
+        manifest = _valid_manifest()
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(manifest, f)
+        loaded = load_manifest(p)
+        assert loaded == manifest
+
+
+def test_main_returns_0_with_valid_manifest(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "m.json")
+        manifest = _valid_manifest()
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(manifest, f)
+        assert main(["--manifest", p, "--root", d]) == 0
+
+
+def test_manifest_missing_copy_set_files_exits_2(tmp_path=None):
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "m.json")
+        manifest = _valid_manifest()
+        manifest["copy_set"] = {}  # missing "files" key
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(manifest, f)
+        assert main(["--manifest", p, "--root", d]) == 2
+
+
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 if __name__ == "__main__":
