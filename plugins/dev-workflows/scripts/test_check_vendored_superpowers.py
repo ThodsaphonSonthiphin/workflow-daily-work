@@ -659,9 +659,19 @@ def test_trap_3_a_dead_prompt_is_revived(tmp_path=None):
 
 def test_trap_3_ignores_docs_and_the_file_itself(tmp_path=None):
     """docs/ mentions are how upstream looks TODAY - only skills/, hooks/ and
-    scripts/ count as a revival."""
+    scripts/ count as a revival. The dead file naming itself is not a revival
+    either: it is the corpse, not a caller.
+
+    The base fixture already covers the docs/ half. The self-naming half needs
+    the dead file to actually say its own name - as written the fixture's
+    "dead file" body does not, so deleting the skip in check_upstream_traps
+    failed no test at all."""
     with tempfile.TemporaryDirectory() as d:
         up, m = _trap_tree(d)
+        _write(os.path.join(up, "skills/brainstorming/"
+                                "spec-document-reviewer-prompt.md"),
+               "# Spec Document Reviewer Prompt Template\n"
+               "invoke me as spec-document-reviewer-prompt\n", eol="\n")
         assert check_upstream_traps(up, m) == []
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
