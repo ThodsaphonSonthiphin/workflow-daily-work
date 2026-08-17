@@ -120,14 +120,37 @@ for a finished one. Read first anyway: `read` is what gives you the destination,
 every ticket's status and every gist, and the frontier alone tells you none of
 that.
 
-**Check for orphaned artifacts before showing the frontier.** Run `git status` and
-look for uncommitted or untracked repo docs — an ADR, a spec, a CONTEXT.md
-edit — that name a ticket on this map. A session that produced the artifact
-and then ended before Step 4 recorded it leaves the decision **real but the map ignorant
-of it**, and usually leaves the ticket `claimed` too. The map is the state carrier; an
-orphaned ADR is that carrier having failed. Report what you find alongside the frontier
-— but do **not** record it yourself without asking, because the claiming
-session may still be live.
+**Check for orphaned artifacts before showing the frontier.** This runs in **two
+directions**, and the second one is the one that actually catches drift.
+
+*Artifact exists, map does not know* — run `git status` and look for uncommitted or
+untracked repo docs — an ADR, a spec, a CONTEXT.md edit — that name a ticket on this
+map. A session that produced the artifact and then ended before Step 4 recorded it
+leaves the decision **real but the map ignorant of it**, and usually leaves the ticket
+`claimed` too. The map is the state carrier; an orphaned ADR is that carrier having
+failed. Report what you find alongside the frontier — but do **not** record it
+yourself without asking, because the claiming session may still be live.
+
+*Map says closed, artifact does not exist* — for every **closed** ticket of a type that
+owes a durable artifact (`grilling` today), check that its resolution actually names
+one: a `Detail:` line, or a `docs/adr/` path anywhere in the ticket. A closed grilling
+ticket with no ADR anywhere is the **more common** failure and the more expensive one,
+because nothing about the map's own state looks wrong — the frontier is clean, the
+destination looks nearer, and the reasoning is simply gone. Step 3 sends a `grilling`
+ticket to `sp-grill-with-doc`, whose Step 4 requires an ADR for every decision and a
+`CONTEXT.md` term the moment one resolves; that instruction is complete and gets
+skipped anyway, which is why this check exists and why `resolve` warns at close time
+(`map_core.MISSING_DOC_LINK`). Measured on one real map: **8 closed `grilling` tickets,
+1 ADR, 0 glossary terms**, while a sibling feature run straight through
+`grill-then-plan` produced 14 ADRs and edited the glossary in nearly every commit.
+
+Report the count as one line — *"N closed grilling tickets name no ADR"* — with the
+ticket keys. Then **stop and ask**, and be honest about the cost of the repair: writing
+an ADR long after the code shipped tends to record **what the code does** rather than
+**what was decided and what was rejected**, and a confident ADR that documents the
+implementation is worse than no ADR, because a later reader trusts it. When the user
+does want them, draft from the ticket's own body — the question, the `Confirming
+exchange`, the user's own words — never from the code.
 
 `read` returns the map's `id` / `name` / `url` / `destination`, and every
 ticket. It does **not** return the fog list, the out-of-scope list or the

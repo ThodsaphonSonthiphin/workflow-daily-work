@@ -84,6 +84,8 @@ from map_core import (
     REQUIRED_MAP_FIELDS as _REQUIRED_MAP_FIELDS,
     REQUIRED_TICKET_FIELDS as _REQUIRED_TICKET_FIELDS,
     GIST_MAX as _GIST_MAX, GIST_TOO_LONG as _GIST_TOO_LONG,
+    TYPES_EXPECTING_A_DOC as _TYPES_EXPECTING_A_DOC,
+    MISSING_DOC_LINK as _MISSING_DOC_LINK,
     ChartValidationError, UnsafeIdentifierError, InvalidEdgeError,
     CliUsageError, MarkerIntegrityError,
     scrub as _scrub, one_line as _one_line, mode as _mode,
@@ -760,6 +762,12 @@ def resolve(root, slug, ticket, gist, link, body):
     flat = _fm_value(gist)
     if len(flat) > _GIST_MAX:
         print(_GIST_TOO_LONG.format(n=len(flat), max=_GIST_MAX), file=sys.stderr)
+    # Warn BEFORE the write, so the message is not mistaken for a failure of it.
+    ttype = str(fm.get("type") or "").strip().lower()
+    warning = None
+    if ttype in _TYPES_EXPECTING_A_DOC and not (link or "").strip():
+        warning = _MISSING_DOC_LINK.format(type=ttype)
+        print(warning, file=sys.stderr)
     fm["status"] = "closed"
     fm["gist"] = gist
     detail = f"\nDetail: {_scrub(link)}\n" if link else ""
@@ -775,7 +783,13 @@ def resolve(root, slug, ticket, gist, link, body):
     _reindex_decisions(root, slug)
     # report the gist as STORED, not as passed in -- scrubbed and flattened,
     # so callers and the ticket file never disagree
-    return {"resolved": ticket, "gist": _fm_value(gist) or None}
+    # The warning rides on the RESULT as well as stderr: the agent that closes a
+    # ticket reads stdout, and a warning it never sees is the state that produced
+    # the 8-tickets-1-ADR gap in the first place.
+    out = {"resolved": ticket, "gist": _fm_value(gist) or None}
+    if warning:
+        out["warning"] = warning
+    return out
 
 
 # Exit codes. 0 success; EXIT_ERROR a known, actionable failure reported as

@@ -77,6 +77,7 @@ from map_core import (
     VALID_TICKET_TYPES,
     KEY_MARKER, GIST_START, GIST_END, GRAPH_START, GRAPH_END,
     GIST_MAX, GIST_TOO_LONG,
+    TYPES_EXPECTING_A_DOC, MISSING_DOC_LINK,
     MAP_REGIONS, TRACKER_TICKET_REGIONS,
     DECISIONS_START, DECISIONS_END,
     FORCE_COST,
@@ -1461,6 +1462,16 @@ def resolve(ops, ref, ticket, gist, link, body):
     if len(stored_gist) > GIST_MAX:
         print(GIST_TOO_LONG.format(n=len(stored_gist), max=GIST_MAX), file=sys.stderr)
 
+    # Warn BEFORE the first write, so the message cannot read as a failure of it.
+    # _type_of falls back to `grilling` for a ticket whose label a human removed,
+    # which is the conservative direction here: it asks for the artifact rather
+    # than quietly exempting the ticket.
+    ttype = _type_of(_label_names(snap.tickets[key]), f"ticket {key!r} (#{number})")
+    warning = None
+    if ttype in TYPES_EXPECTING_A_DOC and not (link or "").strip():
+        warning = MISSING_DOC_LINK.format(type=ttype)
+        print(warning, file=sys.stderr)
+
     ops.add_comment(number, _resolution_comment(gist, link, body), repo=repo)
 
     tbody = norm_eol(snap.tickets[key].get("body"))
@@ -1480,7 +1491,11 @@ def resolve(ops, ref, ticket, gist, link, body):
     ops.patch_issue(number, {"body": tbody, "state": "closed"}, repo=repo)
 
     _reindex_decisions(ops, snap, key, stored_gist)
-    return {"resolved": key, "gist": stored_gist or None}
+    # On the RESULT as well as stderr -- the agent closing a ticket reads stdout.
+    out = {"resolved": key, "gist": stored_gist or None}
+    if warning:
+        out["warning"] = warning
+    return out
 
 
 def _reindex_decisions(ops, snap, just_closed, just_gist):

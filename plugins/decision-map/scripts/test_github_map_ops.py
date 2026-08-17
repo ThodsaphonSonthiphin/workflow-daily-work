@@ -1253,10 +1253,31 @@ class TestPositionDiagram(Base):
         exactly the length the contract documents as fine."""
         self.chart()
         with captured_stderr() as err:
+            # A link: the subject here is the GIST boundary, and a grilling ticket
+            # with no link also warns about its missing artifact.
             gh.resolve(self.ops, "billing", "auth-model",
-                       "y" * map_core.GIST_MAX, None, None)
+                       "y" * map_core.GIST_MAX, "docs/adr/0007-shared-keys.md", None)
         self.assertNotIn("warning:", err.getvalue(),
                          f"a gist of exactly {map_core.GIST_MAX} is within the limit")
+
+    def test_a_grilling_ticket_with_no_link_warns_on_this_backend_too(self):
+        """The wording is shared (map_core.MISSING_DOC_LINK) for GIST_TOO_LONG's
+        reason: a user who moves a map from local to GitHub must not get a
+        different explanation of the same problem."""
+        self.chart()
+        with captured_stderr() as err:
+            out = gh.resolve(self.ops, "billing", "auth-model", "shared keys",
+                             None, None)
+        self.assertIn("no --link", err.getvalue())
+        self.assertIn("no --link", out["warning"])
+
+    def test_a_task_ticket_with_no_link_is_not_asked_for_a_doc(self):
+        self.chart()
+        with captured_stderr() as err:
+            out = gh.resolve(self.ops, "billing", "rollout-order", "tenant A first",
+                             None, None)
+        self.assertNotIn("no --link", err.getvalue())
+        self.assertNotIn("warning", out)
 
     def _force_only(self, keys, real=True):
         """chart --force naming ONLY `keys`. -> (result json, stderr plan)."""

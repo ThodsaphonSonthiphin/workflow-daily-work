@@ -130,6 +130,29 @@ GIST_TOO_LONG = (
     "unreadable. Recording it anyway -- consider re-resolving with a "
     "one-sentence gist and moving the detail into --body-file or --link.")
 
+# A ticket type whose whole job is to produce a durable design artifact. The
+# grilling arc (work-map Step 3) loads sp-grill-with-doc, whose Step 4 requires
+# an ADR for every decision and a CONTEXT.md term the moment one resolves. That
+# instruction was complete and was still skipped in silence: on one real map, 8
+# closed grilling tickets produced 1 ADR and 0 glossary terms, while a sibling
+# feature run through grill-then-plan directly produced 14 ADRs and edited the
+# glossary in nearly every commit. Nothing checked, so nothing complained.
+TYPES_EXPECTING_A_DOC = ("grilling",)
+
+# One wording, printed by both backends -- see GIST_TOO_LONG for why.
+# A warning and not a refusal, for GIST_TOO_LONG's reason (ADR 0066): failing
+# the call would discard a decision the user already made in order to enforce a
+# bookkeeping rule. The decision is the thing worth keeping; the missing link is
+# recoverable by re-resolving, and resolve() is idempotent by design.
+MISSING_DOC_LINK = (
+    "warning: this is a '{type}' ticket and it closed with no --link. The"
+    " grilling arc is supposed to leave an ADR behind (and a CONTEXT.md term"
+    " when one resolved), and the ticket is where that artifact is reachable"
+    " from. Recorded anyway -- if you wrote one, re-resolve with --link <path>;"
+    " if you did not, write it now while the reasoning is still in your head."
+    " A closed ticket with no artifact loses the WHY, and the code cannot"
+    " reconstruct it later.")
+
 # How far a map's gists may collectively run past GIST_MAX before the corpus
 # itself is worth a finding (ADR 0068). Expressed in whole gists rather than a
 # round number so it tracks GIST_MAX: five gists' worth of overage is noise on

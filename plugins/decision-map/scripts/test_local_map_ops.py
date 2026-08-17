@@ -660,8 +660,11 @@ class LocalMapOpsTest(unittest.TestCase):
         self._chart()
         err = io.StringIO()
         with contextlib.redirect_stderr(err):
+            # A link, because this test's subject is the GIST length. Without one,
+            # a grilling ticket also (correctly) warns about the missing artifact,
+            # which would make this assertion fail for an unrelated reason.
             ops.resolve(self.root, "example-effort", "auth-model", "short answer",
-                        None, None)
+                        "docs/adr/0007-shared-keys.md", None)
         self.assertNotIn("warning:", err.getvalue())
 
     def test_a_gist_of_exactly_gist_max_does_not_warn(self):
@@ -674,9 +677,64 @@ class LocalMapOpsTest(unittest.TestCase):
         err = io.StringIO()
         with contextlib.redirect_stderr(err):
             ops.resolve(self.root, "example-effort", "auth-model",
-                        "x" * map_core.GIST_MAX, None, None)
+                        "x" * map_core.GIST_MAX, "docs/adr/0007-shared-keys.md", None)
         self.assertNotIn("warning:", err.getvalue(),
                          f"a gist of exactly {map_core.GIST_MAX} is within the limit")
+
+    # ---- the missing-artifact warning -------------------------------------
+    # A grilling ticket exists to produce a durable design artifact: work-map
+    # Step 3 sends it to sp-grill-with-doc, whose Step 4 requires an ADR per
+    # decision and a CONTEXT.md term the moment one resolves. That instruction
+    # was already complete and was still skipped in silence, because nothing
+    # checked it: on one real map, 8 closed grilling tickets left 1 ADR and 0
+    # glossary terms. These tests pin the check that makes the gap audible.
+
+    def test_resolve_warns_when_a_grilling_ticket_closes_with_no_link(self):
+        self._chart()
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            out = ops.resolve(self.root, "example-effort", "auth-model",
+                              "shared keys", None, None)
+        self.assertIn("no --link", err.getvalue())
+        self.assertIn("grilling", err.getvalue())
+        # ALSO on the result. The agent that closes a ticket reads stdout, and a
+        # warning it never sees is the state that produced the gap above.
+        self.assertIn("no --link", out["warning"])
+
+    def test_resolve_stays_quiet_when_a_grilling_ticket_links_its_doc(self):
+        self._chart()
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            out = ops.resolve(self.root, "example-effort", "auth-model",
+                              "shared keys", "docs/adr/0007-shared-keys.md", None)
+        self.assertNotIn("warning:", err.getvalue())
+        self.assertNotIn("warning", out)
+
+    def test_resolve_does_not_ask_a_research_ticket_for_a_doc(self):
+        """Only the arc that is SUPPOSED to leave an artifact is asked for one.
+        A research ticket's answer IS its resolution body (work-map Step 4, shape
+        2), so warning there would teach the reader to ignore the warning -- which
+        costs more than the warning buys."""
+        self._chart()
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            out = ops.resolve(self.root, "example-effort", "api-limits",
+                              "1000 requests per minute", None, None)
+        self.assertNotIn("warning:", err.getvalue())
+        self.assertNotIn("warning", out)
+
+    def test_the_missing_doc_warning_never_blocks_the_resolution(self):
+        """Same rule as GIST_TOO_LONG (ADR 0066): a bookkeeping complaint must not
+        discard a decision the user already made. The ticket still closes and the
+        gist is still recorded -- otherwise the check would cost more than the gap
+        it reports."""
+        self._chart()
+        with contextlib.redirect_stderr(io.StringIO()):
+            ops.resolve(self.root, "example-effort", "auth-model",
+                        "shared keys", None, None)
+        fm, _ = ops._load_ticket(self.root, "example-effort", "auth-model")
+        self.assertEqual(fm["status"], "closed")
+        self.assertEqual(fm["gist"], "shared keys")
 
     # N1, backstop: the escape is the prevention, but every write also asserts
     # the file holds at most one well-formed region. A hand-edited file with a
