@@ -46,6 +46,24 @@ field Z" is. If you cannot say where it is, you have not measured enough to writ
 Write the baseline down where it survives the session — the ticket, the runbook header, a commit. It is
 the only thing that makes the after-measurement mean anything.
 
+**Save the full state, not only the numbers you will assert.** For every object a step will touch, write
+its complete serialized form — the XML, the JSON, the config, the record — before the person acts. The
+assertion proves *whether* something moved; only the snapshot proves *what*. Do this even when the edit
+looks reversible: a platform undo you cannot name the target of is not a recovery.
+
+**Put it where it outlives the session** — attached to the ticket, committed, or a directory named in
+the runbook. A snapshot in a scratchpad is not a snapshot. It dies with the session and leaves the next
+person exactly as blind as if you had never taken it.
+
+**Ask first only when the snapshot needs the person.** If you can read the objects yourself, take it
+read-only and say you took it — asking there costs them a turn and buys nothing. If it needs their hands
+or a permission you do not hold — an export, a portal download, a wait — ask in one line: *"I will save
+the current state of `<the objects>` first — is that all right?"* **Only an explicit no is a decline.** A
+vague reply, a changed subject and silence all count as no answer, so you take the snapshot. On an
+explicit no, or when you cannot read the objects at all, use the two options in the next paragraph:
+borrow their eyes for one export, or label the runbook *"no before-snapshot, by the operator's
+decision"* and carry that label into every later claim, the way an unverified baseline is carried.
+
 **If you cannot read the system either.** This is common — often the same missing credentials that stop
 you writing also stop you reading. Do not treat that as permission to fall back on the document, which
 is how the vague handover gets written in the first place. You have two honest options:
@@ -108,11 +126,14 @@ Rules that make the shape work:
   independent. If step 2 must follow step 1, say why in half a sentence.
 - **Never batch.** One step, verify, then the next. Batching saves the person a few minutes and costs
   everyone an afternoon when something breaks and nobody knows which change did it.
-- **When a step cannot be undone, capture the current state first.** Deleting a record, rotating a key,
-  dropping a column — for these, "one step, verify, then the next" buys you nothing, because there is
-  nothing to go back to. Add a numbered line before it that reads the present value and writes it
-  somewhere retrievable, and say plainly in the step that this action is not reversible. A person who
-  knows a step is one-way reads it twice.
+- **Capture the before-state of anything structured, not only the irreversible.** Ask "if the person
+  edits the wrong element, can I name which one?" If you cannot, you owe a before-snapshot, and Phase 1
+  says where it goes. That covers ordinary edits to forms, views, configs and records, not just
+  deletions and key rotations. For the genuinely one-way — deleting a record, rotating a key, dropping
+  a column — "one step, verify, then the next" buys you nothing, because there is nothing to go back to:
+  add a numbered line before it that reads the present value and writes it somewhere retrievable, and
+  say plainly in the step that this action is not reversible. A person who knows a step is one-way reads
+  it twice.
 - **Aim the report line at whoever will actually be there.** In a live session it is *"tell me and I
   measure it"*. In a runbook that ships ahead of a release window it must name a destination that
   outlives you — *"record the result and the measurement on `<ticket>`"*. Getting this wrong produces a
