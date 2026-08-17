@@ -137,7 +137,11 @@ GIST_TOO_LONG = (
 # closed grilling tickets produced 1 ADR and 0 glossary terms, while a sibling
 # feature run through grill-then-plan directly produced 14 ADRs and edited the
 # glossary in nearly every commit. Nothing checked, so nothing complained.
-TYPES_EXPECTING_A_DOC = ("grilling",)
+# The fallback every reader already applies to a ticket whose type is missing:
+# _ticket_json defaults to it, and the GitHub backend's _type_of falls back to it
+# (with its own warning). Named here so resolve and lint cannot drift from them.
+DEFAULT_TICKET_TYPE = "grilling"
+TYPES_EXPECTING_A_DOC = (DEFAULT_TICKET_TYPE,)
 
 # One wording, printed by both backends -- see GIST_TOO_LONG for why.
 # A warning and not a refusal, for GIST_TOO_LONG's reason (ADR 0066): failing
@@ -870,7 +874,8 @@ def key_of_body(body, what, labelled):
 # pretending; walking every ticket's comments to check it would cost one
 # API call per ticket on the command whose whole value is being cheap
 # enough to run after every session.
-RULES_NEEDING_RESOLUTION_BODY = ("resolution-without-diagram",)
+RULES_NEEDING_RESOLUTION_BODY = ("resolution-without-diagram",
+                                 "closed-without-artifact")
 
 LINT_ERROR = "error"
 LINT_WARNING = "warning"
@@ -897,6 +902,16 @@ this to via we what when where which who why will with you your
 def _finding(rule, severity, ticket, message):
     return {"rule": rule, "severity": severity, "ticket": ticket,
             "message": message}
+
+
+# What counts as naming a durable artifact: the `Detail:` line `resolve --link`
+# writes, or any docs/adr/ path anywhere in the body (a ticket whose resolution
+# prose cites its ADR inline has recorded it just as reachably). Deliberately
+# generous -- this rule exists to find the tickets with NOTHING, and a false
+# positive on a ticket that did the work is the failure that gets a check muted.
+def _names_an_artifact(record):
+    low = (record or "").lower()
+    return "detail:" in low or "docs/adr/" in low
 
 
 def _significant_tokens(s):
@@ -1011,6 +1026,26 @@ def lint_findings(map_text, tickets, resolution_bodies=True):
                     f"{key!r} resolves without a mermaid diagram of the answer; "
                     "a reader opening it sees prose before they see what was "
                     "decided (ADR 0065)"))
+            # The artifact, not the answer. `resolve` warns at close time when a
+            # grilling ticket has no --link (MISSING_DOC_LINK), but a warning only
+            # helps the session that saw it: the tickets that matter are the ones
+            # ALREADY closed, where the frontier reads clean and the reasoning is
+            # simply gone. Measured on one real map before this rule existed: 8
+            # closed grilling tickets, 1 ADR, 0 CONTEXT.md terms (ADR 0091).
+            # A warning and not an error, for the reason ADR 0066 settled and
+            # ADR 0068 restated: one map's accumulated debt must not block a
+            # session that never touched it.
+            if (resolution_bodies
+                    and (t.get("type") or DEFAULT_TICKET_TYPE) in TYPES_EXPECTING_A_DOC
+                    and record.strip()
+                    and not _names_an_artifact(record)):
+                warnings.append(_finding(
+                    "closed-without-artifact", LINT_WARNING, key,
+                    f"{key!r} is a closed {t.get('type') or DEFAULT_TICKET_TYPE!r} "
+                    "ticket whose resolution names no durable artifact (no Detail: "
+                    "line and no docs/adr/ path). The grilling arc is supposed to "
+                    "leave an ADR behind; without one the decision survives as a "
+                    "one-line gist and the WHY is unrecoverable from the code"))
         gist = one_line(t.get("gist") or "")
         gist_chars += len(gist)
         if len(gist) > GIST_MAX:

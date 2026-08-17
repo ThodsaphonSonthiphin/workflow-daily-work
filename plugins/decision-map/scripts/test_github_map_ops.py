@@ -1268,8 +1268,11 @@ class TestPositionDiagram(Base):
         with captured_stderr() as err:
             out = gh.resolve(self.ops, "billing", "auth-model", "shared keys",
                              None, None)
-        self.assertIn("no --link", err.getvalue())
-        self.assertIn("no --link", out["warning"])
+        # The constant itself, on BOTH backends: that is what makes the shared
+        # wording a fact rather than a comment.
+        expected = map_core.MISSING_DOC_LINK.format(type="grilling")
+        self.assertIn(expected, err.getvalue())
+        self.assertEqual(out["warning"], expected)
 
     def test_a_task_ticket_with_no_link_is_not_asked_for_a_doc(self):
         self.chart()

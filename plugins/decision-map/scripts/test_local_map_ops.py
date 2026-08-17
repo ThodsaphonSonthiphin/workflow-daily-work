@@ -695,11 +695,33 @@ class LocalMapOpsTest(unittest.TestCase):
         with contextlib.redirect_stderr(err):
             out = ops.resolve(self.root, "example-effort", "auth-model",
                               "shared keys", None, None)
-        self.assertIn("no --link", err.getvalue())
-        self.assertIn("grilling", err.getvalue())
+        # Against the CONSTANT, not a phrase. The wording lives in map_core so
+        # both backends explain one problem one way (ADR 0091); asserting a
+        # substring on each side independently would let the two call sites drift
+        # apart and stay green, which is the claim this test exists to hold.
+        expected = map_core.MISSING_DOC_LINK.format(type="grilling")
+        self.assertIn(expected, err.getvalue())
         # ALSO on the result. The agent that closes a ticket reads stdout, and a
         # warning it never sees is the state that produced the gap above.
-        self.assertIn("no --link", out["warning"])
+        self.assertEqual(out["warning"], expected)
+
+    def test_a_ticket_with_no_type_line_is_still_asked_for_its_artifact(self):
+        """Every other reader defaults a missing type to grilling: _ticket_json
+        does, and the GitHub backend's _type_of does (with its own warning about
+        the absent label). Before this, deleting one `type:` line from a ticket
+        file silently disabled the check on local while GitHub still warned --
+        a one-line escape from the rule, and a backend disagreement."""
+        self._chart()
+        fm, body = ops._load_ticket(self.root, "example-effort", "auth-model")
+        fm.pop("type", None)
+        ops._save_ticket(self.root, "example-effort", "auth-model", fm, body)
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            out = ops.resolve(self.root, "example-effort", "auth-model",
+                              "shared keys", None, None)
+        self.assertIn(map_core.MISSING_DOC_LINK.format(type="grilling"),
+                      err.getvalue())
+        self.assertIn("warning", out)
 
     def test_resolve_stays_quiet_when_a_grilling_ticket_links_its_doc(self):
         self._chart()
@@ -2114,10 +2136,68 @@ class LintTest(unittest.TestCase):
         NOT clear `assignee`, so a rule keyed on closed+claimed would fire on
         every correctly-worked ticket; this test is what pins that out."""
         ops.claim(self.root, "lint-effort", "alpha", "decide-1200")
+        # A link, because `alpha` is a grilling ticket and the happy path for one
+        # ends at an ADR (sp-grill-with-doc Step 4). Without it this now trips
+        # closed-without-artifact, which would fail this test for a reason that has
+        # nothing to do with the closed+claimed rule it exists to pin.
+        ops.resolve(self.root, "lint-effort", "alpha", "we chose X",
+                    "docs/adr/0001-we-chose-x.md", _DIAGRAM_BODY)
+        out = self._lint()
+        self.assertTrue(out["clean"], out["findings"])
+
+    # --- the artifact rule (ADR 0091) ---------------------------------------
+
+    def test_a_closed_grilling_ticket_with_no_artifact_warns(self):
+        """The gap this repo's own history produced: on the writing-practice map,
+        8 closed grilling tickets left 1 ADR and 0 CONTEXT.md terms. `resolve`
+        warns at close time, but that only helps the session that saw it -- the
+        expensive tickets are the ones ALREADY closed, where the frontier reads
+        clean and the reasoning is simply gone."""
         ops.resolve(self.root, "lint-effort", "alpha", "we chose X",
                     None, _DIAGRAM_BODY)
         out = self._lint()
-        self.assertTrue(out["clean"], out["findings"])
+        f = next(f for f in out["findings"]
+                 if f["rule"] == "closed-without-artifact")
+        self.assertEqual(f["severity"], "warning")
+        self.assertEqual(f["ticket"], "alpha")
+        # A warning, not an error: ADR 0066/0068 -- one map's accumulated debt
+        # must not block a session that never touched it.
+        self.assertFalse(out["clean"])
+
+    def test_a_detail_line_satisfies_the_artifact_rule(self):
+        ops.resolve(self.root, "lint-effort", "alpha", "we chose X",
+                    "docs/adr/0001-we-chose-x.md", _DIAGRAM_BODY)
+        out = self._lint()
+        self.assertNotIn("closed-without-artifact",
+                         {f["rule"] for f in out["findings"]})
+
+    def test_an_adr_path_in_the_resolution_body_satisfies_it_too(self):
+        """Deliberately generous. A resolution citing its ADR inline has recorded
+        it just as reachably as one that used --link, and a false positive on a
+        ticket that DID the work is what gets a check muted."""
+        ops.resolve(self.root, "lint-effort", "alpha", "we chose X", None,
+                    _DIAGRAM_BODY + "\nthe reasoning is in docs/adr/0042-why-x.md\n")
+        out = self._lint()
+        self.assertNotIn("closed-without-artifact",
+                         {f["rule"] for f in out["findings"]})
+
+    def test_a_closed_research_ticket_is_not_asked_for_an_artifact(self):
+        """A research ticket's answer IS its resolution body (work-map Step 4,
+        shape 2). Asking it for an ADR would teach the reader to ignore the rule."""
+        self._patch_fm("alpha", type="research")
+        ops.resolve(self.root, "lint-effort", "alpha", "the limit is 1000",
+                    None, _DIAGRAM_BODY)
+        out = self._lint()
+        self.assertNotIn("closed-without-artifact",
+                         {f["rule"] for f in out["findings"]})
+
+    def test_a_ticket_closed_with_no_record_reports_only_the_existing_error(self):
+        """`closed-without-resolution` already owns the empty case. Firing both
+        would name one problem twice and read as two."""
+        self._patch_fm("alpha", status="closed")
+        rules = {f["rule"] for f in self._lint()["findings"]}
+        self.assertIn("closed-without-resolution", rules)
+        self.assertNotIn("closed-without-artifact", rules)
 
     # --- edge integrity -----------------------------------------------------
 

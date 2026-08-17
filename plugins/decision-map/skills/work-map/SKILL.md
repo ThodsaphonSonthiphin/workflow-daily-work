@@ -131,26 +131,31 @@ leaves the decision **real but the map ignorant of it**, and usually leaves the 
 failed. Report what you find alongside the frontier — but do **not** record it
 yourself without asking, because the claiming session may still be live.
 
-*Map says closed, artifact does not exist* — for every **closed** ticket of a type that
-owes a durable artifact (`grilling` today), check that its resolution actually names
-one: a `Detail:` line, or a `docs/adr/` path anywhere in the ticket. A closed grilling
-ticket with no ADR anywhere is the **more common** failure and the more expensive one,
-because nothing about the map's own state looks wrong — the frontier is clean, the
-destination looks nearer, and the reasoning is simply gone. Step 3 sends a `grilling`
-ticket to `sp-grill-with-doc`, whose Step 4 requires an ADR for every decision and a
-`CONTEXT.md` term the moment one resolves; that instruction is complete and gets
-skipped anyway, which is why this check exists and why `resolve` warns at close time
-(`map_core.MISSING_DOC_LINK`). Measured on one real map: **8 closed `grilling` tickets,
-1 ADR, 0 glossary terms**, while a sibling feature run straight through
-`grill-then-plan` produced 14 ADRs and edited the glossary in nearly every commit.
+*Map says closed, artifact does not exist* — **`lint` checks this; do not audit it by
+hand.** It reports `closed-without-artifact` for every closed ticket of a type that owes
+a durable artifact whose resolution names none. This half was prose in an earlier
+revision, which was the wrong shape: the failure it exists to catch IS a complete
+instruction being skipped in silence, so the remedy could not be another instruction
+(ADR 0091).
 
-Report the count as one line — *"N closed grilling tickets name no ADR"* — with the
-ticket keys. Then **stop and ask**, and be honest about the cost of the repair: writing
-an ADR long after the code shipped tends to record **what the code does** rather than
-**what was decided and what was rejected**, and a confident ADR that documents the
-implementation is worse than no ADR, because a later reader trusts it. When the user
-does want them, draft from the ticket's own body — the question, the `Confirming
-exchange`, the user's own words — never from the code.
+```
+python "<ops>" lint --map <slug>
+```
+
+A closed `grilling` ticket with no ADR is the **more common** failure and the more
+expensive one, because nothing about the map's state looks wrong — the frontier is
+clean, the destination looks nearer, and the reasoning is gone. Measured on one real
+map: **8 closed `grilling` tickets, 1 ADR, 0 glossary terms**, while a sibling feature
+run straight through `grill-then-plan` produced 14 ADRs and edited the glossary in
+nearly every commit. On a tracker backend the rule needs the resolution body, so it
+comes back under `notChecked` rather than passing quietly.
+
+Report the findings as one line with the ticket keys, then **stop and ask**, and be
+honest about the cost of the repair: an ADR written long after the code shipped tends to
+record **what the code does** rather than **what was decided and what was rejected**, and
+a confident ADR documenting the implementation is worse than none, because a later reader
+trusts it. When the user does want them, draft from the ticket's own body — the question,
+the `Confirming exchange`, the user's own words — never from the code.
 
 `read` returns the map's `id` / `name` / `url` / `destination`, and every
 ticket. It does **not** return the fog list, the out-of-scope list or the

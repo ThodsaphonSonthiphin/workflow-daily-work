@@ -6,7 +6,7 @@
 ```mermaid
 flowchart TD
     Q{"8 closed grilling tickets on one real map<br/>left 1 ADR and 0 CONTEXT.md terms.<br/>The rule requiring both already existed.<br/>What stops that recurring?"}
-    Q -->|chosen| A["A CHECK in two places: resolve warns when a<br/>grilling ticket closes with no --link, and Step 1's<br/>orphan check also looks for artifacts that are MISSING"]
+    Q -->|chosen| A["A CHECK in two places: resolve warns at<br/>close time, and lint reports closed-without-artifact<br/>at load time -- both machine-checked"]
     Q -->|rejected| B["Restate the rule in work-map Step 4 -<br/>the same shape as the rule that was<br/>already complete and still skipped"]
     Q -->|rejected| C["REFUSE the resolve without a --link -<br/>discards a decision the user already made<br/>to enforce bookkeeping (ADR 0066's rule)"]
     Q -->|rejected| D["Warn on stderr only - the agent closing<br/>a ticket reads stdout, so the warning<br/>it never sees changes nothing"]
@@ -34,12 +34,19 @@ Two changes, at the two moments the gap is visible:
    different explanation of the same problem. It rides on the **result JSON as well as
    stderr**, because the agent closing a ticket reads stdout — a warning it never sees is the
    state that produced the gap.
-2. **At load time.** `work-map` Step 1's orphan check now runs in **two directions**:
-   artifact-exists-but-map-ignorant (as before), and map-says-closed-but-artifact-absent
-   (new). The second is the more common and more expensive failure, because nothing about the
-   map's state looks wrong — the frontier is clean and the reasoning is simply gone.
+2. **At load time.** 2. **At load time.** `map_core.lint_findings` gains `closed-without-artifact`, a warning
+   beside its sibling `resolution-without-diagram`, and the rule is declared in
+   `RULES_NEEDING_RESOLUTION_BODY` so a tracker backend reports it under `notChecked`
+   instead of passing quietly. `work-map` Step 1 now just names `lint`.
 
-It **warns and records anyway**, never refuses, for ADR 0066's reason: failing the call would
+   **This half was prose in the first revision of this ADR, and that was wrong on its own
+   terms.** The failure being fixed *is* a complete instruction skipped in silence, so the
+   remedy could not be another instruction — and `lint` already existed for exactly this,
+   with its rules centralised (ADR 0062), a findings exit code, and a docstring saying it
+   is safe for a hook to run unattended. `LintTest`'s own docstring had already said it:
+   *"Each rule below exists because a flow skill states the invariant in prose and nothing
+   enforces it."* The rule needed no new plumbing: `_ticket_json` already returns `type`.
+   Caught by `/scrutinize` on the first revision.cords anyway**, never refuses, for ADR 0066's reason: failing the call would
 discard a decision the user already made in order to enforce bookkeeping. The decision is the
 thing worth keeping, and `resolve` is idempotent, so re-resolving with `--link` is cheap.
 

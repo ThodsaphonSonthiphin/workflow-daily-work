@@ -85,6 +85,7 @@ from map_core import (
     REQUIRED_TICKET_FIELDS as _REQUIRED_TICKET_FIELDS,
     GIST_MAX as _GIST_MAX, GIST_TOO_LONG as _GIST_TOO_LONG,
     TYPES_EXPECTING_A_DOC as _TYPES_EXPECTING_A_DOC,
+    DEFAULT_TICKET_TYPE as _DEFAULT_TICKET_TYPE,
     MISSING_DOC_LINK as _MISSING_DOC_LINK,
     ChartValidationError, UnsafeIdentifierError, InvalidEdgeError,
     CliUsageError, MarkerIntegrityError,
@@ -763,7 +764,10 @@ def resolve(root, slug, ticket, gist, link, body):
     if len(flat) > _GIST_MAX:
         print(_GIST_TOO_LONG.format(n=len(flat), max=_GIST_MAX), file=sys.stderr)
     # Warn BEFORE the write, so the message is not mistaken for a failure of it.
-    ttype = str(fm.get("type") or "").strip().lower()
+    # Default to grilling, exactly as _ticket_json and the GitHub backend's
+    # _type_of do. Before this, deleting one `type:` line from a ticket file
+    # silently disabled the check on local while GitHub still warned -- measured.
+    ttype = str(fm.get("type") or _DEFAULT_TICKET_TYPE).strip().lower()
     warning = None
     if ttype in _TYPES_EXPECTING_A_DOC and not (link or "").strip():
         warning = _MISSING_DOC_LINK.format(type=ttype)
