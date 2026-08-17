@@ -1,144 +1,134 @@
-# Workflow Daily Work — Claude Code marketplace
+# workflow-daily-work
 
-A Claude Code **plugin marketplace** for daily-work automation. It ships five plugins:
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin%20marketplace-6d4aff?style=flat-square)](https://code.claude.com)
+[![Antigravity](https://img.shields.io/badge/Antigravity-dev--workflows-4285f4?style=flat-square)](plugins/dev-workflows/.antigravity/INSTALL.md)
 
-- **`ado-backlog`** — turn findings from *any* input (an Excel/CSV audit, a doc, a code/QA
-  review, a pasted list of issues) into an **Azure DevOps backlog**: extract → triage →
-  classify by your project's process → **dry-run** → create on approval → write ticket links
-  back to the source. Each step is its own reusable skill, plus a one-shot orchestrator.
-- **`github-backlog`** — the same findings pipeline against **GitHub Issues**: labels +
-  milestone classification, a visual dry-run gate, a tracking issue, and write-back.
-- **`dev-workflows`** — the **daily-work arc**: the `/daily` router plus design
-  (grill-then-plan), debugging (debug-mantra → post-mortem), review (scrutinize,
-  dual-verifier), system study (study-design-verify, fit-gap-analysis, naming-audit,
-  drive-to-legacy, ticket-trace), and communication (management-talk, invoice-generator,
-  problem-description) skills. **Also installable on Google Antigravity** — see
-  [dev-workflows on Antigravity](#dev-workflows-on-antigravity).
-- **`decision-map`** — plan an effort **too big for one agent session**:
-  `/decision-map:chart` names the destination and charts a **Decision map** — decision
-  tickets you can state now, fog you cannot yet — behind a dry-run gate;
-  `/decision-map:work` then claims and resolves **exactly one decision per session**
-  until the way is clear. v1 keeps the map in your repo as markdown under
-  `docs/decision-map/`; Azure DevOps and GitHub Issues backends are phase 2 (ADR 0059).
-- **`react-workflows`** — **opt-in**, frontend structure conventions for React/TSX work
-  (`react-structure`): per-component file separation (UI `.tsx` / hook `.ts` / `type.ts` /
-  optional Redux slice), a TypeScript + Redux Toolkit + MUI + DataGridPremium stack, and a
-  planning flowchart before code. Install it only on React projects — see
-  [`plugins/react-workflows/README.md`](plugins/react-workflows/README.md) for why it's kept
-  separate from the always-on plugins above.
+A **Claude Code plugin marketplace** for the working day of a software engineer: design a
+change, debug it, review it, study a system nobody documented, plan an effort too large
+for one sitting, and file what you find as real tracker items. Each step is a named skill
+you invoke on purpose — not a prompt you rewrite every morning.
 
-**Start here: [PLAYBOOK.md](PLAYBOOK.md)** — the one-page map of when to reach for what.
-The only command to memorize is `/daily`.
+Nothing reaches your tracker without a dry run and your explicit approval.
 
-## Install (each colleague, once)
+```mermaid
+flowchart LR
+    DAY(["your working day"]) --> DW["<b>dev-workflows</b><br/>/daily — design, debug, review,<br/>study, document, report"]
 
-**Prerequisites:** [Claude Code](https://code.claude.com), **Azure CLI** (`az login`),
-**.NET 10 SDK**, **Python 3** + `openpyxl` (`pip install openpyxl`).
+    DW -->|"findings to file"| ADO["<b>ado-backlog</b>"]
+    DW -->|"findings to file"| GHB["<b>github-backlog</b>"]
+    DW -->|"too big for one session"| DM["<b>decision-map</b>"]
+    DW -.->|"React repos only"| RW["<b>react-workflows</b>"]
+
+    ADO --> BOARD[("Azure DevOps<br/>work items")]
+    GHB --> ISSUES[("GitHub Issues")]
+    DM -->|"one decision per session"| DW
+```
+
+## The plugins
+
+Each one installs on its own. Start with `dev-workflows`.
+
+| Plugin | What it does | Start with | Requires |
+|---|---|---|---|
+| **dev-workflows** | The daily-work arc — design, debugging, review, system study, documents, communication. | `/daily` | Python 3, the `superpowers` plugin |
+| **ado-backlog** | Findings from any source — spreadsheet, audit doc, pasted list — become an **Azure DevOps** backlog, dry-run gated, with ticket links written back to the source. | `/ado-backlog:run <file>` | Azure CLI, .NET 10 SDK, Python 3 + `openpyxl` |
+| **github-backlog** | The same pipeline against **GitHub Issues** — labels, a milestone, a tracking issue, write-back. | `/github-backlog:run <file>` | `gh` CLI, Python 3 + `openpyxl` |
+| **decision-map** | Plan an effort too big for one agent session as a map of decision tickets, and resolve exactly one per session. Markdown in your repo, or GitHub Issues. | `/decision-map:chart` | Python 3 (`gh` for the GitHub backend) |
+| **react-workflows** | Opt-in React/TSX structure conventions. Install it only on React repos so it stays quiet during backend work. | no command — it triggers on React/TSX work | nothing |
+
+**[PLAYBOOK.md](PLAYBOOK.md) is the map of when to reach for what.** It is the page to
+read second, and the only command worth memorising is `/daily`.
+
+## Install
 
 ```text
-# in Claude Code:
+# in Claude Code
 /plugin marketplace add ThodsaphonSonthiphin/workflow-daily-work
+/plugin install dev-workflows@workflow-daily-work
+```
+
+Then add whichever backlog or planning plugin you need:
+
+```text
 /plugin install ado-backlog@workflow-daily-work
 /plugin install github-backlog@workflow-daily-work
-/plugin install dev-workflows@workflow-daily-work
 /plugin install decision-map@workflow-daily-work
-
-# then sign in to Azure DevOps and check your setup:
-az login
-/ado-backlog:setup-check
+/plugin install react-workflows@workflow-daily-work    # React repos only
 ```
 
-`react-workflows` is **opt-in** — only install it on React/TSX projects (see above):
+**Per-plugin setup**, once per machine:
+
+| Plugin | Do this | Then verify |
+|---|---|---|
+| `dev-workflows` | Install the upstream `superpowers` plugin — several skills hand off to it, and a missing install fails quietly rather than loudly: `/plugin marketplace add anthropics/claude-plugins-official` then `/plugin install superpowers@claude-plugins-official`. | Ask for a plan and confirm the handoff lands. |
+| `ado-backlog` | `pip install openpyxl`, `az login`, and set `AZDO_ORG` / `AZDO_PROJECT` to **bare names** (`Cartagena365`, `GlassHull`) — not URLs. An `AZDO_PAT` is the fallback if Entra tokens are unavailable. | `/ado-backlog:setup-check` |
+| `github-backlog` | `pip install openpyxl`, `gh auth login`, and set `GH_OWNER` / `GH_REPO`. | `/github-backlog:setup-check` |
+
+> CLI equivalents exist for every step: `claude plugin marketplace add …`,
+> `claude plugin install …`. Add `--scope project` to install for a whole team (writes
+> `.claude/settings.json`). Installing mid-session? `/reload-plugins` activates without a
+> restart.
+
+## A worked example
 
 ```text
-/plugin install react-workflows@workflow-daily-work
+/ado-backlog:run "C:\path\to\audit.xlsx"
 ```
 
-> CLI equivalents: `claude plugin marketplace add ThodsaphonSonthiphin/workflow-daily-work` and
-> `claude plugin install ado-backlog@workflow-daily-work`.
-> For team-wide install, add `--scope project` (writes to `.claude/settings.json`).
-> Installing mid-session? run `/reload-plugins` to activate without restarting.
+The pipeline asks which columns hold what, which severities are in scope, and who to
+assign to. It then shows a **dry run** — every work item it intends to create, validated
+against your project's process — and stops. On your approval it creates the items and
+writes each ticket link back into the source file.
 
-### dev-workflows on Antigravity
+Full toolkit: [`plugins/ado-backlog/README.md`](plugins/ado-backlog/README.md).
+One-page cheat sheet: [`plugins/ado-backlog/QUICKSTART.md`](plugins/ado-backlog/QUICKSTART.md).
 
-The `dev-workflows` skills also run on **Google Antigravity** (IDE or CLI). Antigravity
-does not read the Claude Code marketplace and resolves bundled-file paths *relative to each
-skill directory* (no `${CLAUDE_PLUGIN_ROOT}` expansion), so install via the bundled script:
-it stages the skills into Antigravity's skills directory and rewrites those paths to
-absolute. **The source tree stays Claude-native, so the marketplace install above is
-unaffected.**
+## Safety gates
 
-**Prerequisites:** `git`, **Python 3.9+**, and Antigravity installed.
+The backlog pipelines write to systems your team depends on, so three rules are treated
+as non-negotiable rather than as defaults:
 
-```bash
-git clone https://github.com/ThodsaphonSonthiphin/workflow-daily-work.git
-cd workflow-daily-work/plugins/dev-workflows/.antigravity
-python install-antigravity.py          # default: ~/.gemini/config/skills  (IDE global)
-# --scope cli                          ->  ~/.gemini/antigravity-cli/skills
-# --scope project --project <repo>     ->  <repo>/.agents/skills
-```
+- **A passing dry run comes before any create.** No exceptions, no fast path.
+- **Nothing is created without your explicit approval** of the validated list.
+- **The source file is backed up before write-back**, because write-back edits it in place.
 
-Then **reload Antigravity** so it rediscovers the skills. A clean run ends with
-`rewrote N ${CLAUDE_PLUGIN_ROOT} reference(s)` and no warning (the exact count isn't
-load-bearing). Verify the staged script runs:
+## Documentation
 
-```bash
-python "$HOME/.gemini/config/skills/.dev-workflows-shared/scripts/daily-state.py" --help
-```
+| Read | For |
+|---|---|
+| [PLAYBOOK.md](PLAYBOOK.md) | The daily arc — what to reach for, when. Start here. |
+| [CONTEXT.md](CONTEXT.md) | The glossary. What "Organization", "Skill", "Decision map" mean here. |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the pipeline is built, and the recipe for adding a skill. |
+| [docs/adr/](docs/adr/) | Accepted design decisions, with the trade-off each one made. |
+| [CLAUDE.md](CLAUDE.md) / [AGENTS.md](AGENTS.md) | Conventions an agent or a new contributor must follow in this repo. |
 
-- Only `dev-workflows` ships an Antigravity installer; `ado-backlog`, `github-backlog`
-  and `decision-map` are Claude-Code-only for now.
-- `grill-then-plan` hands off to `superpowers:writing-plans`, so it also needs a
-  **superpowers skills port** installed on Antigravity.
-- Whether skills trigger live in the Antigravity IDE must be confirmed on your own
-  machine. Details: [`plugins/dev-workflows/.antigravity/INSTALL.md`](plugins/dev-workflows/.antigravity/INSTALL.md).
+Each plugin also carries its own `README.md`, and the backlog plugins carry a
+`QUICKSTART.md`.
 
-## Use it
+## Also runs on Antigravity
 
-```text
-/ado-backlog:run "C:\path\to\your-findings.xlsx"
-```
+The `dev-workflows` skills run on **Google Antigravity** as well, from this same source
+tree. Antigravity does not read the Claude Code marketplace, so install with the bundled
+script — it stages the skills and rewrites the plugin-relative paths Claude expands for
+itself. The source tree stays Claude-native, so the marketplace install above is
+unaffected. Re-run it after every update.
 
-Answer the prompts (column mapping, which severities, who to assign to), **approve the
-dry-run**, and it creates the work items and writes the ticket links back into your file.
-Nothing is created in Azure DevOps until you approve the dry-run.
+Steps, scopes and verification:
+[`plugins/dev-workflows/.antigravity/INSTALL.md`](plugins/dev-workflows/.antigravity/INSTALL.md).
 
-See [`plugins/ado-backlog/README.md`](plugins/ado-backlog/README.md) for the full toolkit and
-[`plugins/ado-backlog/QUICKSTART.md`](plugins/ado-backlog/QUICKSTART.md) for the one-page cheat sheet.
+Keeping personal copies of these skills under `~/.claude/skills/`?
+[`docs/personal-skills-mirror.md`](docs/personal-skills-mirror.md) covers the sync script.
 
-## Repo layout
+## License and attribution
 
-```
-.claude-plugin/marketplace.json        # this marketplace (lists all five plugins)
-plugins/ado-backlog/
-├── .claude-plugin/plugin.json
-├── skills/                            # 8 skills (each invocable as /ado-backlog:<name>)
-├── commands/                          # /ado-backlog:run, /ado-backlog:setup-check, /ado-backlog:my-work
-├── scripts/                           # create-backlog.cs, read_source.py, tracking.py, setup_check.ps1
-├── references/data-contracts.md       # the JSON shapes that connect the steps
-├── examples/                          # sample findings + backlog_input
-├── README.md
-└── QUICKSTART.md
-plugins/github-backlog/                # same pipeline, GitHub Issues backend
-plugins/dev-workflows/                 # the daily-work arc — /daily router + design/debug/review/study/comms skills
-plugins/react-workflows/               # opt-in React/TSX structure conventions (react-structure)
-plugins/decision-map/                  # multi-session planning — chart-map + work-map, local-markdown backend
-scripts/sync-personal-skills.ps1       # mirror dev-workflows skills into ~/.claude/skills
-```
+MIT — see [LICENSE](LICENSE).
 
-## Maintaining a personal `~/.claude/skills/` mirror (optional)
+`dev-workflows` vendors a small number of skills from other MIT-licensed projects, each
+with its licence kept alongside the copies:
 
-If you keep dev-workflows skills as personal copies under `~/.claude/skills/`
-(instead of, or alongside, the marketplace install), run the sync after pulling.
-It mirrors each skill you already have personally and rewrites the
-`${CLAUDE_PLUGIN_ROOT}/...` references to their personal paths so they resolve
-(e.g. `${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md` →
-`~/.claude/skills/diagram-convention.md`):
-
-```text
-pwsh ./scripts/sync-personal-skills.ps1            # sync
-pwsh ./scripts/sync-personal-skills.ps1 -DryRun    # preview, write nothing
-```
-
-It only touches skills that exist in **both** the repo and your personal dir,
-never adds or removes skills sourced from other plugins, and is idempotent.
+- [obra/superpowers](https://github.com/obra/superpowers) — six review and planning
+  skills, **modified** so that review steps route to this plugin's own review engine.
+  See [`plugins/dev-workflows/LICENSE-superpowers`](plugins/dev-workflows/LICENSE-superpowers).
+- [mattpocock/skills](https://github.com/mattpocock/skills) — vendored verbatim.
+  See [`plugins/dev-workflows/LICENSE-mattpocock-skills`](plugins/dev-workflows/LICENSE-mattpocock-skills).

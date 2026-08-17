@@ -1,8 +1,8 @@
-# ADO Backlog Toolkit
+# workflow-daily-work
 
-A Claude Code plugin that turns findings (audits, spreadsheets, pasted lists) into
-Azure DevOps work items, and surfaces a person's assigned work — authenticating to
-Azure DevOps and pointing every step at the right place to read and write.
+The glossary for this Claude Code plugin **marketplace** — the words its plugins, skills
+and documents use, and what each one means *here*. Marketplace-wide terms come first;
+per-plugin sections follow.
 
 ## Language
 
@@ -25,6 +25,19 @@ _Avoid_: team project, board, repo.
 The repo as a whole — a Claude Code plugin marketplace declared in
 `.claude-plugin/marketplace.json`. It _lists_ plugins; it is not a plugin itself.
 _Avoid_: repo (ambiguous), package.
+
+**Front page**:
+`README.md` at the marketplace root — the entry document for someone who has not used this
+repo before. An **index**, not a catalogue: it names plugins, their entry commands and
+their prerequisites and then links onward, and it never names or counts individual skills,
+because those churn and this is the page nobody remembers to update (ADR 0090).
+_Avoid_: landing page, overview, docs.
+
+**Playbook**:
+`PLAYBOOK.md` at the marketplace root — the map of the daily arc, one row per skill,
+answering *what do I reach for now*. The maintained skill index, which is why the **Front
+page** points here rather than restating it.
+_Avoid_: README, index, guide.
 
 **Plugin**:
 A self-contained unit a colleague installs (e.g. `ado-backlog`), defined by its own
