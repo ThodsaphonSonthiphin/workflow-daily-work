@@ -105,14 +105,20 @@ When a term is resolved, update `CONTEXT.md` right there. Don't batch these up �
 
 `CONTEXT.md` should be totally devoid of implementation details. Do not treat `CONTEXT.md` as a spec, a scratch pad, or a repository for implementation decisions. It is a glossary and nothing else.
 
-### Offer ADRs sparingly
+### Record every decision as an ADR
 
-Only offer to create an ADR when all three are true:
+Always create an ADR for **every** design decision — one ADR per decision, the
+moment the decision is made. Do not batch or defer. Create `docs/adr/` lazily on the
+first ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md).
 
-1. **Hard to reverse** — the cost of changing your mind later is meaningful
-2. **Surprising without context** — a future reader will wonder "why did they do it this way?"
-3. **The result of a real trade-off** — there were genuine alternatives and you picked one for specific reasons
+A decision qualifies if one option was chosen over another — architectural shape,
+technology choice, naming, scope boundary, safety mechanism, a deliberate no. When in
+doubt, write the ADR. A short ADR is better than a missing one.
 
-If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md).
+Record the **options**, not just the winner. Every ADR opens with a small Mermaid
+decision diagram (see `${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md`,
+Rule 3) carrying one `|rejected|` branch per alternative that was genuinely on the
+table, each with its one-line reason for losing — that is what stops the same
+option being re-proposed in six months.
 
 </supporting-info>

@@ -3,6 +3,8 @@
 - **Status:** Accepted
 - **Date:** 2026-08-01
 - **Relates to:** ADR 0053's process lesson (worktree designs blind to sibling work)
+- **Amended by:** [ADR 0093](workflow-daily-work-0093-adr-filenames-carry-the-owning-sequences-short-name.md) — the minting rule below still stands;
+  its fixed four-digit padding and its unprefixed filename shape do not
 
 ```mermaid
 flowchart TD
@@ -36,7 +38,10 @@ the highest existing number for the target ADR directory across **three** source
    `worktree ` prefix in `git worktree list --porcelain`) — this catches ADRs not yet
    committed anywhere.
 
-Then strip the leading zeros, increment, and re-pad to four digits. The rule is
+Then strip the leading zeros, increment, and re-pad to **the sequence's own width**
+(three digits and four are both in use — hard-coding four is what made a
+`^[0-9]{4}` scan read a three-digit sequence as empty and mint `0001`; ADR 0093).
+The rule is
 per-ADR-directory (root `docs/adr/` and each plugin's `docs/adr/` are independent
 sequences). Outside a git repo, list that one directory and say so.
 

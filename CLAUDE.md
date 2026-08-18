@@ -99,9 +99,18 @@ and an add-a-skill recipe.
   only the number collides, not the filename ([ADR 0056](docs/adr/0056-adr-numbers-minted-from-global-max-across-branches-and-worktrees.md)).
   The runnable scan is the **Numbering** section of the grilling skills' `ADR-FORMAT.md`.
   In this repo all new ADRs go in the repo-root `docs/adr/`; the per-plugin `docs/adr/`
-  directories are separate, older sequences — cite those namespaced (`ado-backlog ADR
-  0002`), never bare. Re-verify the number immediately before merging, not only when
-  you create the file.
+  directories are separate, older sequences. **A new ADR filename carries its
+  sequence's short-name prefix** — `workflow-daily-work-` at the root, otherwise
+  `ado-backlog-` / `dev-workflows-` / `github-backlog-` — and that prefix *is* the
+  cross-repo citation (`ado-backlog-0002`); a bare `ADR 0092` is correct only inside
+  this repo ([ADR 0093](docs/adr/workflow-daily-work-0093-adr-filenames-carry-the-owning-sequences-short-name.md)).
+  Existing ADRs are **not** renamed, so every sequence is permanently mixed and the
+  minting scan must stay prefix- and width-tolerant. Re-verify the number immediately
+  before merging, not only when you create the file.
+- **Every design decision gets its own ADR**, written as it lands, with one `|rejected|`
+  branch per alternative that was genuinely on the table — there is no
+  hard-to-reverse/surprising/trade-off gate to pass first
+  ([ADR 0092](docs/adr/workflow-daily-work-0092-every-design-decision-gets-an-adr.md)).
 
 - **The vendored `superpowers` copies are guarded by a checker, not by review.**
   `plugins/dev-workflows/scripts/check_vendored_superpowers.py` reports drift in the
