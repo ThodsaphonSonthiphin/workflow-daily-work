@@ -25,7 +25,7 @@ The page had drifted **122 commits** without an edit, and the drift was not cosm
 | the claim | reality when measured, 2026-08-17 |
 |---|---|
 | decision-map is markdown-only, GitHub Issues is "phase 2 (ADR 0059)" | **false** — the GitHub backend shipped (ADR 0062, `github_map_ops.py`, plugin 0.9.1) |
-| `dev-workflows` = the ~13 named skills | 34 skills; 21 never reached the page |
+| `dev-workflows` = the 14 named skills | 33 skills — counted as directories holding a `SKILL.md`; 19 never reached the page |
 | prerequisites: `az login`, .NET 10, `openpyxl` | those are `ado-backlog`'s. `dev-workflows` needs Python 3 and the `superpowers` plugin; `github-backlog` needs `gh`, which was unlisted |
 
 Two of those are worse than being out of date. The roadmap claim actively **turns a reader
@@ -36,7 +36,7 @@ absence fails *silently* (ADR 0080).
 The procedural fix was tested against evidence before being rejected. `CLAUDE.md` already
 carries the analogous rule — *every new skill adds one row to `PLAYBOOK.md`* — and that
 rule is currently unmet for `reflect`, `review-pr`, `guide-and-verify` and
-`sp-grill-with-doc`: 29 of 34. A rule of the same shape, on a page consulted even less
+`sp-grill-with-doc`: 29 of 33. A rule of the same shape, on a page consulted even less
 often during work, is not a mechanism.
 
 ## Decision
@@ -47,7 +47,7 @@ often during work, is not a mechanism.
    stable entry points. Skills are never named or counted here; the **Playbook** is the
    maintained skill index and the front page defers to it.
 3. **No churning facts.** No plugin version numbers (which is why there is no version
-   badge — the marketplace version has moved three times while `dev-workflows` reached
+   badge — the marketplace version has taken three values while `dev-workflows` reached
    0.43.0), and no roadmap status. Roadmap belongs in the ADR that owns it, where the
    supersession discipline already applies.
 4. **Badges must be true.** `MIT`, `Claude Code`, `Antigravity`. No CI badge: this repo has
@@ -56,7 +56,7 @@ often during work, is not a mechanism.
 ## Consequences
 
 - **Breadth is now one click away, not zero.** A stranger sees five plugins with one crisp
-  promise each; the 34-skill surface is visible only after opening `PLAYBOOK.md`. That is
+  promise each; the 33-skill surface is visible only after opening `PLAYBOOK.md`. That is
   the accepted cost of a page that cannot rot.
 - **The front page now depends on `PLAYBOOK.md` being complete.** Its four missing rows
   become load-bearing: the index points at a map with holes in it. Fixing them is the

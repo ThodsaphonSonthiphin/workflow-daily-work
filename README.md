@@ -18,7 +18,7 @@ flowchart LR
     DW -->|"findings to file"| ADO["<b>ado-backlog</b>"]
     DW -->|"findings to file"| GHB["<b>github-backlog</b>"]
     DW -->|"too big for one session"| DM["<b>decision-map</b>"]
-    DW -.->|"React repos only"| RW["<b>react-workflows</b>"]
+    DAY -.->|"React repos only"| RW["<b>react-workflows</b>"]
 
     ADO --> BOARD[("Azure DevOps<br/>work items")]
     GHB --> ISSUES[("GitHub Issues")]
@@ -31,14 +31,15 @@ Each one installs on its own. Start with `dev-workflows`.
 
 | Plugin | What it does | Start with | Requires |
 |---|---|---|---|
-| **dev-workflows** | The daily-work arc — design, debugging, review, system study, documents, communication. | `/daily` | Python 3, the `superpowers` plugin |
+| **dev-workflows** | The daily-work arc — design, debugging, review, system study, documents, communication. | `/dev-workflows:daily` | Python 3, the `superpowers` plugin |
 | **ado-backlog** | Findings from any source — spreadsheet, audit doc, pasted list — become an **Azure DevOps** backlog, dry-run gated, with ticket links written back to the source. | `/ado-backlog:run <file>` | Azure CLI, .NET 10 SDK, Python 3 + `openpyxl` |
 | **github-backlog** | The same pipeline against **GitHub Issues** — labels, a milestone, a tracking issue, write-back. | `/github-backlog:run <file>` | `gh` CLI, Python 3 + `openpyxl` |
 | **decision-map** | Plan an effort too big for one agent session as a map of decision tickets, and resolve exactly one per session. Markdown in your repo, or GitHub Issues. | `/decision-map:chart` | Python 3 (`gh` for the GitHub backend) |
 | **react-workflows** | Opt-in React/TSX structure conventions. Install it only on React repos so it stays quiet during backend work. | no command — it triggers on React/TSX work | nothing |
 
 **[PLAYBOOK.md](PLAYBOOK.md) is the map of when to reach for what.** It is the page to
-read second, and the only command worth memorising is `/daily`.
+read second. The only command worth memorising is `/dev-workflows:daily` — typing
+`/daily` finds it via autocomplete.
 
 ## Install
 
@@ -81,17 +82,9 @@ assign to. It then shows a **dry run** — every work item it intends to create,
 against your project's process — and stops. On your approval it creates the items and
 writes each ticket link back into the source file.
 
-Full toolkit: [`plugins/ado-backlog/README.md`](plugins/ado-backlog/README.md).
+Full toolkit, including its Safety gates section in full:
+[`plugins/ado-backlog/README.md`](plugins/ado-backlog/README.md).
 One-page cheat sheet: [`plugins/ado-backlog/QUICKSTART.md`](plugins/ado-backlog/QUICKSTART.md).
-
-## Safety gates
-
-The backlog pipelines write to systems your team depends on, so three rules are treated
-as non-negotiable rather than as defaults:
-
-- **A passing dry run comes before any create.** No exceptions, no fast path.
-- **Nothing is created without your explicit approval** of the validated list.
-- **The source file is backed up before write-back**, because write-back edits it in place.
 
 ## Documentation
 
@@ -113,6 +106,10 @@ tree. Antigravity does not read the Claude Code marketplace, so install with the
 script — it stages the skills and rewrites the plugin-relative paths Claude expands for
 itself. The source tree stays Claude-native, so the marketplace install above is
 unaffected. Re-run it after every update.
+
+Antigravity has no plugin registry — it discovers skills semantically, by `description` —
+so confirm on your own machine that they trigger the way you expect. That part is not
+verified here.
 
 Steps, scopes and verification:
 [`plugins/dev-workflows/.antigravity/INSTALL.md`](plugins/dev-workflows/.antigravity/INSTALL.md).

@@ -63,6 +63,10 @@ not treat it as a skill — it is just the resolved home for files the skills po
 
 ## Verify it works
 
+**Run these; do not assume.** Discovery here is semantic, not registered, so whether the
+skills trigger live in the Antigravity IDE is confirmed per machine — this installer
+cannot establish it.
+
 1. Start a fresh Antigravity session in any project.
 2. Ask: **"What skills do you have for daily dev work?"** — it should list
    dev-workflows skills (semantic discovery surfaces them by `description`).

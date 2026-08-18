@@ -19,7 +19,7 @@ flowchart TD
         WORK["🔧 2. WORKING<br/><b>situational toolbox</b><br/>(see router below)"]
         FILE["📋 3. FILING<br/><b>findings-to-ado-backlog</b> (batch)<br/><b>ado-create-work-items</b> (direct)"]
         REPORT["📣 4. REPORTING<br/><b>management-talk</b>"]
-        WRAP["🌙 5. WRAP-UP<br/><b>invoice-generator</b><br/>Tribletext from commits"]
+        WRAP["🌙 5. WRAP-UP<br/><b>invoice-generator</b><br/>Tribletext from commits<br/>+ <b>reflect</b> (learn beat)"]
 
         START --> WORK
         WORK --> FILE
@@ -35,7 +35,7 @@ flowchart TD
 | 2. WORKING | `/daily work` | the situational router below |
 | 3. FILING | `/daily file` | `findings-to-ado-backlog` (batch) or `ado-create-work-items` (direct) — GitHub twins on request |
 | 4. REPORTING | `/daily report` | `management-talk` |
-| 5. WRAP-UP | `/daily wrap` | `invoice-generator` — run it every day; it builds from commits |
+| 5. WRAP-UP | `/daily wrap` | `invoice-generator` — run it every day; it builds from commits — then the optional `reflect` learn beat |
 
 ## WORKING — the situational router
 
@@ -44,6 +44,7 @@ flowchart TD
     WORK{"🔧 WORKING<br/>what's happening?"}
 
     WORK -- designing something --> GTP["grill-then-plan"]
+    GTP -. no plan needed .-> SGWD["sp-grill-with-doc"]
     WORK -- too big for one session --> DMAP["chart-map<br/>(/decision-map:chart)"]
     WORK -- continuing a charted map --> DMW["work-map<br/>(/decision-map:work)"]
     DMAP -. next session .-> DMW
@@ -77,6 +78,7 @@ flowchart TD
 | When… | Reach for |
 |---|---|
 | designing something new | `grill-then-plan` |
+| designing something new, but you do NOT need a written plan afterward | `sp-grill-with-doc` — the same domain-aware grilling (terminology challenged, contradictions with the real code surfaced, `CONTEXT.md` and ADRs kept current as decisions land), stopping before the plan hand-off. Despite the prefix it is **not** a vendored superpowers copy |
 | an effort too big for one session (foggy, multi-session) | `chart-map` (`/decision-map:chart`) — chart the destination, the decision tickets and the fog; the map lands in `docs/decision-map/`, or on GitHub Issues as an issue + sub-issues |
 | continuing a decision map already charted | `work-map` (`/decision-map:work`) — claim and resolve exactly one decision, then stop |
 | something broke | `debug-mantra`, then the debug chain below |
@@ -88,12 +90,15 @@ flowchart TD
 | the agent's *last message* lost you — "wait", "หา?", "งง", "say that again" | `wait-what` (`/wait-what`) — re-pitches that one message with a little context, in ASD-STE100 Simplified Technical English, using `CONTEXT.md`'s ubiquitous language. Vendored verbatim from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT); manual invocation only |
 | explaining a complex problem | `problem-description` |
 | "why does this code/ticket exist?" | `ticket-trace` |
-| second opinion on a plan / PR / change | `scrutinize` / `dual-verifier` |
+| second opinion on a plan or a local diff | `scrutinize` (plans / local diffs) / `dual-verifier` (completed work) |
+| reviewing a GitHub pull request (by number or URL) | `review-pr` — context, safe workspace, `scrutinize`, then send-back / fix-it / chat-only. A local uncommitted diff goes to `scrutinize` directly |
 | unfamiliar legacy codebase | `drive-to-legacy` |
 | unfamiliar Dynamics 365 / Dataverse org | `crm-archaeology` |
 | need a full SA&D document (use cases, diagrams, data dictionary) | `sa-doc` |
+| a change only a human can make by hand, in a console you cannot write to (CRM, cloud portal, DNS, SaaS admin, CI settings, a database GUI) | `guide-and-verify` — measure the live baseline first, hand over Go to / Do / Do not / verify-yourself steps one at a time, then prove it landed read-only in a channel other than the one they edited in |
 | need a repeatable test-case suite (feature / change / fixed bug) | `generating-test-cases` |
 | planning my own growth / quarterly career review | `career-growth` |
+| "what did we learn?" — after a painful session or a debugging round | `reflect` — captures the DELTA (what went wrong, what was slow, what got corrected) and routes each lesson to where it will fire again: an owned skill, a project `CLAUDE.md`, a cross-project `GOTCHAS.md`, or memory. Not a what-was-done summary (that is `invoice-generator`), not one bug's root cause (that is `post-mortem`) |
 
 ### Vendored superpowers skills (ADRs 0071, 0074, 0084)
 
