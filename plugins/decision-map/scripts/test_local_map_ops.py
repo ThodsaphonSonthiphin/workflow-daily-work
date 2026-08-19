@@ -3010,5 +3010,68 @@ class LocalGroupedIndexTest(unittest.TestCase):
         self.assertNotIn("####", body)
 
 
+class LocalMilestoneProjectionTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it",
+             "members": ["auth-model", "rollout-order"]},
+            {"slug": "later", "members": []}]
+        ops.chart(self.root, inp, real=True)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_read_carries_the_ordered_milestones_and_per_ticket_membership(self):
+        out = ops.read_map(self.root, "example-effort")
+        self.assertEqual([m["slug"] for m in out["milestones"]],
+                         ["mvp", "later"])
+        self.assertEqual(out["milestones"][0]["label"], "demo it")
+        self.assertEqual(out["milestones"][0]["members"],
+                         ["auth-model", "rollout-order"])
+        by_key = {t["key"]: t for t in out["tickets"]}
+        self.assertEqual(by_key["auth-model"]["milestone"], "mvp")
+        # An unassigned ticket says so explicitly rather than omitting the key.
+        self.assertIsNone(by_key["api-limits"]["milestone"])
+
+    def test_frontier_carries_progress_and_per_entry_membership(self):
+        out = ops.frontier(self.root, "example-effort")
+        mvp = next(m for m in out["milestones"] if m["slug"] == "mvp")
+        self.assertEqual((mvp["closed"], mvp["total"], mvp["complete"]),
+                         (0, 2, False))
+        entry = next(e for e in out["frontier"] if e["id"] == "auth-model")
+        self.assertEqual(entry["milestone"], "mvp")
+        blocked = next(e for e in out["blocked"] if e["id"] == "rollout-order")
+        self.assertEqual(blocked["milestone"], "mvp")
+
+    def test_progress_moves_when_a_member_closes(self):
+        ops.resolve(self.root, "example-effort", "auth-model", "answered",
+                    "docs/adr/x.md", _DIAGRAM_BODY)
+        out = ops.frontier(self.root, "example-effort")
+        mvp = next(m for m in out["milestones"] if m["slug"] == "mvp")
+        self.assertEqual((mvp["closed"], mvp["total"], mvp["complete"]),
+                         (1, 2, False))
+
+    def test_a_claimed_entry_also_carries_its_milestone(self):
+        ops.claim(self.root, "example-effort", "auth-model", "grill-1200")
+        out = ops.frontier(self.root, "example-effort")
+        self.assertEqual(out["claimed"][0]["milestone"], "mvp")
+
+    def test_an_unmilestoned_map_reports_an_empty_list_not_a_missing_key(self):
+        # The key is always present so a consumer never branches on absence.
+        tmp = tempfile.TemporaryDirectory()
+        try:
+            root = Path(tmp.name)
+            inp = copy.deepcopy(INPUT)
+            inp["target"]["slug"] = "plain"
+            ops.chart(root, inp, real=True)
+            self.assertEqual(ops.read_map(root, "plain")["milestones"], [])
+            self.assertEqual(ops.frontier(root, "plain")["milestones"], [])
+        finally:
+            tmp.cleanup()
+
+
 if __name__ == "__main__":
     unittest.main()
