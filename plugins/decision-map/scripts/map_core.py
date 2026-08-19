@@ -567,7 +567,7 @@ def map_merge_detail(added):
 
 
 def render_map_body(m, prologue):
-    """The generated part of a map document: the two prose slots and the three
+    """The generated part of a map document: the one prose slot and the five
     regions, in the order every backend renders them.
 
     `prologue` is the backend's own top matter -- the local backend's H1 plus
@@ -577,14 +577,27 @@ def render_map_body(m, prologue):
     and the two backends disagreeing about their order or spelling would make a
     map unreadable by the other backend.
 
-    one_line, not scrub, on the prose slots: they are single-line slots in the
-    rendered document -- one paragraph under each of two headings -- so they get
-    the same flatten-then-escape treatment every other user string gets. scrub
-    alone neutralises the marker but leaves line breaks, and both harms were
-    silent: a two-line title was truncated by the reader with no error and no
-    divergence entry, and a newline-bearing destination injected a second
-    "## Notes" heading AHEAD of the real one.
+    Section order is reading order: where we are going, the standing
+    constraints, the plan for what ships first (ADR 0096's one milestones
+    region), then the history that plan groups. Milestones sits ABOVE
+    "Decisions so far" because it is what a reader opening the map needs in
+    order to read the index below it -- the index groups by exactly these
+    slugs.
+
+    one_line, not scrub, on the DESTINATION: it is a single-line slot in the
+    rendered document -- one paragraph under one heading, kept to one breath by
+    ADR 0101 -- so it gets the same flatten-then-escape treatment every other
+    user string gets. scrub alone neutralises the marker but leaves line breaks,
+    and both harms were silent: a two-line title was truncated by the reader with
+    no error and no divergence entry, and a newline-bearing destination injected
+    a second "## Notes" heading AHEAD of the real one. Notes is no longer such a
+    slot -- it is a list region now (ADR 0101), so its lines get the same
+    flatten-then-escape through merge_region_lines that fog and out-of-scope do.
     """
+    notes = region_text(NOTES_START, NOTES_END,
+                        merge_region_lines("", notes_lines(m.get("notes"))))
+    miles = region_text(MILESTONES_START, MILESTONES_END,
+                        milestone_lines_for(m.get("milestones") or []))
     fog = region_text(FOG_START, FOG_END,
                       merge_region_lines("", m.get("notYetSpecified") or []))
     oos = region_text(SCOPE_START, SCOPE_END,
@@ -592,7 +605,8 @@ def render_map_body(m, prologue):
     return (
         prologue +
         f"## Destination\n{one_line(m['destination'])}\n\n"
-        f"## Notes\n{one_line(m.get('notes') or '')}\n\n"
+        f"## Notes\n\n{notes}\n\n"
+        f"## Milestones\n\n{miles}\n\n"
         f"## Decisions so far\n\n{DECISIONS_START}\n{DECISIONS_END}\n\n"
         f"## Not yet specified\n\n{fog}\n\n"
         f"## Out of scope\n\n{oos}\n")
@@ -634,8 +648,133 @@ def scalar_divergences(m, stored_text, fields=SCALAR_MAP_FIELDS):
     return div
 
 
+def scalar_fields_for(stored_text, fields=SCALAR_MAP_FIELDS):
+    """The scalar fields still worth a containment check on this document.
+
+    `notes` drops out once the map carries a notes region: there the value is a
+    LIST merged like fog, and a containment check on the flattened body would
+    report a divergence for text the merge had just applied -- noise, in exactly
+    the channel whose whole value is that users read it.
+    """
+    if region_body(norm_eol(stored_text or ""), NOTES_START, NOTES_END) is None:
+        return tuple(fields)
+    return tuple(f for f in fields if f != "notes")
+
+
+def merge_milestones(text, wanted):
+    """Union `wanted` into the stored milestones region.
+
+    -> (new_text, added, divergences). `added` is [(noun, count), ...] for
+    map_merge_detail, using two nouns because they are different acts to
+    approve: a new GROUP appears in the plan as "1 milestone line", a group
+    gaining a ticket as "1 milestone member line".
+
+    Additive, with three things deliberately NOT applied and reported instead
+    (ADR 0098) -- each would have to remove or reorder a stored line:
+
+    - a differing label;
+    - a member the map already places in a DIFFERENT milestone (the move would
+      have to remove it from the first one; exclusivity is ADR 0097);
+    - a different relative order of milestones that both already exist.
+
+    A map predating the region is reported, never repaired: inserting the
+    markers means guessing where a pre-marker list ended.
+
+    An UNPARSABLE line in the region stops the merge dead, leaving the document
+    byte-identical. The merge re-renders the region from the parsed list, and a
+    line the grammar cannot read is not in that list -- so rewriting would
+    delete it. Additive never removes (ADR 0098), and the line a human broke is
+    the line they were in the middle of editing. Preserving it in place instead
+    would need ordering rules for a state `lint` already reports as an error to
+    fix by hand; the honest answer to "the region is corrupt" is to touch
+    nothing and say so.
+    """
+    if not wanted:
+        return text, [], []
+    body = region_body(text, MILESTONES_START, MILESTONES_END)
+    if body is None:
+        return text, [], [
+            f"this map predates the milestones region, so its {len(wanted)} "
+            "milestone(s) were not merged. Add the milestones markers to the "
+            f"map body by hand to enable merging; re-charting would also fix "
+            f"it, but {FORCE_COST}"]
+    stored, bad = parse_milestones(text)
+    div = []
+    if bad:
+        div.append(
+            f"the milestones region holds {len(bad)} line(s) this tool cannot "
+            f"read (first: {bad[0]!r}), so nothing was merged into it and the "
+            "region is unchanged -- rewriting it would delete those lines. Fix "
+            "them by hand, then re-chart; `lint` names every one of them")
+        return text, [], div
+    by_slug = {m["slug"]: m for m in stored}
+    owner = {k: m["slug"] for m in stored for k in m["members"]}
+    new_groups, new_members = 0, 0
+
+    stored_order = [m["slug"] for m in stored]
+    shared = [s["slug"] for s in wanted if s["slug"] in by_slug]
+    if [s for s in stored_order if s in shared] != shared:
+        div.append(
+            "the input lists existing milestones in a different order "
+            f"({', '.join(shared)}); the stored order stands. Reorder the "
+            "milestones region by hand to change it")
+
+    for want in wanted:
+        slug = want["slug"]
+        label = want.get("label")
+        members = want.get("members") or []
+        got = by_slug.get(slug)
+        if got is None:
+            keep = []
+            for key in members:
+                if key in owner and owner[key] != slug:
+                    div.append(
+                        f"ticket {key!r} is already in milestone "
+                        f"{owner[key]!r}, so it was not added to {slug!r}: a "
+                        "ticket belongs to at most one milestone. Move it by "
+                        "hand if that is what you meant")
+                    continue
+                if key not in keep:
+                    keep.append(key)
+                    owner[key] = slug
+            entry = {"slug": slug, "label": label, "members": keep}
+            stored.append(entry)
+            by_slug[slug] = entry
+            new_groups += 1
+            continue
+        if label and one_line(label) != (got["label"] or ""):
+            div.append(
+                f"milestone {slug!r}'s label in the input differs from the map "
+                "as stored; left unchanged. Edit the milestones region by hand "
+                "to change it")
+        for key in members:
+            if key in got["members"]:
+                continue
+            if key in owner and owner[key] != slug:
+                div.append(
+                    f"ticket {key!r} is already in milestone {owner[key]!r}, so "
+                    f"it was not added to {slug!r}: a ticket belongs to at most "
+                    "one milestone. Move it by hand if that is what you meant")
+                continue
+            got["members"].append(key)
+            owner[key] = slug
+            new_members += 1
+
+    merged = region_text(MILESTONES_START, MILESTONES_END,
+                         milestone_lines_for(stored))
+    text = replace_region(text, MILESTONES_START, MILESTONES_END,
+                          merged[len(MILESTONES_START):-len(MILESTONES_END)])
+    added = []
+    if new_groups:
+        added.append(("milestone", new_groups))
+    if new_members:
+        added.append(("milestone member", new_members))
+    return text, added, div
+
+
 def merge_map_lists(text, m):
-    """Union the input's fog / out-of-scope lines into a stored map document.
+    """Union the input's notes / fog / out-of-scope lines and its milestones
+    into a stored map document.
 
     -> (new_text, added, divergences). `added` is [(noun, count), ...] for
     map_merge_detail. A document predating a region cannot be merged into, and
@@ -644,11 +783,19 @@ def merge_map_lists(text, m):
     rounds 1-3.
     """
     div, added = [], []
-    for start, end, items, label, noun in (
-            (FOG_START, FOG_END, m.get("notYetSpecified") or [],
-             "notYetSpecified", "fog"),
-            (SCOPE_START, SCOPE_END, m.get("outOfScope") or [],
-             "outOfScope", "out-of-scope")):
+    regions = [(FOG_START, FOG_END, m.get("notYetSpecified") or [],
+                "notYetSpecified", "fog"),
+               (SCOPE_START, SCOPE_END, m.get("outOfScope") or [],
+                "outOfScope", "out-of-scope")]
+    # Notes joins the merge only when the map HAS the region, or when the input
+    # declares a list. A string notes on a map whose Notes is still a paragraph
+    # keeps the scalar behaviour it has always had (ADR 0101) -- otherwise every
+    # existing map would start reporting a divergence for a field that works.
+    if (isinstance(m.get("notes"), list)
+            or region_body(text, NOTES_START, NOTES_END) is not None):
+        regions.insert(0, (NOTES_START, NOTES_END, notes_lines(m.get("notes")),
+                           "notes", "notes"))
+    for start, end, items, label, noun in regions:
         body = region_body(text, start, end)
         if body is None:
             if items:
@@ -664,6 +811,9 @@ def merge_map_lists(text, m):
         gained = count_added_lines(body, merged_lines)
         if gained:
             added.append((noun, gained))
+    text, ms_added, ms_div = merge_milestones(text, m.get("milestones") or [])
+    added += ms_added
+    div += ms_div
     return text, added, div
 
 

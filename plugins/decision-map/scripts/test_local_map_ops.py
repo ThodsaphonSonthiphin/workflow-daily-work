@@ -1043,7 +1043,12 @@ class LocalMapOpsTest(unittest.TestCase):
                      "- NEW-SCOPE-LINE", "- ONLY-THIS-ONE"):
             self.assertIn(kept, map_md, f"{kept} must survive a merge that omits it")
 
-    def test_additive_chart_leaves_divergent_destination_and_notes_alone(self):
+    # RESHAPED for ADR 0101: notes is no longer a scalar on a map that carries
+    # the notes region -- a bare string is now legal as a ONE-BULLET list and is
+    # UNIONED in, so it neither diverges nor is left out. The destination is the
+    # half that stays scalar ("one breath" is its budget), so that is what this
+    # test now pins; the notes half asserts the union instead of the old refusal.
+    def test_additive_chart_leaves_a_divergent_destination_alone(self):
         self._chart()
         inp = self._plus_ticket()
         inp["map"] = dict(inp["map"])
@@ -1052,13 +1057,14 @@ class LocalMapOpsTest(unittest.TestCase):
         out = ops.chart(self.root, inp, real=True)
         map_md = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
         self.assertIn("a spec", map_md, "on-disk destination must survive")
-        self.assertIn("use grill-with-docs", map_md, "on-disk notes must survive")
         self.assertNotIn("A COMPLETELY DIFFERENT DESTINATION", map_md)
-        self.assertNotIn("DIFFERENT NOTES", map_md)
         fields = " ".join(out["divergence"])
         self.assertIn("destination", fields)
-        self.assertIn("notes", fields)
-        # --force is how you actually change them
+        # Notes: appended, never replacing -- and never reported as a divergence.
+        self.assertIn("- use grill-with-docs", map_md, "on-disk notes must survive")
+        self.assertIn("- DIFFERENT NOTES", map_md)
+        self.assertEqual([d for d in out["divergence"] if "notes" in d], [])
+        # --force is how you actually change the destination
         ops.chart(self.root, inp, real=True, force=True)
         map_md = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
         self.assertIn("A COMPLETELY DIFFERENT DESTINATION", map_md)
@@ -1360,10 +1366,11 @@ class LocalMapOpsTest(unittest.TestCase):
         }
         ops.chart(self.root, inp, real=True)
         map_md = (self.root / "map-scalars" / "map.md").read_text(encoding="utf-8")
-        # exactly the five headings the renderer writes -- nothing injected
+        # exactly the six headings the renderer writes -- nothing injected
         self.assertEqual([l for l in map_md.splitlines() if l.startswith("## ")],
-                         ["## Destination", "## Notes", "## Decisions so far",
-                          "## Not yet specified", "## Out of scope"])
+                         ["## Destination", "## Notes", "## Milestones",
+                          "## Decisions so far", "## Not yet specified",
+                          "## Out of scope"])
         # the H1 is one line and carries the WHOLE title, not a truncation
         self.assertEqual(map_md.splitlines()[0],
                          "# Migrate billing SECOND LINE SHOULD NOT APPEAR AS HEADING")
@@ -1373,7 +1380,9 @@ class LocalMapOpsTest(unittest.TestCase):
         # read_map's destination regex still extracts the full flattened value
         self.assertEqual(m["map"]["destination"],
                          "ship it  ## Notes FAKE INJECTED NOTES SECTION")
-        self.assertIn("first note second note line", map_md)
+        # the flattened notes is ONE bullet, not two lines (ADR 0101's region
+        # renders through merge_region_lines, which flattens then escapes)
+        self.assertIn("- first note second note line\n", map_md)
         # and map.md still opens with the overview diagram right after the H1
         self.assertIn("```mermaid", map_md.split("## Destination")[0])
 
@@ -2557,6 +2566,209 @@ class MilestoneInputValidationTest(unittest.TestCase):
         for bad in (7, {"a": 1}, ["ok", 7]):
             with self.assertRaises(map_core.ChartValidationError):
                 map_core.validate_chart_input(self._inp(notes=bad))
+
+
+class MapBodyRegionsTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _chart(self, inp):
+        ops.chart(self.root, inp, real=True)
+        return (self.root / inp["target"]["slug"] / "map.md").read_text(
+            encoding="utf-8")
+
+    def test_a_new_map_carries_both_new_regions_in_order(self):
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["notes"] = ["use grill-with-docs", "scrutinize is frozen"]
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it", "members": ["auth-model"]}]
+        text = self._chart(inp)
+        for marker in (map_core.NOTES_START, map_core.NOTES_END,
+                       map_core.MILESTONES_START, map_core.MILESTONES_END):
+            self.assertIn(marker, text)
+        self.assertIn("- use grill-with-docs\n- scrutinize is frozen", text)
+        self.assertIn("- `mvp` demo it [auth-model]", text)
+        # Reading order: where we are going, the standing constraints, the plan
+        # for what ships first, then the history that plan groups.
+        self.assertLess(text.index("## Destination"), text.index("## Notes"))
+        self.assertLess(text.index("## Notes"), text.index("## Milestones"))
+        self.assertLess(text.index("## Milestones"),
+                        text.index("## Decisions so far"))
+
+    def test_a_string_notes_renders_as_one_bullet(self):
+        text = self._chart(copy.deepcopy(INPUT))       # INPUT's notes is a str
+        self.assertIn("- use grill-with-docs", text)
+
+    def test_an_empty_milestones_region_holds_the_placeholder(self):
+        text = self._chart(copy.deepcopy(INPUT))
+        body = map_core.region_body(text, map_core.MILESTONES_START,
+                                    map_core.MILESTONES_END)
+        self.assertEqual(body.strip(), map_core.EMPTY_LIST_LINE)
+
+    def test_an_identical_re_chart_is_byte_identical(self):
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["notes"] = ["one", "two"]
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it", "members": ["auth-model"]}]
+        first = self._chart(inp)
+        self.assertEqual(self._chart(copy.deepcopy(inp)), first)
+
+    def test_a_new_milestone_is_appended_and_announced(self):
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [{"slug": "mvp", "members": ["auth-model"]}]
+        self._chart(inp)
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        nxt["map"]["milestones"] = [{"slug": "polish", "members": ["api-limits"]}]
+        plan = ops.chart(self.root, nxt, real=False)
+        entry = next(e for e in plan["planned"] if e["path"].endswith("map.md"))
+        self.assertEqual(entry["action"], "merge")
+        self.assertIn("1 milestone line", entry["detail"])
+        ops.chart(self.root, copy.deepcopy(nxt), real=True)
+        text = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
+        ms, bad = map_core.parse_milestones(text)
+        self.assertEqual(bad, [])
+        # Appended, never reordered: the earlier milestone keeps its position.
+        self.assertEqual([m["slug"] for m in ms], ["mvp", "polish"])
+
+    def test_a_new_member_is_unioned_into_an_existing_milestone(self):
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [{"slug": "mvp", "members": ["auth-model"]}]
+        self._chart(inp)
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        nxt["map"]["milestones"] = [{"slug": "mvp", "members": ["api-limits"]}]
+        plan = ops.chart(self.root, nxt, real=False)
+        entry = next(e for e in plan["planned"] if e["path"].endswith("map.md"))
+        self.assertIn("1 milestone member line", entry["detail"])
+        ops.chart(self.root, copy.deepcopy(nxt), real=True)
+        ms, _ = map_core.parse_milestones(
+            (self.root / "example-effort" / "map.md").read_text(encoding="utf-8"))
+        self.assertEqual(ms[0]["members"], ["auth-model", "api-limits"])
+
+    def test_a_differing_label_diverges_and_is_left_unapplied(self):
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it", "members": ["auth-model"]}]
+        self._chart(inp)
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        nxt["map"]["milestones"] = [
+            {"slug": "mvp", "label": "SHIP IT", "members": ["auth-model"]}]
+        out = ops.chart(self.root, nxt, real=True)
+        self.assertTrue(any("mvp" in d and "label" in d for d in out["divergence"]))
+        text = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
+        self.assertIn("demo it", text)
+        self.assertNotIn("SHIP IT", text)
+
+    def test_moving_a_member_to_another_milestone_diverges(self):
+        # Exclusivity holds against what is STORED, not just within one input:
+        # applying the move would remove the member from its first milestone,
+        # and additive never removes (ADR 0098) -- moves are hand edits.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [{"slug": "mvp", "members": ["auth-model"]},
+                                    {"slug": "polish", "members": []}]
+        self._chart(inp)
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        nxt["map"]["milestones"] = [{"slug": "polish", "members": ["auth-model"]}]
+        out = ops.chart(self.root, nxt, real=True)
+        self.assertTrue(any("auth-model" in d for d in out["divergence"]))
+        ms, _ = map_core.parse_milestones(
+            (self.root / "example-effort" / "map.md").read_text(encoding="utf-8"))
+        self.assertEqual({m["slug"]: m["members"] for m in ms},
+                         {"mvp": ["auth-model"], "polish": []})
+
+    def test_a_reordered_input_diverges_and_the_stored_order_stands(self):
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [{"slug": "one", "members": []},
+                                    {"slug": "two", "members": []}]
+        self._chart(inp)
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        nxt["map"]["milestones"] = [{"slug": "two", "members": []},
+                                    {"slug": "one", "members": []}]
+        out = ops.chart(self.root, nxt, real=True)
+        self.assertTrue(any("order" in d for d in out["divergence"]))
+        ms, _ = map_core.parse_milestones(
+            (self.root / "example-effort" / "map.md").read_text(encoding="utf-8"))
+        self.assertEqual([m["slug"] for m in ms], ["one", "two"])
+
+    def test_a_map_predating_the_regions_reports_rather_than_repairs(self):
+        # Inserting the markers would mean guessing where a pre-marker list
+        # ended -- the pattern that cost three review rounds.
+        self._chart(copy.deepcopy(INPUT))
+        p = self.root / "example-effort" / "map.md"
+        text = p.read_text(encoding="utf-8")
+        for start, end in ((map_core.MILESTONES_START, map_core.MILESTONES_END),
+                           (map_core.NOTES_START, map_core.NOTES_END)):
+            text = map_core.region_re(start, end).sub("", text)
+        p.write_text(text, encoding="utf-8")
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        nxt["map"]["notes"] = ["a new note"]
+        nxt["map"]["milestones"] = [{"slug": "mvp", "members": ["auth-model"]}]
+        out = ops.chart(self.root, nxt, real=True)
+        self.assertTrue(any("predates the milestones region" in d
+                            for d in out["divergence"]))
+        self.assertTrue(any("predates the notes region" in d
+                            for d in out["divergence"]))
+
+    def test_a_string_notes_on_a_legacy_map_keeps_the_scalar_behaviour(self):
+        # A map whose Notes is still a paragraph must not start reporting a
+        # "predates the region" divergence on every re-chart for a field that
+        # already worked -- only a LIST notes needs the region.
+        self._chart(copy.deepcopy(INPUT))
+        p = self.root / "example-effort" / "map.md"
+        p.write_text(
+            map_core.region_re(map_core.NOTES_START, map_core.NOTES_END).sub(
+                "use grill-with-docs\n", p.read_text(encoding="utf-8")),
+            encoding="utf-8")
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        out = ops.chart(self.root, nxt, real=True)
+        self.assertFalse(any("notes" in d for d in out["divergence"]),
+                         out["divergence"])
+
+    def test_notes_is_not_double_reported_when_the_region_exists(self):
+        # With a notes REGION present the value is merged like fog, so the
+        # scalar containment check must not also call it a divergence.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["notes"] = ["first"]
+        self._chart(inp)
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        nxt["map"]["notes"] = ["second"]
+        out = ops.chart(self.root, nxt, real=True)
+        self.assertEqual([d for d in out["divergence"] if "notes" in d], [])
+        text = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
+        self.assertIn("- first", text)
+        self.assertIn("- second", text)
+
+    def test_a_broken_line_blocks_the_merge_instead_of_being_deleted(self):
+        # Additive never removes. Re-rendering the region from the PARSED list
+        # would silently drop a hand-broken line -- destroying exactly the
+        # content a human was mid-edit on. So a corrupt region is reported and
+        # left byte-identical.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [{"slug": "mvp", "members": ["auth-model"]}]
+        self._chart(inp)
+        p = self.root / "example-effort" / "map.md"
+        text = p.read_text(encoding="utf-8")
+        broken = text.replace("- `mvp` [auth-model]",
+                              "- `mvp` [auth-model]\n- mvp-two: api-limits")
+        p.write_text(broken, encoding="utf-8")
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        nxt["map"]["milestones"] = [{"slug": "later", "members": ["api-limits"]}]
+        out = ops.chart(self.root, nxt, real=True)
+        self.assertEqual(p.read_text(encoding="utf-8"), broken)
+        self.assertTrue(any("cannot read" in d for d in out["divergence"]),
+                        out["divergence"])
 
 
 if __name__ == "__main__":

@@ -1432,5 +1432,26 @@ class TestLint(Base):
             gh.lint(self.ops, "no-such-map")
 
 
+class GitHubMapRegionsTest(unittest.TestCase):
+    """The regions are byte-identical across backends (ADR 0062), which is what
+    lets one flow skill read either."""
+
+    def test_a_new_map_issue_carries_both_new_regions(self):
+        m = {"title": "t", "destination": "d", "notes": ["one", "two"],
+             "milestones": [{"slug": "mvp", "label": "demo it",
+                             "members": ["auth-model"]}]}
+        body = gh.render_map_issue_body(m, "billing")
+        self.assertIn(map_core.NOTES_START, body)
+        self.assertIn(map_core.MILESTONES_START, body)
+        self.assertIn("- `mvp` demo it [auth-model]", body)
+        self.assertIn("- one\n- two", body)
+
+    def test_the_shared_body_matches_the_local_backend_below_the_prologue(self):
+        m = {"title": "t", "destination": "d", "notes": ["n"],
+             "milestones": [{"slug": "mvp", "members": ["k"]}]}
+        shared = map_core.render_map_body(m, "")
+        self.assertTrue(gh.render_map_issue_body(m, "billing").endswith(shared))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

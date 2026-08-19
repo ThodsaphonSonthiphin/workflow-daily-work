@@ -98,6 +98,7 @@ from map_core import (
     map_merge_detail as _map_merge_detail,
     render_map_body as _render_map_body,
     scalar_divergences as _scalar_divergences,
+    scalar_fields_for as _scalar_fields_for,
     merge_map_lists as _merge_map_lists,
     decisions_region as _decisions_region,
     position_diagram_region as _position_diagram_region,
@@ -349,7 +350,7 @@ def _plan_map_md(base, inp, force):
     if force:
         return "OVERWRITE", _render_map_md(m), None, []
     existing = p.read_text(encoding="utf-8")
-    div = _scalar_divergences(m, existing)
+    div = _scalar_divergences(m, existing, fields=_scalar_fields_for(existing))
     text, added, list_div = _merge_map_lists(existing, m)
     div += list_div
     if text == existing:

@@ -86,7 +86,8 @@ from map_core import (
     scrub, one_line, mode as derive_mode,
     assert_regions, safe_segment, norm_eol,
     region_body, replace_region, region_re,
-    map_merge_detail, render_map_body, scalar_divergences, merge_map_lists,
+    map_merge_detail, render_map_body, scalar_divergences, scalar_fields_for,
+    merge_map_lists,
     decisions_region, validate_chart_input, key_of_body,
     position_diagram_region, set_graph_region,
     lint_findings, RULES_NEEDING_RESOLUTION_BODY,
@@ -904,7 +905,8 @@ def _plan_map(ops, snap, inp, slug, force):
     # compared against the title. Comparing it against the body reported a
     # `title` divergence on every single re-chart.
     div = scalar_divergences(m, snap.map.get("title") or "", fields=("title",))
-    div += scalar_divergences(m, existing, fields=("destination", "notes"))
+    div += scalar_divergences(
+        m, existing, fields=scalar_fields_for(existing, ("destination", "notes")))
     text, added, list_div = merge_map_lists(existing, m)
     div += list_div
     if text == existing:
