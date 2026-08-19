@@ -237,13 +237,15 @@ one ticket.
 If the user named a ticket, use it — **unless it came back under `claimed`**,
 which is the one case where you stop and ask first (below). Otherwise
 recommend by the **two-level rule** (ADR 0099): first find the **earliest
-incomplete milestone** — walk `frontier.json`'s `milestones` list in order
-and take the first one whose `complete` is `false` — then, inside it, apply
-the existing heuristic and recommend whichever of its frontier tickets
-unblocks the most. Recommend an **unassigned** ticket (`milestone: null`)
-only once every milestone is either `complete` or has nothing takeable in
-it. Say the reason in one line either way — the ordering was decided once,
-on the map, so this session does not re-derive it.
+incomplete milestone that has something takeable** — walk `frontier.json`'s
+`milestones` list in order, skipping any milestone that is `complete` or
+whose frontier tickets are none, and take the first one that has at least
+one — then, inside it, apply the existing heuristic and recommend whichever
+of its frontier tickets unblocks the most. Recommend an **unassigned**
+ticket (`milestone: null`) only once every milestone is either `complete` or
+blocked — i.e. the walk above found nothing takeable anywhere. Say the
+reason in one line either way — the ordering was decided once, on the map,
+so this session does not re-derive it.
 
 **Before claiming, check the bucket the ticket came from.** Claim only what
 `frontier` listed under `frontier`. A ticket under `claimed` is another
