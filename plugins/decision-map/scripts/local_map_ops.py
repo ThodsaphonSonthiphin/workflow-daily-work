@@ -30,7 +30,10 @@ the frontier must never do.
 
 `force=True` (CLI: --force) is the explicit full rewrite. It is DESTRUCTIVE:
 it discards the recorded resolutions, claims and blocking edges of every item
-the input NAMES -- not of the whole map. Its reach is exactly the items the
+the input NAMES -- not of the whole map -- and regenerates the map body, so
+every milestone, note, fog and out-of-scope line the input does not repeat
+goes with them (the decisions index self-heals on the next resolve; those
+four regions do not). Its reach is otherwise exactly the items the
 plan labels OVERWRITE; a ticket named only in a `blocks` list is still a
 `merge` and keeps everything, and a ticket the input does not mention is not
 in the plan at all and is untouched. It is never needed to add tickets. See
@@ -98,8 +101,11 @@ from map_core import (
     map_merge_detail as _map_merge_detail,
     render_map_body as _render_map_body,
     scalar_divergences as _scalar_divergences,
+    scalar_fields_for as _scalar_fields_for,
     merge_map_lists as _merge_map_lists,
     decisions_region as _decisions_region,
+    milestone_index as _milestone_index,
+    milestone_progress as _milestone_progress,
     position_diagram_region as _position_diagram_region,
     set_graph_region as _set_graph_region,
     force_orphaned_blockers as _force_orphaned_blockers,
@@ -349,7 +355,7 @@ def _plan_map_md(base, inp, force):
     if force:
         return "OVERWRITE", _render_map_md(m), None, []
     existing = p.read_text(encoding="utf-8")
-    div = _scalar_divergences(m, existing)
+    div = _scalar_divergences(m, existing, fields=_scalar_fields_for(existing))
     text, added, list_div = _merge_map_lists(existing, m)
     div += list_div
     if text == existing:
@@ -515,8 +521,8 @@ def chart(root, inp, real, force=False):
         fm = {"title": t["title"], "type": t["type"], "mode": _mode(t["type"]),
               "status": "open", "assignee": "", "blocked_by": [], "gist": ""}
         _save_ticket(root, slug, t["key"], fm,
-                     f"\n{_position_diagram_region(t['key'], [], [])}"
-                     f"\n## Question\n\n{_scrub(t['question'])}\n")
+                     f"\n## Question\n\n{_scrub(t['question'])}\n\n"
+                     f"{_position_diagram_region(t['key'], [], [])}")
     # ADR 0058: the edge is UNIONED into whatever file holds it, existing or
     # not. block() appends only when absent and does not write otherwise, so
     # an existing ticket gains one blockedBy entry and nothing else, and an
@@ -562,11 +568,20 @@ def read_map(root, slug):
     dm = re.search(r"## Destination\n(.+?)(\n\n|\n##)", map_md, re.DOTALL)
     if dm:
         dest = dm.group(1).strip()
+    milestones, by_key, _bad = _milestone_index(map_md)
+    tickets = []
+    for key in _all_tickets(root, slug):
+        t = _ticket_json(root, slug, key)
+        # Always present, null when unassigned: "not yet scheduled" is a legal
+        # state (ADR 0097), and a consumer must not have to branch on absence.
+        t["milestone"] = by_key.get(key)
+        tickets.append(t)
     return {"backend": "local",
             "map": {"id": slug, "name": title,
                     "url": map_path.as_posix(),
                     "destination": dest},
-            "tickets": [_ticket_json(root, slug, t) for t in _all_tickets(root, slug)]}
+            "milestones": milestones,
+            "tickets": tickets}
 
 
 def frontier(root, slug):
@@ -575,8 +590,10 @@ def frontier(root, slug):
     # from a map whose every decision is resolved, which is what work-map would
     # then tell the user. Reading map.md fails the same way read_map does
     # (OSError -> exit 2), so both entry points agree on what "no such map"
-    # looks like.
-    (_map_dir(root, slug) / "map.md").read_text(encoding="utf-8")
+    # looks like. Kept (not discarded) below: the same text is the source for
+    # the milestones this function projects, so there is only one read.
+    map_md = (_map_dir(root, slug) / "map.md").read_text(encoding="utf-8")
+    milestones, by_key, _bad = _milestone_index(map_md)
 
     out = {"frontier": [], "blocked": [], "claimed": []}
     tickets = {t: _ticket_json(root, slug, t) for t in _all_tickets(root, slug)}
@@ -593,16 +610,25 @@ def frontier(root, slug):
         open_blockers = [b for b in t["blockedBy"]
                          if b in tickets and tickets[b]["status"] == "open"]
         open_blockers += [b for b in missing if b not in open_blockers]
+        milestone = by_key.get(key)
         if t["assignee"]:
-            out["claimed"].append({"id": key, "name": t["name"], "assignee": t["assignee"]})
+            out["claimed"].append({"id": key, "name": t["name"],
+                                   "assignee": t["assignee"], "milestone": milestone})
         elif open_blockers:
-            entry = {"id": key, "name": t["name"], "blockedBy": open_blockers}
+            entry = {"id": key, "name": t["name"], "blockedBy": open_blockers,
+                     "milestone": milestone}
             if missing:
                 entry["missingBlockers"] = missing
             out["blocked"].append(entry)
         else:
             out["frontier"].append({"id": key, "name": t["name"],
-                                    "url": t["url"], "type": t["type"]})
+                                    "url": t["url"], "type": t["type"],
+                                    "milestone": milestone})
+    # The progress the session surface groups by (ADR 0099). Counted over
+    # EVERY ticket, closed included -- a milestone's progress is closed/total,
+    # and the three buckets above deliberately hold only the open ones.
+    out["milestones"] = _milestone_progress(
+        milestones, {k: t["status"] for k, t in tickets.items()})
     return out
 
 
@@ -704,17 +730,24 @@ def _reindex_decisions(root, slug):
     from being substituted away, and stops a multi-line gist from splitting
     one entry into an orphanable pair. Every title/gist here comes from
     frontmatter, so it is already scrubbed and already single-line.
+
+    The map is read once: its milestones (parsed fresh, since map.md, not
+    this function's argument, is where the region a reindex might just have
+    added lives) group the index, and the same read is substituted into below
+    -- a second read here would only risk seeing a different map.md than the
+    one the milestones came from.
     """
     entries = []
     for key in _all_tickets(root, slug):
         fm, _ = _load_ticket(root, slug, key)
         if fm.get("status") != "closed":
             continue
-        entries.append((fm.get("title") or key, f"tickets/{key}.md",
+        entries.append((key, fm.get("title") or key, f"tickets/{key}.md",
                         fm.get("gist") or ""))
-    region = _decisions_region(entries)
     map_path = _map_dir(root, slug) / "map.md"
     map_md = map_path.read_text(encoding="utf-8")
+    milestones, _by_key, _bad = _milestone_index(map_md)
+    region = _decisions_region(entries, milestones)
     if _DECISIONS_BLOCK_RE.search(map_md):
         map_md = _DECISIONS_BLOCK_RE.sub(lambda _m: region, map_md, count=1)
     else:

@@ -8,6 +8,8 @@ working files, never a store.
 ```mermaid
 erDiagram
     MAP ||--o{ TICKET : "parent of"
+    MAP ||--o{ MILESTONE : "orders"
+    MILESTONE ||--o{ TICKET : "groups"
     TICKET ||--o{ TICKET : "blockedBy"
 ```
 
@@ -168,12 +170,23 @@ enforced it. Prose is advisory; this is the deterministic half.
 | `gist-budget` | warning | the map's gists collectively run more than `GIST_BUDGET_SLACK` (`GIST_MAX * 5`) past `GIST_MAX`. Reported **once per map**, because `read` returns every stored gist and the overage is therefore re-read by every session that opens the map — a property of the corpus, not of any one ticket (ADR 0068). |
 | `anonymous-claim` | warning | an **open** ticket is held by the literal `--user` default `me`, which names nobody. Structurally impossible on a tracker, where the caller is resolved for real. |
 | `fog-line-graduated` | warning | a line under "Not yet specified" reads as a ticket that already exists. An additive `chart` never deletes, so graduating fog leaves the old line behind and the map keeps advertising a question it has answered. |
+| `milestone-line-unparsable` | error | a line inside the milestones region does not match the grammar above. Skipping it would hide its members, so the map would advertise a smaller milestone than it has. `ticket: null` — the broken thing is the line, not any one ticket. |
+| `milestone-duplicate-slug` | error | a milestone slug is declared more than once. Nothing is unreachable — `membership_of` maps every member of every entry to the shared slug — but `frontier.json`'s milestones list ends up with one row per declaration, all sharing that slug and each counting only its own members, and the decisions index renders every member under the FIRST entry's heading, so what actually goes missing is the *label* of every entry after the first. `ticket: null` — the map holds the duplicate, not a ticket. |
+| `milestone-duplicate-member` | error | a ticket key is listed twice — either as a member of two different milestones (membership is exclusive, ADR 0097) or twice on the same milestone line. The finding names the ticket, and a repeat inside one line fires once per *extra* occurrence — a key listed three times yields two findings. Progress counts **distinct** members, so a repeat never inflates `<closed>/<total>`, but `map.json`'s `milestones[].members` still carries it; and additive `chart` will never rewrite the line, so the fix is a hand edit. |
+| `milestone-unknown-ticket` | error | a milestone lists a ticket key that is not on this map. That member can never close, so the milestone can never complete and its progress reads short forever; the finding names the ticket. |
 
-**`gist-budget` is the only finding that carries `ticket: null`.** Every other
-rule names the ticket it fires on — `blocker-cycle` covers several and still
-names one of them. This one names the map, so a consumer that assumes
-`finding.ticket` is always a key on the map breaks on it. That assumption was
-never part of this contract; ADR 0068 is where the map-level unit is argued.
+**Three findings carry `ticket: null`: `gist-budget`, `milestone-line-unparsable`
+and `milestone-duplicate-slug`.** Every other rule names the ticket it fires
+on — `blocker-cycle` covers several and still names one of them, and
+`milestone-duplicate-member` / `milestone-unknown-ticket` name the *ticket*
+even though the milestone is the map-level structure at fault. The three
+`null` findings name the map instead because the broken thing is not any one
+ticket: `gist-budget` is a property of the whole corpus of gists (ADR 0068);
+`milestone-line-unparsable` and `milestone-duplicate-slug` are properties of
+the milestones region itself — an unreadable line or a repeated slug belongs
+to no single ticket. A consumer that assumes `finding.ticket` is always a key
+on the map breaks on any of the three. That assumption was never part of this
+contract.
 
 `fog-line-graduated` is the only **heuristic** rule: it matches significant
 words between a fog line and a ticket title, and its thresholds are deliberately
@@ -283,6 +296,18 @@ re-projects the index from every closed ticket and all of those entries come
 back. A backend must therefore not implement a partial refresh here — the
 index is either fully re-projected or left for the next `resolve` to rebuild.
 
+**The other four map regions do NOT self-heal, and that is the cost nothing
+else on this page names.** `--force` regenerates the map body from the input,
+so a **milestones**, **notes**, **fog** or **out-of-scope** line that lives
+only on the map and is absent from the input is simply gone — there is no
+projection to rebuild it and no later command that puts it back. The
+milestones region is the sharpest case: removing a milestone or a member is a
+deliberate hand edit by design (ADR 0098), so `--force` is the one path that
+removes them wholesale, and it does it with `divergence: []` and
+`detail: null` on the `OVERWRITE` line. Re-declare every milestone, note, fog
+and out-of-scope line in the input before forcing, or copy the four regions
+out of the map document first.
+
 #### Dry-run action vocabulary (required of every backend)
 
 The dry run reports one action per item, on both the machine-readable stdout
@@ -315,7 +340,12 @@ gains an entry (an edge is written at both of its ends, so the blocker's
 `no longer renders as a child in the graph: api-limits` on a blocker whose
 diagram LOSES one because `--force` reset the other end's edges (the same
 both-ends rule, applied to a removal: the ticket named in the `OVERWRITE`
-line is not the only one whose picture that line changes), `adds 2 fog
+line is not the only one whose picture that line changes), `adds 1 milestone
+line` on the map body when a merge appends a whole new milestone group,
+`adds 1 ticket to an existing milestone` when it unions a ticket into one
+that already exists — phrased that way because that union **edits** the
+stored milestone line rather than adding a line —
+`adds 2 notes lines` when new bullets land in the Notes region, and `adds 2 fog
 lines, 1 out-of-scope line` on the map body — so the ADR-0039 approval gate can show
 the reviewer every write before it happens. **No `merge` entry may carry
 `detail: null`**: the gate asks the user to approve that line, and a blank
@@ -383,6 +413,106 @@ the `path` bullet below. The GitHub shape, for the same map charted fresh:
 The same plan is rendered for humans on **stderr**; stdout carries JSON or
 nothing, so `chart --input x | jq` works — a split every backend must keep.
 
+### Milestones — the ordering dimension (ADR 0094, ADR 0095)
+
+A milestone is a named, ordered, shippable increment: the group of decision
+tickets that must all close before building that increment can begin
+(ADR 0094) — a value statement the frontier had nowhere to hold before this,
+distinct from the dependency ordering `blockedBy` already expresses. It is
+**first-class map structure, never a `task` ticket emulated** with fake
+`blockedBy` edges to its members: decision-map plans and hands off, it does
+not build, so "the increment was built" cannot legally be a ticket's
+resolution, and a fake ordering edge would draw a dependency on the position
+diagrams (ADR 0063/0064) that does not exist (ADR 0095).
+
+**Membership and order live in one region on the map, not as a field on each
+ticket** (ADR 0096): a new paired region, `<!-- decision-map:milestones:start
+-->` / `<!-- decision-map:milestones:end -->`, sibling to the `fog`, `scope`
+and `decisions` regions, holding the ordered list of milestones and each
+one's member ticket keys. Declaring or regrouping N tickets is one write to
+this region rather than N writes to N tickets — on a tracker that is one
+PATCH instead of N.
+
+**Line grammar** (`_MILESTONE_LINE_RE` in `map_core.py`), anchored at both
+ends of the line:
+
+```
+- `<slug>` <optional label> [<key>, <key>, ...]
+```
+
+worked example:
+
+```
+- `search-mvp` Ship the search page [auth-model, index-schema]
+```
+
+- `slug` matches the same safe-slug pattern (`SAFE_SLUG_RE`) ticket keys use,
+  and deliberately — unlike `validate_key` — still accepts `--`: the `--`
+  ban binds at mint time, not at read time, so a hand-written milestone
+  carrying `--` in its slug stays a readable line `lint` can name, rather
+  than becoming an unparsable one.
+- the label is optional free text between the slug and the member list —
+  flattened to one line and escaped exactly like every other user string
+  (`one_line`); it is never checked against a pattern.
+- the member list is **always present** — `[...]`, possibly empty — and is a
+  comma-separated list of **safe slugs**, not "anything without brackets".
+  That restriction is load-bearing: `merge_milestones` re-renders the region
+  from what it parses back out of the document, a round trip through content
+  a human may have edited. A decision-map marker contains no brackets, so a
+  looser "no brackets" member group would let a hand-typed marker parse as a
+  member, be handed back to `milestone_line` unescaped, and only be caught
+  downstream by `assert_regions` — a `MarkerIntegrityError` (exit 2, one
+  stderr line) instead of the precise, actionable divergence a hand-edited
+  region is supposed to produce.
+- order is **line order**, never a rendered number: a numbered list would
+  need renumbering on every insert, which is a rewrite of lines the additive
+  guarantee promises never to touch.
+- a line the grammar cannot read is **reported by `lint` and by `chart`** —
+  `lint` names it (`milestone-line-unparsable`, below) and `chart` refuses to
+  merge into a region holding one, saying so in `divergence` and leaving the
+  region byte-identical, because re-rendering it would delete the line. `read`
+  and `frontier` are the exception and must be read as one: they project only
+  the lines they can parse, so a broken line's milestone is absent from
+  `milestones` altogether and every key it named reports `milestone: null` —
+  a map whose only milestone line is broken reports `milestones: []`, which is
+  indistinguishable from having none. That is why `work-map` runs `lint`
+  **before** it reads a
+  frontier, and why a backend must not treat "`frontier` shows no milestones"
+  as "this map has none".
+
+**Exclusivity, and the legal unassigned state** (ADR 0097). A ticket belongs
+to **at most one** milestone — the first that needs it. A decision closed
+once serves every later milestone automatically, so nothing is re-done per
+increment. A ticket in **no** milestone is legal — it means "not yet
+scheduled" — so adopting milestones on an existing map never forces a full
+partition of its tickets. A closed ticket may still appear as a member: it is
+the history of what the increment needed. A key listed under two milestones
+is a lint **error** (`milestone-duplicate-member`), never resolved by picking
+one.
+
+**What the additive merge applies, and what it only reports** (ADR 0098).
+`map_input.json` gains an optional, ordered `map.milestones` list, merged
+exactly as `notYetSpecified` / `outOfScope` are:
+
+- a milestone absent from the map is **appended** — a `merge` line in the
+  dry-run plan, `detail: "adds 1 milestone line"`;
+- a member absent from its declared milestone is **unioned in** — `detail:
+  "adds 1 ticket to an existing milestone"`, which is what that union does:
+  it edits the stored line rather than adding one;
+- anything that would have to remove or reorder a stored line is instead
+  **reported in `divergence` and left unapplied**: a member the map already
+  places in a *different* milestone, a differing label, or a different
+  relative order between milestones that both already exist. The same
+  contract as `title` / `destination` / `notes` — moving a ticket between
+  milestones, removing one, or reordering the list is a hand edit of the
+  region, with `lint` guarding integrity afterwards.
+
+A map that predates the milestones region is not repaired: an input naming
+milestones against it is reported as unmerged in `divergence`, exactly as
+fog/out-of-scope lines are when a map predates those regions — inserting the
+markers would mean guessing where a pre-marker list ended, the mistake three
+earlier review rounds already paid for.
+
 ## `map_input.json` (input to `chart`)
 
 ```json
@@ -395,7 +525,11 @@ nothing, so `chart --input x | jq` works — a split every backend must keep.
   "map": {
     "title": "Decision map — <effort name>",
     "destination": "<one or two sentences — stored as a single line>",
-    "notes": "<skills to consult; standing preferences — stored as a single line>",
+    "notes": ["<one fact, skill to consult, or standing preference per line>", "..."],
+    "milestones": [
+      { "slug": "search-mvp", "label": "Ship the search page",
+        "members": ["auth-model", "index-schema"] }
+    ],
     "notYetSpecified": ["<fog line>", "..."],
     "outOfScope": ["<ruled-out line>", "..."]
   },
@@ -420,6 +554,16 @@ sees `blockedBy` — do not confuse the two. `type` ∈ `research | prototype |
 grilling | task`. Mode is derived: research=AFK, grilling/prototype=HITL,
 task=either.
 
+`map.notes` is `str | list[str]` (ADR 0101): a bare string stays legal — it
+renders as a single tool-owned bullet, so every existing input keeps working
+unchanged — and a list is one bullet per entry, unioned like `notYetSpecified`
+on every later `chart`. See "Milestones" above for `map.milestones`: an
+optional, ordered list of `{slug, label?, members?}` — `members` is optional
+too, and an entry without it declares an empty milestone. `members` may name a
+ticket not yet present in this input's `tickets[]` or on the map — declaring a
+milestone ahead of the tickets that will fill it is legal; `lint`'s
+`milestone-unknown-ticket` names any member that never arrives.
+
 ## `map.json` (output of `chart` and `read`)
 
 ```json
@@ -427,20 +571,33 @@ task=either.
   "backend": "local",
   "map": { "id": "billing", "name": "Decision map — <effort>",
            "url": "docs/decision-map/billing/map.md", "destination": "<line>" },
+  "milestones": [
+    { "slug": "search-mvp", "label": "Ship the search page",
+      "members": ["auth-model", "rollout-order"] }
+  ],
   "tickets": [
     { "key": "auth-model", "id": "auth-model", "name": "Auth model — …",
       "url": "docs/decision-map/billing/tickets/auth-model.md",
       "type": "grilling", "mode": "HITL",
       "status": "open", "assignee": null, "blockedBy": [],
-      "gist": null },
+      "gist": null, "milestone": "search-mvp" },
     { "key": "rollout-order", "id": "rollout-order", "name": "Rollout order — …",
       "url": "docs/decision-map/billing/tickets/rollout-order.md",
       "type": "grilling", "mode": "HITL",
       "status": "open", "assignee": null, "blockedBy": ["auth-model"],
-      "gist": null }
+      "gist": null, "milestone": "search-mvp" }
   ]
 }
 ```
+
+The top-level `milestones` is a list of `{slug, label, members}` in map
+order — read back from the milestones region exactly as `parse_milestones`
+parses it, `label` `null` when the line carries none, `members` the ticket
+keys in the order they appear on that line. **An unmilestoned map reports
+`milestones: []`, never a missing key.** Every ticket gains `milestone`: the
+slug of the milestone it belongs to, or `null` when it is not yet scheduled
+into one — always present, so a consumer never has to branch on its absence
+(ADR 0097).
 
 Note the direction, because it inverts between the two documents and is the
 one relation the whole graph is built from: the input above says `auth-model`
@@ -493,7 +650,15 @@ index format is `- [title](link) — gist`, so the link has to be real.)
 and all three `frontier.json` buckets. A tracker's natural order is creation or id
 order, so without this rule two backends emit different documents for the same
 logical state. Key-ascending is the only order that is a deterministic function of
-that state; the decisions index is ordered the same way and for the same reason.
+that state; the decisions index is ordered the same way and for the same reason —
+**on an unmilestoned map.** `milestones` is the deliberate exception: it holds map
+order (declaration order), not key order, because the whole point of a
+milestone list is that its order is chosen (ADR 0096). When the map carries
+milestones, the decisions index is grouped to match — key-ascending only
+*within* each group, not across the whole index — see "Generated regions in
+local files" below for the grouping rule, and the ordering note under
+`frontier.json` below for how milestone order interacts with the
+key-ascending buckets.
 
 `chart` (only — not `read`) adds `"divergence"`: a list of human-readable
 strings naming anything the input asked for that an additive run deliberately
@@ -532,9 +697,14 @@ path.
 ```json
 {
   "frontier": [ { "id": "auth-model", "name": "Auth model — …",
-                  "url": "docs/decision-map/billing/tickets/auth-model.md", "type": "grilling" } ],
-  "blocked":  [ { "id": "rollout-order", "name": "Rollout order — …", "blockedBy": ["auth-model"] } ],
-  "claimed":  [ { "id": "api-limits", "name": "…", "assignee": "thodsaphon.sonthipin@cartagena.no" } ]
+                  "url": "docs/decision-map/billing/tickets/auth-model.md", "type": "grilling",
+                  "milestone": "search-mvp" } ],
+  "blocked":  [ { "id": "rollout-order", "name": "Rollout order — …", "blockedBy": ["auth-model"],
+                  "milestone": "search-mvp" } ],
+  "claimed":  [ { "id": "api-limits", "name": "…", "assignee": "thodsaphon.sonthipin@cartagena.no",
+                  "milestone": null } ],
+  "milestones": [ { "slug": "search-mvp", "label": "Ship the search page",
+                     "closed": 0, "total": 2, "complete": false } ]
 }
 ```
 
@@ -542,6 +712,23 @@ Closed tickets appear in none of the three buckets — a closed ticket is done,
 not actionable. `blockedBy` here carries `key`s, as it does in `map.json`, but
 lists **only open blockers** — see the note under `map.json` above, which
 lists every recorded blocker instead.
+
+`milestone` appears on every entry in all three buckets, `null` when the
+ticket is not yet scheduled into one. The top-level `milestones` is
+**progress, not membership** — `{slug, label, closed, total, complete}`,
+counted over **every distinct** ticket the milestone lists, closed ones
+included: counting only the members that still resolve would let a deleted or
+re-parented ticket silently complete a milestone, and counting a repeated key
+twice would make `<closed>/<total>` — a number the user reads and acts on —
+report one ticket as two (`lint`'s `milestone-duplicate-member` names the
+repeat; nothing rewrites the line). The three buckets above,
+by contrast, hold only **open** tickets — that is deliberate and the two must
+not be made to agree, the same split `map.json`/`frontier.json` already draw
+for `blockedBy`. `complete` is `false` for an empty milestone: it has shipped
+nothing yet. **The three buckets stay key-ascending (ADR 0062, unchanged);
+milestone order is carried separately, in the `milestones` list**, for the
+consumer to sort by if it wants a milestone-grouped display — the buckets
+themselves are not reordered.
 
 **`missingBlockers`** is present on a `blocked[]` entry only when one of its
 recorded blockers has no surviving item, and lists those keys (they also remain
@@ -892,8 +1079,10 @@ both were the same bug shape, an *absence* read as a *resolution*:
 **Closed by the GitHub backend** ([ADR 0062](../../../docs/adr/0062-github-backend-ships-on-a-shared-core-not-a-second-copy.md)):
 
 - **Ordering is key-ascending on every backend**, for `map.json.tickets[]`, all
-  three `frontier.json` buckets and the decisions index. See the rule under
-  `map.json` above.
+  three `frontier.json` buckets and the decisions index **on an unmilestoned
+  map** — see the rule under `map.json` above, since amended for milestone
+  grouping (ADR 0103): a milestoned map's decisions index is key-ascending
+  only within each milestone's group, not across the whole index.
 - **Tag/label provisioning is in the dry-run plan**, as `create` entries with a
   `label:<name>` handle, placed before the map. See the action vocabulary above.
 - **The per-subcommand call budget is written down** — see the table near the top
@@ -938,11 +1127,11 @@ both were the same bug shape, an *absence* read as a *resolution*:
   divergence line so the user learns their sentence is now tool-managed. Both
   shipping backends behave this way; neither says so.
 - **The write-side region check covers the paired regions and the key marker,
-  but nothing validates on READ.** `assert_regions` validates `fog`, `scope`
-  and `decisions` (map-level, every backend), `resolution` (ticket-level,
-  local only), `graph` (ticket-level, every backend that stores text) and, on
-  a tracker, `gist` (ticket-level) — plus the single-line `key` marker — on
-  every write. A map whose regions a human has corrupted is still invisible to
+  but nothing validates on READ.** `assert_regions` validates `fog`, `scope`,
+  `notes`, `milestones` and `decisions` (map-level, every backend —
+  `MAP_REGIONS` in `map_core.py`), `resolution` (ticket-level, local only),
+  `graph` (ticket-level, every backend that stores text) and, on a tracker,
+  `gist` (ticket-level) — plus the single-line `key` marker — on every write. A map whose regions a human has corrupted is still invisible to
   `read`, `frontier` and a no-op `chart` — those paths use `region_body`, which
   returns `None` rather than complaining. The GitHub backend does fail loudly on
   the one corruption that matters most (a duplicate or missing **key** marker,
@@ -969,10 +1158,12 @@ lost too.
 | blocking | `System.LinkTypes.Dependency-Reverse` on the blocked item → predecessor | **native issue dependencies** — `POST /issues/{n}/dependencies/blocked_by` with `issue_id`; readable both directions (GA 2025-08-21, no fallback) | frontmatter `blocked_by: [slug]` |
 | resolution | work-item comment | issue comment | `## Resolution` section inside the `decision-map:resolution` markers (see below) |
 | ticket `gist` | `decision-map:gist` region in `System.Description` | same region in the issue body | frontmatter `gist:` |
-| ticket position diagram | `decision-map:graph` region in `System.Description` | same region in the issue body — **shipping**, not spec-only (ADR 0063, ADR 0064) | the same region in `tickets/<slug>.md`, above `## Question` |
+| ticket position diagram | `decision-map:graph` region in `System.Description` | same region in the issue body — **shipping**, not spec-only (ADR 0063, ADR 0064) | the same region in `tickets/<slug>.md`, **below** `## Question` (ADR 0102 — the card's identity is its question, and the diagram is context read second) |
 | ticket `type` | body line `Decision-Map-Type: <type>` | label `decision-map:type:<type>` — native GitHub issue types are **organisation-scoped** and simply absent on a user-owned repo | frontmatter `type:` |
 | map `key` (the slug) | `<!-- decision-map:key:<slug> -->` in `System.Description` | `<!-- decision-map:key:<slug> -->` in the map issue body | the directory name `<slug>/` |
-| map `destination` / `notes` | prose in the map item's description | prose in the map issue body | `## Destination` / `## Notes` |
+| map `destination` | prose in the map item's description | prose in the map issue body | `## Destination` |
+| map `notes` | `decision-map:notes` region in the map item's description (still prose, on a map that predates the region) | same region in the map issue body (still prose, on a map that predates it) | `decision-map:notes` region in `map.md` (still a bare paragraph, on a map that predates it) |
+| map `milestones` | `decision-map:milestones` region in the map item's description | same region in the map issue body | `decision-map:milestones` region in `map.md` |
 | map `notYetSpecified` / `outOfScope` | `decision-map:fog` / `decision-map:scope` regions in the map item's description | same regions in the map issue body | the same two regions in `map.md` |
 
 ### Where each field lives on a tracker
@@ -990,14 +1181,17 @@ flattens it into frontmatter. The comment is the record a human reads; the
 region is the field a machine reads. They are written in the same operation
 and must not be allowed to diverge.
 
-**The map body lists.** Additive `chart` unions `notYetSpecified` and
-`outOfScope`, so a tracker needs the same delimited regions `map.md` uses:
-read the map item's body, replace the content between the markers, write it
-back. **Only the resolution markers are local-only** — a tracker records the
-resolution as a native comment instead. The `key`, `gist`, `fog`, `scope`,
-`decisions` and `graph` markers are shared by every backend that stores text,
+**The map body lists.** Additive `chart` unions `notYetSpecified`,
+`outOfScope`, `notes` and `milestones`, so a tracker needs the same delimited
+regions `map.md` uses: read the map item's body, replace the content between
+the markers, write it back. The `fog`, `scope`, `decisions`, `notes`,
+`milestones` and `graph` markers are shared by every backend that stores text,
 and carry the same escaping rule (user-supplied strings are escaped on the way
-in, so nothing a user types can forge a marker).
+in, so nothing a user types can forge a marker). Three are **not** shared:
+the `resolution` markers are local-only (a tracker records the resolution as a
+native comment instead), and the `key` and `gist` markers are tracker-only —
+the local backend takes the key from the filename and keeps the gist in
+frontmatter, and `local_map_ops` imports neither marker.
 
 **Foreign edge targets.** decision-map models dependencies **within one map**.
 On write, an edge target must be in this input or already a child of this map;
@@ -1069,7 +1263,16 @@ explicitly empty `--user` still releases the claim.
 <one or two sentences, always rendered as a single line>
 
 ## Notes
-<domain; skills every session should consult; standing preferences>
+
+<!-- decision-map:notes:start -->
+- <one fact, skill to consult, or standing preference per line>
+<!-- decision-map:notes:end -->
+
+## Milestones
+
+<!-- decision-map:milestones:start -->
+- `<slug>` <optional label> [<key>, <key>, ...]
+<!-- decision-map:milestones:end -->
 
 ## Decisions so far
 
@@ -1090,9 +1293,35 @@ explicitly empty `--user` still releases the claim.
 <!-- decision-map:scope:end -->
 ```
 
+This is the shape `render_map_body` produces for any map this feature charts.
+**A map charted before ADR 0096/0101 does not have this shape**: its
+`## Notes` is a bare paragraph with no markers, and it has no `## Milestones`
+section at all — see "The Notes-region transition" below.
+
 An empty list region holds the single line `- (none)`, which is tool-owned:
 the merge drops it as soon as a real line arrives and restores it if the list
 becomes empty again.
+
+**The Notes-region transition.** `render_map_body` renders the `notes` region
+unconditionally on every map this feature charts — a scalar string in
+`map_input.json` still lands as one bullet inside it
+(`test_a_string_notes_renders_as_one_bullet`). What stays scalar is a map
+that predates the region entirely: its `## Notes` is the old bare paragraph,
+and `merge_map_lists` never retrofits markers into it — inserting them would
+mean guessing where that paragraph ended, the same reasoning fog/scope apply.
+Such a map keeps the pre-ADR-0101 behaviour: a differing `notes` string is
+reported through `scalar_divergences` and left unapplied, exactly like
+`title` / `destination`
+(`test_a_string_notes_on_a_legacy_map_keeps_the_scalar_behaviour`). Once the
+region exists — on any map charted through this feature, or one hand-migrated
+to carry the markers — `notes` is merged like fog instead, and
+`scalar_fields_for` drops `'notes'` from the scalar check precisely so the two
+paths cannot both report the same edit as a divergence
+(`test_notes_is_not_double_reported_when_the_region_exists`). The same
+"report, never insert" rule applies to a map that predates the **milestones**
+region, with no scalar predecessor to fall back to: it is reported as
+"predates the milestones region" and left untouched
+(`test_a_map_predating_the_regions_reports_rather_than_repairs`).
 
 `tickets/<slug>.md`:
 
@@ -1107,6 +1336,10 @@ blocked_by: []
 gist:
 ---
 
+## Question
+
+<the decision or investigation this ticket resolves>
+
 <!-- decision-map:graph:start -->
 ```mermaid
 graph TD
@@ -1115,11 +1348,17 @@ graph TD
     ME --> C0["<a ticket this one unblocks>"]
 ```
 <!-- decision-map:graph:end -->
-
-## Question
-
-<the decision or investigation this ticket resolves>
 ```
+
+**Card order: the Question first, the position diagram below it** (ADR 0102).
+The card's identity is the question it asks; the diagram is context read
+second. This changed the **create-path template only**: tickets created
+**before 0.10.0** carry the old order — diagram first — and no tool migrates
+them, because additive never reorders a body it already wrote. The region is
+found by its markers, not by its position, so both orders keep working and the
+corpus on a long-running map stays mixed until someone hand-moves an old card,
+which is a legal hand edit. A backend implemented from this contract must
+write the new order and must not reorder a card it did not create.
 
 `## Resolution` (written by `resolve` into the ticket file):
 
@@ -1137,13 +1376,18 @@ Detail: <link to repo ADR / commit, when one exists (ADR 0036)>
 
 ### Generated regions in local files (local backend only)
 
-Five spans of a local file are **generated regions**, each delimited by an HTML
-comment pair: the resolution block and the graph region in `tickets/<slug>.md`,
-and the "Decisions so far" index, the "Not yet specified" list and the "Out of
-scope" list in `map.md`. Everything else in those files is user content.
+Seven spans of a local file are **generated regions**, each delimited by an
+HTML comment pair: the resolution block and the graph region in
+`tickets/<slug>.md`, and the "Decisions so far" index, the Notes list, the
+Milestones list, the "Not yet specified" list and the "Out of scope" list in
+`map.md` (`MAP_REGIONS` + `TICKET_REGIONS` in `map_core.py`). Everything else
+in those files is user content.
 
-An additive `chart` rewrites only the two `map.md` list regions and leaves the
-rest of that file byte-identical. It leaves a ticket file byte-identical too
+An additive `chart` rewrites only the `map.md` regions the input actually adds
+lines to — `fog` and `scope` always eligible, `notes` and `milestones` only
+once their region exists on that map (see "The Notes-region transition"
+above) — and leaves the rest of that file byte-identical. It leaves a ticket
+file byte-identical too
 **unless the ticket gains a blocking edge**, in which case its frontmatter
 `blocked_by:` line and its `graph` region are both re-rendered (ADR 0058,
 ADR 0064) — and every other byte, including the resolution region, the claim
@@ -1168,13 +1412,20 @@ The rules, which any reader or writer of the local format must honour:
   The `map.md` index is likewise regenerated in full from the ticket
   frontmatter of every closed ticket — one physical line per ticket — so it is
   a projection, not accumulated state. **Its entries are ordered by ticket
-  slug (ascending), not by when each decision was resolved**, so the index is
-  a deterministic function of the ticket files and re-running the projection
-  never reorders it. The local backend records no resolution timestamp, so
-  resolution order is not recoverable from the files.
+  slug (ascending) within their group, not by when each decision was
+  resolved**, so the index is a deterministic function of the ticket files
+  and re-running the projection never reorders it. The local backend records
+  no resolution timestamp, so resolution order is not recoverable from the
+  files. **When the map carries milestones, the index is grouped to match**
+  (ADR 0103, `decisions_region` in `map_core.py`): one `#### <slug>` heading
+  per milestone, in map order — not key order, because the milestone list's
+  order is chosen — followed by an `#### (unassigned)` tail for any closed
+  ticket not in a milestone; a milestone with no closed member yet is omitted
+  rather than rendered empty. On a map with no milestones the index is the
+  flat list this always produced, unchanged.
 - **Only the tool writes markers.** Every user-supplied string — a ticket
   `question`, a `comment` body, `gist`, `link`, `--body-file` content, titles,
-  `notes`, fog and out-of-scope lines — is escaped on the way in, so the
+  `notes`, milestone labels, fog and out-of-scope lines — is escaped on the way in, so the
   literal text `<!-- decision-map:` in user content is written as
   `&lt;!-- decision-map:` (which still renders as typed, but is not a marker).
   A file must contain at most one well-formed region of each kind; a writer
@@ -1198,9 +1449,13 @@ The rules, which any reader or writer of the local format must honour:
   marked block below it, so an unmarked block written by another tool will
   be duplicated rather than updated.
 
-Only the **resolution** markers are specific to the local backend's Markdown
+The **resolution** markers are specific to the local backend's Markdown
 files: ADO and GitHub record the resolution as a native tracker comment and
-need no equivalent. The `key`, `gist`, `fog`, `scope`, `decisions` and `graph`
-markers are **shared by every backend that stores text** — see "Where each
-field lives on a tracker" above — and carry the same escaping rule and the
-same one-well-formed-region-per-kind rule stated here.
+need no equivalent. The `key` and `gist` markers run the other way — they are
+**tracker-only**, because the local backend takes a ticket's key from its
+filename and keeps its gist in frontmatter, and `local_map_ops` imports
+neither. The `fog`, `scope`, `decisions`, `notes`,
+`milestones` and `graph` markers are **shared by every backend that stores
+text** — see "Where each field lives on a tracker" above — and carry the
+same escaping rule and the same one-well-formed-region-per-kind rule stated
+here.

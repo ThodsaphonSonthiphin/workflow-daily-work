@@ -1,5 +1,27 @@
 # Decision-map Milestones and Readability Implementation Plan
 
+> **SUPERSEDED IN PART — implemented, then corrected by the final fix wave**
+> (commits `4602667`, `7870ddd`, `d5208e1`, `fb0d26e`, and the residual
+> correction `f77ded8`).
+> Every task below shipped. Five details this plan specifies are no longer
+> true of the code, so do not regenerate requirements from them:
+>
+> - `milestone_line` now **strips** the label (this plan's version did not, so
+>   a padded label broke the byte-identical no-op on the first re-chart);
+> - `merge_milestones` resolves a duplicated stored slug **first**-wins, like
+>   every projection, and dedupes the stored order before comparing it;
+> - `milestone_progress` counts **distinct** members, and `lint` names a key
+>   repeated inside one milestone;
+> - the member-union plan detail reads `adds 1 ticket to an existing
+>   milestone`, not `adds 1 milestone member line` — the union edits a stored
+>   line rather than adding one;
+> - the GitHub `Snapshot` discards the unparsable milestone lines as `_`
+>   rather than storing them in `_bad_milestone_lines`, which nothing read.
+>
+> ADR 0102 is also restated correctly in the contract: a new ticket renders
+> its Question **above** the position diagram, i.e. the diagram sits *below*
+> `## Question`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use sp-subagent-driven-development (recommended) or sp-executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give a decision map an ordering dimension — named, ordered milestones grouping its tickets — and make the map document and ticket cards readable, so a session can see what ships first instead of re-deciding it every time.
