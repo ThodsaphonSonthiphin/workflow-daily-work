@@ -864,6 +864,48 @@ def validate_key(key, what):
             "inside comment text; use a single hyphen")
 
 
+def _validate_milestones(where_map, m):
+    """Validate map.milestones before anything is written.
+
+    Exclusivity is checked HERE as well as in lint: an input placing one ticket
+    in two milestones has no defensible interpretation, and applying either
+    reading would store a map the user did not describe. A member naming a
+    ticket that does not exist is NOT an error here -- a milestone may legally
+    be declared ahead of the tickets that will fill it, and lint reports the
+    ones that never arrive.
+    """
+    milestones = m.get("milestones")
+    if milestones is None:
+        return
+    if not isinstance(milestones, list):
+        raise ChartValidationError(
+            f"{where_map}: field 'milestones' must be a list, got "
+            f"{type(milestones).__name__}")
+    slugs, owner = set(), {}
+    for i, ms in enumerate(milestones):
+        if not isinstance(ms, dict):
+            raise ChartValidationError(
+                f"{where_map}: milestones[{i}] must be an object, got "
+                f"{type(ms).__name__}")
+        where = f"{where_map}: milestones[{i}]"
+        slug = require(where, ms, "slug", str, True)
+        validate_key(slug, "milestone slug")
+        if slug in slugs:
+            raise ChartValidationError(
+                f"{where_map}: milestone slug {slug!r} appears twice; "
+                "slugs are unique within a map")
+        slugs.add(slug)
+        require(where, ms, "label", str, False)
+        for key in require(where, ms, "members", list, False) or []:
+            validate_key(key, "milestone member")
+            if key in owner and owner[key] != slug:
+                raise ChartValidationError(
+                    f"{where_map}: ticket {key!r} is listed in both milestone "
+                    f"{owner[key]!r} and {slug!r}; a ticket belongs to at most "
+                    "one milestone -- the first that needs it")
+            owner[key] = slug
+
+
 def validate_chart_input(inp, ticket_exists=None):
     """Validate `inp` before chart() writes anything (dry-run or real).
 
@@ -909,9 +951,19 @@ def validate_chart_input(inp, ticket_exists=None):
     where_map = 'map_input.json\'s "map"'
     for field in REQUIRED_MAP_FIELDS:
         require(where_map, m, field, str, True)
-    require(where_map, m, "notes", str, False)
+    # notes is str OR list[str] (ADR 0101): the region stores a list, and a bare
+    # string stays legal as a one-bullet list so existing inputs keep working.
+    # `require` checks one declared type, so this pair of shapes is checked here.
+    notes = m.get("notes")
+    if notes is not None and not (
+            isinstance(notes, str)
+            or (isinstance(notes, list) and all(isinstance(x, str) for x in notes))):
+        raise ChartValidationError(
+            f"{where_map}: field 'notes' must be a string or a list of strings, "
+            f"got {notes!r}")
     for field in ("notYetSpecified", "outOfScope"):
         require(where_map, m, field, list, False)
+    _validate_milestones(where_map, m)
 
     keys = set()
     for i, t in enumerate(inp["tickets"]):

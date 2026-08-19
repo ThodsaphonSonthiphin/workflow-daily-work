@@ -2491,5 +2491,73 @@ class MilestoneGrammarTest(unittest.TestCase):
             ["- `one` [a]"])
 
 
+class MilestoneInputValidationTest(unittest.TestCase):
+    """Validation runs BEFORE any write (dry run included), so a bad input
+    costs an error message rather than a half-charted map."""
+
+    def _inp(self, **mapkw):
+        inp = copy.deepcopy(INPUT)
+        inp["map"].update(mapkw)
+        return inp
+
+    def test_a_valid_milestones_list_passes(self):
+        map_core.validate_chart_input(self._inp(milestones=[
+            {"slug": "mvp", "label": "demo the search page",
+             "members": ["auth-model", "api-limits"]},
+            {"slug": "polish", "members": []},
+        ]))
+
+    def test_milestones_must_be_a_list(self):
+        with self.assertRaises(map_core.ChartValidationError):
+            map_core.validate_chart_input(self._inp(milestones={"slug": "mvp"}))
+
+    def test_a_milestone_must_be_an_object_with_a_slug(self):
+        for bad in ([("mvp",)], ["mvp"], [{"label": "no slug"}]):
+            with self.assertRaises(map_core.ChartValidationError):
+                map_core.validate_chart_input(self._inp(milestones=bad))
+
+    def test_a_milestone_slug_obeys_the_key_rule(self):
+        # The slug is a marker payload on a tracker, so '--' breaks the HTML
+        # comment exactly as it does in a ticket key.
+        for bad in ("mvp--search", "../evil", "has space", ""):
+            with self.assertRaises(map_core.ChartValidationError):
+                map_core.validate_chart_input(
+                    self._inp(milestones=[{"slug": bad, "members": []}]))
+
+    def test_a_member_obeys_the_key_rule(self):
+        with self.assertRaises(map_core.ChartValidationError):
+            map_core.validate_chart_input(self._inp(
+                milestones=[{"slug": "mvp", "members": ["../evil"]}]))
+
+    def test_two_milestones_cannot_share_a_slug(self):
+        with self.assertRaises(map_core.ChartValidationError):
+            map_core.validate_chart_input(self._inp(milestones=[
+                {"slug": "mvp", "members": ["auth-model"]},
+                {"slug": "mvp", "members": ["api-limits"]}]))
+
+    def test_one_input_cannot_place_a_ticket_in_two_milestones(self):
+        # Exclusivity is checked at the input too, not only by lint: an input
+        # that contradicts itself has no defensible interpretation.
+        with self.assertRaises(map_core.ChartValidationError) as e:
+            map_core.validate_chart_input(self._inp(milestones=[
+                {"slug": "mvp", "members": ["auth-model"]},
+                {"slug": "polish", "members": ["auth-model"]}]))
+        self.assertIn("auth-model", str(e.exception))
+
+    def test_a_label_must_be_a_string_when_present(self):
+        with self.assertRaises(map_core.ChartValidationError):
+            map_core.validate_chart_input(
+                self._inp(milestones=[{"slug": "mvp", "label": 7, "members": []}]))
+
+    def test_notes_may_be_a_string_or_a_list_of_strings(self):
+        map_core.validate_chart_input(self._inp(notes="one line"))
+        map_core.validate_chart_input(self._inp(notes=["one", "two"]))
+
+    def test_notes_rejects_any_other_shape(self):
+        for bad in (7, {"a": 1}, ["ok", 7]):
+            with self.assertRaises(map_core.ChartValidationError):
+                map_core.validate_chart_input(self._inp(notes=bad))
+
+
 if __name__ == "__main__":
     unittest.main()
