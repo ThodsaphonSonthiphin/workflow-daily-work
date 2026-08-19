@@ -1,7 +1,8 @@
 # Decision-map Milestones and Readability Implementation Plan
 
-> **SUPERSEDED IN PART — implemented, then corrected by the final fix wave
-> (`.superpowers/sdd/2026-08-19-decision-map-milestones-and-readability/fix-wave-brief.md`).**
+> **SUPERSEDED IN PART — implemented, then corrected by the final fix wave**
+> (commits `4602667`, `7870ddd`, `d5208e1`, `fb0d26e`, and the residual
+> correction `f77ded8`).
 > Every task below shipped. Five details this plan specifies are no longer
 > true of the code, so do not regenerate requirements from them:
 >
