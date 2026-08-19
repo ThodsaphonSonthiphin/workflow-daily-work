@@ -30,7 +30,10 @@ the frontier must never do.
 
 `force=True` (CLI: --force) is the explicit full rewrite. It is DESTRUCTIVE:
 it discards the recorded resolutions, claims and blocking edges of every item
-the input NAMES -- not of the whole map. Its reach is exactly the items the
+the input NAMES -- not of the whole map -- and regenerates the map body, so
+every milestone, note, fog and out-of-scope line the input does not repeat
+goes with them (the decisions index self-heals on the next resolve; those
+four regions do not). Its reach is otherwise exactly the items the
 plan labels OVERWRITE; a ticket named only in a `blocks` list is still a
 `merge` and keeps everything, and a ticket the input does not mention is not
 in the plan at all and is untouched. It is never needed to add tickets. See

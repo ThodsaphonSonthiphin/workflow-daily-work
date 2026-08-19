@@ -129,8 +129,17 @@ EMPTY_LIST_LINE = "- (none)"
 # old advice -- "re-chart with --force to rewrite it" -- and watched it erase a
 # resolution, its frontmatter and its index entry. Any text that steers a user
 # toward --force must carry this.
+#
+# The map-body half is named too, and is the half nothing else warns about: the
+# decisions index self-heals (the next resolve re-projects it), but the four
+# list regions do not. Measured: a map holding one milestone, force-charted from
+# an input that omits `milestones`, comes back "- (none)" with divergence []
+# and detail null. Removing a milestone is a deliberate hand edit by design
+# (ADR 0098) -- --force is the one path that does it wholesale and in silence.
 FORCE_COST = ("--force fully rewrites every item named in the input and "
-              "DISCARDS their recorded resolutions, claims and blocking edges")
+              "DISCARDS their recorded resolutions, claims and blocking edges, "
+              "and regenerates the map body, so every milestone, note, fog and "
+              "out-of-scope line the input does not repeat is lost with them")
 
 # The longest gist that still reads as ONE line in the map's decisions index,
 # which is what the index renders it as. Over this, resolve() warns and writes
@@ -1549,12 +1558,12 @@ def lint_findings(map_text, tickets, resolution_bodies=True):
         if slug in seen_slugs:
             errors.append(_finding(
                 "milestone-duplicate-slug", LINT_ERROR, None,
-                f"milestone {slug!r} is declared twice; frontier.json's "
-                f"milestones list ends up with two rows both slugged {slug!r} "
-                "(each counting only its own half of the members), and the "
-                "decisions index renders every member under the FIRST "
-                "entry's heading -- so what actually goes missing is the "
-                "SECOND entry's label, not any member"))
+                f"milestone {slug!r} is declared more than once; frontier.json's "
+                f"milestones list ends up with one row per declaration, all "
+                f"slugged {slug!r} (each counting only its own members), and "
+                "the decisions index renders every member under the FIRST "
+                "entry's heading -- so what actually goes missing is the label "
+                "of every entry after the first, not any member"))
         seen_slugs.setdefault(slug, m)
         # Within ONE line as well as across lines. A key repeated inside a
         # single milestone is invisible to the cross-milestone check below

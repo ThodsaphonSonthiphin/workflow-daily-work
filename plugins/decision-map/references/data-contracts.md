@@ -171,7 +171,7 @@ enforced it. Prose is advisory; this is the deterministic half.
 | `anonymous-claim` | warning | an **open** ticket is held by the literal `--user` default `me`, which names nobody. Structurally impossible on a tracker, where the caller is resolved for real. |
 | `fog-line-graduated` | warning | a line under "Not yet specified" reads as a ticket that already exists. An additive `chart` never deletes, so graduating fog leaves the old line behind and the map keeps advertising a question it has answered. |
 | `milestone-line-unparsable` | error | a line inside the milestones region does not match the grammar above. Skipping it would hide its members, so the map would advertise a smaller milestone than it has. `ticket: null` — the broken thing is the line, not any one ticket. |
-| `milestone-duplicate-slug` | error | a milestone slug is declared twice. Nothing is unreachable — `membership_of` maps every member of both entries to the shared slug — but `frontier.json`'s milestones list ends up with two rows sharing that slug, each counting only its own half of the members, and the decisions index renders every member under the FIRST entry's heading, so the SECOND entry's *label* is what actually goes missing. `ticket: null` — the map holds the duplicate, not a ticket. |
+| `milestone-duplicate-slug` | error | a milestone slug is declared more than once. Nothing is unreachable — `membership_of` maps every member of every entry to the shared slug — but `frontier.json`'s milestones list ends up with one row per declaration, all sharing that slug and each counting only its own members, and the decisions index renders every member under the FIRST entry's heading, so what actually goes missing is the *label* of every entry after the first. `ticket: null` — the map holds the duplicate, not a ticket. |
 | `milestone-duplicate-member` | error | a ticket key is listed twice — either as a member of two different milestones (membership is exclusive, ADR 0097) or twice on the same milestone line. The finding names the ticket, and the repeat inside one line fires **once**, not once per repeat. Progress counts **distinct** members, so a repeat never inflates `<closed>/<total>`; the finding exists because the line still claims more tickets than it has, and additive `chart` will never rewrite it. |
 | `milestone-unknown-ticket` | error | a milestone lists a ticket key that is not on this map. That member can never close, so the milestone can never complete and its progress reads short forever; the finding names the ticket. |
 
@@ -295,6 +295,18 @@ but drops out of the index too. It is **self-healing**: the next `resolve`
 re-projects the index from every closed ticket and all of those entries come
 back. A backend must therefore not implement a partial refresh here — the
 index is either fully re-projected or left for the next `resolve` to rebuild.
+
+**The other four map regions do NOT self-heal, and that is the cost nothing
+else on this page names.** `--force` regenerates the map body from the input,
+so a **milestones**, **notes**, **fog** or **out-of-scope** line that lives
+only on the map and is absent from the input is simply gone — there is no
+projection to rebuild it and no later command that puts it back. The
+milestones region is the sharpest case: removing a milestone or a member is a
+deliberate hand edit by design (ADR 0098), so `--force` is the one path that
+removes them wholesale, and it does it with `divergence: []` and
+`detail: null` on the `OVERWRITE` line. Re-declare every milestone, note, fog
+and out-of-scope line in the input before forcing, or copy the four regions
+out of the map document first.
 
 #### Dry-run action vocabulary (required of every backend)
 
@@ -453,9 +465,18 @@ worked example:
 - order is **line order**, never a rendered number: a numbered list would
   need renumbering on every insert, which is a rewrite of lines the additive
   guarantee promises never to touch.
-- a line the grammar cannot read is **reported, never skipped** — skipping it
-  would hide its members, so the map would advertise a smaller milestone than
-  it has (`lint`'s `milestone-line-unparsable`, below).
+- a line the grammar cannot read is **reported by `lint` and by `chart`** —
+  `lint` names it (`milestone-line-unparsable`, below) and `chart` refuses to
+  merge into a region holding one, saying so in `divergence` and leaving the
+  region byte-identical, because re-rendering it would delete the line. `read`
+  and `frontier` are the exception and must be read as one: they project only
+  the lines they can parse, so a broken line's milestone is absent from
+  `milestones` altogether and every key it named reports `milestone: null` —
+  a map whose only milestone line is broken reports `milestones: []`, which is
+  indistinguishable from having none. That is why `work-map` runs `lint`
+  **before** it reads a
+  frontier, and why a backend must not treat "`frontier` shows no milestones"
+  as "this map has none".
 
 **Exclusivity, and the legal unassigned state** (ADR 0097). A ticket belongs
 to **at most one** milestone — the first that needs it. A decision closed
@@ -534,7 +555,8 @@ task=either.
 renders as a single tool-owned bullet, so every existing input keeps working
 unchanged — and a list is one bullet per entry, unioned like `notYetSpecified`
 on every later `chart`. See "Milestones" above for `map.milestones`: an
-optional, ordered list of `{slug, label?, members}`. `members` may name a
+optional, ordered list of `{slug, label?, members?}` — `members` is optional
+too, and an entry without it declares an empty milestone. `members` may name a
 ticket not yet present in this input's `tickets[]` or on the map — declaring a
 milestone ahead of the tickets that will fill it is legal; `lint`'s
 `milestone-unknown-ticket` names any member that never arrives.
@@ -1133,7 +1155,7 @@ lost too.
 | blocking | `System.LinkTypes.Dependency-Reverse` on the blocked item → predecessor | **native issue dependencies** — `POST /issues/{n}/dependencies/blocked_by` with `issue_id`; readable both directions (GA 2025-08-21, no fallback) | frontmatter `blocked_by: [slug]` |
 | resolution | work-item comment | issue comment | `## Resolution` section inside the `decision-map:resolution` markers (see below) |
 | ticket `gist` | `decision-map:gist` region in `System.Description` | same region in the issue body | frontmatter `gist:` |
-| ticket position diagram | `decision-map:graph` region in `System.Description` | same region in the issue body — **shipping**, not spec-only (ADR 0063, ADR 0064) | the same region in `tickets/<slug>.md`, above `## Question` |
+| ticket position diagram | `decision-map:graph` region in `System.Description` | same region in the issue body — **shipping**, not spec-only (ADR 0063, ADR 0064) | the same region in `tickets/<slug>.md`, **below** `## Question` (ADR 0102 — the card's identity is its question, and the diagram is context read second) |
 | ticket `type` | body line `Decision-Map-Type: <type>` | label `decision-map:type:<type>` — native GitHub issue types are **organisation-scoped** and simply absent on a user-owned repo | frontmatter `type:` |
 | map `key` (the slug) | `<!-- decision-map:key:<slug> -->` in `System.Description` | `<!-- decision-map:key:<slug> -->` in the map issue body | the directory name `<slug>/` |
 | map `destination` | prose in the map item's description | prose in the map issue body | `## Destination` |
@@ -1159,12 +1181,14 @@ and must not be allowed to diverge.
 **The map body lists.** Additive `chart` unions `notYetSpecified`,
 `outOfScope`, `notes` and `milestones`, so a tracker needs the same delimited
 regions `map.md` uses: read the map item's body, replace the content between
-the markers, write it back. **Only the resolution markers are local-only** —
-a tracker records the resolution as a native comment instead. The `key`,
-`gist`, `fog`, `scope`, `decisions`, `notes`, `milestones` and `graph` markers
-are shared by every backend that stores text, and carry the same escaping
-rule (user-supplied strings are escaped on the way in, so nothing a user types
-can forge a marker).
+the markers, write it back. The `fog`, `scope`, `decisions`, `notes`,
+`milestones` and `graph` markers are shared by every backend that stores text,
+and carry the same escaping rule (user-supplied strings are escaped on the way
+in, so nothing a user types can forge a marker). Three are **not** shared:
+the `resolution` markers are local-only (a tracker records the resolution as a
+native comment instead), and the `key` and `gist` markers are tracker-only —
+the local backend takes the key from the filename and keeps the gist in
+frontmatter, and `local_map_ops` imports neither marker.
 
 **Foreign edge targets.** decision-map models dependencies **within one map**.
 On write, an edge target must be in this input or already a child of this map;
@@ -1309,6 +1333,10 @@ blocked_by: []
 gist:
 ---
 
+## Question
+
+<the decision or investigation this ticket resolves>
+
 <!-- decision-map:graph:start -->
 ```mermaid
 graph TD
@@ -1317,11 +1345,17 @@ graph TD
     ME --> C0["<a ticket this one unblocks>"]
 ```
 <!-- decision-map:graph:end -->
-
-## Question
-
-<the decision or investigation this ticket resolves>
 ```
+
+**Card order: the Question first, the position diagram below it** (ADR 0102).
+The card's identity is the question it asks; the diagram is context read
+second. This changed the **create-path template only**: tickets created
+**before 0.10.0** carry the old order — diagram first — and no tool migrates
+them, because additive never reorders a body it already wrote. The region is
+found by its markers, not by its position, so both orders keep working and the
+corpus on a long-running map stays mixed until someone hand-moves an old card,
+which is a legal hand edit. A backend implemented from this contract must
+write the new order and must not reorder a card it did not create.
 
 `## Resolution` (written by `resolve` into the ticket file):
 
@@ -1412,9 +1446,12 @@ The rules, which any reader or writer of the local format must honour:
   marked block below it, so an unmarked block written by another tool will
   be duplicated rather than updated.
 
-Only the **resolution** markers are specific to the local backend's Markdown
+The **resolution** markers are specific to the local backend's Markdown
 files: ADO and GitHub record the resolution as a native tracker comment and
-need no equivalent. The `key`, `gist`, `fog`, `scope`, `decisions`, `notes`,
+need no equivalent. The `key` and `gist` markers run the other way — they are
+**tracker-only**, because the local backend takes a ticket's key from its
+filename and keeps its gist in frontmatter, and `local_map_ops` imports
+neither. The `fog`, `scope`, `decisions`, `notes`,
 `milestones` and `graph` markers are **shared by every backend that stores
 text** — see "Where each field lives on a tracker" above — and carry the
 same escaping rule and the same one-well-formed-region-per-kind rule stated
