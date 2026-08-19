@@ -418,6 +418,15 @@ read as describing the trunk forever. Write "24 paths on `main` (ba323d8)", neve
 routes" — correct for its branch, false on the trunk one merge later — and three
 canonical docs plus four tickets had to be amended once a later session ran it.
 
+**It must name its SEARCH SCOPE and the repo set it swept, too.** "0 hits" is not a
+measurement; "0 hits in `*.cs` across 26 refs" is. An unscoped zero reads as "the thing is
+not even specified", and the same grep over `*.md` will contradict it. Worse, a zero
+measured in ONE repo says nothing when the product is split across sibling repos — seen
+2026-08-19: a map recorded a feature "absent on all seven refs" while nine sibling repos on
+the same disk held the CRM plugins, the Dataverse solution and three per-feature React
+controls, one of them a plugin writing to the very record the new code would create.
+Enumerate the siblings before writing any "not built" gist.
+
 **If the ticket's subject is runnable, RUN it.** A compile gate and a route table
 cannot see a wrong runbook. That same map had 24 closed tickets, every one gated
 on `tsc` / `dotnet build` / a route diff, and the first session to open a browser

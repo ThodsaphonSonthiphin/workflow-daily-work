@@ -151,7 +151,7 @@
       "name": "decision-map",
       "source": "./plugins/decision-map",
       "description": "Plan work too big for one agent session as a map of decision tickets, in your repo as markdown or on GitHub Issues. /decision-map:chart names the destination and creates the map + tickets behind a dry-run gate; /decision-map:work claims and resolves exactly one decision per session via the arc's own skills (grilling, ui-mockup, research). Two backends ship: local markdown under docs/decision-map/, and GitHub Issues using native sub-issues and blocked-by dependencies (ADR 0062). Azure DevOps is still gated on its half of the marker-survival probe (ADR 0059), so no tracker login is needed for local and only GitHub can put a map on a board.",
-      "version": "0.9.1",
+      "version": "0.9.2",
       "author": {
         "name": "ThodsaphonSonthiphin",
         "url": "https://github.com/ThodsaphonSonthiphin"
