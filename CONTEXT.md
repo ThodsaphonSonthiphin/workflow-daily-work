@@ -130,6 +130,16 @@ canonical (ADR 0036). Typed `research`, `prototype`, `grilling`, or `task`
 _Avoid_: implementation ticket, task (an ADO/GitHub work item type, not this),
 user story.
 
+**Milestone**:
+A named, **ordered**, shippable increment on the way to a Decision map's
+destination — the group of Decision tickets that must all close before building
+that increment can begin. The ordering intent is declared once (at chart time or
+when it becomes clear) and stored on the map, so no session re-derives "what
+ships first" (ADR 0094). First-class map structure, not a ticket (ADR 0095).
+Distinct from GitHub's native milestone object and from an ADO iteration — those
+are backend furniture, not this term.
+_Avoid_: sprint, iteration, phase, epic, release.
+
 **HITL / AFK ticket**:
 Every Decision ticket is one or the other. **HITL** (human-in-the-loop) resolves
 only through live exchange with the human — the agent never answers its own
