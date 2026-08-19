@@ -1507,8 +1507,12 @@ def lint_findings(map_text, tickets, resolution_bodies=True):
         if slug in seen_slugs:
             errors.append(_finding(
                 "milestone-duplicate-slug", LINT_ERROR, None,
-                f"milestone {slug!r} is declared twice; the projection takes "
-                "the first, so the second's members are silently unreachable"))
+                f"milestone {slug!r} is declared twice; frontier.json's "
+                f"milestones list ends up with two rows both slugged {slug!r} "
+                "(each counting only its own half of the members), and the "
+                "decisions index renders every member under the FIRST "
+                "entry's heading -- so what actually goes missing is the "
+                "SECOND entry's label, not any member"))
         seen_slugs.setdefault(slug, m)
         for key in m["members"]:
             if key in owner and owner[key] != slug:

@@ -2955,6 +2955,28 @@ class MilestoneLintTest(unittest.TestCase):
         self.assertEqual(f["severity"], map_core.LINT_ERROR)
         self.assertIn("mvp", f["message"])
 
+    def test_duplicate_slug_yields_two_progress_rows_sharing_one_slug(self):
+        # Pins the REAL consequence of a duplicate slug, so the lint message
+        # (and the doc quoting it) cannot drift back to the false claim this
+        # replaced: "the projection takes the first, so the second's members
+        # are silently unreachable" -- that was wrong on all counts.
+        # membership_of maps every member of BOTH entries to the shared slug
+        # (nothing is unreachable); what actually breaks is milestone_progress,
+        # which iterates the raw, undeduplicated milestones list, so a
+        # duplicate slug produces TWO rows in frontier.json's milestones list,
+        # both slugged "mvp", each counting only its own half of the members.
+        milestones, bad = map_core.parse_milestones(
+            self._map_text("- `mvp` [a, b]", "- `mvp` [c, d]"))
+        self.assertEqual(bad, [])
+        progress = map_core.milestone_progress(
+            milestones,
+            {"a": "closed", "b": "open", "c": "closed", "d": "closed"})
+        self.assertEqual([p["slug"] for p in progress], ["mvp", "mvp"],
+                          "a duplicate slug must yield two rows sharing it")
+        self.assertEqual([(p["closed"], p["total"]) for p in progress],
+                          [(1, 2), (2, 2)],
+                          "each row counts only its own half of the members")
+
     def test_a_ticket_in_two_milestones_is_an_error_naming_the_ticket(self):
         findings = map_core.lint_findings(
             self._map_text("- `mvp` [a]", "- `polish` [a]"),

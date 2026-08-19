@@ -171,7 +171,7 @@ enforced it. Prose is advisory; this is the deterministic half.
 | `anonymous-claim` | warning | an **open** ticket is held by the literal `--user` default `me`, which names nobody. Structurally impossible on a tracker, where the caller is resolved for real. |
 | `fog-line-graduated` | warning | a line under "Not yet specified" reads as a ticket that already exists. An additive `chart` never deletes, so graduating fog leaves the old line behind and the map keeps advertising a question it has answered. |
 | `milestone-line-unparsable` | error | a line inside the milestones region does not match the grammar above. Skipping it would hide its members, so the map would advertise a smaller milestone than it has. `ticket: null` — the broken thing is the line, not any one ticket. |
-| `milestone-duplicate-slug` | error | a milestone slug is declared twice. The projection takes the first, so the second's members are silently unreachable. `ticket: null` — the map holds the duplicate, not a ticket. |
+| `milestone-duplicate-slug` | error | a milestone slug is declared twice. Nothing is unreachable — `membership_of` maps every member of both entries to the shared slug — but `frontier.json`'s milestones list ends up with two rows sharing that slug, each counting only its own half of the members, and the decisions index renders every member under the FIRST entry's heading, so the SECOND entry's *label* is what actually goes missing. `ticket: null` — the map holds the duplicate, not a ticket. |
 | `milestone-duplicate-member` | error | a ticket key is a member of two different milestones. Membership is exclusive (ADR 0097); the finding names the ticket. |
 | `milestone-unknown-ticket` | error | a milestone lists a ticket key that is not on this map. That member can never close, so the milestone can never complete and its progress reads short forever; the finding names the ticket. |
 
@@ -625,11 +625,15 @@ index format is `- [title](link) — gist`, so the link has to be real.)
 and all three `frontier.json` buckets. A tracker's natural order is creation or id
 order, so without this rule two backends emit different documents for the same
 logical state. Key-ascending is the only order that is a deterministic function of
-that state; the decisions index is ordered the same way and for the same reason.
-**`milestones` is the deliberate exception**: it holds map order (declaration
-order), not key order, because the whole point of a milestone list is that
-its order is chosen (ADR 0096) — see the ordering note under `frontier.json`
-below for how that interacts with the key-ascending buckets.
+that state; the decisions index is ordered the same way and for the same reason —
+**on an unmilestoned map.** `milestones` is the deliberate exception: it holds map
+order (declaration order), not key order, because the whole point of a
+milestone list is that its order is chosen (ADR 0096). When the map carries
+milestones, the decisions index is grouped to match — key-ascending only
+*within* each group, not across the whole index — see "Generated regions in
+local files" below for the grouping rule, and the ordering note under
+`frontier.json` below for how milestone order interacts with the
+key-ascending buckets.
 
 `chart` (only — not `read`) adds `"divergence"`: a list of human-readable
 strings naming anything the input asked for that an additive run deliberately
@@ -1047,8 +1051,10 @@ both were the same bug shape, an *absence* read as a *resolution*:
 **Closed by the GitHub backend** ([ADR 0062](../../../docs/adr/0062-github-backend-ships-on-a-shared-core-not-a-second-copy.md)):
 
 - **Ordering is key-ascending on every backend**, for `map.json.tickets[]`, all
-  three `frontier.json` buckets and the decisions index. See the rule under
-  `map.json` above.
+  three `frontier.json` buckets and the decisions index **on an unmilestoned
+  map** — see the rule under `map.json` above, since amended for milestone
+  grouping (ADR 0103): a milestoned map's decisions index is key-ascending
+  only within each milestone's group, not across the whole index.
 - **Tag/label provisioning is in the dry-run plan**, as `create` entries with a
   `label:<name>` handle, placed before the map. See the action vocabulary above.
 - **The per-subcommand call budget is written down** — see the table near the top
