@@ -321,8 +321,10 @@ written and maintained by the script rather than by you (ADR 0063/0064).
 for something an additive run deliberately did **not** apply — most often a
 changed `title` / `destination` on a map that already exists. Report
 every line. The fix is to edit the map document by hand, never to reach for `--force`.
-`notes` is not on that list: it is a list region that **unions** like the fog
-lines (ADR 0101), so a later `chart` should carry only NEW note lines. An
+`notes` is not on that list on any map carrying the notes region: there it is a
+list region that **unions** like the fog lines (ADR 0101), so a later `chart`
+should carry only NEW note lines. (On a legacy map that predates the region,
+`notes` is still a scalar and still diverges.) An
 existing note restated in any other shape — the bullets joined into one string,
 or pasted back with their `- ` prefixes — is a new line to the union, so it is
 appended, silently, with no `divergence` to catch it.

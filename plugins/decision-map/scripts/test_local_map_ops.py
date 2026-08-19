@@ -3196,8 +3196,35 @@ class MilestoneLintTest(unittest.TestCase):
         self.assertEqual(len(dupes), 1)
         self.assertEqual(dupes[0]["severity"], map_core.LINT_ERROR)
         self.assertEqual(dupes[0]["ticket"], "a")
-        self.assertIn("twice", dupes[0]["message"])
+        self.assertIn("more than once", dupes[0]["message"])
         self.assertIn("mvp", dupes[0]["message"])
+
+    def test_a_key_repeated_three_times_fires_once_per_extra_occurrence(self):
+        # Pins the FIRING COUNT, which the message and the contract row both
+        # state. The first correction of this rule's wording said "twice" and
+        # "fires once", and both were false the moment a key appeared three
+        # times -- a fixed count minted while fixing a fixed count. Nothing
+        # caught it because the only case under test was `[a, a]`.
+        for members, want in (("a, a", 1), ("a, a, a", 2), ("a, a, a, a", 3)):
+            with self.subTest(members=members):
+                findings = map_core.lint_findings(
+                    self._map_text(f"- `mvp` [{members}]"), self._tickets("a"))
+                dupes = [f for f in findings
+                         if f["rule"] == "milestone-duplicate-member"]
+                self.assertEqual(len(dupes), want)
+                # And the wording must not claim a count of its own.
+                self.assertNotIn("twice", dupes[0]["message"])
+
+    def test_a_repeated_member_still_reaches_map_json(self):
+        # The message says progress is unaffected but map.json still carries the
+        # repeat. Both halves are load-bearing: the first tells the user not to
+        # panic about <closed>/<total>, the second tells them it is still worth
+        # fixing. Measured rather than asserted in prose alone.
+        ms, bad = map_core.parse_milestones(self._map_text("- `mvp` [a, a]"))
+        self.assertEqual(bad, [])
+        self.assertEqual(ms[0]["members"], ["a", "a"])
+        progress = map_core.milestone_progress(ms, {"a": "open"})
+        self.assertEqual((progress[0]["closed"], progress[0]["total"]), (0, 1))
 
     def test_an_unknown_key_repeated_in_one_milestone_fires_once(self):
         # Two identical milestone-unknown-ticket findings read as two problems

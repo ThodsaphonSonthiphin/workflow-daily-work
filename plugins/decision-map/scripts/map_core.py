@@ -1604,7 +1604,7 @@ def lint_findings(map_text, tickets, resolution_bodies=True):
             errors.append(_finding(
                 "milestone-duplicate-slug", LINT_ERROR, None,
                 f"milestone {slug!r} is declared more than once; frontier.json's "
-                f"milestones list ends up with one row per declaration, all "
+                "milestones list ends up with one row per declaration, all "
                 f"slugged {slug!r} (each counting only its own members), and "
                 "the decisions index renders every member under the FIRST "
                 "entry's heading -- so what actually goes missing is the label "
@@ -1621,9 +1621,10 @@ def lint_findings(map_text, tickets, resolution_bodies=True):
             if key in seen_members:
                 errors.append(_finding(
                     "milestone-duplicate-member", LINT_ERROR, key,
-                    f"{key!r} is listed twice in milestone {slug!r}; progress "
-                    "counts distinct members, so the repeat changes nothing "
-                    "the map reports -- remove it by hand to stop the line "
+                    f"{key!r} is listed more than once in milestone {slug!r}; "
+                    "progress counts distinct members, so the repeat never "
+                    "inflates <closed>/<total> -- but map.json's members list "
+                    "still carries it, so remove it by hand to stop the line "
                     "claiming more tickets than it has"))
                 continue
             seen_members.add(key)
