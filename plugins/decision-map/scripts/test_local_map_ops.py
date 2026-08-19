@@ -2720,6 +2720,40 @@ class MapBodyRegionsTest(unittest.TestCase):
         first = self._chart(inp)
         self.assertEqual(self._chart(copy.deepcopy(inp)), first)
 
+    def test_omitting_notes_is_the_no_op_and_restating_them_appends(self):
+        # The premise of work-map Step 5's wording, pinned so the instruction
+        # and the code cannot drift apart again. `notes` was a replace-nothing
+        # scalar when Step 5 was written, so it said "repeat it unchanged"; ADR
+        # 0101 made it an append path and the template kept showing a STRING.
+        # Following that template added one garbage bullet per session, with an
+        # EMPTY divergence list -- nothing anywhere said so.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["notes"] = ["use grill-with-docs", "scrutinize is frozen"]
+        first = self._chart(inp)
+
+        omitted = copy.deepcopy(INPUT)
+        omitted["tickets"] = []
+        omitted["map"].pop("notes")
+        out = ops.chart(self.root, omitted, real=True)
+        p = self.root / "example-effort" / "map.md"
+        self.assertEqual(p.read_text(encoding="utf-8"), first,
+                         "omitting notes must be a byte-identical no-op")
+        self.assertEqual([d for d in out["divergence"] if "notes" in d], [])
+
+        restated = copy.deepcopy(INPUT)
+        restated["tickets"] = []
+        restated["map"]["notes"] = "use grill-with-docs scrutinize is frozen"
+        out = ops.chart(self.root, restated, real=True)
+        body = map_core.region_body(p.read_text(encoding="utf-8"),
+                                    map_core.NOTES_START, map_core.NOTES_END)
+        self.assertEqual(
+            body.strip().splitlines(),
+            ["- use grill-with-docs", "- scrutinize is frozen",
+             "- use grill-with-docs scrutinize is frozen"])
+        self.assertEqual([d for d in out["divergence"] if "notes" in d], [],
+                         "and it is silent -- which is why the skill must not "
+                         "steer a session into it")
+
     def test_an_identical_re_chart_with_a_padded_label_is_byte_identical(self):
         # The headline invariant, on the input shape that broke it. A label
         # carrying a trailing space rendered with that space, parsed back

@@ -196,17 +196,25 @@ Present it as prose, in this order:
   `milestones` list in the order it gives them — that order is the map's own
   declared plan, not something a session chooses — and under each show its
   progress (`<closed>/<total>` closed) plus its takeable tickets by name, one
-  line each with its type, never a wall of bare ids. After every milestone,
-  list any frontier ticket whose `milestone` is `null` as a final
-  **unassigned** tail. `read` is what carries milestone *membership*
+  line each with its type, never a wall of bare ids. **Each milestone carries
+  its own blocked and claimed lines too**, not just its takeable ones: with one
+  global blocked line a reader cannot tell whether the second milestone is
+  stalled or simply untouched, and cannot see another session's claims sitting
+  in a later group. Collapse them rather than itemizing — `2 blocked on
+  <blocker name>`, `1 claimed by <session>` — so the group stays two or three
+  lines. Every entry in all three buckets carries a `milestone` field, so no
+  extra call is needed. After every milestone, list any ticket whose
+  `milestone` is `null` as a final **unassigned** tail — takeable, blocked and
+  claimed the same way, with no progress count, because there is no milestone
+  for it to count against. `read` is what carries milestone *membership*
   (`map.json`'s `milestones[].members`); `frontier` is what carries
   *progress* and each ticket's own `milestone` field. The three buckets
   themselves stay key-ascending exactly as before (ADR 0062) — the grouping
   comes from walking the `milestones` list, not from re-sorting a bucket. On
   an unmilestoned map `milestones` is `[]`, so there is nothing to group and
-  this collapses back to the flat list it replaces;
-- one line of **blocked**: `<name> — waiting on <blocker name>`;
-- one line of **claimed**, if any: another session is holding these.
+  this collapses back to the flat list it replaces: takeable by name, then one
+  line of **blocked** (`<name> — waiting on <blocker name>`) and one line of
+  **claimed**, if any — another session is holding those.
 
 One line per item, no filler: aim to keep the whole presentation around ten
 lines, and on a map large enough to blow past that, group rather than itemize --
@@ -422,7 +430,7 @@ copies of one diagram will. That is why shape 1 carries a `--body-file` even
 when the ADR holds every word of the reasoning — the body file may be nothing
 but the diagram.
 
-This is separate from the **position diagram** the ops script generates above
+This is separate from the **position diagram** the ops script generates below
 `## Question` — that one is the ticket's place in the map, and you never author
 or edit it.
 
@@ -505,7 +513,8 @@ edge onto a ticket that already exists, that edge in the new ticket's `blocks`:
 {
   "target": { "slug": "<the existing map's slug>" },
   "map": {
-    "title": "<unchanged>", "destination": "<unchanged>", "notes": "<unchanged>",
+    "title": "<unchanged>", "destination": "<unchanged>",
+    "notes": ["<any NEW note line>"],
     "notYetSpecified": ["<any NEW fog line>"],
     "outOfScope": ["<anything newly ruled out>"],
     "milestones": [
@@ -521,9 +530,16 @@ edge onto a ticket that already exists, that edge in the new ticket's `blocks`:
 }
 ```
 
-- Repeat `title` / `destination` / `notes` **unchanged**. An additive run does
+- Repeat `title` / `destination` **unchanged**. An additive run does
   not apply a differing scalar — it reports it under `divergence` and leaves it
   alone. To change one, edit the map document by hand.
+- `notes` is **not** one of those any more (ADR 0101): on any map carrying the
+  notes region it is a list that unions exactly like `notYetSpecified`, so pass
+  **only new lines** and omit the key when there are none. Do not restate what
+  is already there in any other shape — a string holding the existing notes
+  joined together, or the rendered bullets pasted back, is a *new* line to the
+  union, so it is appended and there is no `divergence` to catch it. Repeating
+  the exact same list is a harmless no-op, but there is no reason to.
 - `milestones` is the same optional field chart-map's Step 3 fills in — a
   resolution can sharpen the plan just as easily as a fog line, so include it
   here whenever the answer named a group that should now exist, or made clear
@@ -674,8 +690,9 @@ python "<ops>" lint --map <slug>
 It catches what a session most plausibly just broke: the graduated fog line
 Step 5 told you to delete by hand, an edge left dangling by a hand-edited
 `assignee:`, a resolution recorded without its diagram, or a milestone move
-gone wrong — a line the hand edit left unparsable, a slug or a ticket key
-duplicated across two milestones, or a milestone naming a ticket that is not
+gone wrong — a line the hand edit left unparsable, a slug declared more than
+once, a ticket key listed more than once (in two milestones, or twice on one
+line), or a milestone naming a ticket that is not
 on this map (`milestone-line-unparsable`, `milestone-duplicate-slug`,
 `milestone-duplicate-member`, `milestone-unknown-ticket` — the same four
 rules a mistyped hand-edited move above can trip). Report every finding

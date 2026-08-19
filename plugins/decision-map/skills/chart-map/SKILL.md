@@ -119,9 +119,11 @@ One or two sentences. The destination is what every ticket is measured against,
 and what makes "out of scope" decidable. Write it down before any ticket exists.
 
 It is stored as a **single line** — the tool collapses any line break to a
-space, in `title`, `destination` and `notes` alike, so that a stray newline can
+space, in `title` and `destination` alike, so that a stray newline can
 never truncate the value or inject a heading into the map document. Write it as prose,
-not as a bulleted list or a paragraph break.
+not as a bulleted list or a paragraph break. (`notes` is different: it is a
+**list** region now, one bullet per entry, and each bullet is flattened the
+same way — ADR 0101.)
 
 ### The HITL guard — it governs this step and Step 2 both
 
@@ -174,8 +176,9 @@ first?"**, not "how do you want to group these tickets?". One question, and
 it is skippable — say plainly that skipping it costs nothing, because the
 grouping can be declared later from `work-map` once the map exists to group.
 Keep it short: at most two options, and lead with your own recommendation
-before asking, the same framing every HITL question in this repo already
-follows.
+before asking — the framing every HITL question in these two skills should
+use, and the one the HITL guard above already requires (a recommendation is
+offered, never accepted on the human's behalf).
 
 The answer becomes the map's first **milestone** in Step 3's input — which
 ticket keys ship in that first increment. Everything else stays unassigned
@@ -206,7 +209,7 @@ working files, never a store — the map itself is the source of truth.
   "map": {
     "title": "Decision map - migrate billing to the new provider",
     "destination": "<the destination from Step 1, as one line>",
-    "notes": "<skills every session should consult; standing preferences>",
+    "notes": ["<a skill every session should consult>", "<a standing preference>"],
     "notYetSpecified": ["<fog line>"],
     "outOfScope": ["<ruled-out line>"],
     "milestones": [
@@ -236,7 +239,7 @@ working files, never a store — the map itself is the source of truth.
   member the map already places in a *different* milestone, a different
   relative order of two milestones that both already exist, or a changed
   `label` are each reported under `divergence` and left unapplied — the same
-  contract as `title` / `destination` / `notes`. Edit the milestones region
+  contract as `title` / `destination`. Edit the milestones region
   by hand to move a ticket, reorder the list, or change a label.
 - `blocks` is **downstream** — the tickets this one holds up. Readers see the
   upstream `blockedBy` instead; do not confuse the two.
@@ -311,13 +314,18 @@ ticket exists. There are no parent links to wire: on the local backend
 containment *is* the directory — a ticket belongs to this map because it sits in
 that map's tickets — and the map document holds no index of open tickets, only
 the "Decisions so far" list that `resolve` projects from the closed ones. Each
-created ticket also carries a generated **position diagram** above `## Question`,
+created ticket also carries a generated **position diagram** below `## Question`,
 written and maintained by the script rather than by you (ADR 0063/0064).
 
 **5. Check `divergence` in the result.** A non-empty list means the input asked
 for something an additive run deliberately did **not** apply — most often a
-changed `title` / `destination` / `notes` on a map that already exists. Report
+changed `title` / `destination` on a map that already exists. Report
 every line. The fix is to edit the map document by hand, never to reach for `--force`.
+`notes` is not on that list: it is a list region that **unions** like the fog
+lines (ADR 0101), so a later `chart` should carry only NEW note lines. An
+existing note restated in any other shape — the bullets joined into one string,
+or pasted back with their `- ` prefixes — is a new line to the union, so it is
+appended, silently, with no `divergence` to catch it.
 
 **On failure:** a known, actionable failure exits `2` with one line on stderr
 and **empty stdout**. That line names the field to fix. Correct
