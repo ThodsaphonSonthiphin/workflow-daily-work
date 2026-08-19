@@ -2432,6 +2432,36 @@ class MilestoneGrammarTest(unittest.TestCase):
                 + "\n\n" + map_core.MILESTONES_END)
         self.assertEqual(map_core.parse_milestones(text), ([], []))
 
+    def test_a_member_carrying_a_marker_is_unparsable_not_a_member(self):
+        # The reader is the second half of a ROUND TRIP: merge_milestones
+        # re-renders the region from what this parses, and milestone_line writes
+        # members unescaped. A marker contains no brackets, so a member group of
+        # "anything without brackets" would hand a hand-typed marker straight
+        # back to the renderer. Restricting members to safe slugs sends the line
+        # to `bad`, where the report-and-touch-nothing path already handles it.
+        line = "- `mvp` [auth-model, " + map_core.GIST_START + "]"
+        text = map_core.MILESTONES_START + "\n" + line + "\n" + map_core.MILESTONES_END
+        got, bad = map_core.parse_milestones(text)
+        self.assertEqual(got, [])
+        self.assertEqual(bad, [line])
+
+    def test_the_member_list_still_accepts_every_legitimate_shape(self):
+        # Guard on the tightening above: it must not narrow what already works.
+        # "--" stays legal inside a slug -- that rule belongs at mint time, and
+        # the reader mirrors SAFE_SLUG_RE, not validate_key.
+        for members, expect in (("", []),
+                                ("one", ["one"]),
+                                ("a, b", ["a", "b"]),
+                                ("a,b", ["a", "b"]),
+                                (" a , b ", ["a", "b"]),
+                                ("has--dashes", ["has--dashes"]),
+                                ("Mixed_Case-9", ["Mixed_Case-9"])):
+            text = (map_core.MILESTONES_START + "\n- `mvp` [" + members + "]\n"
+                    + map_core.MILESTONES_END)
+            got, bad = map_core.parse_milestones(text)
+            self.assertEqual(bad, [], members)
+            self.assertEqual(got[0]["members"], expect, members)
+
     def test_an_unparsable_line_is_reported_never_skipped(self):
         # Silently skipping it would shrink a milestone without saying so --
         # the reader sees a smaller group and believes it.
@@ -2769,6 +2799,55 @@ class MapBodyRegionsTest(unittest.TestCase):
         self.assertEqual(p.read_text(encoding="utf-8"), broken)
         self.assertTrue(any("cannot read" in d for d in out["divergence"]),
                         out["divergence"])
+
+    def test_a_member_carrying_a_marker_takes_the_same_report_only_path(self):
+        # A marker has no brackets, so before the member group was restricted to
+        # safe slugs this line PARSED, was re-rendered unescaped, and blew up in
+        # assert_regions as a generic MarkerIntegrityError. It must instead be
+        # one more hand-broken line: reported, region untouched, no raise.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [{"slug": "mvp", "members": ["auth-model"]}]
+        self._chart(inp)
+        p = self.root / "example-effort" / "map.md"
+        broken = p.read_text(encoding="utf-8").replace(
+            "- `mvp` [auth-model]",
+            "- `mvp` [auth-model, " + map_core.GIST_START + "]")
+        p.write_text(broken, encoding="utf-8")
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        nxt["map"]["milestones"] = [{"slug": "later", "members": ["api-limits"]}]
+        out = ops.chart(self.root, nxt, real=True)
+        self.assertEqual(p.read_text(encoding="utf-8"), broken)
+        self.assertTrue(any("cannot read" in d for d in out["divergence"]),
+                        out["divergence"])
+
+    def test_the_first_milestone_replaces_the_placeholder(self):
+        # The commonest upgrade path: every map charted before milestones
+        # existed holds "- (none)", and the placeholder is tool-owned, so it goes
+        # the moment a real line arrives. The milestones region re-renders
+        # wholesale rather than going through merge_region_lines, so its
+        # placeholder handling is its OWN mechanism and needs its own test.
+        self._chart(copy.deepcopy(INPUT))          # INPUT declares no milestones
+        p = self.root / "example-effort" / "map.md"
+        self.assertIn(map_core.EMPTY_LIST_LINE,
+                      map_core.region_body(p.read_text(encoding="utf-8"),
+                                           map_core.MILESTONES_START,
+                                           map_core.MILESTONES_END))
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        nxt["map"]["milestones"] = [{"slug": "mvp", "members": ["auth-model"]}]
+        plan = ops.chart(self.root, nxt, real=False)
+        entry = next(e for e in plan["planned"] if e["path"].endswith("map.md"))
+        self.assertIn("1 milestone line", entry["detail"])
+        ops.chart(self.root, copy.deepcopy(nxt), real=True)
+        text = p.read_text(encoding="utf-8")
+        body = map_core.region_body(text, map_core.MILESTONES_START,
+                                    map_core.MILESTONES_END)
+        self.assertNotIn(map_core.EMPTY_LIST_LINE, body)
+        ms, bad = map_core.parse_milestones(text)
+        self.assertEqual(bad, [])
+        self.assertEqual(ms, [{"slug": "mvp", "label": None,
+                               "members": ["auth-model"]}])
 
 
 if __name__ == "__main__":

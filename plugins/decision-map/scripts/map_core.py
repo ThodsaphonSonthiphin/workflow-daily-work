@@ -426,26 +426,43 @@ def count_added_lines(body, merged_lines):
 # LINE ORDER, never a rendered number: a numbered list would have to be
 # renumbered on every insert, which is a rewrite of lines the additive
 # guarantee promises never to touch.
+#
+# The member group matches a comma-separated list of SAFE SLUGS, not "anything
+# without brackets". That is load-bearing, not tidiness: milestone_line writes
+# members unescaped, and merge_milestones re-renders the region from what
+# parse_milestones read back OUT of the document -- a round trip through content
+# a human may have edited. A decision-map marker contains no brackets, so under
+# a "no brackets" member group a hand-typed marker would parse cleanly, be
+# handed back to milestone_line unescaped, and only be caught downstream by
+# assert_regions -- a MarkerIntegrityError (exit 2, one stderr line) instead of
+# the precise, actionable divergence a hand-edited region is supposed to get.
+# Restricting the group sends that line to `bad`, so ONE mechanism covers every
+# hand-broken line. Whitespace around the commas is tolerated because a human
+# writes "[a,b]"; parse_milestones strips each member anyway.
+_SLUG_BODY = r"[A-Za-z0-9][A-Za-z0-9_-]*"
 _MILESTONE_LINE_RE = re.compile(
-    r"^- `(?P<slug>[A-Za-z0-9][A-Za-z0-9_-]*)`"
-    r"(?: (?P<label>.*?))? \[(?P<members>[^\[\]]*)\]$")
+    r"^- `(?P<slug>" + _SLUG_BODY + r")`"
+    r"(?: (?P<label>.*?))? "
+    r"\[(?P<members>\s*(?:" + _SLUG_BODY +
+    r"(?:\s*,\s*" + _SLUG_BODY + r")*\s*)?)\]$")
 
 
 def milestone_line(slug, label, members):
     """One milestone as its stored line.
 
-    `slug` and every member are validated keys (safe slugs), so they need no
-    escaping -- but the LABEL is free user text and goes through one_line:
-    flatten first, escape second, exactly as every other user string does. A
-    newline there would inject a second line into the region; a marker there
-    would forge a region.
+    `slug` and every member are safe slugs -- guaranteed on the way IN by
+    validate_chart_input, and on the way BACK IN by the reader's own member
+    pattern (see the grammar comment above) -- so they need no escaping. The
+    LABEL is free user text and goes through one_line: flatten first, escape
+    second, exactly as every other user string does. A newline there would
+    inject a second line into the region; a marker there would forge a region.
 
     The slug pattern above deliberately ACCEPTS "--", matching SAFE_SLUG_RE
     rather than validate_key: the "--" rule belongs at mint time, and a reader
     that refused such a slug would turn a hand-written milestone into an
     unparsable line instead of a readable one whose slug `lint` can name. Do not
-    "fix" this by tightening the pattern -- it is the same split SAFE_SLUG_RE
-    already documents for ticket keys.
+    "fix" this by tightening THAT -- it is the same split SAFE_SLUG_RE already
+    documents for ticket keys.
     """
     lab = f" {one_line(label)}" if label else ""
     return f"- `{slug}`{lab} [{', '.join(members)}]"
