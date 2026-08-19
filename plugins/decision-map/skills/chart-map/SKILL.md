@@ -166,6 +166,22 @@ now?** Not answer it. State it.
 Do not pre-slice fog into ticket-sized pieces. Fog that is left as fog graduates
 into real tickets later, once an earlier decision has sharpened it.
 
+### Ask what ships first (ADR 0100)
+
+Once every ticket on this pass is named, ask one more question — in the
+user's own terms, not the tool's: **"what do you want to be able to demo
+first?"**, not "how do you want to group these tickets?". One question, and
+it is skippable — say plainly that skipping it costs nothing, because the
+grouping can be declared later from `work-map` once the map exists to group.
+Keep it short: at most two options, and lead with your own recommendation
+before asking, the same framing every HITL question in this repo already
+follows.
+
+The answer becomes the map's first **milestone** in Step 3's input — which
+ticket keys ship in that first increment. Everything else stays unassigned
+until a later session groups it; that is a legal, unfinished state, not a gap
+to fill now.
+
 Type every ticket — the type picks its resolver and its mode (ADR 0038):
 
 | Type | Mode | Resolved by |
@@ -192,7 +208,11 @@ working files, never a store — the map itself is the source of truth.
     "destination": "<the destination from Step 1, as one line>",
     "notes": "<skills every session should consult; standing preferences>",
     "notYetSpecified": ["<fog line>"],
-    "outOfScope": ["<ruled-out line>"]
+    "outOfScope": ["<ruled-out line>"],
+    "milestones": [
+      { "slug": "mvp", "label": "demo the search page",
+        "members": ["provider-choice"] }
+    ]
   },
   "tickets": [
     { "key": "provider-choice", "title": "Provider - which one do we commit to?",
@@ -206,6 +226,18 @@ working files, never a store — the map itself is the source of truth.
 
 - `slug` and every ticket `key` are lowercase-kebab, must match
   `[A-Za-z0-9][A-Za-z0-9_-]*`, and **must not contain `--`**.
+- `milestones` is optional; each entry is `{slug, label, members}`, in the
+  order you want them to ship — order is the list's own order, not the
+  tickets' key order. A milestone `slug` follows the same rule as a ticket
+  `key` (no `--`). A ticket belongs to **at most one** milestone, and a
+  ticket in none is legal: it means "not yet scheduled", not an error.
+- A later `chart` on the same map only **appends** a milestone that is
+  entirely new and **unions** a new member into one that already exists. A
+  member the map already places in a *different* milestone, a different
+  relative order of two milestones that both already exist, or a changed
+  `label` are each reported under `divergence` and left unapplied — the same
+  contract as `title` / `destination` / `notes`. Edit the milestones region
+  by hand to move a ticket, reorder the list, or change a label.
 - `blocks` is **downstream** — the tickets this one holds up. Readers see the
   upstream `blockedBy` instead; do not confuse the two.
 - **Every `blocks` target must already exist**, either in this same input's
