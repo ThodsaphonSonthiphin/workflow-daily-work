@@ -588,6 +588,12 @@ def notes_lines(value):
     return list(value)
 
 
+# The one `added` noun that does not name a line the merge appends: a member
+# union edits the milestone line it joins. Named so map_merge_detail and
+# merge_milestones cannot drift apart about which one it is.
+MEMBER_NOUN = "milestone member"
+
+
 def map_merge_detail(added):
     """The one-line `detail` for a map-body merge: what it will add.
 
@@ -600,8 +606,20 @@ def map_merge_detail(added):
     fallback covers the one way a merge can change bytes without adding a line:
     a hand-edited region whose blank lines or stale placeholder the merge
     normalises away. Saying "adds 0 lines" there would be a lie.
+
+    MEMBER_NOUN gets its own phrasing for the same reason: unioning a ticket
+    into a milestone that already exists EDITS that milestone's stored line
+    rather than adding one, and "adds 1 milestone member line" describes a
+    write that does not happen.
     """
-    parts = [f"{n} {noun} line" + ("s" if n != 1 else "") for noun, n in added]
+    parts = []
+    for noun, n in added:
+        if noun == MEMBER_NOUN:
+            parts.append(f"{n} ticket" + ("s" if n != 1 else "") + " to "
+                         + ("an existing milestone" if n == 1
+                            else "existing milestones"))
+        else:
+            parts.append(f"{n} {noun} line" + ("s" if n != 1 else ""))
     if not parts:
         return "normalises the map body's list regions (no new lines)"
     return "adds " + ", ".join(parts)
@@ -676,11 +694,21 @@ def scalar_divergences(m, stored_text, fields=SCALAR_MAP_FIELDS):
     body there reported a `title` divergence on EVERY re-chart -- a divergence
     for text nobody had touched, which is precisely the noise these messages
     exist to avoid, and it would have trained users to ignore them.
+
+    A non-STRING value is skipped, because a containment check on it is
+    meaningless: `notes` may be a list (ADR 0101), and on a legacy map with no
+    notes region -- the one case where `scalar_fields_for` still keeps `notes`
+    in the set -- this compared `one_line(["a", "b"])`, i.e. the literal
+    "['a', 'b']", which can never appear in a body. So it reported "differs"
+    unconditionally, next to the accurate "predates the notes region" line the
+    merge already emits.
     """
     flat = " ".join(norm_eol(stored_text).splitlines())
     div = []
     for field in fields:
         value = m.get(field)
+        if not isinstance(value, str):
+            continue
         if value and one_line(value) not in flat:
             div.append(f"map {field!r} in the input differs from the map as stored; "
                        f"left unchanged. To apply it you must re-chart, but "
@@ -696,6 +724,13 @@ def scalar_fields_for(stored_text, fields=SCALAR_MAP_FIELDS):
     LIST merged like fog, and a containment check on the flattened body would
     report a divergence for text the merge had just applied -- noise, in exactly
     the channel whose whole value is that users read it.
+
+    On a LEGACY map -- no notes region -- `notes` stays in the set, because a
+    STRING notes there still behaves as the scalar it always was. A list-valued
+    notes against such a map is handled one level down, by `scalar_divergences`
+    skipping a non-string value: the merge already reports that map as
+    predating the region, and a second "differs" line for the same input would
+    be noise.
     """
     if region_body(norm_eol(stored_text or ""), NOTES_START, NOTES_END) is None:
         return tuple(fields)
@@ -708,7 +743,8 @@ def merge_milestones(text, wanted):
     -> (new_text, added, divergences). `added` is [(noun, count), ...] for
     map_merge_detail, using two nouns because they are different acts to
     approve: a new GROUP appears in the plan as "1 milestone line", a group
-    gaining a ticket as "1 milestone member line".
+    gaining a ticket as "1 ticket to an existing milestone" -- the second
+    phrased that way because it edits a stored line rather than adding one.
 
     Additive, with three things deliberately NOT applied and reported instead
     (ADR 0098) -- each would have to remove or reorder a stored line:
@@ -737,7 +773,7 @@ def merge_milestones(text, wanted):
         return text, [], [
             f"this map predates the milestones region, so its {len(wanted)} "
             "milestone(s) were not merged. Add the milestones markers to the "
-            f"map body by hand to enable merging; re-charting would also fix "
+            "map body by hand to enable merging; re-charting would also fix "
             f"it, but {FORCE_COST}"]
     stored, bad = parse_milestones(text)
     div = []
@@ -829,7 +865,7 @@ def merge_milestones(text, wanted):
     if new_groups:
         added.append(("milestone", new_groups))
     if new_members:
-        added.append(("milestone member", new_members))
+        added.append((MEMBER_NOUN, new_members))
     return text, added, div
 
 
@@ -914,11 +950,17 @@ def decisions_region(entries, milestones=None):
         render(entries)
     else:
         by_key = membership_of(milestones)
-        remaining = list(entries)
+        # Tracked by KEY rather than by removing tuples from a shrinking list:
+        # the key is the identity these entries are joined on everywhere else,
+        # and a duplicated slug (a lint error, but legal input to this) renders
+        # its group once under the first entry either way.
+        taken = set()
         for m in milestones:
-            group = [e for e in remaining if by_key.get(e[0]) == m["slug"]]
+            group = [e for e in entries
+                     if e[0] not in taken and by_key.get(e[0]) == m["slug"]]
             if not group:
                 continue
+            taken.update(e[0] for e in group)
             heading = f"#### {m['slug']}"
             if m.get("label"):
                 # one_line even though this label was read back OUT of the map:
@@ -932,7 +974,7 @@ def decisions_region(entries, milestones=None):
             lines.append(heading + "\n\n")
             render(group)
             lines.append("\n")
-            remaining = [e for e in remaining if e not in group]
+        remaining = [e for e in entries if e[0] not in taken]
         if remaining:
             lines.append("#### (unassigned)\n\n")
             render(remaining)
@@ -1143,13 +1185,13 @@ def _validate_milestones(where_map, m):
     if not isinstance(milestones, list):
         raise ChartValidationError(
             f"{where_map}: field 'milestones' must be a list, got "
-            f"{type(milestones).__name__}")
+            f"{type(milestones).__name__} ({milestones!r})")
     slugs, owner = set(), {}
     for i, ms in enumerate(milestones):
         if not isinstance(ms, dict):
             raise ChartValidationError(
                 f"{where_map}: milestones[{i}] must be an object, got "
-                f"{type(ms).__name__}")
+                f"{type(ms).__name__} ({ms!r})")
         where = f"{where_map}: milestones[{i}]"
         slug = require(where, ms, "slug", str, True)
         validate_key(slug, "milestone slug")
@@ -1184,8 +1226,11 @@ def validate_chart_input(inp, ticket_exists=None):
     - every ticket must likewise, each a string -- a missing "title"/"question"
       used to raise a bare KeyError mid-write, after the map and earlier tickets
       were already stored
-    - optional fields, when present and not null, must be their declared type
-    - target.slug and every ticket key must pass validate_key
+    - optional fields, when present and not null, must be their declared type --
+      and `notes` declares TWO, `str` or `list[str]` (ADR 0101), so it is
+      checked here rather than through `require`, which checks one
+    - target.slug, every ticket key, and every milestone slug and member key
+      must pass validate_key
     - every ticket type must be one of the four valid types
     - every `blocks` target must exist EITHER in this same `inp` OR already in
       the map (ADR 0058)
@@ -1552,7 +1597,7 @@ def lint_findings(map_text, tickets, resolution_bodies=True):
             "'- `slug` optional label [key, key]', so its members are invisible "
             "to every command; the map advertises a smaller milestone than it "
             "has"))
-    seen_slugs, owner = {}, {}
+    seen_slugs, owner = set(), {}
     for m in milestones:
         slug = m["slug"]
         if slug in seen_slugs:
@@ -1564,7 +1609,7 @@ def lint_findings(map_text, tickets, resolution_bodies=True):
                 "the decisions index renders every member under the FIRST "
                 "entry's heading -- so what actually goes missing is the label "
                 "of every entry after the first, not any member"))
-        seen_slugs.setdefault(slug, m)
+        seen_slugs.add(slug)
         # Within ONE line as well as across lines. A key repeated inside a
         # single milestone is invisible to the cross-milestone check below
         # (owner[key] == slug), and unnamed it silently makes progress count one

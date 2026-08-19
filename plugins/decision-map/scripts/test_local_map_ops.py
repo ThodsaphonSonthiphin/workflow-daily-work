@@ -2859,7 +2859,10 @@ class MapBodyRegionsTest(unittest.TestCase):
         nxt["map"]["milestones"] = [{"slug": "mvp", "members": ["api-limits"]}]
         plan = ops.chart(self.root, nxt, real=False)
         entry = next(e for e in plan["planned"] if e["path"].endswith("map.md"))
-        self.assertIn("1 milestone member line", entry["detail"])
+        # Worded as an EDIT, not an addition: unioning a member rewrites the
+        # milestone's stored line rather than adding one, and this string is
+        # what the ADR-0039 gate shows the user before the write.
+        self.assertIn("1 ticket to an existing milestone", entry["detail"])
         ops.chart(self.root, copy.deepcopy(nxt), real=True)
         ms, _ = map_core.parse_milestones(
             (self.root / "example-effort" / "map.md").read_text(encoding="utf-8"))
@@ -2948,6 +2951,26 @@ class MapBodyRegionsTest(unittest.TestCase):
         out = ops.chart(self.root, nxt, real=True)
         self.assertFalse(any("notes" in d for d in out["divergence"]),
                          out["divergence"])
+
+    def test_a_list_notes_on_a_legacy_map_reports_only_the_region_line(self):
+        # A legacy map keeps `notes` in the scalar set, so a LIST value used to
+        # be compared as one_line(["a", "b"]) -- the literal "['a', 'b']",
+        # which can never appear in a body -- and reported "differs"
+        # unconditionally, alongside the accurate "predates the notes region"
+        # line the merge already emits. One input, one honest message.
+        self._chart(copy.deepcopy(INPUT))
+        p = self.root / "example-effort" / "map.md"
+        p.write_text(
+            map_core.region_re(map_core.NOTES_START, map_core.NOTES_END).sub(
+                "use grill-with-docs\n", p.read_text(encoding="utf-8")),
+            encoding="utf-8")
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        nxt["map"]["notes"] = ["use grill-with-docs", "and a second note"]
+        out = ops.chart(self.root, nxt, real=True)
+        notes_div = [d for d in out["divergence"] if "notes" in d]
+        self.assertEqual(len(notes_div), 1, notes_div)
+        self.assertIn("predates the notes region", notes_div[0])
 
     def test_notes_is_not_double_reported_when_the_region_exists(self):
         # With a notes REGION present the value is merged like fog, so the
@@ -3077,6 +3100,22 @@ class MilestoneLintTest(unittest.TestCase):
         f = next(f for f in findings if f["rule"] == "milestone-duplicate-slug")
         self.assertEqual(f["severity"], map_core.LINT_ERROR)
         self.assertIn("mvp", f["message"])
+        self.assertIsNone(f["ticket"])
+
+    def test_two_unparsable_lines_produce_two_distinct_findings(self):
+        # One finding per broken line, each naming its own line. A dedup or an
+        # early break here would leave the second line unreported, and a line
+        # nobody is told about is a line nobody fixes -- so the map keeps
+        # advertising a milestone smaller than it is.
+        findings = map_core.lint_findings(
+            self._map_text("- mvp: a, b", "- polish -> c"), self._tickets("a"))
+        bad = [f for f in findings
+               if f["rule"] == "milestone-line-unparsable"]
+        self.assertEqual(len(bad), 2)
+        self.assertNotEqual(bad[0]["message"], bad[1]["message"],
+                            "each finding must quote its own line")
+        self.assertIn("- mvp: a, b", bad[0]["message"])
+        self.assertIn("- polish -> c", bad[1]["message"])
 
     def test_duplicate_slug_yields_two_progress_rows_sharing_one_slug(self):
         # Pins the REAL consequence of a duplicate slug, so the lint message
@@ -3098,7 +3137,26 @@ class MilestoneLintTest(unittest.TestCase):
                           "a duplicate slug must yield two rows sharing it")
         self.assertEqual([(p["closed"], p["total"]) for p in progress],
                           [(1, 2), (2, 2)],
-                          "each row counts only its own half of the members")
+                          "each row counts only its own members")
+        # The other two clauses of the same message, so none of the three can
+        # drift back to the false claim this replaced.
+        #
+        # (2) every member is still REACHABLE -- membership_of maps the members
+        # of both entries to the shared slug, so nothing goes missing.
+        self.assertEqual(map_core.membership_of(milestones),
+                         {"a": "mvp", "b": "mvp", "c": "mvp", "d": "mvp"})
+        # (3) and every member renders under the FIRST entry's heading, so what
+        # actually goes missing is the SECOND entry's label -- not any member.
+        labelled, _ = map_core.parse_milestones(
+            self._map_text("- `mvp` first [a, b]", "- `mvp` second [c, d]"))
+        region = map_core.decisions_region(
+            [(k, k.upper() + "?", f"tickets/{k}.md", "g") for k in "abcd"],
+            labelled)
+        self.assertEqual(region.count("#### mvp"), 1)
+        self.assertIn("#### mvp — first", region)
+        self.assertNotIn("second", region)
+        for key in "abcd":
+            self.assertIn(f"tickets/{key}.md", region)
 
     def test_a_ticket_in_two_milestones_is_an_error_naming_the_ticket(self):
         findings = map_core.lint_findings(

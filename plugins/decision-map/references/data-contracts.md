@@ -342,7 +342,9 @@ diagram LOSES one because `--force` reset the other end's edges (the same
 both-ends rule, applied to a removal: the ticket named in the `OVERWRITE`
 line is not the only one whose picture that line changes), `adds 1 milestone
 line` on the map body when a merge appends a whole new milestone group,
-`adds 1 milestone member line` when it unions a ticket into an existing one,
+`adds 1 ticket to an existing milestone` when it unions a ticket into one
+that already exists — phrased that way because that union **edits** the
+stored milestone line rather than adding a line —
 `adds 2 notes lines` when new bullets land in the Notes region, and `adds 2 fog
 lines, 1 out-of-scope line` on the map body — so the ADR-0039 approval gate can show
 the reviewer every write before it happens. **No `merge` entry may carry
@@ -495,7 +497,8 @@ exactly as `notYetSpecified` / `outOfScope` are:
 - a milestone absent from the map is **appended** — a `merge` line in the
   dry-run plan, `detail: "adds 1 milestone line"`;
 - a member absent from its declared milestone is **unioned in** — `detail:
-  "adds 1 milestone member line"`;
+  "adds 1 ticket to an existing milestone"`, which is what that union does:
+  it edits the stored line rather than adding one;
 - anything that would have to remove or reorder a stored line is instead
   **reported in `divergence` and left unapplied**: a member the map already
   places in a *different* milestone, a differing label, or a different

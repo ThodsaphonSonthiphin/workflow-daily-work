@@ -545,8 +545,9 @@ edge onto a ticket that already exists, that edge in the new ticket's `blocks`:
   here whenever the answer named a group that should now exist, or made clear
   which milestone a ticket belongs in. A brand-new group appears in the plan
   as `adds 1 milestone line`; a ticket joining one that already exists as
-  `adds 1 milestone member line` — read those counts the same way you read
-  `adds 2 fog lines`. **Moving** a ticket between milestones is different:
+  `adds 1 ticket to an existing milestone`, which is worded differently
+  because that one **edits** the stored milestone line instead of adding a
+  line. **Moving** a ticket between milestones is different:
   additive means union, never move, so `chart` reports a member already
   claimed by a different milestone under `divergence` rather than applying
   it. A move is a **hand edit** of the milestones region instead — the same

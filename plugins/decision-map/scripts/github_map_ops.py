@@ -368,7 +368,11 @@ class Snapshot:
             labelled=self.is_map)
         # Parsed once here, not per ticket: the map body is already in hand and
         # both map_json and frontier read the same answer from it.
-        self.milestones, self.milestone_of, self._bad_milestone_lines = \
+        # The unparsable lines are discarded here, matching the local backend's
+        # convention at the same three call sites: `lint` re-parses the body and
+        # is the one command that reports them, and a field nothing reads is a
+        # promise of reporting that was never wired.
+        self.milestones, self.milestone_of, _ = \
             milestone_index(norm_eol(node.get("body")))
         sub = node.get("subIssues") or {}
         if (sub.get("pageInfo") or {}).get("hasNextPage"):
