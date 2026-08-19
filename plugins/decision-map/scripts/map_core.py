@@ -463,9 +463,18 @@ def milestone_line(slug, label, members):
     unparsable line instead of a readable one whose slug `lint` can name. Do not
     "fix" this by tightening THAT -- it is the same split SAFE_SLUG_RE already
     documents for ticket keys.
+
+    The label is STRIPPED, and that is a round-trip requirement rather than
+    tidiness: parse_milestones strips what it reads back, so a label written
+    with padding ("demo it ") parses as "demo it" and the very next render of
+    the same milestone produces different bytes -- an identical re-chart
+    rewriting a stored line, and reporting a label divergence that says "left
+    unchanged" while the bytes changed. A label that is nothing BUT padding
+    renders as no label at all, for the same reason: " " would render as a
+    second space the parser reads as an empty label and drops.
     """
-    lab = f" {one_line(label)}" if label else ""
-    return f"- `{slug}`{lab} [{', '.join(members)}]"
+    lab = one_line(label).strip() if label else ""
+    return f"- `{slug}`{' ' + lab if lab else ''} [{', '.join(members)}]"
 
 
 def milestone_lines_for(milestones):
@@ -540,14 +549,20 @@ def milestone_progress(milestones, status_by_key):
 
     An EMPTY milestone is never complete: it has shipped nothing, and calling it
     done would send the reader on to the next group.
+
+    Members are counted DISTINCT. A key repeated inside one milestone is a lint
+    error (`milestone-duplicate-member`), but while the line stands it must not
+    make `<closed>/<total>` -- a number the user reads and acts on -- report one
+    ticket as two. Nothing is rewritten to achieve it: additive never edits a
+    stored line, so the repeat stays on the map until a hand edit removes it.
     """
     out = []
     for m in milestones:
-        members = m.get("members") or []
-        closed = sum(1 for k in members if status_by_key.get(k) == "closed")
+        distinct = list(dict.fromkeys(m.get("members") or []))
+        closed = sum(1 for k in distinct if status_by_key.get(k) == "closed")
         out.append({"slug": m["slug"], "label": m.get("label"),
-                    "closed": closed, "total": len(members),
-                    "complete": bool(members) and closed == len(members)})
+                    "closed": closed, "total": len(distinct),
+                    "complete": bool(distinct) and closed == len(distinct)})
     return out
 
 
@@ -724,11 +739,28 @@ def merge_milestones(text, wanted):
             "region is unchanged -- rewriting it would delete those lines. Fix "
             "them by hand, then re-chart; `lint` names every one of them")
         return text, [], div
-    by_slug = {m["slug"]: m for m in stored}
-    owner = {k: m["slug"] for m in stored for k in m["members"]}
+    # FIRST-wins on both, matching membership_of -- which every projection
+    # (map.json, frontier.json, the decisions index) already uses. A duplicated
+    # slug or member is a lint error, but while it stands the four sites must
+    # still agree about which entry owns what: resolving it last-wins here made
+    # a new member land in the SECOND row while every projection attributed it
+    # to the first.
+    by_slug = {}
+    for m in stored:
+        by_slug.setdefault(m["slug"], m)
+    owner = {}
+    for m in stored:
+        for k in m["members"]:
+            owner.setdefault(k, m["slug"])
     new_groups, new_members = 0, 0
 
-    stored_order = [m["slug"] for m in stored]
+    # Deduped, because `shared` holds each slug once: comparing a stored_order
+    # that carries a duplicated slug TWICE against a `shared` that carries it
+    # once emitted a reorder divergence for an input that reordered nothing.
+    stored_order = []
+    for m in stored:
+        if m["slug"] not in stored_order:
+            stored_order.append(m["slug"])
     shared = [s["slug"] for s in wanted if s["slug"] in by_slug]
     if [s for s in stored_order if s in shared] != shared:
         div.append(
@@ -759,7 +791,10 @@ def merge_milestones(text, wanted):
             by_slug[slug] = entry
             new_groups += 1
             continue
-        if label and one_line(label) != (got["label"] or ""):
+        # Stripped on BOTH sides: milestone_line strips before writing and
+        # parse_milestones strips what it reads, so " demo it " and "demo it"
+        # are the same stored label and must not report a divergence.
+        if label and one_line(label).strip() != (got["label"] or "").strip():
             div.append(
                 f"milestone {slug!r}'s label in the input differs from the map "
                 "as stored; left unchanged. Edit the milestones region by hand "
@@ -877,7 +912,14 @@ def decisions_region(entries, milestones=None):
                 continue
             heading = f"#### {m['slug']}"
             if m.get("label"):
-                heading += f" — {m['label']}"
+                # one_line even though this label was read back OUT of the map:
+                # every user string written into a document goes through it, and
+                # this is the one document -> document text path. Safe today only
+                # because the write side escaped it and assert_regions refuses a
+                # hand-forged marker -- defence in depth on the invariant, not a
+                # second opinion about it. Idempotent, so a label that was
+                # already escaped is unchanged.
+                heading += f" — {one_line(m['label'])}"
             lines.append(heading + "\n\n")
             render(group)
             lines.append("\n")
@@ -1514,7 +1556,23 @@ def lint_findings(map_text, tickets, resolution_bodies=True):
                 "entry's heading -- so what actually goes missing is the "
                 "SECOND entry's label, not any member"))
         seen_slugs.setdefault(slug, m)
+        # Within ONE line as well as across lines. A key repeated inside a
+        # single milestone is invisible to the cross-milestone check below
+        # (owner[key] == slug), and unnamed it silently makes progress count one
+        # ticket twice -- or, when the key is unknown, emits the SAME
+        # milestone-unknown-ticket finding twice. Reported once and then
+        # skipped, so the rest of this loop sees each member exactly once.
+        seen_members = set()
         for key in m["members"]:
+            if key in seen_members:
+                errors.append(_finding(
+                    "milestone-duplicate-member", LINT_ERROR, key,
+                    f"{key!r} is listed twice in milestone {slug!r}; progress "
+                    "counts distinct members, so the repeat changes nothing "
+                    "the map reports -- remove it by hand to stop the line "
+                    "claiming more tickets than it has"))
+                continue
+            seen_members.add(key)
             if key in owner and owner[key] != slug:
                 errors.append(_finding(
                     "milestone-duplicate-member", LINT_ERROR, key,

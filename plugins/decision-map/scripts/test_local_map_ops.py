@@ -2456,11 +2456,22 @@ class MilestoneGrammarTest(unittest.TestCase):
         # A label containing brackets is the case a naive regex gets wrong:
         # members are anchored to the END of the line and cannot contain
         # brackets, so the LAST group is unambiguously the member list.
-        for slug, label, members in (
-                ("mvp-search", "demo the search page", ["auth-model", "api-limits"]),
-                ("polish", None, []),
-                ("weird", "ship [the] thing", ["one"]),
-                ("solo", "a label", []),
+        #
+        # The PADDED labels are the cases the clean ones hid: the reader strips
+        # what it reads, so a renderer that did not strip wrote a line that
+        # parsed back to a different label and re-rendered to different bytes --
+        # an identical re-chart rewriting a stored line for ever. `stored` is
+        # what the round trip must settle on, and for a clean label it is the
+        # label itself.
+        for slug, label, stored, members in (
+                ("mvp-search", "demo the search page", "demo the search page",
+                 ["auth-model", "api-limits"]),
+                ("polish", None, None, []),
+                ("weird", "ship [the] thing", "ship [the] thing", ["one"]),
+                ("solo", "a label", "a label", []),
+                ("padded", "demo it ", "demo it", ["one"]),
+                ("padded-both", "  demo it  ", "demo it", []),
+                ("blank-label", "   ", None, ["one"]),
         ):
             line = map_core.milestone_line(slug, label, members)
             text = (map_core.MILESTONES_START + "\n" + line + "\n"
@@ -2469,7 +2480,7 @@ class MilestoneGrammarTest(unittest.TestCase):
             self.assertEqual(bad, [], line)
             self.assertEqual(len(got), 1, line)
             self.assertEqual(got[0]["slug"], slug, line)
-            self.assertEqual(got[0]["label"], label, line)
+            self.assertEqual(got[0]["label"], stored, line)
             self.assertEqual(got[0]["members"], members, line)
             self.assertEqual(
                 map_core.milestone_line(got[0]["slug"], got[0]["label"],
@@ -2708,6 +2719,84 @@ class MapBodyRegionsTest(unittest.TestCase):
             {"slug": "mvp", "label": "demo it", "members": ["auth-model"]}]
         first = self._chart(inp)
         self.assertEqual(self._chart(copy.deepcopy(inp)), first)
+
+    def test_an_identical_re_chart_with_a_padded_label_is_byte_identical(self):
+        # The headline invariant, on the input shape that broke it. A label
+        # carrying a trailing space rendered with that space, parsed back
+        # WITHOUT it, and re-rendered one byte shorter -- so an identical
+        # re-chart rewrote a stored line and reported a label divergence whose
+        # own words were "left unchanged" while the bytes changed. Runs 3+ were
+        # stable; the divergence repeated for ever.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it ", "members": ["auth-model"]}]
+        first = self._chart(inp)
+        self.assertIn("- `mvp` demo it [auth-model]", first)
+        nxt = copy.deepcopy(inp)
+        nxt["tickets"] = []
+        out = ops.chart(self.root, nxt, real=True)
+        self.assertEqual(
+            [d for d in out["divergence"] if "label" in d], [],
+            "an identical re-chart must report no label divergence")
+        self.assertEqual(
+            (self.root / "example-effort" / "map.md").read_text(encoding="utf-8"),
+            first)
+
+    def test_a_padded_label_does_not_diverge_against_its_stored_form(self):
+        # The other half of the same asymmetry: the comparison strips both
+        # sides, so re-declaring the same label with different padding is not a
+        # change and must not be announced as one.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it", "members": ["auth-model"]}]
+        self._chart(inp)
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        nxt["map"]["milestones"] = [
+            {"slug": "mvp", "label": "  demo it  ", "members": ["auth-model"]}]
+        out = ops.chart(self.root, nxt, real=True)
+        self.assertEqual([d for d in out["divergence"] if "label" in d], [])
+
+    def test_a_duplicated_stored_slug_takes_a_new_member_into_the_first_row(self):
+        # A duplicated slug is a lint error, but while it stands merge_milestones
+        # must resolve it the way every projection does -- first-wins, as
+        # membership_of does. Resolving it last-wins put a new member in the
+        # SECOND row while map.json and the decisions index attributed it to the
+        # first.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [{"slug": "mvp", "members": ["auth-model"]}]
+        self._chart(inp)
+        p = self.root / "example-effort" / "map.md"
+        text = p.read_text(encoding="utf-8")
+        p.write_text(text.replace("- `mvp` [auth-model]",
+                                  "- `mvp` [auth-model]\n- `mvp` []"),
+                     encoding="utf-8")
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        nxt["map"]["milestones"] = [{"slug": "mvp", "members": ["api-limits"]}]
+        ops.chart(self.root, nxt, real=True)
+        ms, bad = map_core.parse_milestones(p.read_text(encoding="utf-8"))
+        self.assertEqual(bad, [])
+        self.assertEqual([m["members"] for m in ms],
+                         [["auth-model", "api-limits"], []])
+
+    def test_a_duplicated_stored_slug_does_not_fake_a_reorder_divergence(self):
+        # The order comparison held the duplicate TWICE on the stored side and
+        # ONCE on the input side, so an input naming one milestone and
+        # reordering nothing reported "the input lists existing milestones in a
+        # different order".
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [{"slug": "mvp", "members": ["auth-model"]}]
+        self._chart(inp)
+        p = self.root / "example-effort" / "map.md"
+        p.write_text(p.read_text(encoding="utf-8").replace(
+            "- `mvp` [auth-model]", "- `mvp` [auth-model]\n- `mvp` []"),
+            encoding="utf-8")
+        nxt = copy.deepcopy(INPUT)
+        nxt["tickets"] = []
+        nxt["map"]["milestones"] = [{"slug": "mvp", "members": ["auth-model"]}]
+        out = ops.chart(self.root, nxt, real=True)
+        self.assertEqual([d for d in out["divergence"] if "order" in d], [])
 
     def test_a_new_milestone_is_appended_and_announced(self):
         inp = copy.deepcopy(INPUT)
@@ -3006,6 +3095,39 @@ class MilestoneLintTest(unittest.TestCase):
         self.assertEqual(
             map_core.lint_findings(self._map_text("- `mvp` [a]"), tickets), [])
 
+    def test_a_key_repeated_inside_one_milestone_is_an_error_named_once(self):
+        # Neither deduped nor named before: the cross-milestone check cannot see
+        # it (owner[key] == slug), so the repeat was silent.
+        findings = map_core.lint_findings(
+            self._map_text("- `mvp` [a, a]"), self._tickets("a"))
+        dupes = [f for f in findings if f["rule"] == "milestone-duplicate-member"]
+        self.assertEqual(len(dupes), 1)
+        self.assertEqual(dupes[0]["severity"], map_core.LINT_ERROR)
+        self.assertEqual(dupes[0]["ticket"], "a")
+        self.assertIn("twice", dupes[0]["message"])
+        self.assertIn("mvp", dupes[0]["message"])
+
+    def test_an_unknown_key_repeated_in_one_milestone_fires_once(self):
+        # Two identical milestone-unknown-ticket findings read as two problems
+        # and cost the reader two fixes for one line.
+        findings = map_core.lint_findings(
+            self._map_text("- `mvp` [ghost, ghost]"), self._tickets("a"))
+        self.assertEqual(
+            len([f for f in findings if f["rule"] == "milestone-unknown-ticket"]),
+            1)
+
+    def test_progress_counts_a_repeated_member_once(self):
+        # `<closed>/<total>` is a number the user reads and acts on, so a repeat
+        # must not report one ticket as two.
+        milestones, bad = map_core.parse_milestones(self._map_text("- `mvp` [a, a]"))
+        self.assertEqual(bad, [])
+        progress = map_core.milestone_progress(milestones, {"a": "closed"})
+        self.assertEqual((progress[0]["closed"], progress[0]["total"],
+                          progress[0]["complete"]), (1, 1, True))
+        # Nothing is rewritten to achieve it -- additive never edits a stored
+        # line, so the repeat is still on the map for the hand edit to remove.
+        self.assertEqual(milestones[0]["members"], ["a", "a"])
+
     def test_a_map_with_no_milestones_region_produces_no_milestone_findings(self):
         findings = map_core.lint_findings(
             map_core.FOG_START + "\n" + map_core.EMPTY_LIST_LINE + "\n"
@@ -3046,6 +3168,24 @@ class DecisionsIndexGroupingTest(unittest.TestCase):
         got = map_core.decisions_region(self.ENTRIES, ms)
         group = got.split("#### one")[1]
         self.assertLess(group.index("[A?]"), group.index("[B?]"))
+
+    def test_a_heading_label_is_flattened_and_escaped(self):
+        # The one document -> document text path. The label reaching here was
+        # read straight back out of the map body by parse_milestones, so it had
+        # never met one_line on this path; it is safe today only because the
+        # write side escaped it. Every user string written into a document goes
+        # through one_line -- this is defence in depth on the invariant the
+        # whole feature had to earn, not a second opinion about it.
+        ms = [{"slug": "one",
+               "label": "demo [it] & <b>bold</b> " + map_core.FOG_START,
+               "members": ["a"]}]
+        got = map_core.decisions_region(self.ENTRIES, ms)
+        heading = next(ln for ln in got.splitlines() if ln.startswith("#### one"))
+        self.assertNotIn(map_core.MARKER_PREFIX, heading)
+        self.assertIn(map_core.MARKER_ESCAPED_PREFIX, heading)
+        # The harmless characters are left exactly as the user typed them --
+        # one_line escapes the marker prefix, it does not mangle text.
+        self.assertIn("#### one — demo [it] & <b>bold</b> ", got)
 
     def test_the_region_markers_still_frame_it_exactly_once(self):
         got = map_core.decisions_region(

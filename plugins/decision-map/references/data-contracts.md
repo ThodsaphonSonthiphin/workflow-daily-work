@@ -172,7 +172,7 @@ enforced it. Prose is advisory; this is the deterministic half.
 | `fog-line-graduated` | warning | a line under "Not yet specified" reads as a ticket that already exists. An additive `chart` never deletes, so graduating fog leaves the old line behind and the map keeps advertising a question it has answered. |
 | `milestone-line-unparsable` | error | a line inside the milestones region does not match the grammar above. Skipping it would hide its members, so the map would advertise a smaller milestone than it has. `ticket: null` — the broken thing is the line, not any one ticket. |
 | `milestone-duplicate-slug` | error | a milestone slug is declared twice. Nothing is unreachable — `membership_of` maps every member of both entries to the shared slug — but `frontier.json`'s milestones list ends up with two rows sharing that slug, each counting only its own half of the members, and the decisions index renders every member under the FIRST entry's heading, so the SECOND entry's *label* is what actually goes missing. `ticket: null` — the map holds the duplicate, not a ticket. |
-| `milestone-duplicate-member` | error | a ticket key is a member of two different milestones. Membership is exclusive (ADR 0097); the finding names the ticket. |
+| `milestone-duplicate-member` | error | a ticket key is listed twice — either as a member of two different milestones (membership is exclusive, ADR 0097) or twice on the same milestone line. The finding names the ticket, and the repeat inside one line fires **once**, not once per repeat. Progress counts **distinct** members, so a repeat never inflates `<closed>/<total>`; the finding exists because the line still claims more tickets than it has, and additive `chart` will never rewrite it. |
 | `milestone-unknown-ticket` | error | a milestone lists a ticket key that is not on this map. That member can never close, so the milestone can never complete and its progress reads short forever; the finding names the ticket. |
 
 **Three findings carry `ticket: null`: `gist-budget`, `milestone-line-unparsable`
@@ -691,9 +691,12 @@ lists every recorded blocker instead.
 `milestone` appears on every entry in all three buckets, `null` when the
 ticket is not yet scheduled into one. The top-level `milestones` is
 **progress, not membership** — `{slug, label, closed, total, complete}`,
-counted over **every** ticket the milestone lists, closed ones included:
-counting only the members that still resolve would let a deleted or
-re-parented ticket silently complete a milestone. The three buckets above,
+counted over **every distinct** ticket the milestone lists, closed ones
+included: counting only the members that still resolve would let a deleted or
+re-parented ticket silently complete a milestone, and counting a repeated key
+twice would make `<closed>/<total>` — a number the user reads and acts on —
+report one ticket as two (`lint`'s `milestone-duplicate-member` names the
+repeat; nothing rewrites the line). The three buckets above,
 by contrast, hold only **open** tickets — that is deliberate and the two must
 not be made to agree, the same split `map.json`/`frontier.json` already draw
 for `blockedBy`. `complete` is `false` for an empty milestone: it has shipped
