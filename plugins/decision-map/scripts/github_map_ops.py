@@ -89,6 +89,7 @@ from map_core import (
     map_merge_detail, render_map_body, scalar_divergences, scalar_fields_for,
     merge_map_lists,
     decisions_region, validate_chart_input, key_of_body, milestone_index,
+    milestone_progress,
     position_diagram_region, set_graph_region,
     lint_findings, RULES_NEEDING_RESOLUTION_BODY,
     force_orphaned_blockers, force_orphan_detail, rewired_edges,
@@ -365,6 +366,10 @@ class Snapshot:
         self.map_key = key_of_body(
             node.get("body"), f"the map issue #{node['number']}",
             labelled=self.is_map)
+        # Parsed once here, not per ticket: the map body is already in hand and
+        # both map_json and frontier read the same answer from it.
+        self.milestones, self.milestone_of, self._bad_milestone_lines = \
+            milestone_index(norm_eol(node.get("body")))
         sub = node.get("subIssues") or {}
         if (sub.get("pageInfo") or {}).get("hasNextPage"):
             # Never truncate the join. A child the join cannot see is labelled
@@ -601,6 +606,7 @@ class Snapshot:
             "assignee": self.assignee_of(key),
             "blockedBy": blockers,
             "gist": self.gist_of(key),
+            "milestone": self.milestone_of.get(key),
         }
 
     def map_json(self):
@@ -616,6 +622,7 @@ class Snapshot:
                     "name": self.map.get("title"),
                     "url": self.map.get("url"),
                     "destination": dest},
+            "milestones": self.milestones,
             "tickets": [self.ticket_json(k) for k in self.keys],
         }
 
@@ -635,19 +642,20 @@ def render_map_issue_body(m, slug):
 
 
 def render_ticket_issue_body(key, question):
-    """The ticket issue body: key marker, position diagram, the question, an
-    empty gist region.
+    """The ticket issue body: key marker, the question, the position diagram,
+    an empty gist region.
 
-    Every region is written at creation rather than inserted later, for the
-    same reason the local backend does the same: a writer that has to decide
-    *where* a region goes is guessing at the boundary of content it did not
-    write, which is exactly the pattern that cost three review rounds. A fresh
-    ticket has no blockers and unblocks nothing yet, so the diagram renders
-    with empty parent/child lists; `chart`'s edge-wiring pass re-renders it
-    once real edges exist.
+    The QUESTION comes first (ADR 0102) -- the card's identity is what it asks,
+    and the diagram is context read second. Every region is still written at
+    creation rather than inserted later, for the reason the local backend does
+    the same: a writer that has to decide *where* a region goes is guessing at
+    the boundary of content it did not write, which is the pattern that cost
+    three review rounds. A fresh ticket has no blockers and unblocks nothing
+    yet, so the diagram renders with empty parent/child lists; `chart`'s
+    edge-wiring pass re-renders it once real edges exist.
     """
-    return (f"{KEY_MARKER % key}\n\n{position_diagram_region(key, [], [])}\n"
-            f"## Question\n\n{scrub(question)}\n\n"
+    return (f"{KEY_MARKER % key}\n\n## Question\n\n{scrub(question)}\n\n"
+            f"{position_diagram_region(key, [], [])}\n"
             f"{GIST_START}\n{GIST_END}\n")
 
 
@@ -1358,7 +1366,8 @@ def frontier(ops, ref):
         # `frontier.json` name the same ticket the same way and either value can
         # be handed straight back to `--ticket`. `key` rides alongside because
         # every ticket-to-ticket reference (blockedBy, missingBlockers) is a key.
-        base = {"id": t["id"], "key": key, "name": t["name"]}
+        base = {"id": t["id"], "key": key, "name": t["name"],
+                "milestone": t["milestone"]}
         if t["assignee"]:
             out["claimed"].append({**base, "assignee": t["assignee"]})
         elif open_blockers:
@@ -1368,6 +1377,12 @@ def frontier(ops, ref):
             out["blocked"].append(entry)
         else:
             out["frontier"].append({**base, "url": t["url"], "type": t["type"]})
+    # The progress the session surface groups by (ADR 0099). Counted over
+    # EVERY ticket, closed included -- a milestone's progress is closed/total,
+    # and the three buckets above deliberately hold only the open ones.
+    out["milestones"] = milestone_progress(
+        snap.milestones,
+        {k: _state(snap.tickets[k].get("state")) for k in snap.keys})
     return out
 
 
@@ -1509,9 +1524,11 @@ def _reindex_decisions(ops, snap, just_closed, just_gist):
     cheaper and more consistent than re-reading the whole map to observe a
     change this process just made.
 
-    The milestones that group it are parsed straight out of the map body the
-    snapshot already holds -- `snap.milestones` doesn't exist yet, and this
-    call site is where a later task will switch to it once it does.
+    The milestones that group it come from `snap.milestones`, not a fresh
+    parse: `resolve` never edits the milestones region, so the snapshot's copy
+    cannot be stale for this purpose, and re-parsing the same body the
+    snapshot already read would be the duplication `Snapshot.__init__` exists
+    to avoid.
     """
     entries = []
     for key in snap.keys:
@@ -1530,8 +1547,7 @@ def _reindex_decisions(ops, snap, just_closed, just_gist):
         entries.append((key, one_line(t.get("title") or key),
                         t.get("url") or f"#{t['number']}", gist))
     body = norm_eol(snap.map.get("body"))
-    milestones, _by_key, _bad = milestone_index(body)
-    region = decisions_region(entries, milestones)
+    region = decisions_region(entries, snap.milestones)
     if _DECISIONS_BLOCK_RE.search(body):
         body = _DECISIONS_BLOCK_RE.sub(lambda _m: region, body, count=1)
     else:
