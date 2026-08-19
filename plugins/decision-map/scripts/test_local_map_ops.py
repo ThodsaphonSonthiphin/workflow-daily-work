@@ -2366,5 +2366,130 @@ class LintTest(unittest.TestCase):
             self.assertIn("ticket", f)
 
 
+class MilestoneGrammarTest(unittest.TestCase):
+    """The line grammar is the whole feature's storage format, so it must
+    round-trip EXACTLY: render -> parse -> render is byte-identical, or the
+    byte-identical no-op guarantee breaks on every re-chart."""
+
+    def test_renders_slug_label_and_members(self):
+        self.assertEqual(
+            map_core.milestone_line("mvp-search", "demo the search page",
+                                    ["auth-model", "api-limits"]),
+            "- `mvp-search` demo the search page [auth-model, api-limits]")
+
+    def test_renders_without_a_label_and_without_members(self):
+        self.assertEqual(map_core.milestone_line("polish", None, []),
+                         "- `polish` []")
+
+    def test_round_trips_every_shape(self):
+        # A label containing brackets is the case a naive regex gets wrong:
+        # members are anchored to the END of the line and cannot contain
+        # brackets, so the LAST group is unambiguously the member list.
+        for slug, label, members in (
+                ("mvp-search", "demo the search page", ["auth-model", "api-limits"]),
+                ("polish", None, []),
+                ("weird", "ship [the] thing", ["one"]),
+                ("solo", "a label", []),
+        ):
+            line = map_core.milestone_line(slug, label, members)
+            text = (map_core.MILESTONES_START + "\n" + line + "\n"
+                    + map_core.MILESTONES_END)
+            got, bad = map_core.parse_milestones(text)
+            self.assertEqual(bad, [], line)
+            self.assertEqual(len(got), 1, line)
+            self.assertEqual(got[0]["slug"], slug, line)
+            self.assertEqual(got[0]["label"], label, line)
+            self.assertEqual(got[0]["members"], members, line)
+            self.assertEqual(
+                map_core.milestone_line(got[0]["slug"], got[0]["label"],
+                                        got[0]["members"]),
+                line)
+
+    def test_a_label_is_flattened_and_escaped(self):
+        # one_line, not raw interpolation: a newline in a label would inject a
+        # second line into the region and a marker would forge a region.
+        line = map_core.milestone_line(
+            "m1", "one\n<!-- decision-map:fog:start -->", ["k"])
+        self.assertNotIn("\n", line)
+        self.assertNotIn(map_core.MARKER_PREFIX, line)
+
+    def test_absent_region_parses_as_empty_not_as_an_error(self):
+        self.assertEqual(map_core.parse_milestones("# a map with no region"),
+                         ([], []))
+        self.assertEqual(map_core.parse_milestones(None), ([], []))
+
+    def test_placeholder_and_blank_lines_are_not_milestones(self):
+        text = (map_core.MILESTONES_START + "\n" + map_core.EMPTY_LIST_LINE
+                + "\n\n" + map_core.MILESTONES_END)
+        self.assertEqual(map_core.parse_milestones(text), ([], []))
+
+    def test_an_unparsable_line_is_reported_never_skipped(self):
+        # Silently skipping it would shrink a milestone without saying so --
+        # the reader sees a smaller group and believes it.
+        text = (map_core.MILESTONES_START + "\n- mvp-search: auth-model\n"
+                + map_core.MILESTONES_END)
+        got, bad = map_core.parse_milestones(text)
+        self.assertEqual(got, [])
+        self.assertEqual(bad, ["- mvp-search: auth-model"])
+
+    def test_index_maps_each_member_to_its_first_milestone(self):
+        text = map_core.MILESTONES_START + "\n" + "\n".join([
+            map_core.milestone_line("one", None, ["a", "b"]),
+            map_core.milestone_line("two", None, ["b", "c"]),
+        ]) + "\n" + map_core.MILESTONES_END
+        ms, by_key, bad = map_core.milestone_index(text)
+        self.assertEqual([m["slug"] for m in ms], ["one", "two"])
+        # 'b' is a lint error (exclusivity), but the projection must still be
+        # deterministic: the FIRST milestone that needs it wins (ADR 0097).
+        self.assertEqual(by_key, {"a": "one", "b": "one", "c": "two"})
+        self.assertEqual(bad, [])
+
+    def test_membership_of_first_occurrence_wins(self):
+        # Shared by milestone_index and the decisions index (Ruling R1) -- one
+        # test directly against the helper, so the two callers cannot drift.
+        ms = [{"slug": "one", "label": None, "members": ["a", "b"]},
+              {"slug": "two", "label": None, "members": ["b", "c"]}]
+        self.assertEqual(map_core.membership_of(ms),
+                         {"a": "one", "b": "one", "c": "two"})
+
+    def test_progress_counts_closed_members_and_flags_completeness(self):
+        ms = [{"slug": "one", "label": "first", "members": ["a", "b"]},
+              {"slug": "two", "label": None, "members": ["c"]},
+              {"slug": "empty", "label": None, "members": []}]
+        got = map_core.milestone_progress(
+            ms, {"a": "closed", "b": "open", "c": "closed"})
+        self.assertEqual(got, [
+            {"slug": "one", "label": "first", "closed": 1, "total": 2,
+             "complete": False},
+            {"slug": "two", "label": None, "closed": 1, "total": 1,
+             "complete": True},
+            # An empty milestone is never "complete" -- it has shipped nothing,
+            # and reporting it done would send the reader to the next group.
+            {"slug": "empty", "label": None, "closed": 0, "total": 0,
+             "complete": False},
+        ])
+
+    def test_a_member_with_no_ticket_counts_in_total_and_never_as_closed(self):
+        got = map_core.milestone_progress(
+            [{"slug": "one", "label": None, "members": ["a", "ghost"]}],
+            {"a": "closed"})
+        self.assertEqual(got[0], {"slug": "one", "label": None, "closed": 1,
+                                  "total": 2, "complete": False})
+
+    def test_notes_lines_accepts_a_string_a_list_or_nothing(self):
+        self.assertEqual(map_core.notes_lines(None), [])
+        self.assertEqual(map_core.notes_lines(""), [])
+        self.assertEqual(map_core.notes_lines("one thing"), ["one thing"])
+        self.assertEqual(map_core.notes_lines(["a", "b"]), ["a", "b"])
+
+    def test_milestone_lines_for_falls_back_to_the_placeholder(self):
+        self.assertEqual(map_core.milestone_lines_for([]),
+                         [map_core.EMPTY_LIST_LINE])
+        self.assertEqual(
+            map_core.milestone_lines_for(
+                [{"slug": "one", "label": None, "members": ["a"]}]),
+            ["- `one` [a]"])
+
+
 if __name__ == "__main__":
     unittest.main()

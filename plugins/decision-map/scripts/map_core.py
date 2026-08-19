@@ -82,6 +82,20 @@ FOG_END = "<!-- decision-map:fog:end -->"
 SCOPE_START = "<!-- decision-map:scope:start -->"
 SCOPE_END = "<!-- decision-map:scope:end -->"
 
+# The ordering dimension (ADR 0094-0099). A milestone is a named, ordered,
+# shippable increment: the group of decision tickets that must all close before
+# building that increment can begin. Membership and order live HERE, on the map,
+# in one region -- not as a field on each ticket -- because "what ships first" is
+# a map-level statement and declaring or regrouping N tickets would otherwise be
+# N writes (ADR 0096).
+MILESTONES_START = "<!-- decision-map:milestones:start -->"
+MILESTONES_END = "<!-- decision-map:milestones:end -->"
+# Notes is a LIST, not a paragraph (ADR 0101). Measured on a live map, its
+# content was a ~450-word single line whose actual shape was a sequence of dated
+# amendments -- a list forced to impersonate a paragraph.
+NOTES_START = "<!-- decision-map:notes:start -->"
+NOTES_END = "<!-- decision-map:notes:end -->"
+
 # Single-line markers -- a value carrier, not a paired region. `assert_regions`
 # counts them separately for that reason: they have no end marker to pair with.
 KEY_MARKER = "<!-- decision-map:key:%s -->"
@@ -92,6 +106,8 @@ GRAPH_START = "<!-- decision-map:graph:start -->"
 GRAPH_END = "<!-- decision-map:graph:end -->"
 
 MAP_REGIONS = ((DECISIONS_START, DECISIONS_END),
+               (NOTES_START, NOTES_END),
+               (MILESTONES_START, MILESTONES_END),
                (FOG_START, FOG_END),
                (SCOPE_START, SCOPE_END))
 TICKET_REGIONS = ((RESOLUTION_START, RESOLUTION_END),
@@ -402,6 +418,133 @@ def count_added_lines(body, merged_lines):
                 if ln.strip() and ln.strip() != EMPTY_LIST_LINE}
     return sum(1 for ln in merged_lines
                if ln != EMPTY_LIST_LINE and ln not in existing)
+
+
+# The milestone line grammar. Anchored at BOTH ends, with the member list last
+# and forbidden from containing brackets, so the trailing group is unambiguously
+# the members even when a human's label contains brackets of its own. Order is
+# LINE ORDER, never a rendered number: a numbered list would have to be
+# renumbered on every insert, which is a rewrite of lines the additive
+# guarantee promises never to touch.
+_MILESTONE_LINE_RE = re.compile(
+    r"^- `(?P<slug>[A-Za-z0-9][A-Za-z0-9_-]*)`"
+    r"(?: (?P<label>.*?))? \[(?P<members>[^\[\]]*)\]$")
+
+
+def milestone_line(slug, label, members):
+    """One milestone as its stored line.
+
+    `slug` and every member are validated keys (safe slugs), so they need no
+    escaping -- but the LABEL is free user text and goes through one_line:
+    flatten first, escape second, exactly as every other user string does. A
+    newline there would inject a second line into the region; a marker there
+    would forge a region.
+
+    The slug pattern above deliberately ACCEPTS "--", matching SAFE_SLUG_RE
+    rather than validate_key: the "--" rule belongs at mint time, and a reader
+    that refused such a slug would turn a hand-written milestone into an
+    unparsable line instead of a readable one whose slug `lint` can name. Do not
+    "fix" this by tightening the pattern -- it is the same split SAFE_SLUG_RE
+    already documents for ticket keys.
+    """
+    lab = f" {one_line(label)}" if label else ""
+    return f"- `{slug}`{lab} [{', '.join(members)}]"
+
+
+def milestone_lines_for(milestones):
+    """The rendered lines for a milestone list, placeholder when it is empty."""
+    lines = [milestone_line(m["slug"], m.get("label"), m.get("members") or [])
+             for m in milestones]
+    return lines or [EMPTY_LIST_LINE]
+
+
+def parse_milestones(map_text):
+    """-> ([{slug, label, members}, ...], [unparsable raw line, ...])
+
+    A line the grammar cannot read is REPORTED, never skipped. Skipping it would
+    hide its members, so the map would advertise a smaller milestone than it has
+    and the reader would believe it -- the same absence-read-as-a-fact shape
+    ADR 0061 exists to prevent. `lint` turns the second list into findings.
+
+    An absent region parses as empty rather than raising: a map charted before
+    milestones existed is legal, and every read path must survive it.
+    """
+    body = region_body(norm_eol(map_text or ""), MILESTONES_START, MILESTONES_END)
+    if body is None:
+        return [], []
+    out, bad = [], []
+    for raw in body.splitlines():
+        line = raw.strip()
+        if not line or line == EMPTY_LIST_LINE:
+            continue
+        m = _MILESTONE_LINE_RE.match(line)
+        if m is None:
+            bad.append(line)
+            continue
+        out.append({
+            "slug": m.group("slug"),
+            "label": (m.group("label") or "").strip() or None,
+            "members": [x.strip() for x in m.group("members").split(",")
+                        if x.strip()],
+        })
+    return out, bad
+
+
+def membership_of(milestones):
+    """-> {ticket key: milestone slug}, first occurrence winning.
+
+    A ticket belongs to at most ONE milestone -- the first that needs it
+    (ADR 0097): a decision closed once serves every later milestone
+    automatically, so nothing is re-done per increment. A key listed twice is a
+    lint error, but this projection still has to be deterministic, so first
+    occurrence wins rather than last. Shared with the decisions index, which
+    groups by the same rule and must not re-derive it.
+    """
+    by_key = {}
+    for m in milestones:
+        for key in m.get("members") or []:
+            by_key.setdefault(key, m["slug"])
+    return by_key
+
+
+def milestone_index(map_text):
+    """-> (milestones, {ticket key: milestone slug}, unparsable lines)"""
+    milestones, bad = parse_milestones(map_text)
+    return milestones, membership_of(milestones), bad
+
+
+def milestone_progress(milestones, status_by_key):
+    """-> [{slug, label, closed, total, complete}], in map order.
+
+    `total` counts declared members, including one whose ticket is missing --
+    that member can never be closed, so the milestone reads as incomplete and
+    `lint`'s milestone-unknown-ticket names it. Counting only the members that
+    resolve would let a deleted ticket silently complete a milestone.
+
+    An EMPTY milestone is never complete: it has shipped nothing, and calling it
+    done would send the reader on to the next group.
+    """
+    out = []
+    for m in milestones:
+        members = m.get("members") or []
+        closed = sum(1 for k in members if status_by_key.get(k) == "closed")
+        out.append({"slug": m["slug"], "label": m.get("label"),
+                    "closed": closed, "total": len(members),
+                    "complete": bool(members) and closed == len(members)})
+    return out
+
+
+def notes_lines(value):
+    """The map's notes as a list of lines, whatever shape the input used.
+
+    A bare string stays legal as a one-bullet list (ADR 0101), so every existing
+    map_input.json keeps working unchanged.
+    """
+    if not value:
+        return []
+    if isinstance(value, str):
+        return [value]
+    return list(value)
 
 
 def map_merge_detail(added):
