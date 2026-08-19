@@ -46,6 +46,14 @@ field Z" is. If you cannot say where it is, you have not measured enough to writ
 Write the baseline down where it survives the session — the ticket, the runbook header, a commit. It is
 the only thing that makes the after-measurement mean anything.
 
+**Record each measurement when you take it, not in a batch at the end.** Every time you read the live
+system, write that reading onto the ticket before the next read — the number, what it was measured
+against, and the time. A session that measures twenty things and records them once at the end has an
+unwritten ticket for its whole length: a crash, a compaction or a parallel session loses every fact,
+and anyone reading meanwhile sees the document's stale claim instead of the system's answer. The rule
+is per-check, not per-session — a measurement that **contradicts the document** is the one most worth
+writing immediately, because it is the one nobody can reconstruct.
+
 **Save the full state, not only the numbers you will assert.** For every object a step will touch, write
 its complete serialized form — the XML, the JSON, the config, the record — before the person acts. The
 assertion proves *whether* something moved; only the snapshot proves *what*. Do this even when the edit
@@ -83,6 +91,13 @@ where it came from.
 State now what the numbers must become. `1 control → 0`, `13 rows → 0`, `status pending → active`.
 An after-measurement with no pre-declared target is a description, not a check — you will find yourself
 reading the result and deciding it looks fine.
+
+**The predicted outcome is a claim, and it needs evidence like any other.** Phase 1 forbids taking
+counts from a document; the same applies to what you say *will happen*. "The save will be refused
+because the field is required" is a platform-behaviour claim — verify it against the vendor's docs or
+a live probe before it enters the runbook. A wrong prediction is worse than none: the person reads a
+correct result as a failure, or a broken one as a pass, and the runbook has taught them the wrong
+success condition.
 
 Include a **blast-radius assertion**: name what must *not* change. Count the neighbours now (the other
 28 handlers, the other 5 rules, the other 12 records) so that after the change you can say nothing else
