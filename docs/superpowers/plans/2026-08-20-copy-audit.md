@@ -293,7 +293,7 @@ def source_skills(root):
 
 Run: `cd "plugins/dev-workflows/scripts" && python -m pytest test_check_plugin_copies.py -q > out.txt 2>&1; echo "EXIT=$?"; tail -3 out.txt; rm out.txt`
 
-Expected: 11 passed, EXIT=0.
+Expected: 10 passed, EXIT=0.
 
 - [ ] **Step 5: Commit**
 
@@ -455,7 +455,7 @@ def source_blockers(root):
 
 Run: `cd "plugins/dev-workflows/scripts" && python -m pytest test_check_plugin_copies.py -q > out.txt 2>&1; echo "EXIT=$?"; tail -3 out.txt; rm out.txt`
 
-Expected: 17 passed, EXIT=0.
+Expected: 16 passed, EXIT=0.
 
 - [ ] **Step 5: Commit**
 
@@ -624,7 +624,7 @@ def scan_for_skill_dirs(roots, names):
 
 Run: `cd "plugins/dev-workflows/scripts" && python -m pytest test_check_plugin_copies.py -q > out.txt 2>&1; echo "EXIT=$?"; tail -3 out.txt; rm out.txt`
 
-Expected: 23 passed, EXIT=0.
+Expected: 22 passed, EXIT=0.
 
 - [ ] **Step 5: Commit**
 
@@ -789,7 +789,7 @@ def classify(src_bytes, copy_bytes, historical=()):
 
 Run: `cd "plugins/dev-workflows/scripts" && python -m pytest test_check_plugin_copies.py -q > out.txt 2>&1; echo "EXIT=$?"; tail -3 out.txt; rm out.txt`
 
-Expected: 32 passed, EXIT=0.
+Expected: 31 passed, EXIT=0.
 
 - [ ] **Step 5: Commit**
 
@@ -987,7 +987,7 @@ def agent_list_warning(agents_home):
 
 Run: `cd "plugins/dev-workflows/scripts" && python -m pytest test_check_plugin_copies.py -q > out.txt 2>&1; echo "EXIT=$?"; tail -3 out.txt; rm out.txt`
 
-Expected: 41 passed, EXIT=0.
+Expected: 40 passed, EXIT=0.
 
 - [ ] **Step 5: Commit**
 
@@ -1324,7 +1324,7 @@ if __name__ == "__main__":
 
 Run: `cd "plugins/dev-workflows/scripts" && python -m pytest test_check_plugin_copies.py -q > out.txt 2>&1; echo "EXIT=$?"; tail -3 out.txt; rm out.txt`
 
-Expected: 50 passed, EXIT=0.
+Expected: 49 passed, EXIT=0.
 
 - [ ] **Step 5: Run it for real against this marketplace**
 
