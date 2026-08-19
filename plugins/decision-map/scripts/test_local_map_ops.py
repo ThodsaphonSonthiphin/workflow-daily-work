@@ -1960,21 +1960,21 @@ class GraphRegionOnTicketTests(unittest.TestCase):
     def _chart(self):
         return ops.chart(self.root, INPUT, real=True)
 
-    def test_a_created_ticket_carries_a_graph_region_above_the_question(self):
+    def test_a_created_ticket_carries_a_graph_region_below_the_question(self):
         self._chart()
         text = (self.root / "example-effort" / "tickets" / "api-limits.md").read_text(
             encoding="utf-8")
         self.assertIn(map_core.GRAPH_START, text)
         self.assertIn(map_core.GRAPH_END, text)
-        self.assertLess(text.index(map_core.GRAPH_START), text.index("## Question"),
-                        "the position must be visible before the prose")
+        self.assertLess(text.index("## Question"), text.index(map_core.GRAPH_START),
+                        "the question is the card's identity; the position is context read second")
         self.assertIn('ME["api-limits (this ticket)"]', text)
 
-    def test_set_graph_region_inserts_above_question_on_a_legacy_ticket(self):
+    def test_set_graph_region_inserts_below_question_on_a_legacy_ticket(self):
         legacy = "\n## Question\n\nold body\n"
         out = ops._set_graph_region(legacy, "<!-- decision-map:graph:start -->\nX\n"
                                             "<!-- decision-map:graph:end -->\n")
-        self.assertLess(out.index("decision-map:graph:start"), out.index("## Question"))
+        self.assertLess(out.index("## Question"), out.index("decision-map:graph:start"))
         self.assertIn("old body", out, "legacy content must survive untouched")
 
     def test_set_graph_region_replaces_an_existing_region_and_touches_nothing_else(self):
@@ -2050,6 +2050,68 @@ class GraphRegionOnTicketTests(unittest.TestCase):
         # one block() just added -- sorted, since _children_of promises order.
         self.assertEqual(ops._children_of(self.root, "example-effort", "auth-model"),
                          ["api-limits", "rollout-order"])
+
+
+class TicketCardOrderTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_a_new_ticket_leads_with_its_question(self):
+        # The card's identity is its question; the position diagram is context
+        # glanced at second (ADR 0102).
+        ops.chart(self.root, copy.deepcopy(INPUT), real=True)
+        text = (self.root / "example-effort" / "tickets" / "auth-model.md"
+                ).read_text(encoding="utf-8")
+        self.assertLess(text.index("## Question"),
+                        text.index(map_core.GRAPH_START))
+        self.assertIn("per-tenant or shared?", text)
+
+    def test_the_graph_region_is_still_exactly_one_pair(self):
+        ops.chart(self.root, copy.deepcopy(INPUT), real=True)
+        text = (self.root / "example-effort" / "tickets" / "auth-model.md"
+                ).read_text(encoding="utf-8")
+        self.assertEqual(text.count(map_core.GRAPH_START), 1)
+        self.assertEqual(text.count(map_core.GRAPH_END), 1)
+
+    def test_wiring_an_edge_still_re_renders_the_diagram_in_place(self):
+        ops.chart(self.root, copy.deepcopy(INPUT), real=True)
+        text = (self.root / "example-effort" / "tickets" / "rollout-order.md"
+                ).read_text(encoding="utf-8")
+        self.assertIn('P0["auth-model"] --> ME', text)
+        self.assertLess(text.index("## Question"), text.index(map_core.GRAPH_START))
+
+    def test_an_identical_re_chart_leaves_a_ticket_byte_identical(self):
+        ops.chart(self.root, copy.deepcopy(INPUT), real=True)
+        p = self.root / "example-effort" / "tickets" / "rollout-order.md"
+        before = p.read_bytes()
+        ops.chart(self.root, copy.deepcopy(INPUT), real=True)
+        self.assertEqual(p.read_bytes(), before)
+
+    def test_a_legacy_ticket_gains_the_region_below_its_question(self):
+        body = "\n## Question\n\nwhich one?\n"
+        got = map_core.set_graph_region(
+            body, map_core.position_diagram_region("k", [], []))
+        self.assertLess(got.index("## Question"), got.index(map_core.GRAPH_START))
+        self.assertIn("which one?", got)
+
+    def test_a_legacy_ticket_with_a_later_section_keeps_it_below_the_diagram(self):
+        # Inserted before the NEXT heading, so the diagram lands inside the
+        # Question section rather than after a resolution block.
+        body = "\n## Question\n\nwhich one?\n\n## Notes from a comment\n\nhi\n"
+        got = map_core.set_graph_region(
+            body, map_core.position_diagram_region("k", [], []))
+        self.assertLess(got.index(map_core.GRAPH_START),
+                        got.index("## Notes from a comment"))
+
+    def test_a_ticket_with_no_question_heading_still_gets_one_region(self):
+        got = map_core.set_graph_region(
+            "loose text\n", map_core.position_diagram_region("k", [], []))
+        self.assertEqual(got.count(map_core.GRAPH_START), 1)
+        self.assertIn("loose text", got)
 
 
 class PositionDiagramTests(unittest.TestCase):

@@ -923,25 +923,30 @@ def position_diagram_region(key, parents, children):
 def set_graph_region(body, region):
     """Replace the graph region, or insert one into a ticket that predates it.
 
-    Insertion goes ABOVE "## Question" so the reader sees the position first.
-    A ticket with neither a region nor a Question heading gets the region
-    prepended -- never guess at the boundary of content the tool did not
-    write, the same conservative rule _reindex_decisions applies to a legacy
-    map.md.
+    Insertion goes BELOW the "## Question" section, because the card's identity
+    is its question and the position diagram is context read second (ADR 0102):
+    before the next "## " heading if there is one, so the diagram lands inside
+    the Question section rather than after a resolution block, and otherwise at
+    the end. A ticket with no Question heading at all gets the region appended --
+    never guess at the boundary of content the tool did not write, the same
+    conservative rule _reindex_decisions applies to a legacy map.md.
 
-    `region` already carries its own trailing newline (position_diagram_region's
-    contract), and the block matched by `block_re` extends through that same
-    optional trailing newline (region_re's `\\n?`), so the substitution is used
-    as-is -- exactly how resolve()'s own `_RESOLUTION_BLOCK_RE.sub` supplies its
-    replacement block newline-and-all, with no rstrip needed on either side.
+    `region` already carries its own trailing newline
+    (position_diagram_region's contract), and the block matched by `block_re`
+    extends through that same optional trailing newline (region_re's `\\n?`), so
+    the substitution is used as-is.
     """
     block_re = region_re(GRAPH_START, GRAPH_END)
     if block_re.search(body):
         return block_re.sub(lambda _m: region, body, count=1)
     heading = "## Question"
-    if heading in body:
-        return body.replace(heading, region + "\n" + heading, 1)
-    return region + body
+    i = body.find(heading)
+    if i < 0:
+        return body.rstrip("\n") + "\n\n" + region
+    nxt = body.find("\n## ", i + len(heading))
+    if nxt < 0:
+        return body.rstrip("\n") + "\n\n" + region
+    return body[:nxt + 1] + region + "\n" + body[nxt + 1:]
 
 
 def force_orphaned_blockers(actions, blockers_of, rewired):

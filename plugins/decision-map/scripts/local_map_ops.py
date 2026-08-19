@@ -518,8 +518,8 @@ def chart(root, inp, real, force=False):
         fm = {"title": t["title"], "type": t["type"], "mode": _mode(t["type"]),
               "status": "open", "assignee": "", "blocked_by": [], "gist": ""}
         _save_ticket(root, slug, t["key"], fm,
-                     f"\n{_position_diagram_region(t['key'], [], [])}"
-                     f"\n## Question\n\n{_scrub(t['question'])}\n")
+                     f"\n## Question\n\n{_scrub(t['question'])}\n\n"
+                     f"{_position_diagram_region(t['key'], [], [])}")
     # ADR 0058: the edge is UNIONED into whatever file holds it, existing or
     # not. block() appends only when absent and does not write otherwise, so
     # an existing ticket gains one blockedBy entry and nothing else, and an
