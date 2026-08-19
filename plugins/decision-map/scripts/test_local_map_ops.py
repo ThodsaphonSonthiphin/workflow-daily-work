@@ -2850,5 +2850,85 @@ class MapBodyRegionsTest(unittest.TestCase):
                                "members": ["auth-model"]}])
 
 
+class MilestoneLintTest(unittest.TestCase):
+    """Each rule exists because a flow skill or an ADR states the invariant in
+    prose and nothing enforced it. Prose is advisory; this is the deterministic
+    half."""
+
+    def _map_text(self, *lines):
+        return ("## Milestones\n\n" + map_core.MILESTONES_START + "\n"
+                + "".join(ln + "\n" for ln in lines) + map_core.MILESTONES_END
+                + "\n\n" + map_core.FOG_START + "\n" + map_core.EMPTY_LIST_LINE
+                + "\n" + map_core.FOG_END + "\n")
+
+    def _tickets(self, *keys):
+        return [{"key": k, "name": k, "status": "open", "assignee": None,
+                 "blockedBy": [], "gist": None, "resolution": None,
+                 "type": "task"} for k in keys]
+
+    def _rules(self, findings):
+        return [f["rule"] for f in findings]
+
+    def test_a_clean_milestones_region_produces_nothing(self):
+        findings = map_core.lint_findings(
+            self._map_text("- `mvp` demo it [a, b]", "- `polish` [c]"),
+            self._tickets("a", "b", "c"))
+        self.assertEqual(findings, [])
+
+    def test_an_unparsable_line_is_an_error(self):
+        findings = map_core.lint_findings(
+            self._map_text("- mvp: a, b"), self._tickets("a", "b"))
+        self.assertIn("milestone-line-unparsable", self._rules(findings))
+        bad = next(f for f in findings
+                   if f["rule"] == "milestone-line-unparsable")
+        self.assertEqual(bad["severity"], map_core.LINT_ERROR)
+        self.assertIsNone(bad["ticket"])
+        self.assertIn("- mvp: a, b", bad["message"])
+
+    def test_two_milestones_sharing_a_slug_is_an_error(self):
+        findings = map_core.lint_findings(
+            self._map_text("- `mvp` [a]", "- `mvp` [b]"),
+            self._tickets("a", "b"))
+        f = next(f for f in findings if f["rule"] == "milestone-duplicate-slug")
+        self.assertEqual(f["severity"], map_core.LINT_ERROR)
+        self.assertIn("mvp", f["message"])
+
+    def test_a_ticket_in_two_milestones_is_an_error_naming_the_ticket(self):
+        findings = map_core.lint_findings(
+            self._map_text("- `mvp` [a]", "- `polish` [a]"),
+            self._tickets("a"))
+        f = next(f for f in findings
+                 if f["rule"] == "milestone-duplicate-member")
+        self.assertEqual(f["severity"], map_core.LINT_ERROR)
+        self.assertEqual(f["ticket"], "a")
+        self.assertIn("mvp", f["message"])
+        self.assertIn("polish", f["message"])
+
+    def test_a_member_with_no_ticket_is_an_error_naming_the_key(self):
+        # It can never close, so the milestone can never complete -- and the
+        # progress line silently reads "1/2 forever" without this.
+        findings = map_core.lint_findings(
+            self._map_text("- `mvp` [a, ghost]"), self._tickets("a"))
+        f = next(f for f in findings
+                 if f["rule"] == "milestone-unknown-ticket")
+        self.assertEqual(f["severity"], map_core.LINT_ERROR)
+        self.assertEqual(f["ticket"], "ghost")
+
+    def test_a_closed_member_is_not_a_finding(self):
+        tickets = self._tickets("a")
+        tickets[0].update(status="closed", gist="answered",
+                          resolution="```mermaid\ngraph TD\n A-->B\n```\n"
+                                     "Detail: docs/adr/x.md\n")
+        self.assertEqual(
+            map_core.lint_findings(self._map_text("- `mvp` [a]"), tickets), [])
+
+    def test_a_map_with_no_milestones_region_produces_no_milestone_findings(self):
+        findings = map_core.lint_findings(
+            map_core.FOG_START + "\n" + map_core.EMPTY_LIST_LINE + "\n"
+            + map_core.FOG_END + "\n", self._tickets("a"))
+        self.assertEqual([r for r in self._rules(findings)
+                          if r.startswith("milestone-")], [])
+
+
 if __name__ == "__main__":
     unittest.main()

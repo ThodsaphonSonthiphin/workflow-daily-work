@@ -1442,6 +1442,44 @@ def lint_findings(map_text, tickets, resolution_bodies=True):
             f"so shortening those {gist_over} is the single edit that makes "
             "each future session on this map cheaper"))
 
+    # The milestones region (ADRs 0097, 0098). Every rule here is an ERROR: each
+    # one makes the region describe a plan the map does not have, and the
+    # session surface reads that region to decide what to work on next -- a
+    # wrong group or a phantom member misroutes the next session rather than
+    # merely looking untidy. Moves and reorders are hand edits by design, so a
+    # hand-broken region is the expected failure mode, not an exotic one.
+    milestones, _by_key, unparsable = milestone_index(map_text or "")
+    for line in unparsable:
+        errors.append(_finding(
+            "milestone-line-unparsable", LINT_ERROR, None,
+            f"the milestones line {line!r} is not in the form "
+            "'- `slug` optional label [key, key]', so its members are invisible "
+            "to every command; the map advertises a smaller milestone than it "
+            "has"))
+    seen_slugs, owner = {}, {}
+    for m in milestones:
+        slug = m["slug"]
+        if slug in seen_slugs:
+            errors.append(_finding(
+                "milestone-duplicate-slug", LINT_ERROR, None,
+                f"milestone {slug!r} is declared twice; the projection takes "
+                "the first, so the second's members are silently unreachable"))
+        seen_slugs.setdefault(slug, m)
+        for key in m["members"]:
+            if key in owner and owner[key] != slug:
+                errors.append(_finding(
+                    "milestone-duplicate-member", LINT_ERROR, key,
+                    f"{key!r} is a member of both {owner[key]!r} and {slug!r}; "
+                    "a ticket belongs to at most one milestone -- the first "
+                    "that needs it -- so remove it from one of them by hand"))
+            owner.setdefault(key, slug)
+            if key not in keys:
+                errors.append(_finding(
+                    "milestone-unknown-ticket", LINT_ERROR, key,
+                    f"milestone {slug!r} lists {key!r}, which is not a ticket "
+                    "on this map; it can never close, so the milestone can "
+                    "never complete and its progress reads short for ever"))
+
     by_tokens = [(t["key"], _significant_tokens(t.get("name") or t["key"]))
                  for t in tickets]
     fog = region_body(norm_eol(map_text or ""), FOG_START, FOG_END) or ""
