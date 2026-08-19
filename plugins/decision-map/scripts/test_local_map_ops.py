@@ -2930,5 +2930,85 @@ class MilestoneLintTest(unittest.TestCase):
                           if r.startswith("milestone-")], [])
 
 
+class DecisionsIndexGroupingTest(unittest.TestCase):
+    ENTRIES = [("a", "A?", "tickets/a.md", "yes"),
+               ("b", "B?", "tickets/b.md", "no"),
+               ("z", "Z?", "tickets/z.md", "maybe")]
+
+    def test_no_milestones_renders_todays_flat_list(self):
+        got = map_core.decisions_region(self.ENTRIES)
+        self.assertIn("- [A?](tickets/a.md) — yes\n", got)
+        self.assertNotIn("####", got)
+
+    def test_grouped_by_milestone_in_map_order_with_an_unassigned_tail(self):
+        ms = [{"slug": "two", "label": "second", "members": ["b"]},
+              {"slug": "one", "label": None, "members": ["a"]}]
+        got = map_core.decisions_region(self.ENTRIES, ms)
+        # Milestone order comes from the REGION, not from the keys.
+        self.assertLess(got.index("#### two"), got.index("#### one"))
+        self.assertIn("#### two — second\n", got)
+        self.assertLess(got.index("#### one"), got.index("(unassigned)"))
+        # Unassigned decisions are a tail group, never dropped.
+        self.assertIn("- [Z?](tickets/z.md) — maybe", got.split("(unassigned)")[1])
+
+    def test_a_milestone_with_no_closed_decision_is_not_rendered(self):
+        ms = [{"slug": "empty", "label": None, "members": ["nobody"]},
+              {"slug": "one", "label": None, "members": ["a"]}]
+        got = map_core.decisions_region(self.ENTRIES, ms)
+        self.assertNotIn("#### empty", got)
+
+    def test_entries_stay_key_ascending_inside_a_group(self):
+        ms = [{"slug": "one", "label": None, "members": ["b", "a"]}]
+        got = map_core.decisions_region(self.ENTRIES, ms)
+        group = got.split("#### one")[1]
+        self.assertLess(group.index("[A?]"), group.index("[B?]"))
+
+    def test_the_region_markers_still_frame_it_exactly_once(self):
+        got = map_core.decisions_region(
+            self.ENTRIES, [{"slug": "one", "label": None, "members": ["a"]}])
+        self.assertEqual(got.count(map_core.DECISIONS_START), 1)
+        self.assertEqual(got.count(map_core.DECISIONS_END), 1)
+
+    def test_empty_entries_and_no_milestones_is_byte_identical_to_before(self):
+        self.assertEqual(map_core.decisions_region([]),
+                         f"{map_core.DECISIONS_START}\n{map_core.DECISIONS_END}\n")
+
+    def test_empty_entries_with_milestones_supplied_is_still_unchanged(self):
+        ms = [{"slug": "one", "label": None, "members": ["a"]}]
+        self.assertEqual(map_core.decisions_region([], ms),
+                         f"{map_core.DECISIONS_START}\n{map_core.DECISIONS_END}\n")
+
+
+class LocalGroupedIndexTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_resolving_writes_a_grouped_index(self):
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it", "members": ["auth-model"]}]
+        ops.chart(self.root, inp, real=True)
+        ops.resolve(self.root, "example-effort", "auth-model",
+                    "per-tenant keys", "docs/adr/x.md", _DIAGRAM_BODY)
+        text = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
+        body = map_core.region_body(text, map_core.DECISIONS_START,
+                                   map_core.DECISIONS_END)
+        self.assertIn("#### mvp — demo it", body)
+        self.assertIn("per-tenant keys", body)
+
+    def test_an_unmilestoned_map_keeps_the_flat_index(self):
+        ops.chart(self.root, copy.deepcopy(INPUT), real=True)
+        ops.resolve(self.root, "example-effort", "auth-model",
+                    "per-tenant keys", "docs/adr/x.md", _DIAGRAM_BODY)
+        body = map_core.region_body(
+            (self.root / "example-effort" / "map.md").read_text(encoding="utf-8"),
+            map_core.DECISIONS_START, map_core.DECISIONS_END)
+        self.assertNotIn("####", body)
+
+
 if __name__ == "__main__":
     unittest.main()

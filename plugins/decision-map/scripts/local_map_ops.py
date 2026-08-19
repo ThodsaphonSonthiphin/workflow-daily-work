@@ -101,6 +101,7 @@ from map_core import (
     scalar_fields_for as _scalar_fields_for,
     merge_map_lists as _merge_map_lists,
     decisions_region as _decisions_region,
+    milestone_index as _milestone_index,
     position_diagram_region as _position_diagram_region,
     set_graph_region as _set_graph_region,
     force_orphaned_blockers as _force_orphaned_blockers,
@@ -705,17 +706,24 @@ def _reindex_decisions(root, slug):
     from being substituted away, and stops a multi-line gist from splitting
     one entry into an orphanable pair. Every title/gist here comes from
     frontmatter, so it is already scrubbed and already single-line.
+
+    The map is read once: its milestones (parsed fresh, since map.md, not
+    this function's argument, is where the region a reindex might just have
+    added lives) group the index, and the same read is substituted into below
+    -- a second read here would only risk seeing a different map.md than the
+    one the milestones came from.
     """
     entries = []
     for key in _all_tickets(root, slug):
         fm, _ = _load_ticket(root, slug, key)
         if fm.get("status") != "closed":
             continue
-        entries.append((fm.get("title") or key, f"tickets/{key}.md",
+        entries.append((key, fm.get("title") or key, f"tickets/{key}.md",
                         fm.get("gist") or ""))
-    region = _decisions_region(entries)
     map_path = _map_dir(root, slug) / "map.md"
     map_md = map_path.read_text(encoding="utf-8")
+    milestones, _by_key, _bad = _milestone_index(map_md)
+    region = _decisions_region(entries, milestones)
     if _DECISIONS_BLOCK_RE.search(map_md):
         map_md = _DECISIONS_BLOCK_RE.sub(lambda _m: region, map_md, count=1)
     else:

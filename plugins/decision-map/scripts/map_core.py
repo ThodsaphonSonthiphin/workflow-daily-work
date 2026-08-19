@@ -834,7 +834,7 @@ def merge_map_lists(text, m):
     return text, added, div
 
 
-def decisions_region(entries):
+def decisions_region(entries, milestones=None):
     """The "Decisions so far" index, regenerated in full inside its own region.
 
     The index is a projection of the tickets, not accumulated state, so it is
@@ -844,15 +844,55 @@ def decisions_region(entries):
     substituted away, and stops a multi-line gist from splitting one entry into
     an orphanable pair.
 
-    `entries` is [(title, link, gist), ...]. **Ordered by ticket key
-    (ascending)**, not by when each decision was resolved, so the index is a
-    deterministic function of the tickets and re-running the projection never
-    reorders it. The caller sorts; this only formats.
+    `entries` is [(key, title, link, gist), ...] -- the key is carried so this
+    can group by milestone. **Ordered by ticket key (ascending)** within each
+    group, not by when each decision was resolved, so the index is a
+    deterministic function of state; the caller sorts, this only formats.
+
+    `milestones` is the map's parsed milestone list. Given one, the index is
+    GROUPED to match the frontier the reader sees in the same session (ADR
+    0103): one `#### ` heading per milestone in MAP order -- not key order,
+    because the whole point of a milestone list is that its order is chosen --
+    then an "(unassigned)" tail. Membership comes from `membership_of` -- the
+    same first-occurrence-wins mapping `milestone_index` builds -- rather than
+    a second inline pass over `milestones`, so the two do not drift apart. A
+    milestone with no closed decision yet is omitted rather than rendered
+    empty, and with no milestones at all the output is the flat list this
+    function has always produced, so an unmilestoned map is unchanged.
     """
     lines = []
-    for title, link, gist in entries:
-        lines.append(f"- [{title}]({link}) — {gist}".rstrip() + "\n")
-    return f"{DECISIONS_START}\n{''.join(lines)}{DECISIONS_END}\n"
+
+    def render(group):
+        for _key, title, link, gist in group:
+            lines.append(f"- [{title}]({link}) — {gist}".rstrip() + "\n")
+
+    if not milestones:
+        render(entries)
+    else:
+        by_key = membership_of(milestones)
+        remaining = list(entries)
+        for m in milestones:
+            group = [e for e in remaining if by_key.get(e[0]) == m["slug"]]
+            if not group:
+                continue
+            heading = f"#### {m['slug']}"
+            if m.get("label"):
+                heading += f" — {m['label']}"
+            lines.append(heading + "\n\n")
+            render(group)
+            lines.append("\n")
+            remaining = [e for e in remaining if e not in group]
+        if remaining:
+            lines.append("#### (unassigned)\n\n")
+            render(remaining)
+    # An empty index (no closed tickets, or a milestone list with none of them
+    # closed yet) must render as START\nEND\n, byte-identical to the pre-
+    # milestone format -- a bare "".join(lines) here would leave a blank line
+    # between the markers and turn every milestone-free-but-empty map into a
+    # spurious diff against the byte-identical no-op guarantee.
+    body = "".join(lines).rstrip("\n")
+    return (f"{DECISIONS_START}\n{body}\n{DECISIONS_END}\n" if body
+            else f"{DECISIONS_START}\n{DECISIONS_END}\n")
 
 
 def position_diagram_region(key, parents, children):

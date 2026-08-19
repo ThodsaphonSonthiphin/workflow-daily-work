@@ -589,6 +589,30 @@ class TestResolve(Base):
                       "user content must survive")
 
 
+class GitHubGroupedIndexTest(Base):
+    """The same grouping as the local backend, against the tracker (ADR 0103)."""
+
+    def test_resolving_writes_a_grouped_index(self):
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it", "members": ["auth-model"]}]
+        self.chart(inp)
+        gh.resolve(self.ops, "billing", "auth-model", "shared keys", None, None)
+        body = self.fake.body_of(self.map_number())
+        inner = map_core.region_body(body, map_core.DECISIONS_START,
+                                     map_core.DECISIONS_END)
+        self.assertIn("#### mvp — demo it", inner)
+        self.assertIn("shared keys", inner)
+
+    def test_an_unmilestoned_map_keeps_the_flat_index(self):
+        self.chart()
+        gh.resolve(self.ops, "billing", "auth-model", "shared keys", None, None)
+        body = self.fake.body_of(self.map_number())
+        inner = map_core.region_body(body, map_core.DECISIONS_START,
+                                     map_core.DECISIONS_END)
+        self.assertNotIn("####", inner)
+
+
 class TestClaimBlockComment(Base):
     def test_claim_writes_a_real_login_and_empty_releases_it(self):
         self.chart()

@@ -88,7 +88,7 @@ from map_core import (
     region_body, replace_region, region_re,
     map_merge_detail, render_map_body, scalar_divergences, scalar_fields_for,
     merge_map_lists,
-    decisions_region, validate_chart_input, key_of_body,
+    decisions_region, validate_chart_input, key_of_body, milestone_index,
     position_diagram_region, set_graph_region,
     lint_findings, RULES_NEEDING_RESOLUTION_BODY,
     force_orphaned_blockers, force_orphan_detail, rewired_edges,
@@ -1508,6 +1508,10 @@ def _reindex_decisions(ops, snap, just_closed, just_gist):
     that triggered this, so the ticket being resolved is folded in explicitly --
     cheaper and more consistent than re-reading the whole map to observe a
     change this process just made.
+
+    The milestones that group it are parsed straight out of the map body the
+    snapshot already holds -- `snap.milestones` doesn't exist yet, and this
+    call site is where a later task will switch to it once it does.
     """
     entries = []
     for key in snap.keys:
@@ -1523,10 +1527,11 @@ def _reindex_decisions(ops, snap, just_closed, just_gist):
         # a human is meant to click was dead. (A bare `#2` would auto-link, but
         # the shared index format is `- [title](link) — gist`, so the link has to
         # be a real one.) The url also survives being copied out of the tracker.
-        entries.append((one_line(t.get("title") or key),
+        entries.append((key, one_line(t.get("title") or key),
                         t.get("url") or f"#{t['number']}", gist))
-    region = decisions_region(entries)
     body = norm_eol(snap.map.get("body"))
+    milestones, _by_key, _bad = milestone_index(body)
+    region = decisions_region(entries, milestones)
     if _DECISIONS_BLOCK_RE.search(body):
         body = _DECISIONS_BLOCK_RE.sub(lambda _m: region, body, count=1)
     else:
