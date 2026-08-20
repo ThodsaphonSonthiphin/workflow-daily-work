@@ -354,3 +354,88 @@ def classify(src_bytes, copy_bytes, historical=()):
     if overlap >= PROVENANCE_MIN:
         return "STALE", overlap
     return "UNRELATED", overlap
+
+
+WORKTREE_MARK = os.path.join(".claude", "worktrees")
+
+
+def _under(path, parent):
+    """Check if path is under parent, using the same canonicalization as _key."""
+    key, root = _key(path), _key(parent)
+    return key == root or key.startswith(root + os.sep)
+
+
+def role_of(path, claude_home, agents_home, source_root):
+    """What kind of distribution point this copy is. The role decides the
+    repair, and whether a repair may be offered at all."""
+    if _under(path, os.path.join(claude_home, "plugins", "cache")):
+        return "cache"
+    if os.path.normcase(WORKTREE_MARK) in os.path.normcase(_key(path)):
+        return "worktree"
+    if _under(path, agents_home):
+        return "agent-store"
+    if _under(path, source_root):
+        return "source"
+    return "vendored"
+
+
+def repair_for(role, copy_path, source_root):
+    """What the runner should DO about this copy. Never a write into the
+    cache (ADR 0104)."""
+    if role == "cache":
+        return ("none - the runtime maintains this snapshot. Edit the source "
+                "at %s and let the next session refresh it. Never hand-patch "
+                "the cache: a patched cache reports success while the real "
+                "source stays old." % source_root)
+    if role == "worktree":
+        return ("none - this is another branch's checkout. Merge or rebase "
+                "that branch; do not edit its files to match.")
+    if role == "agent-store":
+        return ("reinstall this skill for the agents that read the store, "
+                "then re-run. Note that a skills `update` short-circuits on "
+                "the source hash without checking this copy, so an update "
+                "alone will not repair it.")
+    if role == "source":
+        return ("this is the source - no repair needed.")
+    return ("edit %s in its own repo and commit it there - the copy is "
+            "git-tracked by that project, so copying a file in would leave "
+            "their tree dirty." % copy_path)
+
+
+def claimed_install(claude_home, marketplace, plugin):
+    """What the install manifest CLAIMS. Never evidence: the directory it
+    names can be absent while every field says it exists."""
+    path = os.path.join(claude_home, "plugins", "installed_plugins.json")
+    if not os.path.isfile(path):
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except ValueError:
+        return None
+    entries = (data.get("plugins") or {}).get("%s@%s" % (plugin, marketplace))
+    for entry in entries or []:
+        install_path = entry.get("installPath") or ""
+        return {"version": entry.get("version"),
+                "install_path": install_path,
+                "dir_exists": os.path.isdir(install_path)}
+    return None
+
+
+def agent_list_warning(agents_home):
+    """The trap where a skills install succeeds for every agent except this
+    one. It re-arms on the next install, so the check is unconditional."""
+    lock = os.path.join(agents_home, ".skill-lock.json")
+    if not os.path.isfile(lock):
+        return None
+    try:
+        with open(lock, encoding="utf-8") as f:
+            data = json.load(f)
+    except ValueError:
+        return "the skills lock at %s is not valid JSON" % lock
+    agents = data.get("lastSelectedAgents") or []
+    if "claude-code" not in agents:
+        return ("`claude-code` is missing from lastSelectedAgents in %s - a "
+                "skills install will succeed for every other agent and report "
+                "success while nothing lands for Claude Code." % lock)
+    return None

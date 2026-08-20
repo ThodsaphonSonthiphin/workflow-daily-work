@@ -13,7 +13,8 @@ from check_plugin_copies import (normalize, content_hash, read_normalized,
                                  source_blockers, _git_dir_above, PRUNE,
                                  derive_roots, scan_for_skill_dirs,
                                  PROVENANCE_MIN, line_overlap, historical_hashes,
-                                 classify)
+                                 classify, role_of, repair_for, claimed_install,
+                                 agent_list_warning)
 
 
 def _write(path, text, eol="\n"):
@@ -470,6 +471,82 @@ def test_overlap_at_provenance_min_is_stale():
     verdict, overlap = classify(src.encode(), copy.encode())
     assert verdict == "STALE"
     assert overlap >= PROVENANCE_MIN
+
+
+def test_role_of_identifies_each_distribution_point():
+    claude = os.path.join("C:", os.sep, "home", ".claude")
+    agents = os.path.join("C:", os.sep, "home", ".agents")
+    source = os.path.join("C:", os.sep, "repo", "plugins", "myplug")
+    cache = os.path.join(claude, "plugins", "cache", "mkt", "myplug", "1.0.0",
+                         "skills", "alpha")
+    worktree = os.path.join("C:", os.sep, "repo", ".claude", "worktrees", "wt",
+                            "plugins", "myplug", "skills", "alpha")
+    store = os.path.join(agents, "skills", "alpha")
+    inside = os.path.join(source, "skills", "alpha")
+    other = os.path.join("C:", os.sep, "other", "repo", "skills", "alpha")
+    assert role_of(cache, claude, agents, source) == "cache"
+    assert role_of(worktree, claude, agents, source) == "worktree"
+    assert role_of(store, claude, agents, source) == "agent-store"
+    assert role_of(inside, claude, agents, source) == "source"
+    assert role_of(other, claude, agents, source) == "vendored"
+
+
+def test_a_cache_row_never_gets_a_write_repair():
+    repair = repair_for("cache", "any/path", "any/source")
+    assert "never hand-patch" in repair.lower()
+    for forbidden in ("copy ", "cp ", "write "):
+        assert forbidden not in repair.lower()
+
+
+def test_a_vendored_repair_says_commit_in_that_repo():
+    repair = repair_for("vendored", "other/repo/skills/alpha", "src")
+    assert "commit" in repair.lower()
+
+
+def test_an_agent_store_repair_warns_that_update_will_not_fix_it():
+    repair = repair_for("agent-store", "store/alpha", "src")
+    assert "update" in repair.lower()
+
+
+def test_claimed_install_reports_a_missing_directory_as_a_claim():
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "plugins", "installed_plugins.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"version": 2, "plugins": {"myplug@mkt": [
+                {"scope": "user", "version": "9.9.9",
+                 "installPath": os.path.join(d, "nope")}]}}, f)
+        claim = claimed_install(d, "mkt", "myplug")
+        assert claim["version"] == "9.9.9"
+        assert claim["dir_exists"] is False
+
+
+def test_claimed_install_is_none_when_the_manifest_is_absent():
+    with tempfile.TemporaryDirectory() as d:
+        assert claimed_install(d, "mkt", "myplug") is None
+
+
+def test_agent_list_warning_fires_when_claude_code_is_missing():
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, ".skill-lock.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump({"lastSelectedAgents": ["cursor", "codex"]}, f)
+        warning = agent_list_warning(d)
+        assert warning is not None
+        assert "claude-code" in warning
+
+
+def test_agent_list_warning_is_silent_when_claude_code_is_present():
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, ".skill-lock.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump({"lastSelectedAgents": ["cursor", "claude-code"]}, f)
+        assert agent_list_warning(d) is None
+
+
+def test_agent_list_warning_is_silent_without_a_lock_file():
+    with tempfile.TemporaryDirectory() as d:
+        assert agent_list_warning(d) is None
 
 
 if __name__ == "__main__":
