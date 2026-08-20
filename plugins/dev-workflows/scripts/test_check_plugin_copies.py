@@ -865,6 +865,30 @@ def test_a_directory_literally_named_backups_outside_claude_home_is_still_graded
         assert result["backups_excluded"] == 0
 
 
+def test_vendored_repair_for_a_git_tracked_copy_says_commit_in_that_repo():
+    with tempfile.TemporaryDirectory() as d:
+        repo = os.path.join(d, "otherrepo")
+        os.makedirs(repo)
+        subprocess.run(["git", "init", "-q", "-b", "main", repo],
+                       check=True, capture_output=True)
+        copy_path = os.path.join(repo, "skills", "alpha")
+        os.makedirs(copy_path)
+        repair = repair_for("vendored", copy_path, "src")
+        assert "commit it there" in repair
+        assert "tree dirty" in repair
+
+
+def test_vendored_repair_for_a_non_git_copy_says_edit_in_place():
+    with tempfile.TemporaryDirectory() as d:
+        copy_path = os.path.join(d, "someplace", "skills", "alpha")
+        os.makedirs(copy_path)
+        repair = repair_for("vendored", copy_path, "src")
+        assert "edit" in repair
+        assert "in place" in repair
+        assert "commit" not in repair
+        assert "tree dirty" not in repair
+
+
 if __name__ == "__main__":
     TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

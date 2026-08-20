@@ -398,9 +398,19 @@ def repair_for(role, copy_path, source_root):
     if role == "source":
         return ("this is the source - no repair needed.")
     if role == "vendored":
-        return ("edit %s in its own repo and commit it there - the copy is "
-                "git-tracked by that project, so copying a file in would leave "
-                "their tree dirty." % copy_path)
+        # A vendored copy is not always inside a git checkout. Asserting
+        # "commit it there" for a plain, untracked directory (a backup
+        # copy someone made by hand, for instance) is a confidently-worded
+        # false claim - the same class of failure this tool exists to
+        # catch elsewhere. _git_dir_above already answers the question
+        # (built in Task 2; it checks existence, not directory-ness,
+        # because .git is a plain file inside a worktree).
+        if _git_dir_above(copy_path):
+            return ("edit %s in its own repo and commit it there - the copy is "
+                    "git-tracked by that project, so copying a file in would leave "
+                    "their tree dirty." % copy_path)
+        return ("edit %s in place - no .git was found above it, so there "
+                "is no repo behind it to keep in sync with." % copy_path)
     raise ValueError("unknown role: %r" % role)
 
 
