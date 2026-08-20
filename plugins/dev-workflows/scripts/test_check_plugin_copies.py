@@ -10,7 +10,8 @@ import check_plugin_copies
 from check_plugin_copies import (normalize, content_hash, read_normalized,
                                  load_registry, marketplace_root,
                                  plugin_root, source_skills, git_output,
-                                 source_blockers, _git_dir_above)
+                                 source_blockers, _git_dir_above, PRUNE,
+                                 derive_roots, scan_for_skill_dirs)
 
 
 def _write(path, text, eol="\n"):
@@ -287,6 +288,76 @@ def test_git_status_failure_is_a_blocker():
             assert "git status could not run" in blockers[0]
         finally:
             check_plugin_copies.git_output = original_git_output
+
+
+def test_derive_roots_takes_the_parent_of_a_directory_source():
+    with tempfile.TemporaryDirectory() as d:
+        parent = os.path.join(d, "code")
+        repo = os.path.join(parent, "somerepo")
+        claude = os.path.join(d, "claude")
+        agents = os.path.join(d, "agents")
+        for p in (repo, claude, agents):
+            os.makedirs(p)
+        reg = {"mkt": {"source": {"source": "directory", "path": repo},
+                       "installLocation": repo}}
+        roots = derive_roots(reg, claude, agents)
+        assert os.path.abspath(parent) in roots
+        assert os.path.abspath(claude) in roots
+        assert os.path.abspath(agents) in roots
+
+
+def test_derive_roots_ignores_a_github_source():
+    with tempfile.TemporaryDirectory() as d:
+        claude = os.path.join(d, "claude")
+        agents = os.path.join(d, "agents")
+        for p in (claude, agents):
+            os.makedirs(p)
+        reg = {"mkt": {"source": {"source": "github", "repo": "o/r"},
+                       "installLocation": os.path.join(d, "clone")}}
+        roots = derive_roots(reg, claude, agents)
+        assert roots == [os.path.abspath(claude), os.path.abspath(agents)]
+
+
+def test_derive_roots_drops_duplicates_and_missing_dirs():
+    with tempfile.TemporaryDirectory() as d:
+        parent = os.path.join(d, "code")
+        os.makedirs(os.path.join(parent, "a"))
+        os.makedirs(os.path.join(parent, "b"))
+        reg = {"m1": {"source": {"source": "directory",
+                                 "path": os.path.join(parent, "a")}},
+               "m2": {"source": {"source": "directory",
+                                 "path": os.path.join(parent, "b")}}}
+        roots = derive_roots(reg, os.path.join(d, "gone"),
+                             os.path.join(d, "also-gone"))
+        assert roots == [os.path.abspath(parent)]
+
+
+def test_scan_finds_matching_dirs_holding_a_skill_file():
+    with tempfile.TemporaryDirectory() as d:
+        _write(os.path.join(d, "x", "alpha", "SKILL.md"), "a\n")
+        _write(os.path.join(d, "y", "deep", "alpha", "SKILL.md"), "a\n")
+        _write(os.path.join(d, "z", "beta", "SKILL.md"), "b\n")
+        os.makedirs(os.path.join(d, "w", "alpha"))          # no SKILL.md
+        hits = scan_for_skill_dirs([d], ["alpha"])
+        assert len(hits) == 2
+        assert all(h.endswith("alpha") for h in hits)
+
+
+def test_scan_honours_the_prune_list():
+    with tempfile.TemporaryDirectory() as d:
+        _write(os.path.join(d, "keep", "alpha", "SKILL.md"), "a\n")
+        for pruned in sorted(PRUNE):
+            _write(os.path.join(d, pruned, "alpha", "SKILL.md"), "a\n")
+        hits = scan_for_skill_dirs([d], ["alpha"])
+        assert len(hits) == 1
+        assert "keep" in hits[0]
+
+
+def test_scan_deduplicates_overlapping_roots():
+    with tempfile.TemporaryDirectory() as d:
+        _write(os.path.join(d, "x", "alpha", "SKILL.md"), "a\n")
+        hits = scan_for_skill_dirs([d, os.path.join(d, "x")], ["alpha"])
+        assert len(hits) == 1
 
 if __name__ == "__main__":
     TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

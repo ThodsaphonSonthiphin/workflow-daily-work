@@ -144,6 +144,75 @@ def git_output(repo, *args):
     return result.stdout.strip()
 
 
+PRUNE = frozenset(["node_modules", ".git", "obj", "bin", "__pycache__",
+                   ".venv"])
+
+
+def _key(path):
+    """Case-insensitive absolute key for deduplication. Windows paths differ
+    in drive-letter case and in the 8.3 short form (e.g., THODSA~1.SON)
+    versus the long form (e.g., thodsaphon.sonthipin). This function uses
+    realpath instead of abspath to collapse both forms to one canonical name.
+
+    This choice is deliberate and load-bearing: without realpath, a --root
+    given in short form would overlap a derived root in long form without
+    dedup, and in Task 5, role classification would misclassify a cache path
+    arriving in a different form as a vendored copy — which incorrectly
+    carries a write repair forbidden for the cache. Do not simplify this back
+    to abspath.
+    """
+    return os.path.normcase(os.path.realpath(path))
+
+
+def derive_roots(registry, claude_home, agents_home):
+    """Where to look, computed rather than configured (ADR 0108).
+
+    A repo that vendors a plugin is overwhelmingly a sibling of the repo that
+    publishes it, so the parent of each directory-sourced marketplace is the
+    rule that finds vendored copies with no machine-specific input.
+    """
+    candidates = []
+    for entry in registry.values():
+        source = (entry or {}).get("source") or {}
+        if source.get("source") == "directory" and source.get("path"):
+            parent = os.path.dirname(os.path.normpath(source["path"]))
+            if parent:
+                candidates.append(parent)
+    candidates.append(claude_home)
+    candidates.append(agents_home)
+
+    seen, roots = set(), []
+    for candidate in candidates:
+        if not os.path.isdir(candidate):
+            continue
+        key = _key(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        roots.append(os.path.abspath(candidate))
+    return roots
+
+
+def scan_for_skill_dirs(roots, names):
+    """Every directory named after one of `names` that holds a SKILL.md.
+
+    Finds copies nobody registered - the reason a scan was chosen over a
+    declared manifest (ADR 0105). Whether a hit is OURS is a separate
+    question, answered from content by classify().
+    """
+    wanted = set(names)
+    seen, hits = set(), []
+    for root in roots:
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [d for d in dirnames if d not in PRUNE]
+            if os.path.basename(dirpath) in wanted and "SKILL.md" in filenames:
+                key = _key(dirpath)
+                if key not in seen:
+                    seen.add(key)
+                    hits.append(os.path.abspath(dirpath))
+    return sorted(hits)
+
+
 def source_blockers(root):
     """Reasons the source cannot be trusted as a baseline (ADR 0106).
 
