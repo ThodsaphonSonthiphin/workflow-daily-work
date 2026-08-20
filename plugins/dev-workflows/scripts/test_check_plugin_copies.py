@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Tests for check_plugin_copies.py.
 Run: python test_check_plugin_copies.py   (or: pytest)"""
+import io
 import json
 import os
 import subprocess
+import sys
 import tempfile
 
 import check_plugin_copies
@@ -823,18 +825,31 @@ def test_a_vendored_subset_produces_no_finding_for_absent_skills():
 
 
 def test_strict_exit_code_agrees_with_the_summary_stale_count():
+    # A genuine property check, not a tautology: exercised once on a
+    # clean machine (stale_count == 0) and once on a drifted one
+    # (stale_count == 1), so the assertion is not pinned to a single
+    # fixture value on both sides of the "==".
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        argv = ["--plugin", "myplug", "--marketplace", "mkt",
+                "--claude-home", claude, "--agents-home", agents]
+        result = audit("myplug", "mkt", claude, agents)
+        stale_count = sum(1 for r in result["rows"] if r["verdict"] == "STALE")
+        assert stale_count == 0
+        assert main(argv) == 0
+        assert (main(argv + ["--strict"]) == 1) == (stale_count > 0)
+
     with tempfile.TemporaryDirectory() as d:
         claude, agents, code, repo = _machine(d)
         _write(os.path.join(agents, "skills", "alpha", "SKILL.md"),
                "alpha v1\nshared\nlines\nmore\n")
+        argv = ["--plugin", "myplug", "--marketplace", "mkt",
+                "--claude-home", claude, "--agents-home", agents]
         result = audit("myplug", "mkt", claude, agents)
         stale_count = sum(1 for r in result["rows"] if r["verdict"] == "STALE")
         assert stale_count == 1
-        argv = ["--plugin", "myplug", "--marketplace", "mkt",
-                "--claude-home", claude, "--agents-home", agents]
         assert main(argv) == 0
-        strict_exit = main(argv + ["--strict"])
-        assert (strict_exit == 1) == (stale_count > 0)
+        assert (main(argv + ["--strict"]) == 1) == (stale_count > 0)
 
 
 def test_a_copy_under_claude_backups_is_not_graded():
@@ -887,6 +902,80 @@ def test_vendored_repair_for_a_non_git_copy_says_edit_in_place():
         assert "in place" in repair
         assert "commit" not in repair
         assert "tree dirty" not in repair
+
+
+def _captured_stdout(func, *args, **kwargs):
+    """Run func with sys.stdout swapped for a StringIO, restored in a
+    finally block. Manual capture, not capsys - this file has no pytest
+    dependency and must keep running under direct execution."""
+    captured = io.StringIO()
+    old_stdout = sys.stdout
+    sys.stdout = captured
+    try:
+        result = func(*args, **kwargs)
+    finally:
+        sys.stdout = old_stdout
+    return result, captured.getvalue()
+
+
+def test_report_renders_excluded_rows_and_summary_lines():
+    with tempfile.TemporaryDirectory() as d:
+        claude = os.path.join(d, "home", ".claude")
+        agents = os.path.join(d, "home", ".agents")
+        repo = os.path.join(d, "code", "srcrepo")
+        os.makedirs(claude)
+        os.makedirs(agents)
+        os.makedirs(repo)
+        _marketplace(repo, "myplug", "./plugins/myplug")
+        _write(os.path.join(repo, "plugins", "myplug", "skills", "alpha",
+                            "SKILL.md"), "alpha\nline2\nline3\nline4\n")
+        _registry(claude, {"mkt": {"source": {"source": "directory",
+                                              "path": repo},
+                                   "installLocation": repo}})
+        claimed_dir = os.path.join(claude, "plugins", "cache", "mkt",
+                                   "myplug", "2.0.0")
+        _write(os.path.join(claimed_dir, "skills", "alpha", "SKILL.md"),
+               "alpha\nline2\nline3\nline4\n")
+        old_dir = os.path.join(claude, "plugins", "cache", "mkt", "myplug",
+                               "1.0.0")
+        _write(os.path.join(old_dir, "skills", "alpha", "SKILL.md"),
+               "nothing\nalike\nat\nall\n")
+        with open(os.path.join(claude, "plugins", "installed_plugins.json"),
+                  "w", encoding="utf-8") as f:
+            json.dump({"version": 2, "plugins": {"myplug@mkt": [
+                {"scope": "user", "version": "2.0.0",
+                 "installPath": claimed_dir}]}}, f)
+        _write(os.path.join(claude, "backups", "skills-resync-2026-01-01",
+                            "alpha", "SKILL.md"), "nothing\nalike\nat\nall\n")
+        result = audit("myplug", "mkt", claude, agents)
+        stale_count, output = _captured_stdout(report, result)
+        assert result["superseded"] == 1
+        assert result["backups_excluded"] == 1
+        # the SUPERSEDED rows' overlap-None rendering
+        assert "n/a" in output
+        # both "excluded" summary lines, with their counts
+        assert "1 superseded cache directory excluded" in output
+        assert "1 backup snapshot excluded" in output
+
+
+def test_allow_dirty_source_output_is_stamped_ungraded():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        subprocess.run(["git", "init", "-q", "-b", "main", repo],
+                       check=True, capture_output=True)
+        _git(repo, "config", "user.email", "t@example.invalid")
+        _git(repo, "config", "user.name", "Test")
+        _git(repo, "config", "commit.gpgsign", "false")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "initial")
+        _write(os.path.join(repo, "plugins", "myplug", "skills", "alpha",
+                            "SKILL.md"), "edited\n")
+        argv = ["--plugin", "myplug", "--marketplace", "mkt",
+                "--claude-home", claude, "--agents-home", agents,
+                "--allow-dirty-source"]
+        code_out, output = _captured_stdout(main, argv)
+        assert code_out == 0
+        assert "UNGRADED REPORT" in output
 
 
 if __name__ == "__main__":
