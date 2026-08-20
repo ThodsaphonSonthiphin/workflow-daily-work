@@ -14,7 +14,7 @@ from check_plugin_copies import (normalize, content_hash, read_normalized,
                                  derive_roots, scan_for_skill_dirs,
                                  PROVENANCE_MIN, line_overlap, historical_hashes,
                                  classify, role_of, repair_for, claimed_install,
-                                 agent_list_warning)
+                                 agent_list_warning, audit, report, main)
 
 
 def _write(path, text, eol="\n"):
@@ -580,6 +580,143 @@ def test_repair_for_worktree_contains_no_write_instructions():
     for forbidden in ("copy ", "cp ", "write ", "mv "):
         assert forbidden not in repair.lower(), \
             f"worktree repair should not contain '{forbidden}'"
+
+
+def _machine(d):
+    """A synthetic machine: a claude home, an agents home, and a repo holding
+    a marketplace with one plugin and one skill."""
+    claude = os.path.join(d, "home", ".claude")
+    agents = os.path.join(d, "home", ".agents")
+    code = os.path.join(d, "code")
+    repo = os.path.join(code, "srcrepo")
+    os.makedirs(claude)
+    os.makedirs(agents)
+    os.makedirs(repo)
+    _marketplace(repo, "myplug", "./plugins/myplug")
+    # 4 lines, not 3: a 1-line drift (v1 vs v2) then has 3/4 = 75% line
+    # overlap, above PROVENANCE_MIN (0.70). At 3 lines the same drift is only
+    # 2/3 = 66.7% - below threshold - and would misclassify as UNRELATED
+    # instead of STALE. (Deviation from the brief's literal fixture text,
+    # forced by PROVENANCE_MIN being corrected from 0.60 to 0.70; see the
+    # task report.)
+    _write(os.path.join(repo, "plugins", "myplug", "skills", "alpha",
+                        "SKILL.md"), "alpha v2\nshared\nlines\nmore\n")
+    _registry(claude, {"mkt": {"source": {"source": "directory",
+                                          "path": repo},
+                               "installLocation": repo}})
+    return claude, agents, code, repo
+
+
+def test_audit_grades_a_matching_and_a_drifted_copy():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        _write(os.path.join(code, "consumer", "vendored", "alpha",
+                            "SKILL.md"), "alpha v2\nshared\nlines\nmore\n")
+        _write(os.path.join(agents, "skills", "alpha", "SKILL.md"),
+               "alpha v1\nshared\nlines\nmore\n")
+        result = audit("myplug", "mkt", claude, agents)
+        by_role = dict((r["role"], r["verdict"]) for r in result["rows"])
+        assert by_role["vendored"] == "IN SYNC"
+        assert by_role["agent-store"] == "STALE"
+
+
+def test_audit_never_grades_the_source_itself_as_stale():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        result = audit("myplug", "mkt", claude, agents)
+        for row in result["rows"]:
+            if row["role"] == "source":
+                assert row["verdict"] == "IN SYNC"
+
+
+def test_audit_reports_an_unrelated_same_named_skill():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        _write(os.path.join(code, "stranger", "alpha", "SKILL.md"),
+               "nothing\nin\ncommon\nat\nall\n")
+        result = audit("myplug", "mkt", claude, agents)
+        strangers = [r for r in result["rows"] if "stranger" in r["path"]]
+        assert len(strangers) == 1
+        assert strangers[0]["verdict"] == "UNRELATED"
+
+
+def test_audit_carries_the_agent_list_warning():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        with open(os.path.join(agents, ".skill-lock.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump({"lastSelectedAgents": ["cursor"]}, f)
+        result = audit("myplug", "mkt", claude, agents)
+        assert "claude-code" in result["warning"]
+
+
+def test_extra_roots_are_additive_not_a_replacement():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        elsewhere = os.path.join(d, "far", "away")
+        _write(os.path.join(elsewhere, "alpha", "SKILL.md"),
+               "alpha v2\nshared\nlines\n")
+        _write(os.path.join(agents, "skills", "alpha", "SKILL.md"),
+               "alpha v2\nshared\nlines\n")
+        result = audit("myplug", "mkt", claude, agents,
+                       extra_roots=[elsewhere])
+        paths = " ".join(r["path"] for r in result["rows"])
+        assert "far" in paths           # the extra root was searched
+        assert ".agents" in paths       # and the derived roots still were
+
+
+def test_main_exits_2_when_the_source_is_dirty():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        subprocess.run(["git", "init", "-q", "-b", "main", repo],
+                       check=True, capture_output=True)
+        _git(repo, "config", "user.email", "t@example.invalid")
+        _git(repo, "config", "user.name", "Test")
+        _git(repo, "config", "commit.gpgsign", "false")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "initial")
+        _write(os.path.join(repo, "plugins", "myplug", "skills", "alpha",
+                            "SKILL.md"), "edited\n")
+        code_out = main(["--plugin", "myplug", "--marketplace", "mkt",
+                         "--claude-home", claude, "--agents-home", agents])
+        assert code_out == 2
+
+
+def test_allow_dirty_source_continues_past_the_gate():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        subprocess.run(["git", "init", "-q", "-b", "main", repo],
+                       check=True, capture_output=True)
+        _git(repo, "config", "user.email", "t@example.invalid")
+        _git(repo, "config", "user.name", "Test")
+        _git(repo, "config", "commit.gpgsign", "false")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "initial")
+        _write(os.path.join(repo, "plugins", "myplug", "skills", "alpha",
+                            "SKILL.md"), "edited\n")
+        code_out = main(["--plugin", "myplug", "--marketplace", "mkt",
+                         "--claude-home", claude, "--agents-home", agents,
+                         "--allow-dirty-source"])
+        assert code_out == 0
+
+
+def test_strict_turns_a_stale_copy_into_exit_1():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        _write(os.path.join(agents, "skills", "alpha", "SKILL.md"),
+               "alpha v1\nshared\nlines\nmore\n")
+        argv = ["--plugin", "myplug", "--marketplace", "mkt",
+                "--claude-home", claude, "--agents-home", agents]
+        assert main(argv) == 0
+        assert main(argv + ["--strict"]) == 1
+
+
+def test_a_clean_machine_exits_0_under_strict():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        argv = ["--plugin", "myplug", "--marketplace", "mkt",
+                "--claude-home", claude, "--agents-home", agents, "--strict"]
+        assert main(argv) == 0
 
 
 if __name__ == "__main__":

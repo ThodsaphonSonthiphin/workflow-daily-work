@@ -441,3 +441,182 @@ def agent_list_warning(agents_home):
                 "skills install will succeed for every other agent and report "
                 "success while nothing lands for Claude Code." % lock)
     return None
+
+
+def audit(plugin, marketplace, claude_home, agents_home, extra_roots=()):
+    """Measure every copy of `plugin` on this machine against its source.
+    Reports; changes nothing."""
+    registry = load_registry(claude_home)
+    mkt_root = marketplace_root(registry, marketplace)
+    source_root = plugin_root(mkt_root, plugin)
+    skills = source_skills(source_root)
+    if not skills:
+        _die("plugin %r at %s has no skills/<name>/SKILL.md to compare"
+             % (plugin, source_root))
+
+    roots = derive_roots(registry, claude_home, agents_home)
+    known = set(_key(r) for r in roots)
+    for extra in extra_roots:          # additive, never a replacement
+        if os.path.isdir(extra) and _key(extra) not in known:
+            roots.append(os.path.abspath(extra))
+            known.add(_key(extra))
+
+    history = dict((name, historical_hashes(path))
+                   for name, path in skills.items())
+
+    rows = []
+    for directory in scan_for_skill_dirs(roots, list(skills)):
+        name = os.path.basename(directory)
+        copy_file = os.path.join(directory, "SKILL.md")
+        role = role_of(directory, claude_home, agents_home, source_root)
+        verdict, overlap = classify(read_normalized(skills[name]),
+                                    read_normalized(copy_file),
+                                    history.get(name, set()))
+        rows.append({"path": directory, "skill": name, "role": role,
+                     "verdict": verdict, "overlap": overlap,
+                     "repair": "" if verdict != "STALE"
+                               else repair_for(role, directory, source_root)})
+
+    # MISSING: only for a parent directory that already vendors at least one
+    # of this plugin's skills (i.e. it already contributed a hit above), and
+    # only for the source skills absent from that same parent. A consumer
+    # that vendors NONE of the plugin's skills never contributes a hit, so it
+    # never becomes a "parent" here and stays invisible to this check - that
+    # is a known and accepted limitation, not an oversight.
+    parents = {}
+    for row in rows:
+        parent = os.path.dirname(row["path"])
+        parents.setdefault(_key(parent), parent)
+    present = set((row["skill"], _key(os.path.dirname(row["path"])))
+                  for row in rows)
+    for key, parent in sorted(parents.items()):
+        role = role_of(parent, claude_home, agents_home, source_root)
+        for name in sorted(skills):
+            if (name, key) in present:
+                continue
+            missing_path = os.path.join(parent, name)
+            rows.append({"path": missing_path, "skill": name, "role": role,
+                         "verdict": "MISSING", "overlap": 0.0,
+                         "repair": repair_for(role, missing_path,
+                                              source_root)})
+
+    return {"rows": sorted(rows, key=lambda r: (r["role"], r["path"])),
+            "source_root": source_root,
+            "skills": sorted(skills),
+            "claim": claimed_install(claude_home, marketplace, plugin),
+            "warning": agent_list_warning(agents_home)}
+
+
+def report(result):
+    """Print the human-readable audit report. Returns the count of
+    repairable findings (STALE + MISSING), which main() uses for --strict."""
+    print("source: %s" % result["source_root"])
+    print("skills: %d (%s)" % (len(result["skills"]),
+                               ", ".join(result["skills"])))
+    claim = result["claim"]
+    if claim:
+        print("install manifest CLAIMS version %s at %s (directory %s) "
+              "- a claim, not evidence"
+              % (claim["version"], claim["install_path"],
+                 "exists" if claim["dir_exists"] else "MISSING"))
+    print("")
+    grouped = {}
+    for row in result["rows"]:
+        grouped.setdefault(row["role"], []).append(row)
+    for role in sorted(grouped):
+        print("  [%s]" % role)
+        for row in grouped[role]:
+            print("    %-9s %-24s overlap %3.0f%%  %s"
+                  % (row["verdict"], row["skill"], row["overlap"] * 100,
+                     row["path"]))
+            if row["repair"]:
+                print("      fix: %s" % row["repair"])
+        print("")
+    stale = [r for r in result["rows"] if r["verdict"] in ("STALE", "MISSING")]
+    unrelated = [r for r in result["rows"] if r["verdict"] == "UNRELATED"]
+    print("%d stale, %d unrelated (same name, different lineage - not ours), "
+          "%d in sync"
+          % (len(stale), len(unrelated),
+             sum(1 for r in result["rows"] if r["verdict"] == "IN SYNC")))
+    print("provenance threshold: %.0f%% line overlap. A verdict's overlap "
+          "shows which side of it the call came from." % (PROVENANCE_MIN * 100))
+    if result["warning"]:
+        print("\nwarning: %s" % result["warning"])
+    return len(stale)
+
+
+def main(argv):
+    parser = argparse.ArgumentParser(
+        description="Find every copy of a plugin or skill and grade it.")
+    parser.add_argument("--plugin", required=True)
+    parser.add_argument("--marketplace", default=None,
+                        help="defaults to the only marketplace listing the "
+                             "plugin, if exactly one does")
+    parser.add_argument("--claude-home",
+                        default=os.path.expanduser("~/.claude"))
+    parser.add_argument("--agents-home",
+                        default=os.path.expanduser("~/.agents"))
+    parser.add_argument("--root", action="append", default=[],
+                        help="an extra scan root; additive, never a "
+                             "replacement for the derived roots")
+    parser.add_argument("--strict", action="store_true",
+                        help="exit 1 when any copy is stale")
+    parser.add_argument("--allow-dirty-source", action="store_true",
+                        help="report against a source that is not clean; the "
+                             "report is stamped ungraded")
+    args = parser.parse_args(argv)
+
+    marketplace = args.marketplace
+    if marketplace is None:
+        registry = load_registry(args.claude_home)
+        owners = []
+        for name in sorted(registry):
+            root = marketplace_root(registry, name)
+            manifest = os.path.join(root, ".claude-plugin",
+                                    "marketplace.json")
+            if not os.path.isfile(manifest):
+                continue
+            try:
+                with open(manifest, encoding="utf-8") as f:
+                    data = json.load(f)
+            except ValueError:
+                continue
+            if any(p.get("name") == args.plugin
+                   for p in data.get("plugins") or []):
+                owners.append(name)
+        if len(owners) != 1:
+            _die("pass --marketplace: %d marketplaces list plugin %r (%s)"
+                 % (len(owners), args.plugin, ", ".join(owners) or "none"))
+        marketplace = owners[0]
+
+    # The source-health gate runs BEFORE audit(), and this order is
+    # load-bearing: historical_hashes() silently degrades to "no evidence
+    # found" when git cannot answer for this repo, which would under-report
+    # real drift if audit() ran against an untrustworthy source first.
+    registry = load_registry(args.claude_home)
+    source_root = plugin_root(marketplace_root(registry, marketplace),
+                              args.plugin)
+    blockers = source_blockers(source_root)
+    if blockers:
+        if not args.allow_dirty_source:
+            sys.stderr.write(
+                "cannot run: the source is not a trustworthy baseline, so "
+                "every verdict would be graded against the wrong source.\n")
+            for blocker in blockers:
+                sys.stderr.write("  - %s\n" % blocker)
+            sys.stderr.write("  re-run with --allow-dirty-source to report "
+                             "anyway (the report is then ungraded).\n")
+            return 2
+        print("UNGRADED REPORT - the source is not clean:")
+        for blocker in blockers:
+            print("  - %s" % blocker)
+        print("")
+
+    result = audit(args.plugin, marketplace, args.claude_home,
+                   args.agents_home, args.root)
+    stale = report(result)
+    return 1 if (stale and args.strict) else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
