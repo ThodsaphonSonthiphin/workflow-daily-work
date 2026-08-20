@@ -114,6 +114,23 @@ def source_skills(root):
     return found
 
 
+def _git_dir_above(path):
+    """Check if a .git entry exists anywhere from path up to filesystem root.
+
+    Returns True if found; False otherwise. Checks for existence, not
+    directory-ness, because in a git worktree .git is a plain file, not a dir.
+    """
+    path = os.path.abspath(path)
+    while True:
+        git_candidate = os.path.join(path, ".git")
+        if os.path.exists(git_candidate):
+            return True
+        parent = os.path.dirname(path)
+        if parent == path:  # reached filesystem root
+            return False
+        path = parent
+
+
 def git_output(repo, *args):
     """stdout of a git command, or None if git is absent or the command
     failed. A None return always means 'no information', never 'no'."""
@@ -135,29 +152,60 @@ def source_blockers(root):
     """
     top = git_output(root, "rev-parse", "--show-toplevel")
     if not top:
+        # None means no information, so distinguish:
+        # - genuinely not a git repo: return [] (nothing to gate)
+        # - git present but refused to answer: return blocker (cannot verify)
+        if _git_dir_above(root):
+            return [
+                "git could not determine the repository root at %s - "
+                "refusing rather than reporting an unverified baseline" % root]
         return []                      # not a git checkout: nothing to gate
-    # Normalize both paths to canonical form for relpath calculation
+    # Normalize both paths to canonical form for relpath calculation.
+    # Windows hands out 8.3 short names (e.g. THODSA~1.SON) for temp paths
+    # while git returns the long form. Without realpath, os.path.relpath
+    # would calculate a .. path that matches nothing, and every later
+    # git command scoped to --<rel> would check a nonexistent path while
+    # appearing to pass. This line is load-bearing.
     top_normalized = os.path.normpath(os.path.realpath(top))
     root_normalized = os.path.normpath(os.path.realpath(root))
     rel = os.path.relpath(root_normalized, top_normalized).replace(os.sep, "/")
     blockers = []
 
     dirty = git_output(top, "status", "--porcelain", "--", rel)
-    if dirty:
+    if dirty is None:
+        blockers.append(
+            "git status could not run at %s - refusing rather than reporting "
+            "an unverified baseline" % top)
+    elif dirty:
         blockers.append(
             "uncommitted changes under %s (%d path(s)) - commit them first"
             % (rel, len(dirty.splitlines())))
 
-    head = git_output(top, "rev-parse", "--abbrev-ref", "HEAD") or ""
-    refs = git_output(top, "for-each-ref", "--format=%(refname:short)",
-                      "refs/heads") or ""
-    for ref in refs.splitlines():
-        if ref == head:
-            continue
-        ahead = git_output(top, "rev-list", "--count",
-                           "HEAD..%s" % ref, "--", rel)
-        if ahead and ahead != "0":
+    head = git_output(top, "rev-parse", "--abbrev-ref", "HEAD")
+    if head is None:
+        blockers.append(
+            "git rev-parse could not run at %s - refusing rather than reporting "
+            "an unverified baseline" % top)
+    else:
+        refs = git_output(top, "for-each-ref", "--format=%(refname:short)",
+                          "refs/heads")
+        if refs is None:
             blockers.append(
-                "branch %s is %s commit(s) ahead under %s - merge it first"
-                % (ref, ahead, rel))
+                "git for-each-ref could not run at %s - refusing rather than reporting "
+                "an unverified baseline" % top)
+        else:
+            for ref in refs.splitlines():
+                if ref == head:
+                    continue
+                ahead = git_output(top, "rev-list", "--count",
+                                   "HEAD..%s" % ref, "--", rel)
+                if ahead is None:
+                    blockers.append(
+                        "git rev-list could not run at %s - refusing rather than reporting "
+                        "an unverified baseline" % top)
+                    break
+                elif ahead != "0":
+                    blockers.append(
+                        "branch %s is %s commit(s) ahead under %s - merge it first"
+                        % (ref, ahead, rel))
     return blockers

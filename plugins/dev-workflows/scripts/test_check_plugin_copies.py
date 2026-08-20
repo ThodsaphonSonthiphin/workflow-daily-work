@@ -6,10 +6,11 @@ import os
 import subprocess
 import tempfile
 
+import check_plugin_copies
 from check_plugin_copies import (normalize, content_hash, read_normalized,
                                  load_registry, marketplace_root,
                                  plugin_root, source_skills, git_output,
-                                 source_blockers)
+                                 source_blockers, _git_dir_above)
 
 
 def _write(path, text, eol="\n"):
@@ -222,6 +223,70 @@ def test_a_branch_ahead_only_outside_the_plugin_is_not_a_blocker():
         _git(d, "commit", "-q", "-m", "docs")
         _git(d, "checkout", "-q", "main")
         assert source_blockers(plug) == []
+
+
+def test_git_dir_above_finds_dot_git_in_parent():
+    with tempfile.TemporaryDirectory() as d:
+        _git_init = ["git", "init", "-q", "-b", "main", d]
+        subprocess.run(_git_init, check=True, capture_output=True)
+        plug = os.path.join(d, "plugins", "myplug")
+        os.makedirs(plug, exist_ok=True)
+        assert _git_dir_above(plug) is True
+
+
+def test_git_dir_above_recognizes_dot_git_as_file_in_worktree():
+    with tempfile.TemporaryDirectory() as d:
+        git_dir = os.path.join(d, "git_dir")
+        os.makedirs(git_dir)
+        worktree = os.path.join(d, "worktree")
+        os.makedirs(worktree)
+        # Create a .git file (not directory) to simulate a worktree
+        git_file = os.path.join(worktree, ".git")
+        with open(git_file, "w") as f:
+            f.write("gitdir: %s\n" % git_dir)
+        assert _git_dir_above(worktree) is True
+
+
+def test_git_dir_above_returns_false_for_non_git():
+    with tempfile.TemporaryDirectory() as d:
+        assert _git_dir_above(d) is False
+
+
+def test_git_present_but_refusing_to_answer_is_a_blocker():
+    with tempfile.TemporaryDirectory() as d:
+        plug = _repo_with_plugin(d)
+        # Simulate git refusing to answer by replacing git_output temporarily
+        original_git_output = check_plugin_copies.git_output
+        try:
+            # Stub out git_output to return None on rev-parse
+            def stub_git_output(repo, *args):
+                if args and args[0] == "rev-parse":
+                    return None
+                return original_git_output(repo, *args)
+            check_plugin_copies.git_output = stub_git_output
+            blockers = source_blockers(plug)
+            assert len(blockers) == 1
+            assert "git could not determine" in blockers[0]
+        finally:
+            check_plugin_copies.git_output = original_git_output
+
+
+def test_git_status_failure_is_a_blocker():
+    with tempfile.TemporaryDirectory() as d:
+        plug = _repo_with_plugin(d)
+        # Stub git_output to fail on status command
+        original_git_output = check_plugin_copies.git_output
+        try:
+            def stub_git_output(repo, *args):
+                if args and args[0] == "status":
+                    return None
+                return original_git_output(repo, *args)
+            check_plugin_copies.git_output = stub_git_output
+            blockers = source_blockers(plug)
+            assert len(blockers) == 1
+            assert "git status could not run" in blockers[0]
+        finally:
+            check_plugin_copies.git_output = original_git_output
 
 if __name__ == "__main__":
     TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
