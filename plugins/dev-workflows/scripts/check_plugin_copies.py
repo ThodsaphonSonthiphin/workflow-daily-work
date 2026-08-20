@@ -370,7 +370,7 @@ def role_of(path, claude_home, agents_home, source_root):
     repair, and whether a repair may be offered at all."""
     if _under(path, os.path.join(claude_home, "plugins", "cache")):
         return "cache"
-    if os.path.normcase(WORKTREE_MARK) in os.path.normcase(_key(path)):
+    if os.path.normcase(WORKTREE_MARK) in _key(path):
         return "worktree"
     if _under(path, agents_home):
         return "agent-store"
@@ -397,9 +397,11 @@ def repair_for(role, copy_path, source_root):
                 "alone will not repair it.")
     if role == "source":
         return ("this is the source - no repair needed.")
-    return ("edit %s in its own repo and commit it there - the copy is "
-            "git-tracked by that project, so copying a file in would leave "
-            "their tree dirty." % copy_path)
+    if role == "vendored":
+        return ("edit %s in its own repo and commit it there - the copy is "
+                "git-tracked by that project, so copying a file in would leave "
+                "their tree dirty." % copy_path)
+    raise ValueError("unknown role: %r" % role)
 
 
 def claimed_install(claude_home, marketplace, plugin):

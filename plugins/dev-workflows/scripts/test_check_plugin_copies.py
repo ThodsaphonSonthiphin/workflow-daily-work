@@ -549,6 +549,39 @@ def test_agent_list_warning_is_silent_without_a_lock_file():
         assert agent_list_warning(d) is None
 
 
+def test_repair_for_unknown_role_raises_valueerror():
+    try:
+        repair_for("unknown-role", "path", "source")
+        raise AssertionError("repair_for should have raised ValueError for unknown role")
+    except ValueError as exc:
+        assert "unknown role" in str(exc)
+
+
+def test_repair_for_returns_distinct_text_per_role():
+    cache_text = repair_for("cache", "path", "source")
+    worktree_text = repair_for("worktree", "path", "source")
+    agent_text = repair_for("agent-store", "path", "source")
+    source_text = repair_for("source", "path", "source")
+    vendored_text = repair_for("vendored", "path", "source")
+
+    repairs = [cache_text, worktree_text, agent_text, source_text, vendored_text]
+    assert len(repairs) == len(set(repairs)), "Some roles return duplicate text"
+
+
+def test_repair_for_cache_contains_no_write_instructions():
+    repair = repair_for("cache", "any/path", "any/source")
+    for forbidden in ("copy ", "cp ", "write ", "mv "):
+        assert forbidden not in repair.lower(), \
+            f"cache repair should not contain '{forbidden}'"
+
+
+def test_repair_for_worktree_contains_no_write_instructions():
+    repair = repair_for("worktree", "any/path", "any/source")
+    for forbidden in ("copy ", "cp ", "write ", "mv "):
+        assert forbidden not in repair.lower(), \
+            f"worktree repair should not contain '{forbidden}'"
+
+
 if __name__ == "__main__":
     TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
