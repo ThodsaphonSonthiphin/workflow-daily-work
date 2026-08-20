@@ -719,6 +719,124 @@ def test_a_clean_machine_exits_0_under_strict():
         assert main(argv) == 0
 
 
+def test_cache_at_the_claimed_version_is_graded():
+    with tempfile.TemporaryDirectory() as d:
+        claude = os.path.join(d, "home", ".claude")
+        agents = os.path.join(d, "home", ".agents")
+        repo = os.path.join(d, "code", "srcrepo")
+        os.makedirs(claude)
+        os.makedirs(agents)
+        os.makedirs(repo)
+        _marketplace(repo, "myplug", "./plugins/myplug")
+        _write(os.path.join(repo, "plugins", "myplug", "skills", "alpha",
+                            "SKILL.md"), "alpha\nline2\nline3\nline4\n")
+        _registry(claude, {"mkt": {"source": {"source": "directory",
+                                              "path": repo},
+                                   "installLocation": repo}})
+        claimed_dir = os.path.join(claude, "plugins", "cache", "mkt",
+                                   "myplug", "1.0.0")
+        _write(os.path.join(claimed_dir, "skills", "alpha", "SKILL.md"),
+               "outdated\nline2\nline3\nline4\n")
+        with open(os.path.join(claude, "plugins", "installed_plugins.json"),
+                  "w", encoding="utf-8") as f:
+            json.dump({"version": 2, "plugins": {"myplug@mkt": [
+                {"scope": "user", "version": "1.0.0",
+                 "installPath": claimed_dir}]}}, f)
+        result = audit("myplug", "mkt", claude, agents)
+        cache_rows = [r for r in result["rows"] if r["role"] == "cache"]
+        assert len(cache_rows) == 1
+        assert cache_rows[0]["verdict"] == "STALE"
+        assert cache_rows[0]["overlap"] is not None
+        assert result["superseded"] == 0
+
+
+def test_cache_at_a_superseded_version_is_not_graded():
+    with tempfile.TemporaryDirectory() as d:
+        claude = os.path.join(d, "home", ".claude")
+        agents = os.path.join(d, "home", ".agents")
+        repo = os.path.join(d, "code", "srcrepo")
+        os.makedirs(claude)
+        os.makedirs(agents)
+        os.makedirs(repo)
+        _marketplace(repo, "myplug", "./plugins/myplug")
+        _write(os.path.join(repo, "plugins", "myplug", "skills", "alpha",
+                            "SKILL.md"), "alpha\nline2\nline3\nline4\n")
+        _registry(claude, {"mkt": {"source": {"source": "directory",
+                                              "path": repo},
+                                   "installLocation": repo}})
+        claimed_dir = os.path.join(claude, "plugins", "cache", "mkt",
+                                   "myplug", "2.0.0")
+        _write(os.path.join(claimed_dir, "skills", "alpha", "SKILL.md"),
+               "alpha\nline2\nline3\nline4\n")            # matches the source
+        old_dir = os.path.join(claude, "plugins", "cache", "mkt", "myplug",
+                               "1.0.0")
+        _write(os.path.join(old_dir, "skills", "alpha", "SKILL.md"),
+               "nothing\nalike\nat\nall\n")               # wildly different
+        with open(os.path.join(claude, "plugins", "installed_plugins.json"),
+                  "w", encoding="utf-8") as f:
+            json.dump({"version": 2, "plugins": {"myplug@mkt": [
+                {"scope": "user", "version": "2.0.0",
+                 "installPath": claimed_dir}]}}, f)
+        result = audit("myplug", "mkt", claude, agents)
+        by_version = {}
+        for row in result["rows"]:
+            if row["role"] != "cache":
+                continue
+            if "2.0.0" in row["path"]:
+                by_version["claimed"] = row["verdict"]
+            elif "1.0.0" in row["path"]:
+                by_version["old"] = row["verdict"]
+        assert by_version["claimed"] == "IN SYNC"
+        assert by_version["old"] == "SUPERSEDED"
+        # the wildly different superseded copy must not register as a
+        # finding, no matter how different its content is from the source
+        assert [r for r in result["rows"] if r["verdict"] == "STALE"] == []
+        assert result["superseded"] == 1
+
+
+def test_a_vendored_subset_produces_no_finding_for_absent_skills():
+    with tempfile.TemporaryDirectory() as d:
+        claude = os.path.join(d, "home", ".claude")
+        agents = os.path.join(d, "home", ".agents")
+        repo = os.path.join(d, "code", "srcrepo")
+        os.makedirs(claude)
+        os.makedirs(agents)
+        os.makedirs(repo)
+        _marketplace(repo, "myplug", "./plugins/myplug")
+        _write(os.path.join(repo, "plugins", "myplug", "skills", "alpha",
+                            "SKILL.md"), "alpha\nshared\n")
+        _write(os.path.join(repo, "plugins", "myplug", "skills", "beta",
+                            "SKILL.md"), "beta\nshared\n")
+        _registry(claude, {"mkt": {"source": {"source": "directory",
+                                              "path": repo},
+                                   "installLocation": repo}})
+        _write(os.path.join(d, "code", "consumer", "vendored", "alpha",
+                            "SKILL.md"), "alpha\nshared\n")
+        result = audit("myplug", "mkt", claude, agents)
+        consumer_rows = [r for r in result["rows"] if "consumer" in r["path"]]
+        assert len(consumer_rows) == 1
+        assert consumer_rows[0]["skill"] == "alpha"
+        assert consumer_rows[0]["verdict"] == "IN SYNC"
+        # no synthesized finding for beta, which this consumer never vendored
+        assert not any(r["skill"] == "beta" and "consumer" in r["path"]
+                       for r in result["rows"])
+
+
+def test_strict_exit_code_agrees_with_the_summary_stale_count():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        _write(os.path.join(agents, "skills", "alpha", "SKILL.md"),
+               "alpha v1\nshared\nlines\nmore\n")
+        result = audit("myplug", "mkt", claude, agents)
+        stale_count = sum(1 for r in result["rows"] if r["verdict"] == "STALE")
+        assert stale_count == 1
+        argv = ["--plugin", "myplug", "--marketplace", "mkt",
+                "--claude-home", claude, "--agents-home", agents]
+        assert main(argv) == 0
+        strict_exit = main(argv + ["--strict"])
+        assert (strict_exit == 1) == (stale_count > 0)
+
+
 if __name__ == "__main__":
     TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

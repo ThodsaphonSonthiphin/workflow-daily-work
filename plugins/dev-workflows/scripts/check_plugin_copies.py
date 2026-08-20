@@ -443,6 +443,24 @@ def agent_list_warning(agents_home):
     return None
 
 
+def _cache_version(path, claude_home, marketplace, plugin):
+    """The version segment of a cache-role path, when that path sits under
+    THIS plugin's own cache tree
+    (claude_home/plugins/cache/<marketplace>/<plugin>/<version>/...).
+
+    Returns None when the path is a cache hit for something else entirely
+    (a different marketplace or plugin that happens to share a skill name) -
+    that case is graded the old way, unaffected by version comparison; it is
+    not what "a superseded cache version" means.
+    """
+    base = os.path.join(claude_home, "plugins", "cache", marketplace, plugin)
+    if not _under(path, base):
+        return None
+    rel = os.path.relpath(os.path.realpath(path), os.path.realpath(base))
+    parts = rel.split(os.sep)
+    return parts[0] if parts and parts[0] not in ("", os.curdir) else None
+
+
 def audit(plugin, marketplace, claude_home, agents_home, extra_roots=()):
     """Measure every copy of `plugin` on this machine against its source.
     Reports; changes nothing."""
@@ -464,11 +482,36 @@ def audit(plugin, marketplace, claude_home, agents_home, extra_roots=()):
     history = dict((name, historical_hashes(path))
                    for name, path in skills.items())
 
+    # Only the cache directory matching the install manifest's CLAIMED
+    # version is graded. Every other cached version is a historical
+    # snapshot - being behind is its correct state, not drift - and grading
+    # it would flag every skill added after that version shipped as a false
+    # "STALE". If there is no usable claim (none recorded, or its directory
+    # is absent), no cache directory can be graded, because there is no
+    # reliable version to grade against.
+    claim = claimed_install(claude_home, marketplace, plugin)
+    claimed_version = claim["version"] if claim and claim["dir_exists"] else None
+    cache_note = None
+    if claimed_version is None:
+        cache_note = ("cache directories are NOT graded: the install "
+                      "manifest names no usable version (no claim, or its "
+                      "claimed directory is absent).")
+
     rows = []
+    superseded = 0
     for directory in scan_for_skill_dirs(roots, list(skills)):
         name = os.path.basename(directory)
-        copy_file = os.path.join(directory, "SKILL.md")
         role = role_of(directory, claude_home, agents_home, source_root)
+        if role == "cache":
+            version = _cache_version(directory, claude_home, marketplace,
+                                     plugin)
+            if version is not None and version != claimed_version:
+                superseded += 1
+                rows.append({"path": directory, "skill": name, "role": role,
+                             "verdict": "SUPERSEDED", "overlap": None,
+                             "repair": ""})
+                continue
+        copy_file = os.path.join(directory, "SKILL.md")
         verdict, overlap = classify(read_normalized(skills[name]),
                                     read_normalized(copy_file),
                                     history.get(name, set()))
@@ -477,39 +520,18 @@ def audit(plugin, marketplace, claude_home, agents_home, extra_roots=()):
                      "repair": "" if verdict != "STALE"
                                else repair_for(role, directory, source_root)})
 
-    # MISSING: only for a parent directory that already vendors at least one
-    # of this plugin's skills (i.e. it already contributed a hit above), and
-    # only for the source skills absent from that same parent. A consumer
-    # that vendors NONE of the plugin's skills never contributes a hit, so it
-    # never becomes a "parent" here and stays invisible to this check - that
-    # is a known and accepted limitation, not an oversight.
-    parents = {}
-    for row in rows:
-        parent = os.path.dirname(row["path"])
-        parents.setdefault(_key(parent), parent)
-    present = set((row["skill"], _key(os.path.dirname(row["path"])))
-                  for row in rows)
-    for key, parent in sorted(parents.items()):
-        role = role_of(parent, claude_home, agents_home, source_root)
-        for name in sorted(skills):
-            if (name, key) in present:
-                continue
-            missing_path = os.path.join(parent, name)
-            rows.append({"path": missing_path, "skill": name, "role": role,
-                         "verdict": "MISSING", "overlap": 0.0,
-                         "repair": repair_for(role, missing_path,
-                                              source_root)})
-
     return {"rows": sorted(rows, key=lambda r: (r["role"], r["path"])),
             "source_root": source_root,
             "skills": sorted(skills),
-            "claim": claimed_install(claude_home, marketplace, plugin),
+            "claim": claim,
+            "cache_note": cache_note,
+            "superseded": superseded,
             "warning": agent_list_warning(agents_home)}
 
 
 def report(result):
     """Print the human-readable audit report. Returns the count of
-    repairable findings (STALE + MISSING), which main() uses for --strict."""
+    actionable findings (STALE only), which main() uses for --strict."""
     print("source: %s" % result["source_root"])
     print("skills: %d (%s)" % (len(result["skills"]),
                                ", ".join(result["skills"])))
@@ -518,7 +540,9 @@ def report(result):
         print("install manifest CLAIMS version %s at %s (directory %s) "
               "- a claim, not evidence"
               % (claim["version"], claim["install_path"],
-                 "exists" if claim["dir_exists"] else "MISSING"))
+                 "exists" if claim["dir_exists"] else "ABSENT"))
+    if result.get("cache_note"):
+        print(result["cache_note"])
     print("")
     grouped = {}
     for row in result["rows"]:
@@ -526,18 +550,24 @@ def report(result):
     for role in sorted(grouped):
         print("  [%s]" % role)
         for row in grouped[role]:
-            print("    %-9s %-24s overlap %3.0f%%  %s"
-                  % (row["verdict"], row["skill"], row["overlap"] * 100,
-                     row["path"]))
+            overlap_text = ("  n/a" if row["overlap"] is None
+                            else "%3.0f%%" % (row["overlap"] * 100))
+            print("    %-9s %-24s overlap %s  %s"
+                  % (row["verdict"], row["skill"], overlap_text, row["path"]))
             if row["repair"]:
                 print("      fix: %s" % row["repair"])
         print("")
-    stale = [r for r in result["rows"] if r["verdict"] in ("STALE", "MISSING")]
+    stale = [r for r in result["rows"] if r["verdict"] == "STALE"]
     unrelated = [r for r in result["rows"] if r["verdict"] == "UNRELATED"]
     print("%d stale, %d unrelated (same name, different lineage - not ours), "
           "%d in sync"
           % (len(stale), len(unrelated),
              sum(1 for r in result["rows"] if r["verdict"] == "IN SYNC")))
+    if result.get("superseded"):
+        print("%d superseded cache director%s excluded (older than the "
+              "claimed version, not graded)"
+              % (result["superseded"], "y" if result["superseded"] == 1
+                                       else "ies"))
     print("provenance threshold: %.0f%% line overlap. A verdict's overlap "
           "shows which side of it the call came from." % (PROVENANCE_MIN * 100))
     if result["warning"]:
