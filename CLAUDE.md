@@ -112,6 +112,13 @@ and an add-a-skill recipe.
   hard-to-reverse/surprising/trade-off gate to pass first
   ([ADR 0092](docs/adr/workflow-daily-work-0092-every-design-decision-gets-an-adr.md)).
 
+- **A controller ruling during execution is a design decision and gets an ADR**, not
+  just a ledger line. Rulings taken mid-run — dropping a verdict, changing a threshold,
+  adding an exclusion — are exactly what ADR 0092 covers. Recording them only in the SDD
+  ledger loses them when the workspace is deleted at finish, and leaves supersession
+  banners with nothing to cite (2026-08-20: five such rulings became ADRs 0110–0114 only
+  because an implementer noticed its banners could cite nothing).
+
 - **The vendored `superpowers` copies are guarded by a checker, not by review.**
   `plugins/dev-workflows/scripts/check_vendored_superpowers.py` reports drift in the
   vendored copies and the frozen files against
@@ -128,6 +135,14 @@ and an add-a-skill recipe.
   describes, add a supersession banner at the top of that document (what it says vs
   what is now true, and the ADR that changed it) in the same commit. Worked examples:
   `docs/superpowers/specs/2026-07-31-decision-map-design.md`, ADRs 0033/0035/0037.
+
+- **The SDD pre-flight scan must evaluate the plan's arithmetic, not just read it.** A
+  scan that checks cross-task interfaces and per-task self-agreement as prose cannot see
+  that a constant contradicts a fixture the same plan asserts on. Compute what each
+  fixture actually produces and compare it against the assertion beside it — a plan can
+  be perfectly consistent in wording and still be unimplementable (2026-08-20:
+  `PROVENANCE_MIN = 0.60` against a fixture measuring 0.6667 that the plan required to
+  grade `UNRELATED`; the scan passed it, and an implementer found it mid-transcription).
 
 ## Key commands
 
