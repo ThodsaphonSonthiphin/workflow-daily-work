@@ -11,12 +11,16 @@ import tempfile
 import check_plugin_copies
 from check_plugin_copies import (normalize, content_hash, read_normalized,
                                  load_registry, marketplace_root,
+                                 marketplace_root_or_none,
                                  plugin_root, source_skills, git_output,
                                  source_blockers, _git_dir_above, PRUNE,
                                  derive_roots, scan_for_skill_dirs,
-                                 PROVENANCE_MIN, line_overlap, historical_hashes,
+                                 PROVENANCE_MIN, PROVENANCE_MIN_LINES,
+                                 line_overlap, historical_hashes,
                                  classify, role_of, repair_for, claimed_install,
-                                 agent_list_warning, audit, report, main)
+                                 agent_list_warning, cache_versions,
+                                 cache_grading, detect_marketplace,
+                                 audit, report, main)
 
 
 def _write(path, text, eol="\n"):
@@ -25,6 +29,25 @@ def _write(path, text, eol="\n"):
     body = text.replace("\r\n", "\n").replace("\n", eol)
     with open(path, "wb") as f:
         f.write(body.encode("utf-8"))
+
+
+def _body(first_line, count=12):
+    """A SKILL.md body with enough distinct non-blank lines to clear
+    PROVENANCE_MIN_LINES, so the line-overlap path - not the small-file
+    floor - decides the verdict.
+
+    Load-bearing for every fixture that expects STALE: below the floor a
+    copy grades UNRELATED by design, however high its overlap, so a 3- or
+    4-line fixture cannot exercise the overlap path at all."""
+    lines = [first_line] + ["shared line %02d" % i
+                            for i in range(1, count + 1)]
+    return "\n".join(lines) + "\n"
+
+
+def _unrelated_body(count=12):
+    """A body sharing no line with _body(), and long enough that the verdict
+    comes from the overlap being ~0 rather than from the small-file floor."""
+    return "\n".join("stranger line %02d" % i for i in range(count)) + "\n"
 
 
 def _registry(claude_home, entries):
@@ -377,8 +400,13 @@ def test_crlf_only_difference_is_in_sync():
 
 
 def test_one_missing_line_is_stale_not_unrelated():
-    src = b"---\nname: alpha\ndescription: x\neffort: max\n---\nbody\n"
-    copy = b"---\nname: alpha\ndescription: x\n---\nbody\n"
+    """A copy that is a strict subset of the source scores 1.0 on the min()
+    denominator and grades STALE - the common real drift, a line dropped.
+    The fixture clears PROVENANCE_MIN_LINES so the floor is not what decides
+    it; the same drift on a 5-line file is UNRELATED, which is the point of
+    the two floor tests below."""
+    src = _body("---\nname: alpha\ndescription: x\neffort: max\n---").encode()
+    copy = _body("---\nname: alpha\ndescription: x\n---").encode()
     verdict, overlap = classify(src, copy)
     assert verdict == "STALE"
     assert overlap == 1.0
@@ -390,6 +418,50 @@ def test_a_same_named_file_sharing_no_lineage_is_unrelated():
     verdict, overlap = classify(src, copy)
     assert verdict == "UNRELATED"
     assert overlap < PROVENANCE_MIN
+
+
+def test_a_frontmatter_only_collision_is_unrelated_not_stale():
+    """The plan's original collision fixture, restored: a same-named SKILL.md
+    from somebody else's project shares the two lines it is structurally
+    guaranteed to share - `---` and `name: <dir>` - for 2/3 = 0.667.
+
+    It is the realistic collision, and the natural regression test for the
+    floor: the two shared lines are not evidence of lineage, they are
+    evidence of the file format plus the directory name that got it scanned.
+    """
+    src = b"---\nname: alpha\n---\nour body\n"
+    copy = b"---\nname: alpha\n---\nsomebody else entirely\ndifferent\nlines\n"
+    verdict, overlap = classify(src, copy)
+    assert verdict == "UNRELATED"
+    assert abs(overlap - 2 / 3.0) < 1e-9
+
+
+def test_a_tiny_stub_never_grades_stale_at_full_overlap():
+    """Measured against the real 96-line debug-mantra/SKILL.md, a two-line
+    stub from another project graded STALE at overlap 1.000: both its lines
+    match by construction, over min(96, 2). Maximum confidence, wrong
+    answer. The floor is what stops it."""
+    src = _body("---\nname: debug-mantra\n---").encode()
+    stub = b"---\nname: debug-mantra\n---\n"
+    verdict, overlap = classify(src, stub)
+    assert verdict == "UNRELATED"
+    assert overlap == 1.0           # the overlap really is 1.0; it is not evidence
+
+
+def test_the_floor_is_the_smaller_side_line_count():
+    """Just below the floor is UNRELATED; at the floor the overlap decides."""
+    shared = ["line %02d" % i for i in range(PROVENANCE_MIN_LINES)]
+    src = ("\n".join(shared + ["extra"]) + "\n").encode()
+
+    below = ("\n".join(shared[:PROVENANCE_MIN_LINES - 1]) + "\n").encode()
+    verdict, overlap = classify(src, below)
+    assert verdict == "UNRELATED"
+    assert overlap == 1.0
+
+    at_floor = ("\n".join(shared) + "\n").encode()
+    verdict, overlap = classify(src, at_floor)
+    assert verdict == "STALE"
+    assert overlap == 1.0
 
 
 def test_matching_a_historical_hash_is_stale_even_with_low_overlap():
@@ -584,9 +656,27 @@ def test_repair_for_worktree_contains_no_write_instructions():
             f"worktree repair should not contain '{forbidden}'"
 
 
+def _claim(claude, marketplace, plugin, version, install_path):
+    """Write an install manifest claiming one version at one path."""
+    path = os.path.join(claude, "plugins", "installed_plugins.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"version": 2, "plugins": {
+            "%s@%s" % (plugin, marketplace): [
+                {"scope": "user", "version": version,
+                 "installPath": install_path}]}}, f)
+
+
 def _machine(d):
     """A synthetic machine: a claude home, an agents home, and a repo holding
-    a marketplace with one plugin and one skill."""
+    a marketplace with one plugin and one skill.
+
+    The source body comes from _body() so a one-line drift lands above
+    PROVENANCE_MIN and above the small-file floor - a 4-line fixture cannot
+    grade STALE at all. The machine also carries a usable install claim
+    (version 1.0.0, directory present): an unusable claim is itself a finding,
+    so without this a "clean machine" would exit 1 under --strict.
+    """
     claude = os.path.join(d, "home", ".claude")
     agents = os.path.join(d, "home", ".agents")
     code = os.path.join(d, "code")
@@ -595,17 +685,15 @@ def _machine(d):
     os.makedirs(agents)
     os.makedirs(repo)
     _marketplace(repo, "myplug", "./plugins/myplug")
-    # 4 lines, not 3: a 1-line drift (v1 vs v2) then has 3/4 = 75% line
-    # overlap, above PROVENANCE_MIN (0.70). At 3 lines the same drift is only
-    # 2/3 = 66.7% - below threshold - and would misclassify as UNRELATED
-    # instead of STALE. (Deviation from the brief's literal fixture text,
-    # forced by PROVENANCE_MIN being corrected from 0.60 to 0.70; see the
-    # task report.)
     _write(os.path.join(repo, "plugins", "myplug", "skills", "alpha",
-                        "SKILL.md"), "alpha v2\nshared\nlines\nmore\n")
+                        "SKILL.md"), _body("alpha v2"))
     _registry(claude, {"mkt": {"source": {"source": "directory",
                                           "path": repo},
                                "installLocation": repo}})
+    claimed_dir = os.path.join(claude, "plugins", "cache", "mkt", "myplug",
+                               "1.0.0")
+    os.makedirs(claimed_dir)
+    _claim(claude, "mkt", "myplug", "1.0.0", claimed_dir)
     return claude, agents, code, repo
 
 
@@ -613,9 +701,9 @@ def test_audit_grades_a_matching_and_a_drifted_copy():
     with tempfile.TemporaryDirectory() as d:
         claude, agents, code, repo = _machine(d)
         _write(os.path.join(code, "consumer", "vendored", "alpha",
-                            "SKILL.md"), "alpha v2\nshared\nlines\nmore\n")
+                            "SKILL.md"), _body("alpha v2"))
         _write(os.path.join(agents, "skills", "alpha", "SKILL.md"),
-               "alpha v1\nshared\nlines\nmore\n")
+               _body("alpha v1"))
         result = audit("myplug", "mkt", claude, agents)
         by_role = dict((r["role"], r["verdict"]) for r in result["rows"])
         assert by_role["vendored"] == "IN SYNC"
@@ -635,7 +723,7 @@ def test_audit_reports_an_unrelated_same_named_skill():
     with tempfile.TemporaryDirectory() as d:
         claude, agents, code, repo = _machine(d)
         _write(os.path.join(code, "stranger", "alpha", "SKILL.md"),
-               "nothing\nin\ncommon\nat\nall\n")
+               _unrelated_body())
         result = audit("myplug", "mkt", claude, agents)
         strangers = [r for r in result["rows"] if "stranger" in r["path"]]
         assert len(strangers) == 1
@@ -657,9 +745,9 @@ def test_extra_roots_are_additive_not_a_replacement():
         claude, agents, code, repo = _machine(d)
         elsewhere = os.path.join(d, "far", "away")
         _write(os.path.join(elsewhere, "alpha", "SKILL.md"),
-               "alpha v2\nshared\nlines\n")
+               _body("alpha v2"))
         _write(os.path.join(agents, "skills", "alpha", "SKILL.md"),
-               "alpha v2\nshared\nlines\n")
+               _body("alpha v2"))
         result = audit("myplug", "mkt", claude, agents,
                        extra_roots=[elsewhere])
         paths = " ".join(r["path"] for r in result["rows"])
@@ -706,7 +794,7 @@ def test_strict_turns_a_stale_copy_into_exit_1():
     with tempfile.TemporaryDirectory() as d:
         claude, agents, code, repo = _machine(d)
         _write(os.path.join(agents, "skills", "alpha", "SKILL.md"),
-               "alpha v1\nshared\nlines\nmore\n")
+               _body("alpha v1"))
         argv = ["--plugin", "myplug", "--marketplace", "mkt",
                 "--claude-home", claude, "--agents-home", agents]
         assert main(argv) == 0
@@ -731,14 +819,14 @@ def test_cache_at_the_claimed_version_is_graded():
         os.makedirs(repo)
         _marketplace(repo, "myplug", "./plugins/myplug")
         _write(os.path.join(repo, "plugins", "myplug", "skills", "alpha",
-                            "SKILL.md"), "alpha\nline2\nline3\nline4\n")
+                            "SKILL.md"), _body("alpha"))
         _registry(claude, {"mkt": {"source": {"source": "directory",
                                               "path": repo},
                                    "installLocation": repo}})
         claimed_dir = os.path.join(claude, "plugins", "cache", "mkt",
                                    "myplug", "1.0.0")
         _write(os.path.join(claimed_dir, "skills", "alpha", "SKILL.md"),
-               "outdated\nline2\nline3\nline4\n")
+               _body("outdated"))
         with open(os.path.join(claude, "plugins", "installed_plugins.json"),
                   "w", encoding="utf-8") as f:
             json.dump({"version": 2, "plugins": {"myplug@mkt": [
@@ -749,7 +837,10 @@ def test_cache_at_the_claimed_version_is_graded():
         assert len(cache_rows) == 1
         assert cache_rows[0]["verdict"] == "STALE"
         assert cache_rows[0]["overlap"] is not None
-        assert result["superseded"] == 0
+        assert cache_rows[0]["graded"] is True
+        assert cache_rows[0]["not_graded_reason"] == ""
+        assert result["cache_graded_version"] == "1.0.0"
+        assert result["claim_finding"] is None
 
 
 def test_cache_at_a_superseded_version_is_not_graded():
@@ -762,14 +853,14 @@ def test_cache_at_a_superseded_version_is_not_graded():
         os.makedirs(repo)
         _marketplace(repo, "myplug", "./plugins/myplug")
         _write(os.path.join(repo, "plugins", "myplug", "skills", "alpha",
-                            "SKILL.md"), "alpha\nline2\nline3\nline4\n")
+                            "SKILL.md"), _body("alpha"))
         _registry(claude, {"mkt": {"source": {"source": "directory",
                                               "path": repo},
                                    "installLocation": repo}})
         claimed_dir = os.path.join(claude, "plugins", "cache", "mkt",
                                    "myplug", "2.0.0")
         _write(os.path.join(claimed_dir, "skills", "alpha", "SKILL.md"),
-               "alpha\nline2\nline3\nline4\n")            # matches the source
+               _body("alpha"))            # matches the source
         old_dir = os.path.join(claude, "plugins", "cache", "mkt", "myplug",
                                "1.0.0")
         _write(os.path.join(old_dir, "skills", "alpha", "SKILL.md"),
@@ -785,15 +876,19 @@ def test_cache_at_a_superseded_version_is_not_graded():
             if row["role"] != "cache":
                 continue
             if "2.0.0" in row["path"]:
-                by_version["claimed"] = row["verdict"]
+                by_version["claimed"] = row
             elif "1.0.0" in row["path"]:
-                by_version["old"] = row["verdict"]
-        assert by_version["claimed"] == "IN SYNC"
-        assert by_version["old"] == "SUPERSEDED"
-        # the wildly different superseded copy must not register as a
+                by_version["old"] = row
+        assert by_version["claimed"]["verdict"] == "IN SYNC"
+        assert by_version["claimed"]["graded"] is True
+        assert by_version["old"]["graded"] is False
+        # the reason must be true for the branch that produced it: this row
+        # really is an older version than the graded one
+        assert "other than the graded 2.0.0" in \
+            by_version["old"]["not_graded_reason"]
+        # the wildly different older copy must not register as a
         # finding, no matter how different its content is from the source
         assert [r for r in result["rows"] if r["verdict"] == "STALE"] == []
-        assert result["superseded"] == 1
 
 
 def test_a_vendored_subset_produces_no_finding_for_absent_skills():
@@ -842,7 +937,7 @@ def test_strict_exit_code_agrees_with_the_summary_stale_count():
     with tempfile.TemporaryDirectory() as d:
         claude, agents, code, repo = _machine(d)
         _write(os.path.join(agents, "skills", "alpha", "SKILL.md"),
-               "alpha v1\nshared\nlines\nmore\n")
+               _body("alpha v1"))
         argv = ["--plugin", "myplug", "--marketplace", "mkt",
                 "--claude-home", claude, "--agents-home", agents]
         result = audit("myplug", "mkt", claude, agents)
@@ -860,9 +955,10 @@ def test_a_copy_under_claude_backups_is_not_graded():
         result = audit("myplug", "mkt", claude, agents)
         backup_rows = [r for r in result["rows"] if "backups" in r["path"]]
         assert len(backup_rows) == 1
-        assert backup_rows[0]["verdict"] == "SUPERSEDED"
+        assert backup_rows[0]["verdict"] == "NOT GRADED"
+        assert backup_rows[0]["graded"] is False
         assert backup_rows[0]["overlap"] is None
-        assert result["backups_excluded"] == 1
+        assert "backup snapshot" in backup_rows[0]["not_graded_reason"]
         # wildly different content must not register as a finding
         assert [r for r in result["rows"] if r["verdict"] == "STALE"] == []
 
@@ -871,13 +967,13 @@ def test_a_directory_literally_named_backups_outside_claude_home_is_still_graded
     with tempfile.TemporaryDirectory() as d:
         claude, agents, code, repo = _machine(d)
         _write(os.path.join(code, "someproject", "backups", "alpha",
-                            "SKILL.md"), "alpha v1\nshared\nlines\nmore\n")
+                            "SKILL.md"), _body("alpha v1"))
         result = audit("myplug", "mkt", claude, agents)
         outside = [r for r in result["rows"]
                   if "someproject" in r["path"] and "backups" in r["path"]]
         assert len(outside) == 1
         assert outside[0]["verdict"] == "STALE"
-        assert result["backups_excluded"] == 0
+        assert outside[0]["graded"] is True
 
 
 def test_vendored_repair_for_a_git_tracked_copy_says_commit_in_that_repo():
@@ -928,14 +1024,14 @@ def test_report_renders_excluded_rows_and_summary_lines():
         os.makedirs(repo)
         _marketplace(repo, "myplug", "./plugins/myplug")
         _write(os.path.join(repo, "plugins", "myplug", "skills", "alpha",
-                            "SKILL.md"), "alpha\nline2\nline3\nline4\n")
+                            "SKILL.md"), _body("alpha"))
         _registry(claude, {"mkt": {"source": {"source": "directory",
                                               "path": repo},
                                    "installLocation": repo}})
         claimed_dir = os.path.join(claude, "plugins", "cache", "mkt",
                                    "myplug", "2.0.0")
         _write(os.path.join(claimed_dir, "skills", "alpha", "SKILL.md"),
-               "alpha\nline2\nline3\nline4\n")
+               _body("alpha"))
         old_dir = os.path.join(claude, "plugins", "cache", "mkt", "myplug",
                                "1.0.0")
         _write(os.path.join(old_dir, "skills", "alpha", "SKILL.md"),
@@ -948,14 +1044,19 @@ def test_report_renders_excluded_rows_and_summary_lines():
         _write(os.path.join(claude, "backups", "skills-resync-2026-01-01",
                             "alpha", "SKILL.md"), "nothing\nalike\nat\nall\n")
         result = audit("myplug", "mkt", claude, agents)
-        stale_count, output = _captured_stdout(report, result)
-        assert result["superseded"] == 1
-        assert result["backups_excluded"] == 1
-        # the SUPERSEDED rows' overlap-None rendering
+        findings, output = _captured_stdout(report, result)
+        assert findings == 0
+        not_graded = [r for r in result["rows"] if not r["graded"]]
+        assert len(not_graded) == 2
+        # the not-graded rows' overlap-None rendering
         assert "n/a" in output
-        # both "excluded" summary lines, with their counts
-        assert "1 superseded cache directory excluded" in output
-        assert "1 backup snapshot excluded" in output
+        # one summary line per distinct reason, each with its count - and
+        # each reason true for the rows it describes
+        assert "1 row NOT graded: a cache version directory other than the " \
+               "graded 2.0.0" in output
+        assert "1 row NOT graded: a dated backup snapshot under" in output
+        # the limit of what was compared is stated, not implied
+        assert "skills/<name>/SKILL.md only" in output
 
 
 def test_allow_dirty_source_output_is_stamped_ungraded():
@@ -978,6 +1079,163 @@ def test_allow_dirty_source_output_is_stamped_ungraded():
         assert "UNGRADED REPORT" in output
 
 
+def test_role_of_maps_the_per_agent_skills_copy_to_the_agent_store():
+    """The npx per-agent install target is <claude_home>/skills. As `vendored`
+    it got "edit it in place", which leaves the central store drifted and is
+    clobbered by the next per-agent install."""
+    claude = os.path.join("C:", os.sep, "home", ".claude")
+    agents = os.path.join("C:", os.sep, "home", ".agents")
+    source = os.path.join("C:", os.sep, "repo", "plugins", "myplug")
+    per_agent = os.path.join(claude, "skills", "alpha")
+    assert role_of(per_agent, claude, agents, source) == "agent-store"
+    assert "reinstall" in repair_for("agent-store", per_agent, source)
+
+
+def test_scan_surfaces_directories_it_could_not_read():
+    with tempfile.TemporaryDirectory() as d:
+        _write(os.path.join(d, "x", "alpha", "SKILL.md"), "a\n")
+        errors = []
+        hits = scan_for_skill_dirs([d, os.path.join(d, "gone")], ["alpha"],
+                                   errors)
+        assert len(hits) == 1
+        assert len(errors) == 1
+        assert "gone" in errors[0]
+
+
+def test_scan_matches_a_directory_name_case_insensitively():
+    with tempfile.TemporaryDirectory() as d:
+        _write(os.path.join(d, "x", "Alpha", "SKILL.md"), "a\n")
+        hits = scan_for_skill_dirs([d], ["alpha"])
+        # On a case-insensitive filesystem the copy is real and must be found;
+        # on a case-sensitive one Alpha and alpha are different directories.
+        expected = 1 if os.path.normcase("Alpha") == "alpha" else 0
+        assert len(hits) == expected
+
+
+def test_cache_versions_sorts_numerically_not_lexically():
+    with tempfile.TemporaryDirectory() as d:
+        claude = os.path.join(d, ".claude")
+        base = os.path.join(claude, "plugins", "cache", "mkt", "myplug")
+        for version in ("0.9.0", "0.45.0", "0.100.0"):
+            os.makedirs(os.path.join(base, version))
+        assert cache_versions(claude, "mkt", "myplug") == \
+            ["0.9.0", "0.45.0", "0.100.0"]
+
+
+def test_an_absent_claimed_directory_grades_the_version_present():
+    """The measured headline case: the manifest claims 0.46.0, that directory
+    was never created, and the 0.45.0 snapshot present is behind the source.
+    Before the fix this reported "0 stale ... 1 in sync", exited 0 under
+    --strict, and called 0.45.0 "older than the claimed version" - the only
+    version present, and the one actually loading."""
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        os.rmdir(os.path.join(claude, "plugins", "cache", "mkt", "myplug",
+                              "1.0.0"))     # 0.45.0 is the ONLY one present
+        present = os.path.join(claude, "plugins", "cache", "mkt", "myplug",
+                               "0.45.0")
+        _write(os.path.join(present, "skills", "alpha", "SKILL.md"),
+               _body("alpha v1"))          # genuinely behind the source
+        absent = os.path.join(claude, "plugins", "cache", "mkt", "myplug",
+                              "0.46.0")
+        _claim(claude, "mkt", "myplug", "0.46.0", absent)
+
+        result = audit("myplug", "mkt", claude, agents)
+        cache_rows = [r for r in result["rows"] if r["role"] == "cache"]
+        assert len(cache_rows) == 1
+        assert cache_rows[0]["graded"] is True
+        assert cache_rows[0]["verdict"] == "STALE"
+        assert result["cache_graded_version"] == "0.45.0"
+        assert "highest cache version present" in \
+            result["cache_graded_because"]
+        assert "does NOT exist" in result["claim_finding"]
+
+        findings, output = _captured_stdout(report, result)
+        assert findings == 2            # the stale row and the empty claim
+        assert "directory ABSENT" in output
+        # the old wording claimed the only version present was superseded
+        assert "older than the claimed version" not in output
+
+        argv = ["--plugin", "myplug", "--marketplace", "mkt",
+                "--claude-home", claude, "--agents-home", agents]
+        assert main(argv + ["--strict"]) == 1
+        assert main(argv) == 0
+
+
+def test_an_absent_claimed_directory_alone_is_a_finding_under_strict():
+    """Even with nothing stale, a claim naming a directory that does not
+    exist must reach --strict: it is the failure the design opens with, and
+    automation cannot see a report that exits 0."""
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        _claim(claude, "mkt", "myplug", "0.46.0",
+               os.path.join(claude, "plugins", "cache", "mkt", "myplug",
+                            "0.46.0"))
+        result = audit("myplug", "mkt", claude, agents)
+        assert [r for r in result["rows"] if r["verdict"] == "STALE"] == []
+        assert result["claim_finding"] is not None
+        argv = ["--plugin", "myplug", "--marketplace", "mkt",
+                "--claude-home", claude, "--agents-home", agents, "--strict"]
+        assert main(argv) == 1
+
+
+def test_no_install_claim_at_all_is_a_finding():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        os.remove(os.path.join(claude, "plugins", "installed_plugins.json"))
+        result = audit("myplug", "mkt", claude, agents)
+        assert "records no entry" in result["claim_finding"]
+        argv = ["--plugin", "myplug", "--marketplace", "mkt",
+                "--claude-home", claude, "--agents-home", agents, "--strict"]
+        assert main(argv) == 1
+
+
+def test_cache_grading_prefers_a_claim_whose_directory_exists():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        os.makedirs(os.path.join(claude, "plugins", "cache", "mkt", "myplug",
+                                 "9.9.9"))       # a higher version present
+        grading = cache_grading(claude, "mkt", "myplug")
+        assert grading["version"] == "1.0.0"     # the claim still wins
+        assert grading["finding"] is None
+        assert grading["because"] == "the version the install manifest claims"
+
+
+def test_marketplace_detection_resolves_the_only_owner():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        # a second marketplace that records no usable location at all: the
+        # detection loop must skip it, not exit 2 naming a marketplace this
+        # run never asked about
+        registry = json.load(open(os.path.join(
+            claude, "plugins", "known_marketplaces.json"), encoding="utf-8"))
+        registry["broken"] = {"source": {"source": "github", "repo": "o/r"}}
+        _registry(claude, registry)
+        assert marketplace_root_or_none(registry, "broken") is None
+        assert detect_marketplace(registry, "myplug") == "mkt"
+        argv = ["--plugin", "myplug", "--claude-home", claude,
+                "--agents-home", agents]
+        assert main(argv) == 0            # no --marketplace passed
+
+
+def test_marketplace_detection_exits_2_when_two_marketplaces_list_it():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        other = os.path.join(code, "otherrepo")
+        os.makedirs(other)
+        _marketplace(other, "myplug", "./plugins/myplug")
+        registry = json.load(open(os.path.join(
+            claude, "plugins", "known_marketplaces.json"), encoding="utf-8"))
+        registry["mkt2"] = {"source": {"source": "directory", "path": other},
+                            "installLocation": other}
+        _registry(claude, registry)
+        try:
+            detect_marketplace(registry, "myplug")
+            raise AssertionError("detect_marketplace should have exited with 2")
+        except SystemExit as exc:
+            assert exc.code == 2, f"Expected exit 2, got {exc.code}"
+
+
 if __name__ == "__main__":
     TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
@@ -988,6 +1246,15 @@ if __name__ == "__main__":
         except AssertionError as e:
             failed += 1
             print(f"FAIL  {t.__name__}: {e}")
+        except BaseException as e:
+            # SystemExit included, deliberately: _die() raises it throughout
+            # the module and ten tests trigger it on purpose. Catching only
+            # AssertionError let one escaped SystemExit end the direct run
+            # mid-suite with exit 2, a partial PASS list and no summary,
+            # while pytest reported a clean "1 failed". Both modes must
+            # report the same count.
+            failed += 1
+            print(f"FAIL  {t.__name__}: {type(e).__name__}: {e}")
     print(f"{len(TESTS) - failed}/{len(TESTS)} passed")
     import sys
     sys.exit(1 if failed else 0)
