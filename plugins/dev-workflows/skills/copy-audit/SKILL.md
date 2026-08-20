@@ -18,11 +18,25 @@ Run the checker with the plugin's name. Redirect to a file and check the bare
 command's exit code; a pipe reports the last command's status, which turns a
 failed run into an apparent success.
 
+Use the form for the shell you are actually in - the exit-code idioms are not
+interchangeable, and reading the wrong one makes a refusal that measured
+nothing look like a clean report.
+
+**PowerShell** - `$?` is a boolean here (`True`/`False`, never `2`), and
+redirecting a native command's stderr sets it to `$false` even on exit 0, so
+read `$LASTEXITCODE` and do not merge the streams:
+
+    python ${CLAUDE_PLUGIN_ROOT}/scripts/check_plugin_copies.py --plugin NAME > audit.txt
+    Write-Output "EXIT=$LASTEXITCODE"
+
+**bash / POSIX sh:**
+
     python ${CLAUDE_PLUGIN_ROOT}/scripts/check_plugin_copies.py --plugin NAME > audit.txt 2>&1
     echo "EXIT=$?"
 
 Exit 2 means it refused to run. That is a result, not a failure: read the
-blocker it names, clear it, and run again.
+blocker it names, clear it, and run again. Exit 1 comes only with `--strict`,
+and means the run produced findings.
 
 ## Step 2 - if it refuses, clear the blocker first
 
@@ -46,23 +60,42 @@ There are exactly three:
   confirmed. Not ours. Leave it alone and do not report it as drift.
 
 Each row shows the line overlap the call was decided on, so a borderline
-verdict is visible rather than hidden inside a number.
+verdict is visible rather than hidden inside a number. A verdict needs enough
+lines to mean anything: below ten distinct non-blank lines on the smaller
+side the copy grades `UNRELATED` whatever the overlap says, because a stub
+matches `---` and its own `name:` by construction.
 
-## Step 4 - two exclusions that are not missing rows
+**What was compared:** only `skills/<name>/SKILL.md`. A copy whose
+`references/*.md` or `scripts/*` drifted still reads `IN SYNC`, and in this
+repo `references/` is load-bearing. If your question is about a reference
+file, this audit does not answer it - diff those files directly.
 
-The audit removes two categories from grading entirely, before either verdict
-above can apply, and prints a labelled count for each instead of a row:
+## Step 4 - rows that are NOT graded, and rows that are findings
 
-- **Superseded cache version directories** - only the one cache directory
-  matching the version the install manifest currently claims is graded. Older
-  version directories under the same plugin's cache tree are historical
-  snapshots; being behind is their correct state, not drift.
-- **Backup snapshots** - anything under the Claude home's `backups` directory
-  is excluded. A dated backup is supposed to be behind; grading it would tell
-  you to "edit and commit" a directory that usually is not even a repo.
+A row either carries a verdict or says why it was not graded. Every
+not-graded row prints its reason, and the summary prints one count per
+distinct reason - so an excluded copy is visibly excluded, never a missing
+row. The two reasons today:
 
-If a report says "N superseded cache directories excluded" or "N backup
-snapshots excluded," those copies were deliberately left out, not missed.
+- **A cache version directory other than the graded one** - only one cache
+  version is graded. That is the version the install manifest claims when its
+  directory exists; when it does not, the highest version directory actually
+  present is graded instead, because that is what loads.
+- **A dated backup snapshot** under the Claude home's `backups` directory. A
+  dated backup is supposed to be behind; grading it would tell you to "edit
+  and commit" a directory that usually is not even a repo.
+
+Two report lines are findings in their own right, and `--strict` exits 1 on
+them even when nothing is stale:
+
+- `FINDING: the install manifest claims version X at ... but that directory
+  does NOT exist` - the headline failure this tool exists to expose.
+- `FINDING: the install manifest records no entry for <plugin>@<marketplace>`
+  - nothing claims the plugin is installed at all.
+
+`N directories could not be read` is also printed when the scan hit a
+directory it could not enter. A copy inside one of those is missing from the
+report, not absent from the machine.
 
 ## Step 5 - repair, per role
 
@@ -77,9 +110,13 @@ Every `STALE` row carries its own repair. The role decides it:
     repo and commit there. Copying a file in would leave their tree dirty.
   - if none does, there is no repo behind it to keep in sync with: edit it
     in place.
-- **agent-store** - reinstall for the agents that read the store. A skills
+- **agent-store** - both stores an `npx skills` install writes: the central
+  store under the agents home, and the per-agent copy under the Claude home's
+  `skills` directory. Reinstall for the agents that read the store. A skills
   `update` short-circuits on the source hash without checking the copy, so an
-  update alone never repairs a drifted copy.
+  update alone never repairs a drifted copy - and editing the per-agent copy
+  in place leaves the central store drifted and is clobbered by the next
+  install.
 - **worktree** - another branch's checkout. Merge or rebase that branch;
   do not edit its files to match.
 

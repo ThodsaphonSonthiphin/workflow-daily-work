@@ -11,9 +11,20 @@
 > manifest claims is graded) and backup snapshots under the Claude home's
 > `backups` directory are both removed from grading and counted separately,
 > because a report otherwise reads as missing rows rather than a deliberate
-> exclusion. Finally, `PROVENANCE_MIN` shipped at **0.70**, not the 0.60 this
-> spec's Classification section implies — raised during implementation once
-> the git-history-fallback and the case data were both re-examined together.
+> exclusion. `PROVENANCE_MIN` shipped at **0.70** with a **10-line floor** on
+> the smaller side, below which a copy grades `UNRELATED` whatever its overlap
+> ([ADR 0115](../../adr/workflow-daily-work-0115-a-copy-too-small-to-carry-evidence-is-unrelated.md)).
+> This spec states no threshold — its Classification section says "at least a
+> high threshold" and its Risks section calls the choice a judgement; the 0.60
+> that ADR 0114 argues against came from the *plan*, not from here.
+>
+> Two later corrections, both from the final whole-branch review: when the
+> install manifest's claimed directory is absent, the **highest cache version
+> present is graded** and the empty claim is itself a finding `--strict` exits
+> 1 on ([ADR 0116](../../adr/workflow-daily-work-0116-an-unusable-install-claim-grades-the-version-present-and-is-itself-a-finding.md)),
+> and every excluded row now carries `graded` / `not_graded_reason` in one
+> shape instead of three suppression mechanisms
+> ([ADR 0117](../../adr/workflow-daily-work-0117-one-row-shape-carries-every-not-graded-reason.md)).
 > See `plugins/dev-workflows/scripts/check_plugin_copies.py` for the shipped
 > behaviour and `plugins/dev-workflows/skills/copy-audit/SKILL.md` for the
 > user-facing procedure.
