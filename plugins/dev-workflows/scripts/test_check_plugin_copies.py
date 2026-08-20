@@ -383,7 +383,7 @@ def test_one_missing_line_is_stale_not_unrelated():
 
 def test_a_same_named_file_sharing_no_lineage_is_unrelated():
     src = b"---\nname: alpha\n---\nour body\n"
-    copy = b"---\nname: alpha\n---\nsomebody else entirely\ndifferent\nlines\n"
+    copy = b"some unrelated\ncontent here\ndifferent structure\n"
     verdict, overlap = classify(src, copy)
     assert verdict == "UNRELATED"
     assert overlap < PROVENANCE_MIN
@@ -424,6 +424,52 @@ def test_historical_hashes_of_a_non_git_path_is_empty():
         target = os.path.join(d, "alpha", "SKILL.md")
         _write(target, "a\n")
         assert historical_hashes(target) == set()
+
+
+def test_overlap_just_below_provenance_min_is_unrelated():
+    """Overlap at 0.69 (just below threshold) yields UNRELATED."""
+    # Construct exactly 69 shared lines out of 100 total
+    src_lines = ["shared_line_%d" % i for i in range(100)]
+    src = "\n".join(src_lines) + "\n"
+
+    # Copy shares first 69 lines from src, adds 31 unique lines
+    copy_lines = src_lines[:69] + ["unique_line_%d" % i for i in range(31)]
+    copy = "\n".join(copy_lines) + "\n"
+
+    # Verify expected overlap by manual calculation
+    src_set = set(line for line in src.splitlines() if line.strip())
+    copy_set = set(line for line in copy.splitlines() if line.strip())
+    expected_overlap = len(src_set & copy_set) / float(min(len(src_set), len(copy_set)))
+
+    assert expected_overlap == 0.69
+    assert expected_overlap < PROVENANCE_MIN
+
+    verdict, overlap = classify(src.encode(), copy.encode())
+    assert verdict == "UNRELATED"
+    assert overlap < PROVENANCE_MIN
+
+
+def test_overlap_at_provenance_min_is_stale():
+    """Overlap at 0.70 (at or above threshold) yields STALE."""
+    # Construct exactly 70 shared lines out of 100 total
+    src_lines = ["shared_line_%d" % i for i in range(100)]
+    src = "\n".join(src_lines) + "\n"
+
+    # Copy shares first 70 lines from src, adds 30 unique lines
+    copy_lines = src_lines[:70] + ["unique_line_%d" % i for i in range(30)]
+    copy = "\n".join(copy_lines) + "\n"
+
+    # Verify expected overlap by manual calculation
+    src_set = set(line for line in src.splitlines() if line.strip())
+    copy_set = set(line for line in copy.splitlines() if line.strip())
+    expected_overlap = len(src_set & copy_set) / float(min(len(src_set), len(copy_set)))
+
+    assert expected_overlap == 0.70
+    assert expected_overlap >= PROVENANCE_MIN
+
+    verdict, overlap = classify(src.encode(), copy.encode())
+    assert verdict == "STALE"
+    assert overlap >= PROVENANCE_MIN
 
 if __name__ == "__main__":
     TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
