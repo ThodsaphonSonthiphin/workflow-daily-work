@@ -3,13 +3,13 @@
 Run: python test_check_plugin_copies.py   (or: pytest)"""
 import json
 import os
+import subprocess
 import tempfile
-
-import pytest
 
 from check_plugin_copies import (normalize, content_hash, read_normalized,
                                  load_registry, marketplace_root,
-                                 plugin_root, source_skills)
+                                 plugin_root, source_skills, git_output,
+                                 source_blockers)
 
 
 def _write(path, text, eol="\n"):
@@ -151,9 +151,80 @@ def test_plugins_value_is_string_instead_of_list_exits_2():
             assert exc.code == 2, f"Expected exit 2, got {exc.code}"
 
 
-TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
+def _git(repo, *args):
+    subprocess.run(["git", "-C", repo] + list(args),
+                   check=True, capture_output=True)
+
+
+def _repo_with_plugin(d):
+    """A real git repo holding plugins/myplug/skills/alpha/SKILL.md."""
+    _git_init = ["git", "init", "-q", "-b", "main", d]
+    subprocess.run(_git_init, check=True, capture_output=True)
+    _git(d, "config", "user.email", "t@example.invalid")
+    _git(d, "config", "user.name", "Test")
+    _git(d, "config", "commit.gpgsign", "false")
+    plug = os.path.join(d, "plugins", "myplug")
+    _write(os.path.join(plug, "skills", "alpha", "SKILL.md"), "alpha v1\n")
+    _git(d, "add", "-A")
+    _git(d, "commit", "-q", "-m", "initial")
+    return plug
+
+
+def test_a_clean_source_has_no_blockers():
+    with tempfile.TemporaryDirectory() as d:
+        plug = _repo_with_plugin(d)
+        assert source_blockers(plug) == []
+
+
+def test_a_non_git_source_has_no_blockers():
+    with tempfile.TemporaryDirectory() as d:
+        plug = os.path.join(d, "plugins", "myplug")
+        _write(os.path.join(plug, "skills", "alpha", "SKILL.md"), "a\n")
+        assert source_blockers(plug) == []
+
+
+def test_uncommitted_change_under_the_plugin_is_a_blocker():
+    with tempfile.TemporaryDirectory() as d:
+        plug = _repo_with_plugin(d)
+        _write(os.path.join(plug, "skills", "alpha", "SKILL.md"), "alpha v2\n")
+        blockers = source_blockers(plug)
+        assert len(blockers) == 1
+        assert "uncommitted" in blockers[0]
+
+
+def test_an_uncommitted_change_elsewhere_is_not_a_blocker():
+    with tempfile.TemporaryDirectory() as d:
+        plug = _repo_with_plugin(d)
+        _write(os.path.join(d, "README.md"), "unrelated\n")
+        assert source_blockers(plug) == []
+
+
+def test_a_branch_ahead_under_the_plugin_is_a_blocker():
+    with tempfile.TemporaryDirectory() as d:
+        plug = _repo_with_plugin(d)
+        _git(d, "checkout", "-q", "-b", "feature")
+        _write(os.path.join(plug, "skills", "alpha", "SKILL.md"), "alpha v2\n")
+        _git(d, "add", "-A")
+        _git(d, "commit", "-q", "-m", "ahead")
+        _git(d, "checkout", "-q", "main")
+        blockers = source_blockers(plug)
+        assert len(blockers) == 1
+        assert "feature" in blockers[0]
+        assert "1 commit" in blockers[0]
+
+
+def test_a_branch_ahead_only_outside_the_plugin_is_not_a_blocker():
+    with tempfile.TemporaryDirectory() as d:
+        plug = _repo_with_plugin(d)
+        _git(d, "checkout", "-q", "-b", "docs-only")
+        _write(os.path.join(d, "README.md"), "unrelated\n")
+        _git(d, "add", "-A")
+        _git(d, "commit", "-q", "-m", "docs")
+        _git(d, "checkout", "-q", "main")
+        assert source_blockers(plug) == []
 
 if __name__ == "__main__":
+    TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
     for t in TESTS:
         try:

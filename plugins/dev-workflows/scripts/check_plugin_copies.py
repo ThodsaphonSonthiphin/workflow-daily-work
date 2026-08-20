@@ -112,3 +112,52 @@ def source_skills(root):
         if os.path.isfile(candidate):
             found[name] = candidate
     return found
+
+
+def git_output(repo, *args):
+    """stdout of a git command, or None if git is absent or the command
+    failed. A None return always means 'no information', never 'no'."""
+    try:
+        result = subprocess.run(["git", "-C", repo] + list(args),
+                                capture_output=True, text=True)
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
+def source_blockers(root):
+    """Reasons the source cannot be trusted as a baseline (ADR 0106).
+
+    Empty list = trustworthy. Anything else and every downstream verdict
+    would be graded against the wrong source, so the caller must refuse.
+    """
+    top = git_output(root, "rev-parse", "--show-toplevel")
+    if not top:
+        return []                      # not a git checkout: nothing to gate
+    # Normalize both paths to canonical form for relpath calculation
+    top_normalized = os.path.normpath(os.path.realpath(top))
+    root_normalized = os.path.normpath(os.path.realpath(root))
+    rel = os.path.relpath(root_normalized, top_normalized).replace(os.sep, "/")
+    blockers = []
+
+    dirty = git_output(top, "status", "--porcelain", "--", rel)
+    if dirty:
+        blockers.append(
+            "uncommitted changes under %s (%d path(s)) - commit them first"
+            % (rel, len(dirty.splitlines())))
+
+    head = git_output(top, "rev-parse", "--abbrev-ref", "HEAD") or ""
+    refs = git_output(top, "for-each-ref", "--format=%(refname:short)",
+                      "refs/heads") or ""
+    for ref in refs.splitlines():
+        if ref == head:
+            continue
+        ahead = git_output(top, "rev-list", "--count",
+                           "HEAD..%s" % ref, "--", rel)
+        if ahead and ahead != "0":
+            blockers.append(
+                "branch %s is %s commit(s) ahead under %s - merge it first"
+                % (ref, ahead, rel))
+    return blockers
