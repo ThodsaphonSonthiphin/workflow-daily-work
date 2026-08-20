@@ -1,5 +1,23 @@
 # copy-audit — find every copy of a plugin or skill, and prove which are stale
 
+> **Superseded in part (2026-08-20, during implementation).** This spec's Mermaid
+> diagram below and its verdict table both list `MISSING` as a fourth verdict.
+> Implementation dropped it: on a real machine it produced 199 rows, none
+> actionable, inflating the summary to "299 stale" — the rule behind it (a
+> parent contributing any hit should hold every sibling skill) does not hold on
+> a real machine. **The verdicts are now exactly three: `IN SYNC`, `STALE`,
+> `UNRELATED`.** Two exclusions were also added that this spec does not
+> describe: superseded cache-version directories (only the version the install
+> manifest claims is graded) and backup snapshots under the Claude home's
+> `backups` directory are both removed from grading and counted separately,
+> because a report otherwise reads as missing rows rather than a deliberate
+> exclusion. Finally, `PROVENANCE_MIN` shipped at **0.70**, not the 0.60 this
+> spec's Classification section implies — raised during implementation once
+> the git-history-fallback and the case data were both re-examined together.
+> See `plugins/dev-workflows/scripts/check_plugin_copies.py` for the shipped
+> behaviour and `plugins/dev-workflows/skills/copy-audit/SKILL.md` for the
+> user-facing procedure.
+
 - **Date:** 2026-08-20
 - **Status:** Approved design, ready for `sp-writing-plans`
 - **Decisions taken while designing it:**

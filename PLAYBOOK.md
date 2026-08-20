@@ -99,6 +99,7 @@ flowchart TD
 | need a repeatable test-case suite (feature / change / fixed bug) | `generating-test-cases` |
 | planning my own growth / quarterly career review | `career-growth` |
 | "what did we learn?" — after a painful session or a debugging round | `reflect` — captures the DELTA (what went wrong, what was slow, what got corrected) and routes each lesson to where it will fire again: an owned skill, a project `CLAUDE.md`, a cross-project `GOTCHAS.md`, or memory. Not a what-was-done summary (that is `invoice-generator`), not one bug's root cause (that is `post-mortem`) |
+| confirm an edit actually went live everywhere, check the plugin cache, or a skill still behaves like the old version | `copy-audit` — find every copy of a plugin or skill on this machine and prove which are stale by content hash, never by name or version number alone; reports and repairs nothing itself |
 
 ### Vendored superpowers skills (ADRs 0071, 0074, 0084)
 

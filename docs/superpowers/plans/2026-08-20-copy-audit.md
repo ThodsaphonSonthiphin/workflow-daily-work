@@ -1,5 +1,18 @@
 # copy-audit Implementation Plan
 
+> **Superseded in part (2026-08-20, Task 7).** Task 6's shown code and its
+> `PROVENANCE_MIN = 0.60`, and Task 7's SKILL.md draft describing a `MISSING`
+> verdict, are both stale. `MISSING` was dropped during Task 6 (199 rows on a
+> real machine, none actionable) — the verdicts that shipped are exactly
+> `IN SYNC`, `STALE`, `UNRELATED`. `PROVENANCE_MIN` shipped at `0.70`. Two
+> grading exclusions were added that this plan does not mention: superseded
+> cache-version directories and backup snapshots under the Claude home's
+> `backups` directory. This mattered in practice: Task 7's own brief carried
+> the stale `MISSING` line forward from this plan's draft SKILL.md, and it had
+> to be caught and corrected before the skill shipped. See
+> `plugins/dev-workflows/scripts/check_plugin_copies.py` and
+> `plugins/dev-workflows/skills/copy-audit/SKILL.md` for the shipped behaviour.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use sp-subagent-driven-development (recommended) or sp-executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship a report-only checker that finds every copy of a plugin or skill on any machine and grades each against the source by CR-normalized hash.
