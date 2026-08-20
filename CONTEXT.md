@@ -264,3 +264,63 @@ byte-identical to upstream (ADR 0084 amendment). The **Resync checker** reports 
 either (ADR 0088). Reporting is all it does - it does not judge whether the change was
 good.
 _Avoid_: read-only (nothing on disk enforces it), immutable, locked, deprecated.
+
+## document-what-shipped terms (dev-workflows plugin)
+
+**Destination**:
+The place a published page lands. Two families, keyed on how a page is written: an
+**API page store** (one HTTP call per page, version token = an `ETag`) and a **git file
+store** (write the file, commit, push; version token = the commit). A plain local folder
+is the git family with the push left out. Every destination carries its own Mermaid fence
+— Azure DevOps wiki uses `::: mermaid`, GitHub a triple-backtick fence — so the fence
+belongs to the destination, not to the writer (ADR 0119).
+_Avoid_: target, wiki (one destination among several), channel (a **Channel output** is a
+message, not a page).
+
+**Destination adapter**:
+The measured recipe for one destination: how a page is addressed, read, written with a
+version token, listed, given attachments, linked to, and renamed. An adapter is
+**measured or it does not exist** — a recipe written from vendor documentation is a guess
+that fails at publish time, after the draft is finished (ADR 0118).
+_Avoid_: connector, driver, provider, integration.
+
+**Shot list**:
+The numbered list of pictures a page intends to show, one row per step, saying what each
+picture must contain. Handed to the owner **before** the draft, not after. It opens the
+**visual gate** only on an explicit answer — files, or a plain "no images" / "the diagram
+is enough"; silence leaves the gate closed (ADRs 0121, 0122).
+_Avoid_: screenshot request, attachment map (that is the later mapping of source file to
+uploaded attachment name).
+
+**Fact ledger**:
+One row for every fact on the page: the fact, the places that answered it — authored
+code, the platform's own automation, a live observation — and the date. It is the artifact
+that proves the fact gate ran, and it is what makes a page auditable without re-reading
+the system (ADR 0127).
+_Avoid_: evidence list, citation table, sources.
+
+**Provenance line**:
+The one status sentence the reader sees, naming which environment the page describes, since
+when, and whether it is proven on a real record. The ref, the build number and the queries
+stay in the record, because a branch name tells a management reader nothing and goes stale
+one deploy later (ADR 0126).
+_Avoid_: version banner, build stamp, footer.
+
+**Before-snapshot**:
+The live page's content plus its version token, fetched immediately before a write. It is
+both the generator's input and the one artifact that makes a bad publish a one-command
+restore (ADR 0129).
+_Avoid_: backup (suggests a separate copy nobody reads), cache, previous version.
+
+**Publish record**:
+The file written after a publish: version token before and after, the size change, the
+probes checked, and the link-check result. It also names the page's **origin** — a
+generator script, or a person — which decides how the next edit is made (ADRs 0129, 0130).
+_Avoid_: changelog, publish log, release note (that is one of the five document types).
+
+**Spine**:
+The section list of one document type, chosen by the reader's question — "how do I do
+this?" for a user manual, "what happens, in what order?" for a process page. Five spines
+exist; three have never been through a real publish and are marked unproven (ADRs 0124,
+0125).
+_Avoid_: template (a template is filled in; a spine is chosen), skeleton, outline.

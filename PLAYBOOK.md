@@ -61,6 +61,7 @@ flowchart TD
     WORK -- new legacy codebase --> DTL["drive-to-legacy"]
     WORK -- new CRM / D365 org --> CA["crm-archaeology"]
     WORK -- need a full SA/design document --> SAD["sa-doc"]
+    WORK -- publish a page outsiders will read --> DWS["document-what-shipped<br/>(/dev-workflows:document-what-shipped)"]
     WORK -- planning my own growth --> CG["career-growth"]
 
     WORK -- 💥 something broke --> DM["debug-mantra<br/>(diagnose)"]
@@ -95,6 +96,7 @@ flowchart TD
 | unfamiliar legacy codebase | `drive-to-legacy` |
 | unfamiliar Dynamics 365 / Dataverse org | `crm-archaeology` |
 | need a full SA&D document (use cases, diagrams, data dictionary) | `sa-doc` |
+| a page outsiders will read is about to be written or corrected - a user manual, a process and flow page, a release note, a runbook, a rules page | `document-what-shipped` (`/dev-workflows:document-what-shipped`) - one page per run, every fact measured in three places (code, platform automation, live record), a numbered shot list before drafting, and it stops at the draft until you say publish. Publishes to an Azure DevOps wiki, a GitHub wiki, a repo `docs/` folder or a plain markdown folder. Manual invocation only |
 | a change only a human can make by hand, in a console you cannot write to (CRM, cloud portal, DNS, SaaS admin, CI settings, a database GUI) | `guide-and-verify` — measure the live baseline first, hand over Go to / Do / Do not / verify-yourself steps one at a time, then prove it landed read-only in a channel other than the one they edited in |
 | need a repeatable test-case suite (feature / change / fixed bug) | `generating-test-cases` |
 | planning my own growth / quarterly career review | `career-growth` |
