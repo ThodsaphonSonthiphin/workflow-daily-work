@@ -629,7 +629,9 @@ def audit(plugin, marketplace, claude_home, agents_home, extra_roots=()):
     # claude_home/backups subtree via _under rather than matching the word
     # "backups" anywhere in a path: a project's own backups/ directory is a
     # real vendored copy and stays graded.
-    backups_root = os.path.join(claude_home, "backups")
+    # normpath: the default claude_home comes from expanduser("~/.claude"),
+    # which mixes separators, and the reason string is read by a person.
+    backups_root = os.path.normpath(os.path.join(claude_home, "backups"))
 
     scan_errors = []
     rows = []
