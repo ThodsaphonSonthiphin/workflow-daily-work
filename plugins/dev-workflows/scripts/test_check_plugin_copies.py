@@ -3,7 +3,6 @@
 Run: python test_check_plugin_copies.py   (or: pytest)"""
 import json
 import os
-import sys
 import tempfile
 
 import pytest
@@ -55,9 +54,11 @@ def test_eol_flip_alone_does_not_change_the_hash():
 
 def test_missing_registry_exits_2():
     with tempfile.TemporaryDirectory() as d:
-        with pytest.raises(SystemExit) as exc:
+        try:
             load_registry(d)
-        assert exc.value.code == 2
+            raise AssertionError("load_registry should have exited with 2")
+        except SystemExit as exc:
+            assert exc.code == 2, f"Expected exit 2, got {exc.code}"
 
 
 def test_malformed_registry_exits_2():
@@ -66,9 +67,11 @@ def test_malformed_registry_exits_2():
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             f.write("{not json")
-        with pytest.raises(SystemExit) as exc:
+        try:
             load_registry(d)
-        assert exc.value.code == 2
+            raise AssertionError("load_registry should have exited with 2")
+        except SystemExit as exc:
+            assert exc.code == 2, f"Expected exit 2, got {exc.code}"
 
 
 def test_directory_source_resolves_to_the_repo_tree():
@@ -88,9 +91,11 @@ def test_github_source_resolves_to_the_marketplace_clone():
 
 
 def test_unknown_marketplace_exits_2():
-    with pytest.raises(SystemExit) as exc:
+    try:
         marketplace_root({}, "nope")
-    assert exc.value.code == 2
+        raise AssertionError("marketplace_root should have exited with 2")
+    except SystemExit as exc:
+        assert exc.code == 2, f"Expected exit 2, got {exc.code}"
 
 
 def test_plugin_root_follows_the_marketplace_manifest():
@@ -103,9 +108,11 @@ def test_plugin_root_follows_the_marketplace_manifest():
 def test_plugin_absent_from_the_manifest_exits_2():
     with tempfile.TemporaryDirectory() as d:
         _marketplace(d, "myplug", "./plugins/myplug")
-        with pytest.raises(SystemExit) as exc:
+        try:
             plugin_root(d, "other")
-        assert exc.value.code == 2
+            raise AssertionError("plugin_root should have exited with 2")
+        except SystemExit as exc:
+            assert exc.code == 2, f"Expected exit 2, got {exc.code}"
 
 
 def test_source_skills_finds_only_dirs_holding_a_skill_file():
@@ -115,3 +122,46 @@ def test_source_skills_finds_only_dirs_holding_a_skill_file():
         os.makedirs(os.path.join(d, "skills", "gamma"))
         _write(os.path.join(d, "skills", "delta", "notes.md"), "d\n")
         assert sorted(source_skills(d)) == ["alpha", "beta"]
+
+
+def test_plugin_entry_missing_source_key_exits_2():
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, ".claude-plugin", "marketplace.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"name": "mkt", "plugins": [
+                {"name": "myplug", "version": "1.0.0"}]}, f)
+        try:
+            plugin_root(d, "myplug")
+            raise AssertionError("plugin_root should have exited with 2")
+        except SystemExit as exc:
+            assert exc.code == 2, f"Expected exit 2, got {exc.code}"
+
+
+def test_plugins_value_is_string_instead_of_list_exits_2():
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, ".claude-plugin", "marketplace.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"name": "mkt", "plugins": "not a list"}, f)
+        try:
+            plugin_root(d, "myplug")
+            raise AssertionError("plugin_root should have exited with 2")
+        except SystemExit as exc:
+            assert exc.code == 2, f"Expected exit 2, got {exc.code}"
+
+
+TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
+
+if __name__ == "__main__":
+    failed = 0
+    for t in TESTS:
+        try:
+            t()
+            print(f"PASS  {t.__name__}")
+        except AssertionError as e:
+            failed += 1
+            print(f"FAIL  {t.__name__}: {e}")
+    print(f"{len(TESTS) - failed}/{len(TESTS)} passed")
+    import sys
+    sys.exit(1 if failed else 0)

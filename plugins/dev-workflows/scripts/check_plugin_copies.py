@@ -42,17 +42,22 @@ def _die(message):
     sys.exit(2)
 
 
+def _load_json_or_die(path, what):
+    """Load a JSON file or die with exit code 2. Catches both JSON and OS errors."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (ValueError, OSError) as exc:
+        _die("%s is not valid JSON or is unreadable (%s)" % (what, exc))
+
+
 def load_registry(claude_home):
     """The marketplace registry. This is the only discovery root that is
     assumed to exist at a fixed place."""
     path = os.path.join(claude_home, "plugins", "known_marketplaces.json")
     if not os.path.isfile(path):
         _die("no marketplace registry at %s" % path)
-    try:
-        with open(path, encoding="utf-8") as f:
-            return json.load(f)
-    except ValueError as exc:
-        _die("the marketplace registry is not valid JSON (%s)" % exc)
+    return _load_json_or_die(path, "the marketplace registry")
 
 
 def marketplace_root(registry, marketplace):
@@ -81,14 +86,18 @@ def plugin_root(mkt_root, plugin):
     manifest = os.path.join(mkt_root, ".claude-plugin", "marketplace.json")
     if not os.path.isfile(manifest):
         _die("no marketplace manifest at %s" % manifest)
-    try:
-        with open(manifest, encoding="utf-8") as f:
-            data = json.load(f)
-    except ValueError as exc:
-        _die("the marketplace manifest is not valid JSON (%s)" % exc)
-    for entry in data.get("plugins") or []:
+    data = _load_json_or_die(manifest, "the marketplace manifest")
+    plugins = data.get("plugins") or []
+    if not isinstance(plugins, list):
+        _die("marketplace manifest %s: plugins must be a list, not %s"
+             % (manifest, type(plugins).__name__))
+    for entry in plugins:
         if entry.get("name") == plugin:
-            return os.path.normpath(os.path.join(mkt_root, entry["source"]))
+            source = entry.get("source")
+            if not source:
+                _die("marketplace manifest %s lists plugin %r with no source key"
+                     % (manifest, plugin))
+            return os.path.normpath(os.path.join(mkt_root, source))
     _die("marketplace manifest %s lists no plugin named %r" % (manifest, plugin))
 
 
