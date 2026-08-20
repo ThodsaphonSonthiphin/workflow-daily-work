@@ -471,6 +471,7 @@ def test_overlap_at_provenance_min_is_stale():
     assert verdict == "STALE"
     assert overlap >= PROVENANCE_MIN
 
+
 if __name__ == "__main__":
     TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

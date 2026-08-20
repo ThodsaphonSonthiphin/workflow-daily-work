@@ -302,6 +302,18 @@ def historical_hashes(path, limit=50):
 
     A copy matching one of these is certainly ours, however far it has since
     fallen behind - the case line overlap alone would misjudge.
+
+    IMPORTANT: An empty set means "no evidence found", not "confirmed no history".
+    When git cannot answer (failed rev-parse or log), this function returns an
+    empty set indistinguishably from "this file has no history". A copy that
+    would have matched a historical version then gets graded by line overlap
+    alone, and at PROVENANCE_MIN=0.70 can return UNRELATED — meaning the tool
+    says nothing about a copy that is genuinely stale.
+
+    Mitigation: The source-health gate (source_blockers) runs first and refuses
+    the whole run when git cannot answer for this repository, blocking the tool
+    before classify() is called. Holes: --allow-dirty-source bypasses the gate,
+    and calling audit() directly (as tests do) has no gate at all.
     """
     directory = os.path.dirname(path)
     top = git_output(directory, "rev-parse", "--show-toplevel")
