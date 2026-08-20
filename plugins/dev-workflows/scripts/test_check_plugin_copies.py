@@ -837,6 +837,34 @@ def test_strict_exit_code_agrees_with_the_summary_stale_count():
         assert (strict_exit == 1) == (stale_count > 0)
 
 
+def test_a_copy_under_claude_backups_is_not_graded():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        _write(os.path.join(claude, "backups", "skills-resync-2026-01-01",
+                            "alpha", "SKILL.md"), "nothing\nalike\nat\nall\n")
+        result = audit("myplug", "mkt", claude, agents)
+        backup_rows = [r for r in result["rows"] if "backups" in r["path"]]
+        assert len(backup_rows) == 1
+        assert backup_rows[0]["verdict"] == "SUPERSEDED"
+        assert backup_rows[0]["overlap"] is None
+        assert result["backups_excluded"] == 1
+        # wildly different content must not register as a finding
+        assert [r for r in result["rows"] if r["verdict"] == "STALE"] == []
+
+
+def test_a_directory_literally_named_backups_outside_claude_home_is_still_graded():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        _write(os.path.join(code, "someproject", "backups", "alpha",
+                            "SKILL.md"), "alpha v1\nshared\nlines\nmore\n")
+        result = audit("myplug", "mkt", claude, agents)
+        outside = [r for r in result["rows"]
+                  if "someproject" in r["path"] and "backups" in r["path"]]
+        assert len(outside) == 1
+        assert outside[0]["verdict"] == "STALE"
+        assert result["backups_excluded"] == 0
+
+
 if __name__ == "__main__":
     TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

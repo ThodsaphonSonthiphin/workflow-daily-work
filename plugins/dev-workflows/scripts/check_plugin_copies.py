@@ -497,10 +497,32 @@ def audit(plugin, marketplace, claude_home, agents_home, extra_roots=()):
                       "manifest names no usable version (no claim, or its "
                       "claimed directory is absent).")
 
+    # A dated backup snapshot under <claude_home>/backups is, by purpose,
+    # supposed to be behind - the same reasoning as a superseded cache
+    # version, applied to a different discovery root. Grading it would tell
+    # a reader to "edit and commit" inside what is often not even a git
+    # repo - a wrong instruction that reads as confidently actionable, the
+    # same class of failure ADR 0104 exists to prevent for the cache.
+    # Excluded at discovery time, before classify()/repair_for() ever runs,
+    # so no role's repair text can be produced for it. Scoped to the exact
+    # claude_home/backups subtree (via _under, realpath-based) rather than
+    # matching the word "backups" anywhere in a path - a project's own
+    # backups/ directory is a real vendored copy and stays graded.
+    backups_root = os.path.join(claude_home, "backups")
+
     rows = []
     superseded = 0
+    backups_excluded = 0
     for directory in scan_for_skill_dirs(roots, list(skills)):
         name = os.path.basename(directory)
+        if _under(directory, backups_root):
+            backups_excluded += 1
+            rows.append({"path": directory, "skill": name,
+                         "role": role_of(directory, claude_home, agents_home,
+                                         source_root),
+                         "verdict": "SUPERSEDED", "overlap": None,
+                         "repair": ""})
+            continue
         role = role_of(directory, claude_home, agents_home, source_root)
         if role == "cache":
             version = _cache_version(directory, claude_home, marketplace,
@@ -526,6 +548,7 @@ def audit(plugin, marketplace, claude_home, agents_home, extra_roots=()):
             "claim": claim,
             "cache_note": cache_note,
             "superseded": superseded,
+            "backups_excluded": backups_excluded,
             "warning": agent_list_warning(agents_home)}
 
 
@@ -568,6 +591,11 @@ def report(result):
               "claimed version, not graded)"
               % (result["superseded"], "y" if result["superseded"] == 1
                                        else "ies"))
+    if result.get("backups_excluded"):
+        print("%d backup snapshot%s excluded (under <claude_home>/backups, "
+              "not graded - a dated backup is supposed to be behind)"
+              % (result["backups_excluded"],
+                 "" if result["backups_excluded"] == 1 else "s"))
     print("provenance threshold: %.0f%% line overlap. A verdict's overlap "
           "shows which side of it the call came from." % (PROVENANCE_MIN * 100))
     if result["warning"]:
