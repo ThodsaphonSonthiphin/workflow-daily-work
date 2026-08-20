@@ -278,3 +278,67 @@ def source_blockers(root):
                         "branch %s is %s commit(s) ahead under %s - merge it first"
                         % (ref, ahead, rel))
     return blockers
+
+
+PROVENANCE_MIN = 0.70
+
+
+def line_overlap(a_text, b_text):
+    """Share of the smaller file's non-blank lines present in the other.
+
+    Measured against the SMALLER side so that a copy which is a strict subset
+    of the source - the common drift, a line dropped - scores 1.0 rather than
+    being penalised for the source having grown.
+    """
+    a = set(line for line in a_text.splitlines() if line.strip())
+    b = set(line for line in b_text.splitlines() if line.strip())
+    if not a or not b:
+        return 0.0
+    return len(a & b) / float(min(len(a), len(b)))
+
+
+def historical_hashes(path, limit=50):
+    """Normalized hashes of this file's previous committed versions.
+
+    A copy matching one of these is certainly ours, however far it has since
+    fallen behind - the case line overlap alone would misjudge.
+    """
+    directory = os.path.dirname(path)
+    top = git_output(directory, "rev-parse", "--show-toplevel")
+    if not top:
+        return set()
+    # Normalize both paths to resolve short forms and slashes consistently
+    top = os.path.normpath(os.path.realpath(top))
+    path_normalized = os.path.normpath(os.path.realpath(path))
+    rel = os.path.relpath(path_normalized, top).replace(os.sep, "/")
+    revs = git_output(top, "log", "--format=%H", "-n", str(limit), "--", rel)
+    hashes = set()
+    for rev in (revs or "").splitlines():
+        try:
+            blob = subprocess.run(
+                ["git", "-C", top, "show", "%s:%s" % (rev, rel)],
+                capture_output=True)
+        except OSError:
+            return hashes
+        if blob.returncode == 0:
+            hashes.add(content_hash(normalize(blob.stdout)))
+    return hashes
+
+
+def classify(src_bytes, copy_bytes, historical=()):
+    """Grade one copy against the source. Returns (verdict, overlap).
+
+    A name match alone never earns STALE (ADR 0107): provenance is confirmed
+    from content, or the copy is somebody else's and we say nothing about it.
+    """
+    src = normalize(src_bytes)
+    copy = normalize(copy_bytes)
+    if content_hash(src) == content_hash(copy):
+        return "IN SYNC", 1.0
+    if content_hash(copy) in set(historical):
+        return "STALE", 1.0
+    overlap = line_overlap(src.decode("utf-8", "replace"),
+                           copy.decode("utf-8", "replace"))
+    if overlap >= PROVENANCE_MIN:
+        return "STALE", overlap
+    return "UNRELATED", overlap

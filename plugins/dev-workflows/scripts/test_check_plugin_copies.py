@@ -11,7 +11,9 @@ from check_plugin_copies import (normalize, content_hash, read_normalized,
                                  load_registry, marketplace_root,
                                  plugin_root, source_skills, git_output,
                                  source_blockers, _git_dir_above, PRUNE,
-                                 derive_roots, scan_for_skill_dirs)
+                                 derive_roots, scan_for_skill_dirs,
+                                 PROVENANCE_MIN, line_overlap, historical_hashes,
+                                 classify)
 
 
 def _write(path, text, eol="\n"):
@@ -358,6 +360,70 @@ def test_scan_deduplicates_overlapping_roots():
         _write(os.path.join(d, "x", "alpha", "SKILL.md"), "a\n")
         hits = scan_for_skill_dirs([d, os.path.join(d, "x")], ["alpha"])
         assert len(hits) == 1
+
+
+def test_identical_content_is_in_sync():
+    verdict, overlap = classify(b"one\ntwo\n", b"one\ntwo\n")
+    assert verdict == "IN SYNC"
+    assert overlap == 1.0
+
+
+def test_crlf_only_difference_is_in_sync():
+    verdict, _ = classify(b"one\ntwo\n", b"one\r\ntwo\r\n")
+    assert verdict == "IN SYNC"
+
+
+def test_one_missing_line_is_stale_not_unrelated():
+    src = b"---\nname: alpha\ndescription: x\neffort: max\n---\nbody\n"
+    copy = b"---\nname: alpha\ndescription: x\n---\nbody\n"
+    verdict, overlap = classify(src, copy)
+    assert verdict == "STALE"
+    assert overlap == 1.0
+
+
+def test_a_same_named_file_sharing_no_lineage_is_unrelated():
+    src = b"---\nname: alpha\n---\nour body\n"
+    copy = b"---\nname: alpha\n---\nsomebody else entirely\ndifferent\nlines\n"
+    verdict, overlap = classify(src, copy)
+    assert verdict == "UNRELATED"
+    assert overlap < PROVENANCE_MIN
+
+
+def test_matching_a_historical_hash_is_stale_even_with_low_overlap():
+    src = b"completely\nrewritten\ncontent\n"
+    copy = b"the\nold\nversion\n"
+    old = content_hash(normalize(copy))
+    verdict, _ = classify(src, copy, historical={old})
+    assert verdict == "STALE"
+
+
+def test_line_overlap_ignores_blank_lines():
+    assert line_overlap("a\n\n\nb\n", "a\nb\n") == 1.0
+
+
+def test_line_overlap_of_empty_input_is_zero():
+    assert line_overlap("", "a\n") == 0.0
+    assert line_overlap("a\n", "   \n") == 0.0
+
+
+def test_historical_hashes_finds_a_previous_committed_version():
+    with tempfile.TemporaryDirectory() as d:
+        plug = _repo_with_plugin(d)
+        target = os.path.join(plug, "skills", "alpha", "SKILL.md")
+        first = content_hash(read_normalized(target))
+        _write(target, "alpha v2\n")
+        _git(d, "add", "-A")
+        _git(d, "commit", "-q", "-m", "second")
+        hashes = historical_hashes(target)
+        assert first in hashes
+        assert content_hash(normalize(b"alpha v2\n")) in hashes
+
+
+def test_historical_hashes_of_a_non_git_path_is_empty():
+    with tempfile.TemporaryDirectory() as d:
+        target = os.path.join(d, "alpha", "SKILL.md")
+        _write(target, "a\n")
+        assert historical_hashes(target) == set()
 
 if __name__ == "__main__":
     TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
