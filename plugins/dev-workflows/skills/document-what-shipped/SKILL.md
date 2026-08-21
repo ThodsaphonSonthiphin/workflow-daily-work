@@ -246,6 +246,23 @@ The protocol is the same in both families:
 Mermaid fences differ per destination (`::: mermaid` on an Azure DevOps wiki, a triple-backtick
 fence on GitHub). The fence belongs to the destination, not to the writer.
 
+**Parse every diagram before the write.** `scripts/check_mermaid.py` does it, and nothing else in
+this method can: the read-back probes check sentences, the link check checks links, and a diagram
+that does not parse renders as an error box while both pass. Measured 2026-08-21 - a sequence
+diagram published on 20 August contained
+
+    CRM-->>Portal: Quote closes; chosen schedule recorded
+
+and had never rendered once. A **semicolon terminates a statement** in mermaid, so the tail became a
+new statement and the parser demanded an arrow. Two runs went past it, both with every assert green,
+because no assert either run made was about the diagram. A `#` in a label fails the same way.
+
+The same run found the diagram was *also* factually wrong - one branch covered both a customer
+accepting and a customer rejecting, then flowed into "create booking", so it told readers a
+rejection creates a booking. Fixing only the parse error would have left a diagram that renders and
+lies, which is worse than one that fails loudly. **When a diagram fails to parse, re-read what it
+claims before you fix the syntax** - a diagram nobody could render is a diagram nobody proofread.
+
 ---
 
 ## ⑦ Prove it, then record it
@@ -276,6 +293,7 @@ Then write, in this order:
   own summary of what it measured an hour ago.
 - **To hand-edit a page a generator produced**, or hand-merge when the generator can be re-run.
 - **To put a credential on a page**, in a record, or in a commit. A signed link is a credential.
+- **To publish a diagram nobody parsed.** It renders as an error box and every other gate passes.
 - **To write a page whose environment nobody can name.**
 
 ## Red flags - stop and go back a phase
@@ -288,6 +306,7 @@ Then write, in this order:
 | "One page plus a diagram page is tidier" | two pages is two runs. ③ |
 | "The asserts passed, publish it" | asserts do not read sentences. ④ |
 | "The link is obviously right" | the last obviously-right link answered *Page does not exist*. ⑦ |
+| "The diagram looks correct" | nothing in review renders it. Parse it - ⑥ - then re-read what it claims |
 | "The brief already told me where to put it" | that is the path, not the permission. ⑤ |
 | "I will record it all at the end" | an interrupted session leaves the round trips paid and nothing to show. Write each fact as it is measured |
 

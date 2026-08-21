@@ -58,6 +58,11 @@ class AdoWiki(object):
         if not self.token:
             sys.exit("could not get an Azure DevOps token - run `az login` first")
         self._seen = {}
+        # An ADO wiki IS a git repo and its attachments are blobs under /.attachments, which is what
+        # makes them checkable at all. Measured 2026-08-21: 11 referenced attachments, all present.
+        self.git = "https://dev.azure.com/%s/%s/_apis/git/repositories/%s" % (
+            args.org, args.project, args.wiki)
+        self._attachments = None
 
     def _get(self, url):
         req = urllib.request.Request(url)
@@ -85,9 +90,32 @@ class AdoWiki(object):
     def links(self, content):
         return sorted(set(LINK.findall(content)))
 
+    def _attachment_names(self):
+        """Every blob under /.attachments, listed once per run.
+
+        The trap: `path` + `recursionLevel` answers HTTP 400 naming the fix - a COLLECTION wants
+        `scopePath`, not `path`. That error message is the only documentation of it.
+        """
+        if self._attachments is None:
+            st, d = self._get(
+                self.git + "/items?scopePath=/.attachments&recursionLevel=oneLevel"
+                "&versionDescriptor.version=wikiMaster"
+                "&versionDescriptor.versionType=branch&api-version=7.0")
+            if st != 200 or not d:
+                self._attachments = False          # could not list; fall back to not-checked
+            else:
+                self._attachments = set(
+                    i["path"].rsplit("/", 1)[-1] for i in d.get("value", [])
+                    if not i.get("isFolder"))
+        return self._attachments
+
     def exists(self, link):
         if link.startswith("/.attachments/"):
-            return None, link.rsplit("/", 1)[-1]      # None = not checked, see note below
+            name = link.rsplit("/", 1)[-1]
+            names = self._attachment_names()
+            if names is False:
+                return None, name                 # None = not checked, see note below
+            return name in names, "attachment: " + name
         path = slug_to_path(link)
         if path not in self._seen:
             st, _ = self._get(self.base + "/pages?path=" + urllib.parse.quote(path)

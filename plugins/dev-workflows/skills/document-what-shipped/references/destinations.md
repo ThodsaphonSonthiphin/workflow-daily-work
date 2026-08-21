@@ -69,6 +69,9 @@ az account get-access-token --resource 499b84ac-1321-427f-aa17-267ca6975798 \
 | create or update | `PUT /pages?path={path}`, body `{"content": "..."}` | create answers **201**; an update without `If-Match: {etag}` is **refused** |
 | rename or move | `POST /pagemoves?api-version=7.0-preview`, body `{path, newPath}` | answers **201 echoing the OLD path with a null id** - it reads like a no-op. Verify with a fresh `GET /pages?path=` |
 | upload an attachment | `PUT /attachments?name={name}` | the body must be **base64**, not raw bytes. A raw PUT answers **HTTP 500** complaining the input is not a valid Base-64 string, which reads like a corrupt file |
+| **verify** an attachment exists | `GET /_apis/git/repositories/{wiki}/items?scopePath=/.attachments&recursionLevel=oneLevel&versionDescriptor.version=wikiMaster&versionDescriptor.versionType=branch` | a wiki **is** a git repo, so its attachments are blobs and are listable - there is no wiki-API call for this. Passing `path` instead of **`scopePath`** answers **HTTP 400**, and the error text is the only documentation of the fix. Measured 2026-08-21 |
+
+**A broken image is silent, and it was unchecked until 2026-08-21.** The page renders, the alt text does not appear, and nothing 404s - the same failure shape as a dead link. The git call above is now in `scripts/check_links.py`, so an ADO run reports `0 unchecked` rather than listing attachments it declined to verify. The first run to use it found all 11 attachments present, including six that had been referenced for a day with nobody able to say whether they existed.
 
 **Addressing, and the trap that cost the run.** A space in a page title is stored as `-` in the
 filename, so a **literal hyphen must be escaped as `%2D`**. The page *"Customer quote self-service
@@ -86,7 +89,12 @@ clicking the link inside the page just published.
 **Attachments** are referenced from the page as `/.attachments/{name}`. Upload first, then the
 image links resolve with no edit.
 
-**Mermaid fence**: `::: mermaid` ... `:::` - **not** a triple-backtick fence. Avoid `<br/>` inside
+**Mermaid fence**: `::: mermaid` ... `:::` - **not** a triple-backtick fence. A block that does
+not parse renders as an **error box on the live page**, and no publish probe or link check sees it -
+run `scripts/check_mermaid.py` before the write. Two characters are measured killers inside a
+block: `;` terminates a statement, and `#` opens an entity code. The ADO container also
+reports the failing line **one lower** than the raw markdown, so count from the block, not the
+file. Avoid `<br/>` inside
 node labels (the existing pages use none, and a mechanical strip of them produced unreadable
 labels). A composite `state "X" as Y { }` was avoided in favour of two plain `stateDiagram-v2`
 blocks.
