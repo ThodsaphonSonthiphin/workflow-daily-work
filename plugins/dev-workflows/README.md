@@ -19,7 +19,7 @@ Runs on **both Claude Code and Antigravity** from this one source tree.
 
 | Skill | What it does |
 |---|---|
-| `grill-then-plan` | A domain-aware **grilling session**: interviews you one question at a time, challenges your plan against the project glossary, sharpens fuzzy terms, and captures decisions inline (`CONTEXT.md` + ADRs). Writes a design spec, then **hands off to `superpowers:writing-plans`** to produce the implementation plan. |
+| `grill-then-plan` | A domain-aware **grilling session**: interviews you one question at a time, challenges your plan against the project glossary, sharpens fuzzy terms, and captures decisions inline (`CONTEXT.md` + ADRs). Writes a design spec, then **hands off to `sp-writing-plans`** to produce the implementation plan. |
 | `problem-description` | Generate a self-contained **interactive HTML walkthrough** that explains a complex technical problem (DB error, race condition, design issue) with concrete data and manual step-through navigation. Two modes: **diagram** (boxes + data flow) and **tables** (grid state changes). |
 | `management-talk` | Reshape engineer-to-engineer content for **engineering-org leadership** (VPs, directors, PMs, release managers) and **shape it for the channel** — JIRA comment, Slack post, async standup line, email, or meeting talking-points. Keeps product names/tickets/PRs, strips code identifiers, translates mechanism into plain cause-and-effect. |
 | `fit-gap-analysis` | Compare a **target** (spec, product vision, competitor, RFP, "to-be") against a **system as actually built**. Produces an evidence-first **capability matrix** + step-by-step **user-journey comparison**, verified against the **live system** (schema + code, not docs), rolled up into **decisions**. Stack-agnostic. |
@@ -48,7 +48,7 @@ plan afterward.
 
 ```
 explore context → grill one question at a time → capture terms/ADRs inline
-   → write design spec → (on approval) hand off to superpowers:writing-plans
+   → write design spec → (on approval) hand off to sp-writing-plans
 ```
 
 - Domain-aware: cross-references your code and `CONTEXT.md`, surfaces contradictions.
@@ -56,9 +56,12 @@ explore context → grill one question at a time → capture terms/ADRs inline
   become ADRs under `docs/adr/`.
 - Spec goes to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`.
 
-> **Requires the [superpowers](https://github.com/anthropics/claude-plugins-official) plugin.**
-> The skill does a preflight check and offers to install it if missing — the final handoff to
-> `superpowers:writing-plans` cannot run without it.
+> **The [superpowers](https://github.com/anthropics/claude-plugins-official) plugin is needed two hops downstream, not by this skill.**
+> `sp-writing-plans` (the handoff) and grilling itself both run fine without it. The gap is at
+> execution: `sp-executing-plans` / `sp-subagent-driven-development` reach
+> `superpowers:finishing-a-development-branch` and `superpowers:using-git-worktrees` directly.
+> Step 0 warns once, before the first grilling question, if superpowers isn't detected — it
+> never blocks or waits.
 >
 > If you only want the grilling/docs *without* a plan, stop after the design-spec step — the spec, CONTEXT.md updates, and ADRs are already written by then.
 
@@ -171,7 +174,7 @@ EXTRACT (solution export/unpack + verified Web API queries → fragments/)
 
 ## Prerequisites
 
-- `grill-then-plan` → the **superpowers** plugin (auto-checked).
+- `grill-then-plan` → none required to run; the **superpowers** plugin is only needed two hops downstream at plan execution — Step 0 warns (non-blocking) if it's missing.
 - `problem-description` → none. Output is a single static HTML file you open in any browser.
 - `management-talk` → none.
 - `fit-gap-analysis` → none. Verifies against whatever live system you point it at (DB / API / metadata endpoint / running config); no fixed dependency.

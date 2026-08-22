@@ -71,9 +71,10 @@ cannot establish it.
 2. Ask: **"What skills do you have for daily dev work?"** — it should list
    dev-workflows skills (semantic discovery surfaces them by `description`).
 3. Trigger one by intent, e.g. **"grill my plan then write an implementation
-   plan"** → it should load `grill-then-plan` and begin the Step 0 preflight.
-   (grill-then-plan also needs a superpowers skills port installed on Antigravity;
-   if absent, Step 0 will tell you and stop — that is the correct behavior.)
+   plan"** → it should load `grill-then-plan` and begin Step 0.
+   (a superpowers skills port on Antigravity is only needed two hops downstream, at
+   plan execution — not for grilling or the `sp-writing-plans` handoff; if absent,
+   Step 0 will warn once and continue — that is the correct behavior.)
 
 If a skill that runs a bundled script (e.g. `daily`) reports it cannot find the
 script, re-run the installer and confirm it ended with `rewrote N
