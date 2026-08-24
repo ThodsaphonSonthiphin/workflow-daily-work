@@ -149,10 +149,10 @@ def test_validate_row_rejects_a_missing_field():
 # ---------- append-only (ADR 0143) ----------
 def test_append_row_writes_one_json_line(tmp_path):
     rec = str(tmp_path / pr.FILE_NAME)
-    pr.append_row(rec, _row())
+    line = pr.append_row(rec, _row())
+    assert json.loads(line)["answer"] == "Send"
     lines = io.open(rec, encoding="utf-8").read().splitlines()
     assert len(lines) == 1
-    assert json.loads(lines[0])["answer"] == "Send"
 
 
 def test_appending_leaves_every_earlier_line_byte_identical(tmp_path):
@@ -164,6 +164,26 @@ def test_appending_leaves_every_earlier_line_byte_identical(tmp_path):
     after = io.open(rec, encoding="utf-8", newline="").read()
     assert after.startswith(first)
     assert after[len(first):].count("\n") == 1
+
+
+def test_append_row_only_ever_opens_the_record_for_appending(tmp_path, monkeypatch):
+    # ADR 0143's invariant is the write MECHANISM, and no byte comparison can lock it:
+    # a re-emit with identical formatting reproduces the same bytes and passes every
+    # prefix check while still rewriting the whole file.
+    rec = str(tmp_path / pr.FILE_NAME)
+    pr.append_row(rec, _row(answer="Send"))
+    modes = []
+    real_open = pr.io.open
+
+    def spy(path, mode="r", *args, **kwargs):
+        modes.append(mode)
+        return real_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(pr.io, "open", spy)
+    pr.append_row(rec, _row(question_detail="the page title", answer="Send quote"))
+    assert modes, "append_row did not open the record at all"
+    assert all("a" in m for m in modes), "append_row opened the record in %r" % modes
+    assert not any("w" in m or "+" in m for m in modes)
 
 
 def test_iter_rows_round_trips_what_was_appended(tmp_path):
