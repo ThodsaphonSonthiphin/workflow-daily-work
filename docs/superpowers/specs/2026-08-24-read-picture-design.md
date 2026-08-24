@@ -229,11 +229,10 @@ file I/O so the format cannot drift, and the judgment stays in the skill.
 |---|---|
 | resolve the record path (`--path` > env > git root) | decide what the picture actually shows |
 | hash bytes, look up by hash or by source | choose the kind, or register a new one via `other` |
-| append one line, validate it against the schema | refuse to answer beyond the question asked |
-| report hit and miss counts | hand rows back, and say when one is flagged |
+| append one line, validate it against the schema | refuse to answer beyond the question asked, hand rows back, say when one is flagged, and report hit and miss counts |
 
 Importable seams, named to match: `resolve_path`, `hash_file`, `lookup(hash_or_source,
-kind, detail)`, `append_row(row)`, `counts()`. Importing must not auto-run; only
+kind, detail)`, `append_row(row)`. Importing must not auto-run; only
 `if __name__ == '__main__':` invokes the CLI.
 
 ## Caller wiring — the two edits
