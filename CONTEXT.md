@@ -324,3 +324,35 @@ this?" for a user manual, "what happens, in what order?" for a process page. Fiv
 exist; three have never been through a real publish and are marked unproven (ADRs 0124,
 0125).
 _Avoid_: template (a template is filled in; a spine is chosen), skeleton, outline.
+
+## read-picture terms (dev-workflows plugin)
+
+**Picture record**:
+One file per project, at the **git root of the repo you run in**, holding what has already
+been read out of pictures — never in this marketplace repo, which ships to other people's
+machines (ADR 0142). Its path resolves at runtime the same way `daily-state.md` does. Each
+row is keyed by the image's **content hash** *and* the **Question kind** it answers, and
+carries the source it was read from plus a flag when it could not be re-checked against
+current bytes (ADRs 0136, 0139). It records only what its question asked, which is what
+makes it safe to commit (ADR 0137).
+_Avoid_: image ledger (one word from **Fact ledger**, and the two share no content —
+the collision `naming-audit` exists to catch, ADR 0141), screenshot cache, image metadata.
+
+**Question kind**:
+The named half of a **Picture record** row's key — a small enumerated set (`on-screen-text`,
+`requirement`, and siblings) that a caller picks from, adding its own detail underneath the
+name. Free text was rejected because two skills needing the same answer phrase it
+differently, so the second never gets a hit and nothing reports the miss (ADR 0138). `other`
+is allowed and obliges the run to write the new kind back into the reference file, the way
+`document-what-shipped` writes back a **Spine** its five did not cover.
+_Avoid_: prompt, brief, query (all suggest free text — the point is that it is a set).
+
+**read-picture**:
+The Skill that opens a picture, extracts only the answer to the **Question kind** it was
+handed, appends the row to the **Picture record**, and returns rows to its caller — a
+*reader*, not a record format (ADR 0135). Dispatchable as a subagent, so the calling
+conversation never holds the images. Unlike `document-what-shipped` it must stay
+**model-invocable**: `disable-model-invocation: true` would make it slash-only and
+therefore unloadable by another Skill (ADR 0141).
+_Avoid_: image reader (too generic), OCR step (it answers a question, it does not
+transcribe), vision tool.
