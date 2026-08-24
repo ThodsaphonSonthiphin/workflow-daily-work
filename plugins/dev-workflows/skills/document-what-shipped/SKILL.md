@@ -90,6 +90,13 @@ each picture must contain. "Do you have screenshots?" is not answerable; this is
 *"the diagram is enough"*. Silence, "later", "maybe", and simply moving on to another instruction
 all leave it closed - ask once more. An absent answer is not a decline.
 
+**Once the files are handed over, read them through `read-picture`.** Load the `read-picture`
+skill via your harness's mechanism, asking kind `on-screen-text` for the words this page will
+quote - button labels, page titles, status names. It answers from the project's picture record
+when that picture has already been read for the same question, and opens the image when it has
+not. Carry its not-re-checked flag into ② - a row whose bytes could not be confirmed is not
+evidence for a sentence on a published page.
+
 **A diagram may replace a picture, and it does not replace what the picture proved.** A screenshot
 is evidence the thing exists and carries the exact words on the button; a diagram shows order,
 branch and state, and proves nothing about what shipped. So when a step is covered by a diagram
