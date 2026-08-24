@@ -289,3 +289,72 @@ def test_lookup_needs_a_hash_or_a_source(tmp_path):
     rec = _seeded(tmp_path)
     with pytest.raises(ValueError, match="image_sha256 or source"):
         pr.lookup(rec, "on-screen-text", "anything")
+
+
+# ---------- the tally makes reuse observable (ADR 0138) ----------
+def test_tally_counts_each_outcome(tmp_path):
+    rec = _seeded(tmp_path)
+    tally = pr.Tally()
+    tally.add(pr.lookup(rec, "on-screen-text", "the words on the primary button",
+                        image_sha256="a" * 64))
+    tally.add(pr.lookup(rec, "on-screen-text", "the page title", image_sha256="a" * 64))
+    tally.add(pr.lookup(rec, "other", "anything", image_sha256="a" * 64))
+    tally.add(pr.lookup(rec, "on-screen-text", "the words on the primary button",
+                        source="C:/tmp/send-dialog.png"))
+    assert (tally.hit, tally.candidates, tally.miss, tally.unverified) == (2, 1, 1, 1)
+    assert "2 hit" in tally.summary()
+    assert "not re-checked" in tally.summary()
+
+
+# ---------- CLI ----------
+def test_cli_kinds_prints_the_named_set(capsys):
+    assert pr.main(["kinds"]) == 0
+    printed = capsys.readouterr().out.split()
+    assert printed == list(pr.QUESTION_KINDS)
+
+
+def test_cli_resolve_path_errors_when_not_in_repo(monkeypatch):
+    monkeypatch.delenv(pr.ENV_VAR, raising=False)
+    monkeypatch.setattr(pr, "_git_root", lambda cwd=None: None)
+    with pytest.raises(SystemExit):
+        pr.main(["resolve-path"])
+
+
+def test_cli_resolve_path_honors_env(monkeypatch, capsys):
+    monkeypatch.setenv(pr.ENV_VAR, os.path.join("/env", "z.jsonl"))
+    monkeypatch.setattr(pr, "_git_root", lambda cwd=None: None)
+    assert pr.main(["resolve-path"]) == 0
+    assert capsys.readouterr().out.strip() == os.path.join("/env", "z.jsonl")
+
+
+def test_cli_append_then_lookup_round_trip(tmp_path, capsys):
+    rec = str(tmp_path / pr.FILE_NAME)
+    img = tmp_path / "dialog.png"
+    img.write_bytes(b"\x89PNG send dialog")
+    assert pr.main([
+        "append", "--path", rec, "--file", str(img),
+        "--kind", "on-screen-text", "--detail", "the words on the primary button",
+        "--answer", "Send", "--asked-by", "document-what-shipped",
+    ]) == 0
+    capsys.readouterr()
+    assert pr.main([
+        "lookup", "--path", rec, "--file", str(img),
+        "--kind", "on-screen-text", "--detail", "the words on the primary button",
+        "--json",
+    ]) == 0
+    blob = json.loads(capsys.readouterr().out)
+    assert blob["outcome"] == "hit"
+    assert blob["row"]["answer"] == "Send"
+    assert blob["bytes_verified"] is True
+
+
+def test_cli_append_refuses_an_unknown_kind(tmp_path):
+    rec = str(tmp_path / pr.FILE_NAME)
+    img = tmp_path / "d.png"
+    img.write_bytes(b"x")
+    with pytest.raises(SystemExit):
+        pr.main([
+            "append", "--path", rec, "--file", str(img),
+            "--kind", "error-state", "--detail", "d",
+            "--answer", "a", "--asked-by", "someone",
+        ])

@@ -232,3 +232,128 @@ def lookup(record_path, question_kind, question_detail, image_sha256=None, sourc
     elif candidates:
         result["outcome"] = "candidates"
     return result
+
+
+_OUTCOME_COUNTER = {"hit": "hit", "candidates": "candidates", "no-answer": "miss"}
+
+
+class Tally(object):
+    """Counts the outcomes of one run's lookups. ADR 0138's argument against free-text
+    keys is that a hit which never happens is silent — so the reader reports its own
+    hit and miss counts rather than hiding the same thing."""
+
+    def __init__(self):
+        self.hit = 0
+        self.candidates = 0
+        self.miss = 0
+        self.unverified = 0
+
+    def add(self, result):
+        name = _OUTCOME_COUNTER[result["outcome"]]
+        setattr(self, name, getattr(self, name) + 1)
+        if not result["bytes_verified"]:
+            self.unverified += 1
+        return self
+
+    def summary(self):
+        return (
+            "picture record: %d hit, %d candidates-only, %d no-answer, "
+            "%d not re-checked against current bytes"
+            % (self.hit, self.candidates, self.miss, self.unverified)
+        )
+
+
+def _resolved_or_die(args):
+    path = resolve_path(path=args.path, env_value=os.environ.get(ENV_VAR))
+    if not path:
+        raise SystemExit(
+            "not inside a git repo and no --path or %s given - ask where the record "
+            "should live rather than guessing" % ENV_VAR
+        )
+    return path
+
+
+def _source_of(args):
+    """Return (image_sha256, source, source_kind) from either --file or the explicit trio."""
+    if args.file:
+        return hash_file(args.file), args.file, args.source_kind or "local-path"
+    return args.sha, args.source, args.source_kind or "url"
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Read/write the per-project picture record.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    p_resolve = subparsers.add_parser("resolve-path")
+    p_resolve.add_argument("--path")
+
+    subparsers.add_parser("kinds")
+
+    p_hash = subparsers.add_parser("hash")
+    p_hash.add_argument("file")
+
+    for name in ("lookup", "append"):
+        sub = subparsers.add_parser(name)
+        sub.add_argument("--path")
+        sub.add_argument("--kind", required=True, choices=list(QUESTION_KINDS))
+        sub.add_argument("--detail", required=True)
+        sub.add_argument("--file")
+        sub.add_argument("--sha")
+        sub.add_argument("--source")
+        sub.add_argument("--source-kind", choices=list(SOURCE_KINDS))
+        if name == "lookup":
+            sub.add_argument("--json", action="store_true")
+        else:
+            sub.add_argument("--answer", required=True)
+            sub.add_argument("--asked-by", required=True)
+
+    args = parser.parse_args(argv)
+
+    if args.command == "kinds":
+        for kind in QUESTION_KINDS:
+            print(kind)
+        return 0
+
+    if args.command == "hash":
+        print(hash_file(args.file))
+        return 0
+
+    if args.command == "resolve-path":
+        print(_resolved_or_die(args))
+        return 0
+
+    record_path = _resolved_or_die(args)
+    sha, source, source_kind = _source_of(args)
+
+    if args.command == "lookup":
+        result = lookup(
+            record_path, args.kind, args.detail,
+            image_sha256=sha if args.file else None,
+            source=None if args.file else source,
+        )
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            print("%s | bytes_verified=%s" % (result["outcome"], result["bytes_verified"]))
+            if result["row"]:
+                print(result["row"]["answer"])
+            for candidate in result["candidates"]:
+                print("candidate: %s -> %s"
+                      % (candidate["question_detail"], candidate["answer"]))
+        return 0
+
+    try:
+        row = make_row(
+            image_sha256=sha, source=source, source_kind=source_kind,
+            question_kind=args.kind, question_detail=args.detail,
+            answer=args.answer, asked_by=args.asked_by,
+        )
+    except ValueError as err:
+        raise SystemExit(str(err))
+    append_row(record_path, row)
+    print("appended to %s" % record_path)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
