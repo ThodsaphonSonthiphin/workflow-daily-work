@@ -21,15 +21,19 @@ Subcommands:
   hash <file>
       Print the SHA-256 of a file's bytes.
   lookup --kind K --detail D (--file F | --source S) [--path P] [--json]
-      Report hit / candidates / no-answer plus bytes_verified.
+      Report hit / candidates / no-answer plus bytes_verified. Refuses with a
+      clear message, before any read, when neither --file nor --source is given.
   append --kind K --detail D --answer A --asked-by S
-         (--file F | --sha H --source S --source-kind SK) [--path P]
-      Validate and append exactly one line.
+         (--file F [--source S] | --sha H --source S) [--source-kind SK] [--path P]
+      Validate and append exactly one line. Refuses with a clear message, before
+      any write, unless the identity given actually names a picture: --file alone,
+      --file with a --source that supersedes it as the durable identity (a
+      downloaded attachment's real URL, say), or --sha and --source together.
 
 Importable as a module: resolve_path, hash_file, normalize_detail, make_row,
-validate_row, append_row, iter_rows, lookup and Tally are pure functions and
-classes whose only side effects are the reads and writes named. The CLI lives
-under `if __name__ == "__main__":` so importing never auto-runs.
+validate_row, append_row, iter_rows and lookup are pure functions whose only side
+effects are the reads and writes named. The CLI lives under
+`if __name__ == "__main__":` so importing never auto-runs.
 
 Dependencies: none beyond the standard library.
 """
@@ -75,6 +79,26 @@ ROW_FIELDS = (
 )
 
 _UNSET = object()
+
+_URL_SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*://")
+
+# Partial guard, not the whitelist itself. "No credential, ever" (the contract's
+# safety section) is enforced by the read-picture SKILL reading the picture and
+# choosing what to write down; this only catches the shapes measured in practice -
+# a signed query string, or a bearer token pasted into an answer - so an obvious
+# slip does not sail past validate_row. It is not a substitute for the SKILL's
+# own judgment.
+_CREDENTIAL_MARKERS = ("sig=", "sv=", "token=", "Bearer ")
+
+
+def _looks_like_a_credential(answer):
+    if not answer:
+        return False
+    return any(marker in answer for marker in _CREDENTIAL_MARKERS)
+
+
+def _non_empty_string(value):
+    return isinstance(value, str) and value.strip() != ""
 
 
 def _git_root(cwd=None):
@@ -124,7 +148,8 @@ def normalize_detail(detail):
 
 def validate_row(row):
     """Raise ValueError unless the row is exactly the contract's nine fields with
-    known enum values. Returns the row so callers can wrap it."""
+    known enum values, both key fields actually hold a value, and the answer does
+    not carry an obvious credential shape. Returns the row so callers can wrap it."""
     missing = [name for name in ROW_FIELDS if name not in row]
     if missing:
         raise ValueError("row is missing required field(s): %s" % ", ".join(missing))
@@ -135,6 +160,18 @@ def validate_row(row):
         raise ValueError(
             "schema_version must be %d, got %r" % (SCHEMA_VERSION, row["schema_version"])
         )
+    # Both halves of the key must actually hold a value - a row with a null hash
+    # AND a null source writes successfully and can never be found again, because
+    # the file is append-only and there is no way to edit it back out.
+    if not _non_empty_string(row.get("image_sha256")):
+        raise ValueError(
+            "image_sha256 must be a non-empty string - a keyless row can never be "
+            "found again"
+        )
+    if not _non_empty_string(row.get("source")):
+        raise ValueError(
+            "source must be a non-empty string - a keyless row can never be found again"
+        )
     if row["question_kind"] not in QUESTION_KINDS:
         raise ValueError(
             "question_kind %r is not in the named set (%s)"
@@ -144,6 +181,11 @@ def validate_row(row):
         raise ValueError(
             "source_kind %r is not one of (%s)"
             % (row["source_kind"], ", ".join(SOURCE_KINDS))
+        )
+    if _looks_like_a_credential(row.get("answer")):
+        raise ValueError(
+            "answer looks like it carries a credential (a signed query string, or a "
+            "Bearer token) - no credential is ever recorded, for any reader"
         )
     return row
 
@@ -175,11 +217,22 @@ def append_row(record_path, row):
     return line
 
 
-def iter_rows(record_path):
+def _warn_bad_line(number):
+    print("picture record line %d is not valid JSON - skipped" % number, file=sys.stderr)
+
+
+def iter_rows(record_path, on_bad_line=None):
     """Yield each row in file order — which is chronological, because the file is
-    append-only. A blank line is skipped; malformed JSON names its line number."""
+    append-only. A blank line is skipped. A line that is not valid JSON is skipped
+    too, never silently: on_bad_line(line_number) is called for it (default: a
+    stderr warning naming the line). One torn line - a hand edit, or the tail of an
+    interrupted write - must not brick every lookup against every other line in the
+    file, and the contract designates a human who greps and edits by hand as a
+    first-class reader of this file."""
     if not record_path or not os.path.exists(record_path):
         return
+    if on_bad_line is None:
+        on_bad_line = _warn_bad_line
     with io.open(record_path, encoding="utf-8", newline="") as handle:
         for number, raw in enumerate(handle, 1):
             text = raw.strip()
@@ -188,10 +241,12 @@ def iter_rows(record_path):
             try:
                 yield json.loads(text)
             except ValueError:
-                raise ValueError("picture record line %d is not valid JSON" % number)
+                on_bad_line(number)
+                continue
 
 
-def lookup(record_path, question_kind, question_detail, image_sha256=None, source=None):
+def lookup(record_path, question_kind, question_detail, image_sha256=None, source=None,
+           file_path=None):
     """Find the row that answers this question about this image.
 
     Keyed on hash + kind + detail (ADRs 0136, 0138). Matching on the detail is
@@ -199,12 +254,22 @@ def lookup(record_path, question_kind, question_detail, image_sha256=None, sourc
     script stays deterministic and the judgment of whether a near-miss row is good
     enough stays in the SKILL, which must default to re-reading.
 
-    Pass image_sha256 when the bytes are present, source when they are gone. The
-    returned bytes_verified is the ADR 0139 flag: it lives on the result, never on a
-    stored line.
+    Pass file_path when the bytes are present and you want THIS call to prove it:
+    lookup hashes them itself, and the returned bytes_verified is true because of
+    work this call actually did. Pass image_sha256 directly when you already know
+    the hash (for example, one read out of a stored row) — that gets
+    bytes_verified=False, because no bytes were checked in this call; it says
+    nothing about whether the hash is correct, only that this lookup did not verify
+    it. Pass source when the bytes are gone. bytes_verified is the ADR 0139 flag:
+    it lives on the result, never on a stored line.
     """
+    if file_path:
+        image_sha256 = hash_file(file_path)
+        bytes_verified = True
+    else:
+        bytes_verified = False
     if not image_sha256 and not source:
-        raise ValueError("lookup needs image_sha256 or source")
+        raise ValueError("lookup needs image_sha256 or source (or file_path)")
     wanted = normalize_detail(question_detail)
     exact = None
     candidates = []
@@ -224,7 +289,7 @@ def lookup(record_path, question_kind, question_detail, image_sha256=None, sourc
         "outcome": "no-answer",
         "row": None,
         "candidates": candidates,
-        "bytes_verified": bool(image_sha256),
+        "bytes_verified": bytes_verified,
     }
     if exact is not None:
         result["outcome"] = "hit"
@@ -232,35 +297,6 @@ def lookup(record_path, question_kind, question_detail, image_sha256=None, sourc
     elif candidates:
         result["outcome"] = "candidates"
     return result
-
-
-_OUTCOME_COUNTER = {"hit": "hit", "candidates": "candidates", "no-answer": "miss"}
-
-
-class Tally(object):
-    """Counts the outcomes of one run's lookups. ADR 0138's argument against free-text
-    keys is that a hit which never happens is silent — so the reader reports its own
-    hit and miss counts rather than hiding the same thing."""
-
-    def __init__(self):
-        self.hit = 0
-        self.candidates = 0
-        self.miss = 0
-        self.unverified = 0
-
-    def add(self, result):
-        name = _OUTCOME_COUNTER[result["outcome"]]
-        setattr(self, name, getattr(self, name) + 1)
-        if not result["bytes_verified"]:
-            self.unverified += 1
-        return self
-
-    def summary(self):
-        return (
-            "picture record: %d hit, %d candidates-only, %d no-answer, "
-            "%d not re-checked against current bytes"
-            % (self.hit, self.candidates, self.miss, self.unverified)
-        )
 
 
 def _resolved_or_die(args):
@@ -273,11 +309,58 @@ def _resolved_or_die(args):
     return path
 
 
-def _source_of(args):
-    """Return (image_sha256, source, source_kind) from either --file or the explicit trio."""
+def _require_identity(args, command):
+    """Raise SystemExit unless the arguments actually name a picture - checked
+    before any read or write, so a call that cannot be found again is refused
+    instead of silently succeeding.
+
+    append's valid forms: --file alone, --file with --source (the durable identity
+    supersedes the temp path --file supplies bytes from), or --sha and --source
+    together. lookup's valid forms: --file alone, or --source alone (the bytes may
+    be gone)."""
     if args.file:
-        return hash_file(args.file), args.file, args.source_kind or "local-path"
-    return args.sha, args.source, args.source_kind or "url"
+        return
+    if command == "append":
+        if not (args.sha and args.source):
+            raise SystemExit(
+                "append needs --file, or --sha and --source together - refusing to "
+                "write a row with no identity (both halves of the key must hold a "
+                "value, or the row can never be found again)"
+            )
+        return
+    if not args.source:
+        raise SystemExit(
+            "lookup needs --file or --source - refusing to guess what picture is meant"
+        )
+
+
+def _default_source_kind(source):
+    """local-path unless the source looks like a URL. Used only when --source-kind
+    is not given explicitly."""
+    return "url" if _URL_SCHEME.match(source or "") else "local-path"
+
+
+def _source_of(args):
+    """Return (image_sha256, source, source_kind) for append. Caller must have
+    already validated the identity with _require_identity.
+
+    --file supplies the bytes to hash. --source, when also given, supplies the
+    durable identity - a downloaded attachment's real URL rather than the temp path
+    it was saved to - and wins over --file as the stored `source`. Without --file,
+    --sha and --source together are the explicit trio."""
+    if args.file:
+        try:
+            sha = hash_file(args.file)
+        except OSError as err:
+            raise SystemExit(
+                "cannot read --file %r (%s) - the bytes are gone; supply --sha and "
+                "--source instead if you still know where they came from" % (args.file, err)
+            )
+        source = args.source or args.file
+        source_kind = args.source_kind or _default_source_kind(source)
+        return sha, source, source_kind
+    source_kind = args.source_kind or _default_source_kind(args.source)
+    return args.sha, args.source, source_kind
 
 
 def main(argv=None):
@@ -323,14 +406,21 @@ def main(argv=None):
         return 0
 
     record_path = _resolved_or_die(args)
-    sha, source, source_kind = _source_of(args)
 
     if args.command == "lookup":
-        result = lookup(
-            record_path, args.kind, args.detail,
-            image_sha256=sha if args.file else None,
-            source=None if args.file else source,
-        )
+        _require_identity(args, "lookup")
+        try:
+            result = lookup(
+                record_path, args.kind, args.detail,
+                file_path=args.file or None,
+                source=None if args.file else args.source,
+            )
+        except OSError as err:
+            raise SystemExit(
+                "cannot read --file %r (%s) - the bytes are gone; look up by "
+                "--source instead if you still know where they came from"
+                % (args.file, err)
+            )
         if args.json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
@@ -341,6 +431,9 @@ def main(argv=None):
                 print("candidate: %s -> %s"
                       % (candidate["question_detail"], candidate["answer"]))
         return 0
+
+    _require_identity(args, "append")
+    sha, source, source_kind = _source_of(args)
 
     try:
         row = make_row(

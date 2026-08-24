@@ -70,6 +70,13 @@ def test_resolve_path_returns_none_when_not_in_repo():
     assert pr.resolve_path(path=None, env_value=None, git_root=None) is None
 
 
+def test_git_root_returns_none_outside_any_repo(tmp_path):
+    # The actual `git rev-parse` call and its empty-stdout-to-None detection, which
+    # ADR 0142 rests on, is otherwise never exercised - every other path test
+    # injects git_root= or monkeypatches _git_root away.
+    assert pr._git_root(cwd=str(tmp_path)) is None
+
+
 # ---------- hashing (the first half of the key, ADR 0136) ----------
 def test_hash_file_is_stable_and_content_addressed(tmp_path):
     a = tmp_path / "a.png"
@@ -146,6 +153,38 @@ def test_validate_row_rejects_a_missing_field():
         pr.validate_row(bad)
 
 
+# ---------- both halves of the key must hold a value (the keyless-row bug) ----------
+def test_validate_row_rejects_an_empty_image_sha256():
+    with pytest.raises(ValueError, match="image_sha256"):
+        _row(image_sha256="")
+
+
+def test_validate_row_rejects_a_none_image_sha256():
+    with pytest.raises(ValueError, match="image_sha256"):
+        _row(image_sha256=None)
+
+
+def test_validate_row_rejects_an_empty_source():
+    with pytest.raises(ValueError, match="source"):
+        _row(source="")
+
+
+def test_validate_row_rejects_a_none_source():
+    with pytest.raises(ValueError, match="source"):
+        _row(source=None)
+
+
+# ---------- the partial credential guard (a cheap, honest, non-whitelist check) ----------
+def test_validate_row_rejects_an_answer_with_a_signed_query_string():
+    with pytest.raises(ValueError, match="credential"):
+        _row(answer="see https://dev.azure.com/x/attachments/abc?sv=2020&sig=deadbeef")
+
+
+def test_validate_row_still_accepts_an_ordinary_answer():
+    # The guard is partial and must not false-positive on plain prose.
+    assert _row(answer="Send quote")["answer"] == "Send quote"
+
+
 # ---------- append-only (ADR 0143) ----------
 def test_append_row_writes_one_json_line(tmp_path):
     rec = str(tmp_path / pr.FILE_NAME)
@@ -198,11 +237,21 @@ def test_iter_rows_on_a_missing_file_yields_nothing(tmp_path):
     assert list(pr.iter_rows(str(tmp_path / "nope.jsonl"))) == []
 
 
-def test_iter_rows_names_the_line_number_of_bad_json(tmp_path):
+def test_iter_rows_skips_bad_json_and_reports_the_line_number(tmp_path):
+    # One torn line - a hand edit, or the tail of an interrupted write - must not
+    # brick every lookup against every other line in the file.
     rec = tmp_path / pr.FILE_NAME
     rec.write_text('{"ok": 1}\nnot json\n', encoding="utf-8")
-    with pytest.raises(ValueError, match="line 2"):
-        list(pr.iter_rows(str(rec)))
+    skipped = []
+    list(pr.iter_rows(str(rec), on_bad_line=skipped.append))
+    assert skipped == [2]
+
+
+def test_iter_rows_skips_one_bad_line_and_still_yields_the_good_rows(tmp_path):
+    rec = tmp_path / pr.FILE_NAME
+    rec.write_text('{"ok": 1}\nnot json\n{"ok": 2}\n', encoding="utf-8")
+    got = list(pr.iter_rows(str(rec), on_bad_line=lambda n: None))
+    assert got == [{"ok": 1}, {"ok": 2}]
 
 
 # ---------- lookup: the key is hash + kind + detail (ADRs 0136, 0138) ----------
@@ -222,7 +271,9 @@ def test_same_hash_same_kind_same_detail_is_a_hit(tmp_path):
                     image_sha256="a" * 64)
     assert got["outcome"] == "hit"
     assert got["row"]["answer"] == "Send"
-    assert got["bytes_verified"] is True
+    # A bare hash the caller already had is not bytes this call verified (ADR 0139) -
+    # see the file_path tests below for the case that DOES verify bytes.
+    assert got["bytes_verified"] is False
 
 
 def test_detail_match_ignores_case_and_spacing(tmp_path):
@@ -230,6 +281,7 @@ def test_detail_match_ignores_case_and_spacing(tmp_path):
     got = pr.lookup(rec, "on-screen-text", "The Words  On The PRIMARY Button",
                     image_sha256="a" * 64)
     assert got["outcome"] == "hit"
+    assert got["bytes_verified"] is False
 
 
 def test_a_new_kind_on_the_same_file_is_not_a_hit(tmp_path):
@@ -247,6 +299,7 @@ def test_a_near_miss_returns_candidates_never_a_hit(tmp_path):
     assert got["outcome"] == "candidates"
     assert got["row"] is None
     assert [c["answer"] for c in got["candidates"]] == ["Send"]
+    assert got["bytes_verified"] is False
 
 
 def test_a_different_image_is_not_a_hit(tmp_path):
@@ -266,6 +319,7 @@ def test_the_newest_line_wins_because_the_file_is_chronological(tmp_path):
     got = pr.lookup(rec, "on-screen-text", "the words on the primary button",
                     image_sha256="a" * 64)
     assert got["row"]["answer"] == "Send quote"
+    assert got["bytes_verified"] is False
 
 
 # ---------- the flag: found by source, bytes gone (ADR 0139) ----------
@@ -291,19 +345,128 @@ def test_lookup_needs_a_hash_or_a_source(tmp_path):
         pr.lookup(rec, "on-screen-text", "anything")
 
 
-# ---------- the tally makes reuse observable (ADR 0138) ----------
-def test_tally_counts_each_outcome(tmp_path):
-    rec = _seeded(tmp_path)
-    tally = pr.Tally()
-    tally.add(pr.lookup(rec, "on-screen-text", "the words on the primary button",
-                        image_sha256="a" * 64))
-    tally.add(pr.lookup(rec, "on-screen-text", "the page title", image_sha256="a" * 64))
-    tally.add(pr.lookup(rec, "other", "anything", image_sha256="a" * 64))
-    tally.add(pr.lookup(rec, "on-screen-text", "the words on the primary button",
-                        source="C:/tmp/send-dialog.png"))
-    assert (tally.hit, tally.candidates, tally.miss, tally.unverified) == (2, 1, 1, 1)
-    assert "2 hit" in tally.summary()
-    assert "not re-checked" in tally.summary()
+# ---------- bytes_verified reflects work done THIS call (ADR 0139) ----------
+def test_lookup_with_file_path_hashes_and_verifies_bytes(tmp_path):
+    rec = str(tmp_path / pr.FILE_NAME)
+    img = tmp_path / "dialog.png"
+    img.write_bytes(b"\x89PNG send dialog")
+    sha = pr.hash_file(str(img))
+    pr.append_row(rec, _row(image_sha256=sha, answer="Send"))
+    got = pr.lookup(rec, "on-screen-text", "the words on the primary button",
+                    file_path=str(img))
+    assert got["outcome"] == "hit"
+    assert got["bytes_verified"] is True
+
+
+def test_lookup_with_a_bare_hash_is_not_bytes_verified_even_on_a_hit(tmp_path):
+    # A caller that already knows the hash (e.g. one read out of a stored row) did
+    # not hash anything THIS call - bytes_verified must say so, not just "a hash
+    # was supplied".
+    rec = str(tmp_path / pr.FILE_NAME)
+    img = tmp_path / "dialog.png"
+    img.write_bytes(b"\x89PNG send dialog")
+    sha = pr.hash_file(str(img))
+    pr.append_row(rec, _row(image_sha256=sha, answer="Send"))
+    got = pr.lookup(rec, "on-screen-text", "the words on the primary button",
+                    image_sha256=sha)
+    assert got["outcome"] == "hit"
+    assert got["bytes_verified"] is False
+
+
+# ---------- the keyless-row bug: refused before any write (CRITICAL) ----------
+def test_cli_append_refuses_with_no_identity(tmp_path):
+    rec = str(tmp_path / pr.FILE_NAME)
+    with pytest.raises(SystemExit):
+        pr.main([
+            "append", "--path", rec,
+            "--kind", "on-screen-text", "--detail", "d",
+            "--answer", "a", "--asked-by", "someone",
+        ])
+    assert not os.path.exists(rec)
+
+
+def test_cli_append_refuses_sha_without_source(tmp_path):
+    rec = str(tmp_path / pr.FILE_NAME)
+    with pytest.raises(SystemExit):
+        pr.main([
+            "append", "--path", rec, "--sha", "a" * 64,
+            "--kind", "on-screen-text", "--detail", "d",
+            "--answer", "a", "--asked-by", "someone",
+        ])
+    assert not os.path.exists(rec)
+
+
+def test_cli_lookup_refuses_with_no_identity(tmp_path):
+    rec = str(tmp_path / pr.FILE_NAME)
+    with pytest.raises(SystemExit):
+        pr.main(["lookup", "--path", rec, "--kind", "on-screen-text", "--detail", "d"])
+
+
+# ---------- --file plus --source: the durable identity wins (the discarded-source bug) ----------
+def test_append_with_file_and_source_stores_the_durable_source(tmp_path):
+    rec = str(tmp_path / pr.FILE_NAME)
+    img = tmp_path / "attachment.png"
+    img.write_bytes(b"\x89PNG attachment bytes")
+    url = "https://dev.azure.com/org/project/_apis/wit/attachments/abc-123"
+    assert pr.main([
+        "append", "--path", rec, "--file", str(img), "--source", url,
+        "--source-kind", "ado-attachment",
+        "--kind", "requirement", "--detail", "what the annotation asks for",
+        "--answer", "Rename Auto to Vehicles", "--asked-by", "ticket-trace",
+    ]) == 0
+    rows = list(pr.iter_rows(rec))
+    assert rows[0]["source"] == url
+    assert rows[0]["source_kind"] == "ado-attachment"
+    assert rows[0]["image_sha256"] == pr.hash_file(str(img))
+
+
+def test_append_with_file_and_source_defaults_source_kind_to_url(tmp_path):
+    rec = str(tmp_path / pr.FILE_NAME)
+    img = tmp_path / "attachment.png"
+    img.write_bytes(b"\x89PNG attachment bytes")
+    url = "https://dev.azure.com/org/project/_apis/wit/attachments/abc-123"
+    assert pr.main([
+        "append", "--path", rec, "--file", str(img), "--source", url,
+        "--kind", "requirement", "--detail", "d",
+        "--answer", "a", "--asked-by", "ticket-trace",
+    ]) == 0
+    rows = list(pr.iter_rows(rec))
+    assert rows[0]["source_kind"] == "url"
+
+
+def test_append_with_file_alone_still_defaults_source_kind_to_local_path(tmp_path):
+    rec = str(tmp_path / pr.FILE_NAME)
+    img = tmp_path / "d.png"
+    img.write_bytes(b"x")
+    assert pr.main([
+        "append", "--path", rec, "--file", str(img),
+        "--kind", "on-screen-text", "--detail", "d",
+        "--answer", "a", "--asked-by", "someone",
+    ]) == 0
+    rows = list(pr.iter_rows(rec))
+    assert rows[0]["source"] == str(img)
+    assert rows[0]["source_kind"] == "local-path"
+
+
+# ---------- hash_file on a missing file: a designed state, not a traceback ----------
+def test_cli_append_refuses_a_missing_file(tmp_path):
+    rec = str(tmp_path / pr.FILE_NAME)
+    with pytest.raises(SystemExit):
+        pr.main([
+            "append", "--path", rec, "--file", str(tmp_path / "does-not-exist.png"),
+            "--kind", "on-screen-text", "--detail", "d",
+            "--answer", "a", "--asked-by", "someone",
+        ])
+    assert not os.path.exists(rec)
+
+
+def test_cli_lookup_refuses_a_missing_file(tmp_path):
+    rec = str(tmp_path / pr.FILE_NAME)
+    with pytest.raises(SystemExit):
+        pr.main([
+            "lookup", "--path", rec, "--file", str(tmp_path / "does-not-exist.png"),
+            "--kind", "on-screen-text", "--detail", "d",
+        ])
 
 
 # ---------- CLI ----------
