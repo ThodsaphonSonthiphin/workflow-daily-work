@@ -110,3 +110,82 @@ def hash_file(file_path):
         for chunk in iter(lambda: handle.read(65536), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+_WHITESPACE = re.compile(r"\s+")
+
+
+def normalize_detail(detail):
+    """Fold case and collapse whitespace, so two callers wording the same request
+    slightly differently still match. Anything beyond this is judgment and belongs
+    in the SKILL, not here."""
+    return _WHITESPACE.sub(" ", (detail or "").strip().lower())
+
+
+def validate_row(row):
+    """Raise ValueError unless the row is exactly the contract's nine fields with
+    known enum values. Returns the row so callers can wrap it."""
+    missing = [name for name in ROW_FIELDS if name not in row]
+    if missing:
+        raise ValueError("row is missing required field(s): %s" % ", ".join(missing))
+    unknown = [name for name in row if name not in ROW_FIELDS]
+    if unknown:
+        raise ValueError("row carries unknown field(s): %s" % ", ".join(sorted(unknown)))
+    if row["schema_version"] != SCHEMA_VERSION:
+        raise ValueError(
+            "schema_version must be %d, got %r" % (SCHEMA_VERSION, row["schema_version"])
+        )
+    if row["question_kind"] not in QUESTION_KINDS:
+        raise ValueError(
+            "question_kind %r is not in the named set (%s)"
+            % (row["question_kind"], ", ".join(QUESTION_KINDS))
+        )
+    if row["source_kind"] not in SOURCE_KINDS:
+        raise ValueError(
+            "source_kind %r is not one of (%s)"
+            % (row["source_kind"], ", ".join(SOURCE_KINDS))
+        )
+    return row
+
+
+def make_row(image_sha256, source, source_kind, question_kind, question_detail,
+             answer, asked_by, read_on=None):
+    """Build one validated row in contract field order."""
+    row = {
+        "schema_version": SCHEMA_VERSION,
+        "image_sha256": image_sha256,
+        "source": source,
+        "source_kind": source_kind,
+        "question_kind": question_kind,
+        "question_detail": question_detail,
+        "answer": answer,
+        "read_on": read_on or datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+        "asked_by": asked_by,
+    }
+    return validate_row(row)
+
+
+def append_row(record_path, row):
+    """Append exactly one line. Never rewrites, so no earlier line can be corrupted
+    by a bad round-trip (ADR 0143). Returns the line written."""
+    validate_row(row)
+    line = json.dumps(row, ensure_ascii=False, sort_keys=False) + "\n"
+    with io.open(record_path, "a", encoding="utf-8", newline="\n") as handle:
+        handle.write(line)
+    return line
+
+
+def iter_rows(record_path):
+    """Yield each row in file order — which is chronological, because the file is
+    append-only. A blank line is skipped; malformed JSON names its line number."""
+    if not record_path or not os.path.exists(record_path):
+        return
+    with io.open(record_path, encoding="utf-8", newline="") as handle:
+        for number, raw in enumerate(handle, 1):
+            text = raw.strip()
+            if not text:
+                continue
+            try:
+                yield json.loads(text)
+            except ValueError:
+                raise ValueError("picture record line %d is not valid JSON" % number)

@@ -86,3 +86,100 @@ def test_hash_file_changes_when_one_byte_changes(tmp_path):
     first = pr.hash_file(str(p))
     p.write_bytes(b"\x89PNG v2")
     assert pr.hash_file(str(p)) != first
+
+
+# ---------- helpers used by the row tests ----------
+def _row(**over):
+    base = dict(
+        image_sha256="a" * 64,
+        source="C:/tmp/send-dialog.png",
+        source_kind="local-path",
+        question_kind="on-screen-text",
+        question_detail="the words on the primary button",
+        answer="Send",
+        asked_by="document-what-shipped",
+        read_on="2026-08-24T15:40:00+07:00",
+    )
+    base.update(over)
+    return pr.make_row(**base)
+
+
+# ---------- detail normalisation ----------
+def test_normalize_detail_folds_case_and_whitespace():
+    assert pr.normalize_detail("  The   WORDS on\tthe button ") == "the words on the button"
+
+
+def test_normalize_detail_handles_none():
+    assert pr.normalize_detail(None) == ""
+
+
+# ---------- the row schema ----------
+def test_make_row_emits_every_field_in_contract_order():
+    assert tuple(_row().keys()) == pr.ROW_FIELDS
+
+
+def test_make_row_stamps_schema_version():
+    assert _row()["schema_version"] == pr.SCHEMA_VERSION
+
+
+def test_validate_row_rejects_an_unknown_question_kind():
+    with pytest.raises(ValueError, match="question_kind"):
+        _row(question_kind="error-state")
+
+
+def test_validate_row_rejects_an_unknown_source_kind():
+    with pytest.raises(ValueError, match="source_kind"):
+        _row(source_kind="sharepoint")
+
+
+def test_validate_row_rejects_an_extra_field():
+    bad = dict(_row())
+    bad["screenshot_notes"] = "everything else I saw"
+    with pytest.raises(ValueError, match="unknown field"):
+        pr.validate_row(bad)
+
+
+def test_validate_row_rejects_a_missing_field():
+    bad = dict(_row())
+    del bad["answer"]
+    with pytest.raises(ValueError, match="missing required field"):
+        pr.validate_row(bad)
+
+
+# ---------- append-only (ADR 0143) ----------
+def test_append_row_writes_one_json_line(tmp_path):
+    rec = str(tmp_path / pr.FILE_NAME)
+    pr.append_row(rec, _row())
+    lines = io.open(rec, encoding="utf-8").read().splitlines()
+    assert len(lines) == 1
+    assert json.loads(lines[0])["answer"] == "Send"
+
+
+def test_appending_leaves_every_earlier_line_byte_identical(tmp_path):
+    # This is the test that protects against the whole-file-rewrite scar behind ADR 0143.
+    rec = str(tmp_path / pr.FILE_NAME)
+    pr.append_row(rec, _row(answer="Send"))
+    first = io.open(rec, encoding="utf-8", newline="").read()
+    pr.append_row(rec, _row(question_detail="the page title", answer="Send quote"))
+    after = io.open(rec, encoding="utf-8", newline="").read()
+    assert after.startswith(first)
+    assert after[len(first):].count("\n") == 1
+
+
+def test_iter_rows_round_trips_what_was_appended(tmp_path):
+    rec = str(tmp_path / pr.FILE_NAME)
+    pr.append_row(rec, _row(answer="Send"))
+    pr.append_row(rec, _row(question_detail="the page title", answer="Send quote"))
+    got = [r["answer"] for r in pr.iter_rows(rec)]
+    assert got == ["Send", "Send quote"]
+
+
+def test_iter_rows_on_a_missing_file_yields_nothing(tmp_path):
+    assert list(pr.iter_rows(str(tmp_path / "nope.jsonl"))) == []
+
+
+def test_iter_rows_names_the_line_number_of_bad_json(tmp_path):
+    rec = tmp_path / pr.FILE_NAME
+    rec.write_text('{"ok": 1}\nnot json\n', encoding="utf-8")
+    with pytest.raises(ValueError, match="line 2"):
+        list(pr.iter_rows(str(rec)))
