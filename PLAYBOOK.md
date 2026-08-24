@@ -91,6 +91,7 @@ flowchart TD
 | the agent's *last message* lost you — "wait", "หา?", "งง", "say that again" | `wait-what` (`/wait-what`) — re-pitches that one message with a little context, in ASD-STE100 Simplified Technical English, using `CONTEXT.md`'s ubiquitous language. Vendored verbatim from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT); manual invocation only |
 | explaining a complex problem | `problem-description` |
 | "why does this code/ticket exist?" | `ticket-trace` |
+| a picture that has to be read - a screenshot, a ticket attachment, an exported image - and a specific question about it | `read-picture` — answers one named question per picture and records it in the project's `picture-record.jsonl`, so no later run and no other skill re-reads the same image for the same question. Called by `document-what-shipped` and `ticket-trace`; usable directly |
 | second opinion on a plan or a local diff | `scrutinize` (plans / local diffs) / `dual-verifier` (completed work) |
 | reviewing a GitHub pull request (by number or URL) | `review-pr` — context, safe workspace, `scrutinize`, then send-back / fix-it / chat-only. A local uncommitted diff goes to `scrutinize` directly |
 | unfamiliar legacy codebase | `drive-to-legacy` |
