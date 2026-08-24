@@ -1447,8 +1447,8 @@ PATH = 'plugins/dev-workflows/skills/ticket-trace/SKILL.md'
 
 OLD = '**download it with the same auth and view it**'
 NEW = ('**download it with the same auth and read it through `read-picture`** '
-       '(load that skill via your harness mechanism, kind `requirement`, which answers '
-       'from the project picture record when this attachment has already been read for '
+       "(load that skill via your harness's mechanism, kind `requirement`, which answers "
+       "from the project's picture record when this attachment has already been read for "
        'the same question and opens the image when it has not)')
 
 text = io.open(PATH, encoding='utf-8', newline='').read()
