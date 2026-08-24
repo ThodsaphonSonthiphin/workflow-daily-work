@@ -203,3 +203,89 @@ def test_iter_rows_names_the_line_number_of_bad_json(tmp_path):
     rec.write_text('{"ok": 1}\nnot json\n', encoding="utf-8")
     with pytest.raises(ValueError, match="line 2"):
         list(pr.iter_rows(str(rec)))
+
+
+# ---------- lookup: the key is hash + kind + detail (ADRs 0136, 0138) ----------
+def _seeded(tmp_path):
+    rec = str(tmp_path / pr.FILE_NAME)
+    pr.append_row(rec, _row(question_detail="the words on the primary button", answer="Send"))
+    pr.append_row(rec, _row(question_kind="requirement",
+                            answer="Rename Auto to Vehicles / Hide Breakbulk",
+                            question_detail="what the annotation asks for",
+                            asked_by="ticket-trace"))
+    return rec
+
+
+def test_same_hash_same_kind_same_detail_is_a_hit(tmp_path):
+    rec = _seeded(tmp_path)
+    got = pr.lookup(rec, "on-screen-text", "the words on the primary button",
+                    image_sha256="a" * 64)
+    assert got["outcome"] == "hit"
+    assert got["row"]["answer"] == "Send"
+    assert got["bytes_verified"] is True
+
+
+def test_detail_match_ignores_case_and_spacing(tmp_path):
+    rec = _seeded(tmp_path)
+    got = pr.lookup(rec, "on-screen-text", "The Words  On The PRIMARY Button",
+                    image_sha256="a" * 64)
+    assert got["outcome"] == "hit"
+
+
+def test_a_new_kind_on_the_same_file_is_not_a_hit(tmp_path):
+    # ADR 0136: a question nobody asked of this file is a miss.
+    rec = _seeded(tmp_path)
+    got = pr.lookup(rec, "other", "anything", image_sha256="a" * 64)
+    assert got["outcome"] == "no-answer"
+    assert got["row"] is None
+
+
+def test_a_near_miss_returns_candidates_never_a_hit(tmp_path):
+    # Same image and kind, a detail the stored row does not cover.
+    rec = _seeded(tmp_path)
+    got = pr.lookup(rec, "on-screen-text", "the page title", image_sha256="a" * 64)
+    assert got["outcome"] == "candidates"
+    assert got["row"] is None
+    assert [c["answer"] for c in got["candidates"]] == ["Send"]
+
+
+def test_a_different_image_is_not_a_hit(tmp_path):
+    rec = _seeded(tmp_path)
+    got = pr.lookup(rec, "on-screen-text", "the words on the primary button",
+                    image_sha256="b" * 64)
+    assert got["outcome"] == "no-answer"
+
+
+def test_the_newest_line_wins_because_the_file_is_chronological(tmp_path):
+    # The superseding row deliberately carries an EARLIER read_on: the file is append-only,
+    # so file order IS time order and the LAST line must win. A read_on-sorting
+    # implementation would fail this test, which is the point.
+    rec = _seeded(tmp_path)
+    pr.append_row(rec, _row(question_detail="the words on the primary button",
+                            answer="Send quote", read_on="2026-01-01T09:00:00+07:00"))
+    got = pr.lookup(rec, "on-screen-text", "the words on the primary button",
+                    image_sha256="a" * 64)
+    assert got["row"]["answer"] == "Send quote"
+
+
+# ---------- the flag: found by source, bytes gone (ADR 0139) ----------
+def test_lookup_by_source_is_flagged_not_bytes_verified(tmp_path):
+    rec = _seeded(tmp_path)
+    got = pr.lookup(rec, "on-screen-text", "the words on the primary button",
+                    source="C:/tmp/send-dialog.png")
+    assert got["outcome"] == "hit"
+    assert got["bytes_verified"] is False
+
+
+def test_no_row_and_no_bytes_is_no_answer_not_an_invention(tmp_path):
+    rec = _seeded(tmp_path)
+    got = pr.lookup(rec, "on-screen-text", "anything at all",
+                    source="C:/tmp/never-seen.png")
+    assert got["outcome"] == "no-answer"
+    assert got["row"] is None
+
+
+def test_lookup_needs_a_hash_or_a_source(tmp_path):
+    rec = _seeded(tmp_path)
+    with pytest.raises(ValueError, match="image_sha256 or source"):
+        pr.lookup(rec, "on-screen-text", "anything")

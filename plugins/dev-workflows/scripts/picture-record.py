@@ -189,3 +189,46 @@ def iter_rows(record_path):
                 yield json.loads(text)
             except ValueError:
                 raise ValueError("picture record line %d is not valid JSON" % number)
+
+
+def lookup(record_path, question_kind, question_detail, image_sha256=None, source=None):
+    """Find the row that answers this question about this image.
+
+    Keyed on hash + kind + detail (ADRs 0136, 0138). Matching on the detail is
+    deliberately literal — normalised string equality, nothing cleverer — so the
+    script stays deterministic and the judgment of whether a near-miss row is good
+    enough stays in the SKILL, which must default to re-reading.
+
+    Pass image_sha256 when the bytes are present, source when they are gone. The
+    returned bytes_verified is the ADR 0139 flag: it lives on the result, never on a
+    stored line.
+    """
+    if not image_sha256 and not source:
+        raise ValueError("lookup needs image_sha256 or source")
+    wanted = normalize_detail(question_detail)
+    exact = None
+    candidates = []
+    for row in iter_rows(record_path):
+        if row.get("question_kind") != question_kind:
+            continue
+        if image_sha256:
+            if row.get("image_sha256") != image_sha256:
+                continue
+        elif row.get("source") != source:
+            continue
+        if normalize_detail(row.get("question_detail")) == wanted:
+            exact = row  # last match wins: the file is append-only, so file order is time order
+        else:
+            candidates.append(row)
+    result = {
+        "outcome": "no-answer",
+        "row": None,
+        "candidates": candidates,
+        "bytes_verified": bool(image_sha256),
+    }
+    if exact is not None:
+        result["outcome"] = "hit"
+        result["row"] = exact
+    elif candidates:
+        result["outcome"] = "candidates"
+    return result
