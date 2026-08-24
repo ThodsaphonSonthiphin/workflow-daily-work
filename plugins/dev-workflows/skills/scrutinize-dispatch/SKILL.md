@@ -72,6 +72,15 @@ Run these in order. Do not skip ahead.
   contract for other callers, on-disk or on-wire format.
 - **How is it tested?** Do the tests exercise the traced path, or pass while skipping it
   — mocks that hide the bug, asserts on intermediate state, happy path only?
+  Then ask the sharper question: **can any assertion here fail?** An assertion that
+  compares against a value the test double itself set — or the same constant on
+  both sides — is a tautology: it passes on a build where the behavior it names is
+  gone, and its name is worse than its absence because it stops the next reader
+  looking. Check hardest where a double replaces an I/O boundary — a database, an
+  HTTP client, a platform SDK — because that is the one place a mutation probe
+  cannot reach, since probe and assertion sit on the same side of the seam. Measured
+  2026-08-20: four such tests in one reviewed feature, each named for a guarantee it
+  could not deliver.
 - **Does every site that must honor a stated invariant honor it?** When the change
   declares a rule about itself, check every site *within the diff* that the rule covers,
   not just the ones the author aimed at. A site outside the diff is a `⚠️` item.

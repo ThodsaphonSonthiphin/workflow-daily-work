@@ -230,7 +230,7 @@
   "frozen": [
     {
       "path": "scrutinize/SKILL.md",
-      "sha256": "baa2651cfba6dcf23dbae0dde1ae4d3542aae96fa8d22006b096bf415233839e",
+      "sha256": "952d3c1cec1b569299478a8dbea5ae2946c54efbd081900e7ba8d833a6825f9e",
       "why": "owner constraint - the declared fork scrutinize-dispatch must not drift from something that moved underneath it (ADR 0084)"
     },
     {
