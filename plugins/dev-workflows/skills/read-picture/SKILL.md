@@ -93,6 +93,20 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/picture-record.py" append \
     --answer "<the answer>" --asked-by "<calling skill>"
 ```
 
+**When the bytes came from somewhere that will not last** - a ticket attachment
+downloaded to a temp path, the case `ticket-trace` hits on every run - pass `--source`
+too, so the record keeps the durable identity rather than a path that is gone by
+tomorrow. `--file` still supplies the bytes to hash; `--source` supplies what the row
+is found by later:
+
+```bash
+python "${CLAUDE_PLUGIN_ROOT}/scripts/picture-record.py" append \
+    --file "<temp download path>" --source "<the ADO attachment URL>" \
+    --source-kind ado-attachment \
+    --kind requirement --detail "<detail>" \
+    --answer "<the answer>" --asked-by "ticket-trace"
+```
+
 **Record only the answer.** Not the customer name that happened to be on screen, not the
 quote number, not the rest of the window. A picture of a running system carries more than
 the thing being asked about, and this file is committed (ADR 0137).

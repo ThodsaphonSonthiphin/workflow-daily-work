@@ -64,11 +64,14 @@ repo does not ship guessed recipes (ADR 0140).
 | `candidates` | Rows exist for this image and kind but none matches the detail. **The skill must judge them and default to re-reading** — a near-miss is a miss (ADR 0136). |
 | `no-answer` | Nothing recorded for this image and kind. |
 
-Every result also carries **`bytes_verified`**: `true` when the lookup hashed bytes that
-were present, `false` when the row was found by its `source` because the file was gone.
-A `false` result is the **not re-checked against current bytes** flag of ADR 0139, and it
-lives on the returned result — never on a stored line, because a line written last month
-cannot know about a lookup happening today.
+Every result also carries **`bytes_verified`**: `true` only when *this* lookup hashed
+bytes itself (a `file_path` was given and read), `false` otherwise - including when the
+caller already knew the hash and passed `image_sha256` directly, because no bytes were
+checked in this call. A hash a caller happens to hold is not proof; the flag answers
+"did this call verify the bytes", not "is a hash known". A `false` result is the **not
+re-checked against current bytes** flag of ADR 0139, and it lives on the returned result
+— never on a stored line, because a line written last month cannot know about a lookup
+happening today.
 
 ## Safety
 

@@ -1,5 +1,26 @@
 # read-picture — read a picture once, and let every skill reuse the answer
 
+> **Superseded in part (2026-08-24, during the whole-branch review).** Two
+> corrections to what shipped:
+>
+> - The Tests section below requires "given a fixture whose picture carries more
+>   than the question asked, the appended line contains only the answer." No such
+>   test exists and none can: the violation it describes requires a model reading
+>   an image, and every fixture in this suite is a byte string standing in for one.
+>   What IS mechanically locked is the nine-field row whitelist — `validate_row`
+>   rejects any field the contract does not name — plus a small partial guard in
+>   `validate_row` against an obvious credential shape in `answer` (a signed query
+>   string, a `Bearer` token). The answer-content whitelist itself stays
+>   prose-enforced in the `read-picture` SKILL ("record only the answer"), the way
+>   it was always going to have to be.
+> - The "What the script owns, and what the skill owns" table below lists "report
+>   hit and miss counts" under the script. It shipped as a `Tally` class and an
+>   `_OUTCOME_COUNTER` dict that `main()` never constructed — a one-shot CLI
+>   process can only ever count to one, so there was nothing for either to tally.
+>   Both were deleted (YAGNI, not a redesign): reporting a run's counts across
+>   several lookups is the skill's job, exactly as `SKILL.md` section ④ already
+>   said before this correction.
+
 - **Date:** 2026-08-24
 - **Status:** Approved design, ready for `sp-writing-plans`
 - **Decisions taken while designing it:**

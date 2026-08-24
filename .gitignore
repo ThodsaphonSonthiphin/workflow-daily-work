@@ -9,6 +9,11 @@ findings.json
 backlog_input.json
 backlog_result.json
 
+# picture-record.jsonl is meant to be committed in a USER's project repo (ADR 0142) -
+# this ignore exists only so it can never land inside this marketplace repo itself,
+# which installs onto other people's machines
+picture-record.jsonl
+
 # ticket-trace test workspace — fixture repos with embedded .git dirs; never commit
 plugins/dev-workflows/skills/ticket-trace-workspace/
 
