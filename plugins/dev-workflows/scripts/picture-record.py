@@ -75,3 +75,38 @@ ROW_FIELDS = (
 )
 
 _UNSET = object()
+
+
+def _git_root(cwd=None):
+    """Repo root, or None when the cwd is not inside a git repo."""
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=cwd, capture_output=True, text=True, check=False,
+        )
+    except OSError:
+        return None
+    root = out.stdout.strip()
+    return root or None
+
+
+def resolve_path(path=None, env_value=None, cwd=None, git_root=_UNSET):
+    """--path > PICTURE_RECORD_FILE > git root. None when there is no repo and no
+    override, so the caller can ask the user instead of failing (ADR 0142)."""
+    if path:
+        return path
+    if env_value:
+        return env_value
+    root = _git_root(cwd) if git_root is _UNSET else git_root
+    if not root:
+        return None
+    return os.path.join(root, FILE_NAME)
+
+
+def hash_file(file_path):
+    """SHA-256 of a file's bytes, streamed so a large screenshot is not loaded whole."""
+    digest = hashlib.sha256()
+    with open(file_path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
