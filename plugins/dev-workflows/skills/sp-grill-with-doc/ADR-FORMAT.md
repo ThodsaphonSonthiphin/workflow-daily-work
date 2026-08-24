@@ -89,13 +89,22 @@ yourself (that is the transition case, and only the first prefixed ADR hits it).
 
 ```bash
 cd "$(git rev-parse --show-toplevel)" && d=docs/adr
-m=$( { git for-each-ref --format='%(refname:short)' refs/heads refs/remotes refs/stash |
-         while IFS= read -r r; do git ls-tree -r --name-only --full-tree "$r" -- "$d"; done
-       git ls-files -- "$d"
-       git worktree list --porcelain | sed -n 's|^worktree ||p' |
-         while IFS= read -r p; do ls "$p/$d" 2>/dev/null; done
-     } | sed 's|.*/||' |
-     sed -E 's|^([A-Za-z][A-Za-z0-9_-]*-)?([0-9]+)[-.].*|\2 \1|;t;d' | sort -n | tail -1 )
+names=$( { git for-each-ref --format='%(refname:short)' refs/heads refs/remotes refs/stash |
+             while IFS= read -r r; do git ls-tree -r --name-only --full-tree "$r" -- "$d"; done
+           git ls-files -- "$d"
+           git worktree list --porcelain | sed -n 's|^worktree ||p' |
+             while IFS= read -r p; do ls "$p/$d" 2>/dev/null; done
+         } | sed 's|.*/||' | sed '/^$/d' | sort -u )
+total=0; unparsed=0
+if [ -n "$names" ]; then
+  total=$(printf '%s\n' "$names" | wc -l)
+  unparsed=$(printf '%s\n' "$names" | grep -Ecv '^([A-Za-z][A-Za-z_-]*-)?[0-9]{3,}-')
+fi
+if [ "$unparsed" -gt 0 ]; then
+  echo "WARNING: $unparsed of $total filename(s) under $d did not parse as <prefix->NNN-slug and were excluded from the max - a name this cannot read is not a name that does not exist" >&2
+fi
+m=$(printf '%s\n' "$names" |
+     sed -E 's|^([A-Za-z][A-Za-z_-]*-)?([0-9]{3,})-.*|\2 \1|;t;d' | sort -n | tail -1 )
 v=${m%% *}; p=${m#* }
 [ -n "$v" ] && printf 'next: %s%0*d\n' "$p" "${#v}" $((10#$v + 1)) ||
   echo 'next: ? - no numbered ADR found; check the directory'
@@ -109,10 +118,20 @@ $n += git ls-files -- $d
 git worktree list --porcelain | Where-Object { $_ -like 'worktree *' } |
   ForEach-Object { $p = Join-Path $_.Substring(9) $d
                    if (Test-Path $p) { $n += Get-ChildItem $p -Name } }
-$t = $n | ForEach-Object { $_ -replace '.*/','' } | ForEach-Object {
-       if ($_ -match '^(?:([A-Za-z][A-Za-z0-9_-]*-))?(\d+)[-.]') {
-         [pscustomobject]@{ v = [int]$Matches[2]; w = $Matches[2].Length; p = $Matches[1] } } } |
-     Sort-Object v | Select-Object -Last 1
+$names = $n | ForEach-Object { $_ -replace '.*/','' } | Where-Object { $_ } | Sort-Object -Unique
+# .NET regex has a lazy quantifier, unlike POSIX ERE above - so the prefix here
+# stays lazy and MAY keep digits. Do not "fix" this to forbid them like the bash
+# version above: the two are deliberately different, not inconsistent.
+$parsed = $names | ForEach-Object {
+  if ($_ -match '^(?:([A-Za-z][A-Za-z0-9_-]*?-))?(\d{3,})-') {
+    [pscustomobject]@{ v = [int]$Matches[2]; w = $Matches[2].Length; p = $Matches[1] }
+  }
+}
+$unparsedCount = $names.Count - $parsed.Count
+if ($unparsedCount -gt 0) {
+  Write-Warning "$unparsedCount of $($names.Count) filename(s) under $d did not parse as <prefix->NNN-slug and were excluded from the max - a name this cannot read is not a name that does not exist"
+}
+$t = $parsed | Sort-Object v | Select-Object -Last 1
 if ($t) { 'next: {0}{1}' -f $t.p, ($t.v + 1).ToString('d' + $t.w) }
 else    { 'next: ? - no numbered ADR found; check the directory' }
 ```
@@ -129,7 +148,14 @@ or assuming a filename starts with a digit. A `^[0-9]{4}` match finds nothing in
 three-digit sequence and nothing behind a `menunest-` prefix, so the max reads as
 **empty** and every mint returns `0001` — measured 2026-08-15 against menunest's 168
 ADRs, where the previous version of this script did exactly that. A mint that returns
-`0001` in a populated sequence is that bug, never an answer.
+`0001` in a populated sequence is that bug, never an answer. A sixth: a prefix class that
+admits digits paired with a number pattern that accepts any run length captures the
+wrong substring whenever the slug itself contains a digit run — measured 2026-08-24, this
+minted `0` from a file ending `...-not-exit-0.md` and `50` from one containing
+`...-approximately-50-...`, both already-taken numbers read as free. The number must run
+at least three digits before its terminating hyphen, and (where the engine has no lazy
+quantifier) the prefix must exclude digits so it cannot be greedily mistaken for part of
+the number's run.
 
 Empty output from any one source is normal — a branch may predate the directory, a
 worktree may not contain it, a stale worktree path is a skip. Only a non-zero exit
@@ -140,10 +166,10 @@ commits still cite the retired number, so filling a hole re-creates the collisio
 **Re-run this immediately before you merge or push** — that is when a parallel
 session's number first becomes visible, and the merge will not flag the clash.
 
-<!-- numbering-rule v3 — this section is byte-identical in the grill-then-plan and
+<!-- numbering-rule v4 — this section is byte-identical in the grill-then-plan and
      sp-grill-with-doc ADR-FORMAT.md twins and in their Antigravity installs. Change
      every copy together, bump the version here, and check with
-     `grep -rl 'numbering-rule v3'`. Keep it free of plugin-root tokens and of
+     `grep -rl 'numbering-rule v4'`. Keep it free of plugin-root tokens and of
      repo-specific paths so the copies can stay identical. Keep it prefix- and
      width-tolerant: it must read every repo's sequence, not impose one shape. -->
 

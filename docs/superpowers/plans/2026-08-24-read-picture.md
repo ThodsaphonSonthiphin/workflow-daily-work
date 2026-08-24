@@ -63,11 +63,17 @@ Expected: `ahead : 1` and `behind: 1`. If either number differs, STOP and re-mea
 - [ ] **Step 2: Verify no ADR number collision was introduced**
 
 ```bash
-git ls-tree -r --name-only origin/main -- docs/adr | sed 's|.*/||' \
-  | sed -E 's|^([A-Za-z][A-Za-z0-9_-]*-)?([0-9]+)[-.].*|\2|' | sort -n | tail -1
+names=$(git ls-tree -r --name-only origin/main -- docs/adr | sed 's|.*/||' | sed '/^$/d')
+unparsed=$(printf '%s\n' "$names" | grep -Ecv '^([A-Za-z][A-Za-z_-]*-)?[0-9]{3,}-')
+echo "unparsed: $unparsed"
+printf '%s\n' "$names" | sed -E 's|^([A-Za-z][A-Za-z_-]*-)?([0-9]{3,})-.*|\2|' | sort -n | tail -1
 ```
 
-Expected: `0134`. ADRs 0135–0143 in the working tree are therefore un-collided. If this prints `0135` or higher, STOP — a sibling session minted into our range and the ADRs must be renumbered before merging.
+Expected: `unparsed: 0` then `0134`. (The prefix here excludes digits and the number must run
+at least three digits before its hyphen — a looser pattern once misread `...-0144-...` as
+`0` and `...-50-...` as `50`, both already-taken numbers.) ADRs 0135–0143 in the working
+tree are therefore un-collided. If this prints `0135` or higher, STOP — a sibling session
+minted into our range and the ADRs must be renumbered before merging.
 
 - [ ] **Step 3: Merge origin/main into local main**
 
