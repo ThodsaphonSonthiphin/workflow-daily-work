@@ -1302,7 +1302,7 @@ than keep paying.
 
 - `document-what-shipped` — asks `on-screen-text` for the words a page will quote.
 - `ticket-trace` — asks `requirement` of an annotated screenshot that may *be* the spec.
-- `dev-workflows/references/picture-record-contract.md` — the row schema and the kind set.
+- `${CLAUDE_PLUGIN_ROOT}/references/picture-record-contract.md` — the row schema and the kind set.
 ````
 
 - [ ] **Step 2: Verify the plugin still validates**

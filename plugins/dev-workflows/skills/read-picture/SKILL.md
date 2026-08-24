@@ -21,13 +21,13 @@ facts (ADR 0135).
   ① THE QUESTION      a kind from the named set
   │                   plus the caller's detail
   ▼
-  ② LOOK IT UP        hash the bytes, ask the record
+  ② LOOK IT UP      hash the bytes, ask the record
   │                   hit / candidates / no-answer
   ▼
   ③ READ ON A MISS    open the picture, answer ONLY
   │                   the question, append one line
   ▼
-  ④ HAND BACK         rows, plus hit and miss counts
+  ④ HAND BACK       rows, plus hit and miss counts
                       and any not-re-checked flag
 ```
 
@@ -138,4 +138,4 @@ than keep paying.
 
 - `document-what-shipped` — asks `on-screen-text` for the words a page will quote.
 - `ticket-trace` — asks `requirement` of an annotated screenshot that may *be* the spec.
-- `dev-workflows/references/picture-record-contract.md` — the row schema and the kind set.
+- `${CLAUDE_PLUGIN_ROOT}/references/picture-record-contract.md` — the row schema and the kind set.
