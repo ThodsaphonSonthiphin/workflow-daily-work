@@ -82,6 +82,7 @@ Two rules have no sibling equivalent and stay entirely career-growth's own:
    citable count. *Bearing a verdict means* feeding a four-test line, a cert
    or lane ranking, or the family shortlist; round 1's unreproducible counts
    reached all three.
+
 ## Step 0 — Preflight
 
 1. **Career repo path** — if `$ARGUMENTS` is present and resolves to a usable
@@ -113,6 +114,7 @@ Two rules have no sibling equivalent and stay entirely career-growth's own:
    otherwise tell the user the ADO source is skipped and continue.
 6. Confirm the target market rings — default **Thailand + SEA + global remote**;
    the user may narrow or swap for this run.
+
 ## Station 1 — INVENTORY
 
 Build the skill inventory from five sources (skip cleanly what the user lacks):
@@ -229,6 +231,7 @@ Also record **what was not checked** — geographies skipped, sources that
 blocked, families dropped by the cap, requirement text a board would not
 expose, questions left open. The file is overwritten each run; git history in
 the career repo keeps the prior rounds.
+
 ## Station 3 — GAP + MOAT
 
 Cross INVENTORY × MARKET, weighted by Station 1's evidence grades: `verified`
