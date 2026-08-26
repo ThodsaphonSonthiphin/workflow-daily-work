@@ -1,7 +1,8 @@
-# MARKET station — source list and trend taxonomy
+# MARKET station — source list, scan methods and trend taxonomy
 
 The fixed per-ring source list that keeps MARKET a single-session stage
-(ADR 0047), plus career-growth's own trend-signal taxonomy for the 3-year
+(ADR 0047), the two scan methods its passes run (workflow-daily-work-0148,
+-0150), plus career-growth's own trend-signal taxonomy for the 3-year
 triangulation. Fetchability shifts — treat "known blocked" entries as *skip
 immediately*, and when a listed board starts returning 403, try the
 alternates before reporting a metric unavailable, then record the
@@ -11,12 +12,13 @@ change looks permanent.
 
 ```mermaid
 flowchart TD
-    R1["ring 1 — Thailand"] --> B["job boards (fetchable)"]
-    R2["ring 2 — SEA"] --> B
-    R3["ring 3 — Global remote"] --> B
-    B --> DC["demand claims<br/>(source + posting count)"]
-    DC --> VTA["verify-then-advise<br/>(cert registries · claim grading)"]
-    DC --> TT["trend-signal taxonomy<br/>(career-growth's own ·<br/>3-yr triangulation)"]
+    PROF["profession anchor<br/>(Step 0)"] --> P2A["pass 2a — job-family scan<br/>per ring, inventory-blind"]
+    P2A --> STOP["light stop —<br/>user confirms the set"]
+    STOP --> P2B["pass 2b — deep-dive"]
+    P2B --> GATES["family gates<br/>(measured entry requirements)"]
+    P2B --> GC["genuine counts<br/>(board+genuine pair)"]
+    GATES --> VTA["verify-then-advise<br/>(cert registries · claim grading)"]
+    GC --> TT["trend-signal taxonomy<br/>(career-growth's own ·<br/>3-yr triangulation)"]
 ```
 
 ## Ring 1 — Thailand
@@ -42,6 +44,77 @@ flowchart TD
 | LinkedIn Jobs (remote filter) | fetchable | primary |
 | Indeed (remote filter) | fetchable | cross-check |
 | We Work Remotely / RemoteOK / Hacker News "Who's hiring" | verify at run time | volume smaller; good rarity signal for niche combos |
+
+## Pass 2a — enumerating job families
+
+The scan starts from **the profession anchor** captured in Step 0 and from
+nothing else. It may not read Station 1's inventory: that is the bias the
+two-pass split exists to remove, and a "helpful" narrowing re-creates it.
+
+1. Query each ring for the profession in its own coarse terms, plus the
+   ladder words that surround it locally (*engineer, developer, architect,
+   lead, consultant, specialist, analyst*).
+2. Read the returned **titles** and group them into **job families** — named,
+   separately-laddered roles a person is hired *as*. Two titles belong to one
+   family when a candidate would apply to either with the same CV.
+3. Stop at **8–10 families per ring**. Record which families the cap dropped;
+   pass that list to `market-report.md`.
+4. Per family, record: ring · titles seen · board count (labeled `unread`) ·
+   any entry requirement the list view already shows.
+5. Record explicitly where a family has **no ladder in a ring**. "The
+   capability exists here but only inside a conventional title" is a finding,
+   not a null result.
+
+## Genuine counts — the reading method
+
+A board count is a query artifact, not a market fact. Round 1 of this skill
+carried external counts that a later round reproduced at 3–10× lower, and one
+board count of 4 held **zero** postings actually about the technology named.
+So, per evidence rule 5:
+
+1. Open the result list and read the **first page of returned titles** —
+   roughly 10–15 postings; more when the page is shorter than that.
+2. Count only the postings genuinely about the family or technology in
+   question. An ERP end-user role is not a developer role; an "advantageous"
+   mention is not a requirement.
+3. **Record both integers** — the board figure and the genuine figure — with
+   the query string, the board, and the date. A single number is not
+   reportable.
+4. A count you did not read is labeled `unread`. A count someone else
+   reported is `[External-research]`: a lead to re-measure, never a citable
+   figure.
+5. Where the two figures diverge sharply, say so in `market-report.md` — the
+   ratio itself is a finding about the board.
+
+## Family gates — the fields to extract
+
+For every deep-dived family in pass 2b, extract these from the requirement
+text. Absent is a valid value; **unread is not** — say which.
+
+| Field | Kind | What to capture | Why it matters |
+|---|---|---|---|
+| language | plannable gate | which language, at what level, in what setting (docs / meetings / client-facing) | usually the gate no certificate closes |
+| certificates named | plannable gate | exact codes, and whether required or "advantageous" | zero mentions across a ring is itself the finding |
+| domain experience | plannable gate | industry, years, depth expected | often the cheapest gate to evidence from existing work |
+| lead / delivery | plannable gate | leading people, owning delivery, client ownership | separates a senior IC ladder from an architect ladder |
+| location / eligibility | **scope fact** | on-site, hybrid, timezone, work authorisation | decides whether a ring is reachable at all |
+| seniority signal | **scope fact** | title ladder, years, scope of decisions | tells you which rung the plan is aiming at |
+
+The **Kind** column is what Station 5 plans from. The four **plannable gates**
+are things a person can work to clear, so each measured one becomes a
+milestone lane, and a plannable gate left without a lane is a planning hole.
+The two **scope facts** are not worked to clear at all: they decide which ring
+is reachable and which rung is in play, so they are recorded and carried into
+`moat.md` like any other field, but they never become a lane and their absence
+is never a planning hole. The lane enum in
+`references/growth-state-contract.md` is driven by the plannable gates alone —
+there is no lane value for either scope fact, and adding one would be the
+error this column exists to prevent.
+
+Where a board exposes no requirement text at list level, record
+"gates not exposed" for that family and say so in `market-report.md`'s
+not-checked section. An unmeasured plannable gate must not become a Station 5
+lane.
 
 ## Trend-signal taxonomy (career-growth's own)
 

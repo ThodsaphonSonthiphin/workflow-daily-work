@@ -1,5 +1,5 @@
 ---
-description: Quarterly career review — evidence-graded skill inventory, live market + certificate survey (Thailand/SEA/global remote), four-test moat selection, cert-driven growth plan with mini projects. Full run every time; outputs to your personal career repo.
+description: Quarterly career review — evidence-graded skill inventory, live market + certificate survey (Thailand/SEA/global remote), four-test moat selection, gate-driven growth plan with one milestone lane per measured entry requirement. Full run every time; outputs to your personal career repo.
 argument-hint: "[career-repo-path]"
 ---
 

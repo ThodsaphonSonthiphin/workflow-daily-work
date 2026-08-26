@@ -1,6 +1,6 @@
 ---
 name: career-growth
-description: "Quarterly career review that turns your real evidence and a live market survey into a defensible moat and a cert-driven growth plan. Builds an evidence-graded skill inventory (resume, repos, cross-repo git history, held certs/LinkedIn, optional Azure DevOps work items, short gap-fill interview), surveys Thailand + SEA + global-remote job markets with live-verified certificates and a triangulated 3-year outlook, proposes moat candidates that must pass four tests (rare, evidenced, paid, durable), lets the user pick, then plans certs and exam-objective-driven mini projects into a personal career git repo. Trigger when the user wants a career review, skill-gap analysis, certification roadmap or plan, job-market survey, \"what should I learn next\", a moat / unique edge / competitive advantage plan, or says \"พัฒนาสกิลตัวเอง\", \"วางแผน cert\", \"ตลาดแรงงานต้องการอะไร\", \"สร้างจุดเด่น\", \"quarterly career review\". Re-run it every quarter. Precedence: reach for this skill for the full periodic review; reach for `verify-then-advise` for a single verified recommendation, or to check whether one named product or credential is still current."
+description: "Quarterly career review that turns your real evidence and a live market survey into a defensible moat and a gate-driven growth plan. Builds an evidence-graded skill inventory (resume, repos, cross-repo git history, held certs/LinkedIn, optional Azure DevOps work items, short gap-fill interview), runs a two-pass survey of the Thailand + SEA + global-remote markets that first scans the job families a profession is hired into before it looks at your own skills at all, then deep-dives the families you confirm for their entry requirements, live-verified certificates and a triangulated 3-year outlook, proposes moat candidates that must pass four tests (rare, evidenced, paid, durable), lets the user pick, then plans one milestone lane per measured entry requirement — certificates included only where an institution demonstrably reads one or it forces capability graded unknown — with exam-objective-driven mini projects, into a personal career git repo. Trigger when the user wants a career review, skill-gap analysis, certification roadmap or plan, job-market survey, \"what should I learn next\", a moat / unique edge / competitive advantage plan, or says \"พัฒนาสกิลตัวเอง\", \"วางแผน cert\", \"ตลาดแรงงานต้องการอะไร\", \"สร้างจุดเด่น\", \"quarterly career review\". Re-run it every quarter. Precedence: reach for this skill for the full periodic review; reach for `verify-then-advise` for a single verified recommendation, or to check whether one named product or credential is still current."
 effort: max
 ---
 
@@ -21,23 +21,29 @@ CAREER-GROWTH — five stations, full run every time
   │    certs/LinkedIn · ADO (if available) ·
   │    gap-fill interview
   ▼
-  ② MARKET      live survey — 3 rings
-  │    Thailand · SEA · global remote
-  │    certs live-verified · 3-yr outlook
-  │    triangulated (≥3 signal types)
+  ② MARKET      two passes over the rings
+  │  2a  job-family scan — profession-anchored,
+  │      INVENTORY-BLIND, capped per ring
+  │      ⛔ light stop: you confirm the set
+  │  2b  deep-dive — family gates read,
+  │      genuine counts, certs live-verified,
+  │      3-yr outlook triangulated (≥3 signals)
   ▼
   ③ GAP + MOAT  inventory × market
-  │    candidates argued against 4 tests:
-  │    rare · evidenced · paid · durable
+  │    candidates may anchor on any deep-dived
+  │    family; a declared destination is a
+  │    mandatory candidate
+  │    four tests: rare · evidenced ·
+  │    paid · durable
   ▼
   ④ PRESENT ⛔  the user picks the moat
   │    (approval gate — nothing below
   │     runs without an explicit pick)
   ▼
-  ⑤ PLAN        cert-driven guideline
-       readiness-checked, ranked by
-       moat-fit ÷ hours still to spend
-       mini projects from exam objectives
+  ⑤ PLAN        gate-driven lanes
+       one lane per measured family gate;
+       cert lane keeps readiness ÷ hours;
+       every cert states its (a)/(b) case
        → career repo, assisted commit
 ```
 
@@ -62,11 +68,23 @@ claim grading and the counter-signal hunt that stress-test it:
    (`references/market-sources.md`); `verify-then-advise` contributes the
    claim-grading scale and the counter-signal hunt that stress-test the case.
 
-One rule has no sibling equivalent and stays entirely career-growth's own:
+Two rules have no sibling equivalent and stay entirely career-growth's own:
 
 4. **Personal data never enters this plugin or the current project.** All outputs
    go to the career repo. Commits there are assisted — propose, show, let the user
    approve — never automatic.
+5. **A verdict-bearing count is a board+genuine pair** — a posting count may
+   support a verdict only when it carries both the raw board figure **and** a
+   genuine figure from reading the returned titles (method in
+   `references/market-sources.md`). A count labeled `unread` may inform but
+   never decide. An `[External-research]` count — anything a research run
+   reported rather than you measuring it — is a lead to re-measure, never a
+   citable count. *Bearing a verdict means* feeding a four-test line, a cert
+   or lane ranking, the family shortlist, **or any sentence asserting a market
+   has or lacks something** — "Ring 1 named zero certificates" is exactly that
+   last class, and it is the measurement that made this plan gate-driven
+   (workflow-daily-work-0152); round 1's unreproducible counts reached all
+   four.
 
 ## Step 0 — Preflight
 
@@ -78,13 +96,26 @@ One rule has no sibling equivalent and stays entirely career-growth's own:
    to create/`git init` it.
 2. Read `growth-state.md` and the four artifacts from the career repo if present
    (see `references/growth-state-contract.md`). They pre-fill this run; they never
-   skip a station.
-3. Detect the optional ADO source: if the `ado-backlog` plugin's skills are
+   skip a station. A **v1** file is read, not rejected — migrate it per that
+   reference's migration section before using its values.
+3. **Profession** — ask for the **coarsest true label** for what the user does
+   ("software engineering", "data", "finance"), not their specialisation. This
+   is pass 2a's only anchor, and a narrow answer re-creates the bias the two
+   passes exist to remove. It is **asked once, ever**: carried in
+   `growth-state.md` and confirmed rather than re-asked on later rounds.
+4. **Declared destination** (optional) — ask whether the user is already aiming
+   at a named target: role + ring + stack (e.g. "Solution Architect, Bangkok,
+   Microsoft Business Applications"). **Absent is a valid answer** and the
+   normal one on a first round. A declared destination forces its job families
+   into pass 2b's deep-dive set and becomes a mandatory candidate in Station 3
+   — it is an input to validate, never a shortcut past the Station 4 gate
+   (workflow-daily-work-0151).
+5. Detect the optional ADO source: if the `ado-backlog` plugin's skills are
    available in this session, plan to use its assigned-work view in Station 1
    with `$env:AZDO_SHOW_DONE = "true"` — that view's default output is open
    work, and only its Done/Resolved table is delivered-work evidence;
    otherwise tell the user the ADO source is skipped and continue.
-4. Confirm the target market rings — default **Thailand + SEA + global remote**;
+6. Confirm the target market rings — default **Thailand + SEA + global remote**;
    the user may narrow or swap for this run.
 
 ## Station 1 — INVENTORY
@@ -111,11 +142,13 @@ overview Mermaid diagram (skill map grouped by evidence grade).
 
 ## Station 2 — MARKET
 
-Load the `verify-then-advise` skill via your harness's mechanism and run its
-six-stage method in full over each confirmed ring, for the skill areas from
-Station 1's inventory plus any adjacent areas confirmed with the user. Two
-stages run before the source-list work even starts and are easy to miss if
-you assume you already know the method:
+Two passes over the confirmed rings. Pass 2a looks at the market with no
+knowledge of the person; pass 2b spends the research budget only where the
+user has agreed it should go (workflow-daily-work-0148, -0149).
+
+Both passes run `verify-then-advise`'s six-stage method — load that skill via
+your harness's mechanism. Two of its stages run before any source-list work
+and are easy to miss if you assume you already know the method:
 
 - **Inventory the moving parts** (stage 1) — before researching anything,
   list every external entity this round's advice will name (certs, vendors,
@@ -125,38 +158,96 @@ you assume you already know the method:
   script; never sum rounded per-item parts.
 
 `references/market-sources.md` is the **starting** board and ring list — it
-bounds where the survey begins, not where it must stop. Two more of the
-sibling's stages reach outside that list by design and are required here,
-not optional:
+bounds where the survey begins, not where it must stop.
 
-- **Counter-signal hunt** (stage 3) — a counter-signal is by definition not on
-  a curated list; look for the contradicting view (independent analysts,
-  adoption data, post-mortems) before advising a direction.
-- **Institutional-incentive read** (stage 5) — read the user's **employer's**
-  partner-program, customer, or team requirements for the skill areas in play,
-  and surface any dated cliff running against them. This is what turns a
-  personal wish into an employer-funded case, and the sibling names it the
-  single most useful output of the method.
+### Pass 2a — inventory-blind job-family scan
 
-Gather: demand (posting counts per ring, primary artifacts counted per stage 4
-before citing commentary), the certificates employers name (each live-verified
-per stage 2 before it may be mentioned), compensation signals where boards
-expose them (aggregator numbers grade `Directional`, per the sibling), the
-3-year outlook (triangulated — at least three signal types — with the
-AI-absorption assessment stated per skill), and — for every certificate that
-survives verification — a **published preparation-hour figure** and whether the
-vendor offers a **practice assessment**. Station 5's readiness check needs both;
-record "not published" explicitly rather than leaving the field absent.
+This pass **may not read Station 1's output**, and that prohibition is the
+whole point: a survey scoped by the skills a person already holds can only
+find more of what they already have. Round 1 of this skill scoped Station 2
+that way and never counted the job family that later decided the plan.
 
-Write **`market-report.md`** to the career repo: overview Mermaid diagram (rings
-× demand), a demand table per ring (skill · postings · source · date ·
-**confidence grade**), the verified cert list (code, registry status,
-`verified_on`, registry URL, published prep hours or "not published", practice
-assessment available yes/no), the counter-signals found (or "looked, found
-none"), the institutional-incentive findings (with any dated cliff), and the
-triangulated outlook with each signal cited and graded. Also record **what was
-not checked** — geographies skipped, sources that blocked, questions left open.
-The file is overwritten each run; git history keeps the prior rounds.
+1. Anchor on the **profession** captured in Step 0 — nothing narrower.
+2. Enumerate the **job families** that exist in each ring under that
+   profession: named, separately-laddered roles a person is hired *as*, not
+   skill keywords. Cap at **8–10 job families per ring** so MARKET stays a
+   single-session stage (ADR 0047). When the cap truncates, `market-report.md`
+   names the dropped families — a silent truncation reads as "that was all
+   there was".
+3. Per family record: ring · the titles it appears under · a board count
+   labeled `unread` · any entry requirement the list view already exposes.
+   Pass 2a counts are **not** verdict-bearing (evidence rule 5), which is why
+   an `unread` figure is acceptable here and nowhere downstream.
+4. Note where a family has **no ladder in a ring** at all. Round 1's most
+   useful structural finding was exactly this shape — a capability that
+   existed only as a differentiator inside a conventional title, never as a
+   job to apply for.
+
+### The light stop — the user confirms the deep-dive set
+
+Present the per-ring family table and propose the deep-dive set. A family
+that is **inventory-adjacent** (it plainly matches Station 1's evidence) or
+that belongs to a **declared destination** enters automatically; the user
+adds or cuts the rest. This is a light stop, not the Station 4 gate — no moat
+is chosen here, and the run continues as soon as the set is agreed.
+
+### Pass 2b — the scoped deep-dive
+
+Pass 2b runs over the confirmed families **plus the inventory's skill areas**.
+Pass 2b *is* allowed to read Station 1's output — only pass 2a is blind — so
+this wider scope is deliberate and must not be narrowed back: drop the skill
+areas and no skill-level demand is ever measured, which leaves a moat
+candidate that is a skill *combination* rather than a job family without a
+citable count to argue the `paid` test on.
+
+For each family in the confirmed set, and for each skill area from Station 1's
+inventory — step 1's gates are a property of a family, while steps 2 to 6 are
+measured for both:
+
+1. **Read the requirement text** and extract its **family gates** — the
+   measurable entry requirements `references/market-sources.md` defines, in
+   two kinds. Four are **plannable gates** and become Station 5 lanes:
+   language, certificates named, domain experience, lead / delivery. Two are
+   **scope facts** — location / eligibility and seniority signal: record them,
+   because they decide whether a ring is reachable at all and which rung the
+   plan is aimed at, but nobody works to clear them, so they never become a
+   lane and their absence is not a planning hole. Where a board exposes no
+   requirement text, say so per family rather than leaving the field absent:
+   a plannable gate nobody measured must never become a lane in Station 5.
+2. **Count genuinely** — read the returned titles and count only the postings
+   actually about that family or skill area, recording the board count and the
+   genuine count as a dated pair (evidence rule 5; method in
+   `references/market-sources.md`).
+3. **Certificates** — every cert a posting or partner program names is
+   live-verified per `verify-then-advise` stage 2 before it may be mentioned,
+   together with its published **preparation-hour** figure and whether a
+   **practice assessment** exists. Record "not published" explicitly rather
+   than leaving the field absent; Station 5's readiness check needs both.
+4. **Counter-signal hunt** (stage 3) — a counter-signal is by definition not
+   on a curated list; look for the contradicting view (independent analysts,
+   adoption data, post-mortems) before advising a direction.
+5. **Institutional-incentive read** (stage 5) — read the user's **employer's**
+   partner-program, customer, or team requirements for the families in play,
+   and surface any dated cliff running against them. This turns a personal
+   wish into an employer-funded case, and it is also the evidence a
+   certificate needs to earn a lane in Station 5.
+6. **Compensation** where boards expose it (aggregator numbers grade
+   `Directional`), and the **3-year outlook** triangulated across at least
+   three signal types, with the AI-absorption assessment stated per family.
+
+Write **`market-report.md`** to the career repo: overview Mermaid diagram
+(rings × families), **the per-ring family table** from pass 2a with its
+dropped-family note, the deep-dive set and who chose each entry, a
+**family-gate table per deep-dived family**, the demand table (family · board
+count · genuine count · source · date · **confidence grade**), the verified
+cert list (code, registry status, `verified_on`, registry URL, published prep
+hours or "not published", practice assessment yes/no), the counter-signals
+found (or "looked, found none"), the institutional-incentive findings with any
+dated cliff, and the triangulated outlook with each signal cited and graded.
+Also record **what was not checked** — geographies skipped, sources that
+blocked, families dropped by the cap, requirement text a board would not
+expose, questions left open. The file is overwritten each run; git history in
+the career repo keeps the prior rounds.
 
 ## Station 3 — GAP + MOAT
 
@@ -166,94 +257,139 @@ whose public evidence is still missing, feeding the `evidenced` test as proof
 still to be created rather than proof already held; `unverified` ones count as
 gaps to close even when claimed.
 
-- **Gap list** — market-demanded skills the user lacks or holds unverified.
-- **Moat candidates** — skill *combinations* (never single hot skills), each with
-  its **gap** (what the person is missing for this combination, drawn from the
-  Gap list) and a four-test argument, one line per test:
-  `rare` (evidence of scarcity in the rings) · `evidenced` (what public proof the
-  user has or would gain) · `paid` (demand claims with sources and confidence
-  grade — a `Directional` claim may support a direction but must never be the
-  sole basis for this verdict) · `durable` (the triangulated 3-year case
-  against AI/automation absorption — synthesise
-  Station 2's per-skill AI-absorption assessments into one argument for *this
-  combination*, not per skill).
+- **Gap list** — market-demanded skills the user lacks or holds unverified,
+  plus every **family gate** from pass 2b that the inventory does not clear.
+- **Moat candidates** — skill *combinations* (never single hot skills). A
+  candidate **may anchor on any deep-dived job family**, including one the
+  inventory barely touches, as long as it states the gap plainly
+  (workflow-daily-work-0149). Each candidate carries:
+  - its **gap** — what the person is missing for this combination, drawn from
+    the Gap list;
+  - the gates it faces: each candidate **lists the family gates it must clear**
+    (from pass 2b). Station 5 turns exactly this list into lanes, so a
+    candidate whose gates were never measured cannot be planned;
+  - a four-test argument, one line per test — `rare` (evidence of scarcity in
+    the rings) · `evidenced` (what public proof the user has or would gain) ·
+    `paid` (demand claims with sources and confidence grade; a `Directional`
+    claim may support a direction but never be the sole basis for this verdict,
+    and per evidence rule 5 an `unread` or external-only count may not support
+    it at all) · `durable` (the triangulated 3-year case against AI/automation
+    absorption — synthesise Station 2's per-family AI-absorption assessments
+    into one argument for *this combination*, not per skill).
+- **A declared destination is a mandatory candidate.** If Step 0 captured one,
+  it appears in this station's candidate set whatever the evidence says, argued
+  against the same four tests, alongside **at least one comparator** candidate
+  so the user is choosing rather than confirming. A failing verdict is reported
+  as a failing verdict; the skill never quietly substitutes a different target
+  (workflow-daily-work-0151).
 - Anything failing a test may appear only as a labeled **supporting skill** —
-  never as a moat candidate.
+  never as a moat candidate. The one exception is a declared destination, which
+  stays on the table *with its failures shown*, because the user declared it
+  and only the user may withdraw it.
 
 ## Station 4 — PRESENT ⛔ approval gate
 
-Present the candidates (a compact table: combination · gap · the four test
-verdicts · strongest evidence) and ask the user to **pick one moat, or reject
-all**. On reject: collect the objections as constraints and loop back to
-Station 3. Never pick for the user; never proceed past this gate without an
-explicit pick.
+Present the candidates — a compact table: combination · anchoring job family ·
+gap · the family gates to clear · the four test verdicts · strongest evidence —
+and ask the user to **pick one moat, or reject all**. On reject: collect the
+objections as constraints and loop back to Station 3. Never pick for the user;
+never proceed past this gate without an explicit pick. The user may pick a
+candidate that failed a test — that is their call to make with the verdict in
+front of them, and the pick is recorded with the failure intact.
 
 On a pick, write **`moat.md`** to the career repo: the chosen combination, its
 gap, its full four-test argument, the rejected candidates (one line each, why),
-and an overview Mermaid decision diagram (chosen vs rejected).
+and an overview Mermaid decision diagram (chosen vs rejected). It also
+**records the chosen candidate's family gates** verbatim — that list is the
+input Station 5 plans its lanes from, so a gate missing here is a lane missing
+there.
 
 ## Station 5 — PLAN
 
-For the chosen moat:
+The plan is **gate-driven**: it is built from the family gates recorded in
+`moat.md`, not from a certificate list (workflow-daily-work-0152, which
+supersedes ADR 0051's cert-driven framing in part). Round 2 of this skill
+measured zero certificate mentions across every Ring 1 posting it read, while
+the gate that actually blocked the destination — client-facing spoken English —
+is closable by no certificate at all.
 
-1. **Candidate certs** — identify the certificates that evidence the moat, each
-   already live-verified in Station 2. If the chosen moat needs a certificate
-   Station 2 did not verify, verify it now via `verify-then-advise`'s
-   registry-verification stage before naming it — if the registry is
-   unreachable or the cert is retired, say so and fall back to the non-cert
-   milestone route in item 4 instead of naming an unverified cert. Fetch each
-   exam's **study guide** and extract its objective domains. This produces a
-   candidate list, **not yet a ranking** — item 2 decides the order.
+1. **Draw the lanes.** Create **one lane per measured family gate** from
+   `moat.md`: language, certificate, published work, employer/partner
+   arithmetic, domain evidence — whatever pass 2b actually measured. **A gate
+   with no lane is a planning hole**: name it as one rather than dropping it.
+   The converse holds too — a lane with no measured gate behind it does not
+   belong in the plan. **A scope fact is not a gate for this purpose**:
+   location / eligibility and seniority signal come across from `moat.md` and
+   decide which ring is reachable and which rung the plan aims at, but nobody
+   works to clear them, so they never become lanes and their absence is not a
+   planning hole.
 
-2. **Readiness check — the person, not just the moat.** Moat fit alone picks
-   the cert that best *describes* the destination, which is not the same as the
-   cert that best *repays the hours*. For each candidate cert, take its objective
-   domains from item 1 and grade every domain against `profile.md`:
-   **known** (a `verified` entry already attests it) · **partial** ·
-   **unknown** (no entry, or only `unverified` ones). Then:
+2. **Baseline every lane before sizing it.** Every lane needs a
+   **measured baseline** before its milestone can be scheduled. This is the
+   certificate lane's existing discipline, generalised: a published
+   **practice assessment** outranks any estimate for a cert, and on that lane
+   the baseline means sitting one **cold, as a measurement, before the exam is
+   scheduled** — a score taken after studying measures the studying, not the
+   gap the plan has to close. A scored test or a recorded mock call is the
+   baseline for a language lane; a public repo's absence is its own baseline
+   for an evidence lane. Where no measurement exists, say so plainly and label
+   the figure **unvalidated** — nothing downstream will re-check it.
 
-   - Estimate **remaining hours** from the partial + unknown share weighted by
-     each domain's published exam weighting — never from the exam's total
-     nominal prep time, which assumes a stranger.
-   - **A published practice assessment outranks any estimate.** Where the vendor
-     offers one, say so and instruct the user to sit it cold as a measurement
-     before the cert is scheduled; the estimate stands only until that number
-     exists. Where the vendor offers none — common for a newly released exam —
-     state that plainly and label the hour figure **unvalidated**, because
-     nothing downstream will re-check it.
-   - Record the readiness grade per domain in `growth-plan.md`, not just the
-     total. The domain table is what makes a wrong estimate visible next round.
+3. **The certificate lane.** Identify the certs that evidence the moat, each
+   already live-verified in Station 2. If the moat needs one Station 2 did not
+   verify, verify it now via `verify-then-advise`'s registry-verification stage
+   before naming it; if the registry is unreachable or the cert is retired, say
+   so and use a non-cert milestone in this lane instead. Fetch each exam's
+   **study guide** and extract its objective domains. Then:
 
-3. **Rank, and show the trade.** Order the candidates by
-   **moat-fit ÷ remaining hours**, not by moat-fit alone. A cert the user has
-   largely already earned through delivered work can outrank a closer-fitting
-   one — most sharply when the user currently holds **no live credential**, or
-   when a dated employer/partner cliff from Station 2 lands sooner than the
-   closer cert could. Where the two orderings disagree, present both with the
-   cost of each in hours and let the user choose; never silently resolve it.
-   State any cert dropped from the plan and why, so a later round can revisit.
+   - **Every cert states its justification**, one of exactly two: **(a)** an
+     institution or ring demonstrably reads it — a partner-program requirement,
+     a posting that names it, an employer rule, each from Station 2's
+     institutional-incentive read; or **(b)** it forces capability the
+     readiness check graded **unknown**. A cert with neither **is dropped from
+     the plan and recorded as dropped**, with its reason, so a later round
+     revisits it instead of rediscovering it.
+   - **Readiness check** — grade every objective domain against `profile.md`:
+     **known** (a `verified` entry attests it) · **partial** · **unknown** (no
+     entry, or only `unverified` ones). Estimate **remaining hours** from the
+     partial + unknown share weighted by each domain's published exam
+     weighting — never from the exam's total nominal prep time, which assumes a
+     stranger. Record the grade per domain, not just the total: the domain
+     table is what makes a wrong estimate visible next round.
+   - **Rank, and show the trade** — order candidate certs by
+     **moat-fit ÷ remaining hours**, not by moat-fit alone. A cert the user
+     has largely already earned through delivered work can outrank a
+     closer-fitting one — most sharply when the user holds **no live
+     credential**, or when a dated employer cliff lands sooner than the closer
+     cert could. Where the two orderings disagree, present both with the cost
+     of each in hours and let the user choose; never silently resolve it.
 
-4. **Mini projects** — design each project *backwards from exam objectives*: the
-   project exists to build the knowledge the exam tests; passing the exam is the
-   milestone. Aim each project at the domains the readiness check graded
-   **unknown** — hours spent on already-known domains buy nothing. Size each to
-   the user's stated study hours — if study hours were never captured (the
-   interview's *Constraints & preferences* section can be skipped), ask for them
-   now before sizing. Offer (never require) to publish each project to a public
-   repo when its content allows — record `published_url` when taken.
+4. **Mini projects** — for a certificate lane, design each project
+   *backwards from exam objectives*: the project exists to build the knowledge
+   the exam tests, and passing the exam is the milestone. For every other
+   lane, design it backwards from that gate's own measurement, and clearing
+   the gate is the milestone. Aim each project at what the baseline graded
+   **unknown** — hours spent on already-cleared ground buy nothing. Size each
+   to the user's stated study hours; if study hours were never captured (the
+   interview's *Constraints & preferences* section can be skipped), ask for
+   them now before sizing. Offer (never require) to publish each project to a
+   public repo when its content allows — record `published_url` when taken.
 
-5. **Non-cert milestones** — any moat component with no matching cert gets an
-   explicit alternative milestone (a shipped artifact or delivered work), stated
-   in the same pass/fail form. A milestone that costs no study hours (publishing
-   existing work, a conversation with an employer, confirming a credential's
-   expiry) is listed **first**, since it buys moat progress without spending the
-   scarcest resource.
+5. **Zero-study-hour milestones list first — across every lane.** Publishing
+   existing work, asking an employer a question, confirming a credential's
+   expiry date, booking a language assessment: each buys gate progress without
+   spending the scarcest resource, so each is listed ahead of anything costing
+   study hours, whichever lane it sits in.
 
-6. Write **`growth-plan.md`** to the career repo (overview Mermaid diagram: certs
-   + projects on a quarter timeline; the readiness table per candidate cert with
-   its per-domain grades and remaining-hour figure, marked validated or
-   unvalidated; the ranking with the trade shown; then per-project sections:
-   objective domains covered, milestone, size, publish decision).
+6. Write **`growth-plan.md`** to the career repo: an overview Mermaid diagram
+   (lanes × milestones on a quarter timeline); the **lane table**
+   (gate · lane · milestone · baseline (measured / unvalidated) · study
+   hours); for the certificate lane, its readiness table per candidate cert
+   with per-domain grades, the remaining-hour figure marked validated or
+   unvalidated, the ranking with the trade shown, and each cert's (a)/(b)
+   justification; the certs dropped and why; then per-project sections (what
+   it builds, the gate or objective domains covered, milestone, size, publish
+   decision).
 
 7. **Wrap up:** propose the career-repo commit (assisted — show the diff
    summary, let the user approve). On approval, write/finalise
@@ -261,21 +397,24 @@ For the chosen moat:
    `references/growth-state-contract.md`, **then** commit all five artifacts
    together — `profile.md`, `market-report.md`, `moat.md`, `growth-plan.md`,
    and `growth-state.md` — so the file asserting a committed round exists is
-   itself inside that commit. A committed round is what `last_run` means, so
-   a crashed run and a declined commit both leave it unchanged: on decline,
-   do not write `growth-state.md` at all. Then print the `next_review_due`
-   date with a reminder that re-runs are user-initiated. If the user declines
-   the commit, say plainly that the run is not recorded as complete and the
-   next run's posting-trend-delta signal will have no prior round to diff
-   against.
+   itself inside that commit. A committed round is what `last_run` means, so a
+   crashed run and a declined commit both leave it unchanged: on decline, do
+   not write `growth-state.md` at all. Then print the `next_review_due` date
+   with a reminder that re-runs are user-initiated. If the user declines the
+   commit, say plainly that the run is not recorded as complete and the next
+   run's posting-trend-delta signal will have no prior round to diff against.
 
 ## Failure & degradation
 
 | Situation | Behavior |
 |---|---|
 | A job board 403s | try the alternates in `references/market-sources.md`; only then report the metric unavailable |
+| **Pass 2a returns no families for a ring** | report the ring as unsurveyed and continue with the rings that answered — never fall back to inventory keywords, which is the bias the pass exists to remove |
+| **A board exposes no requirement text** | record "gates not exposed" for that family; the family may still be deep-dived on counts, but an unmeasured gate must not become a Station 5 lane |
 | Vendor cert registry unreachable | withhold cert recommendations — never from memory; keep a previously-targeted cert's existing status and leave its stale `verified_on` in place, noting the verification could not be refreshed. `retired-blocked` is only for a confirmed retirement listing |
 | No published prep hours and no practice assessment for a cert | rank it anyway, on the estimate, but label the figure **unvalidated** in `growth-plan.md` and name the missing measurement as a risk — never present an unmeasured estimate as a schedule |
+| A gate has no measurable baseline | keep the lane, label its size **unvalidated**, and list the measurement itself as that lane's first (usually zero-study-hour) milestone |
+| **A v1 `growth-state.md` is found** | migrate it per `references/growth-state-contract.md` and say what was carried and what defaulted — never rewrite it silently, and never reject the round for it |
 | `ado-backlog` absent | skip the ADO source with an explicit notice |
 | No web access at all | the run stops after INVENTORY — Stations 2 through 5 do not run, because without market evidence the `paid` and `durable` tests cannot be argued; say why, never fabricate |
 | User rejects all candidates | loop to Station 3 with their objections as constraints |
@@ -287,7 +426,8 @@ For the chosen moat:
   incentive read, and the four-grade claim scale. Station 2 runs its
   six-stage method in full; career-growth owns the person-side inventory,
   the trend-signal taxonomy, and the decision structure (the four-test moat
-  argument, the approval gate, the readiness-ranked cert plan).
+  argument, the approval gate, and the gate-driven plan of one lane per
+  measured family gate).
   Precedence: reach for career-growth for the full periodic review; reach for
   `verify-then-advise` for a single verified recommendation, or to check
   whether one named product or credential is still current.

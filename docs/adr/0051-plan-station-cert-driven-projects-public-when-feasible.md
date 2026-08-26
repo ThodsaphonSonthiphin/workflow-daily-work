@@ -1,6 +1,6 @@
 # ADR 0051 — PLAN is cert-driven: mini projects are exam-prep vehicles, published when feasible
 
-- **Status:** Accepted
+- **Status:** Accepted — superseded in part by workflow-daily-work-0152 (the cert-driven headline falls; the exam-objective mini-project design and publish-when-feasible rule survive inside the cert lane)
 - **Date:** 2026-07-31
 
 ```mermaid
