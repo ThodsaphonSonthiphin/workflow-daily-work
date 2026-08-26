@@ -16,7 +16,7 @@ flowchart TD
     P2A --> STOP["light stop —<br/>user confirms the set"]
     STOP --> P2B["pass 2b — deep-dive"]
     P2B --> GATES["family gates<br/>(measured entry requirements)"]
-    P2B --> GC["genuine counts<br/>(board + read pair)"]
+    P2B --> GC["genuine counts<br/>(board+genuine pair)"]
     GATES --> VTA["verify-then-advise<br/>(cert registries · claim grading)"]
     GC --> TT["trend-signal taxonomy<br/>(career-growth's own ·<br/>3-yr triangulation)"]
 ```
@@ -91,18 +91,30 @@ So, per evidence rule 5:
 For every deep-dived family in pass 2b, extract these from the requirement
 text. Absent is a valid value; **unread is not** — say which.
 
-| Field | What to capture | Why it matters |
-|---|---|---|
-| language | which language, at what level, in what setting (docs / meetings / client-facing) | usually the gate no certificate closes |
-| certificates named | exact codes, and whether required or "advantageous" | zero mentions across a ring is itself the finding |
-| domain experience | industry, years, depth expected | often the cheapest gate to evidence from existing work |
-| lead / delivery | leading people, owning delivery, client ownership | separates a senior IC ladder from an architect ladder |
-| location / eligibility | on-site, hybrid, timezone, work authorisation | decides whether a ring is reachable at all |
-| seniority signal | title ladder, years, scope of decisions | tells you which rung the plan is aiming at |
+| Field | Kind | What to capture | Why it matters |
+|---|---|---|---|
+| language | plannable gate | which language, at what level, in what setting (docs / meetings / client-facing) | usually the gate no certificate closes |
+| certificates named | plannable gate | exact codes, and whether required or "advantageous" | zero mentions across a ring is itself the finding |
+| domain experience | plannable gate | industry, years, depth expected | often the cheapest gate to evidence from existing work |
+| lead / delivery | plannable gate | leading people, owning delivery, client ownership | separates a senior IC ladder from an architect ladder |
+| location / eligibility | **scope fact** | on-site, hybrid, timezone, work authorisation | decides whether a ring is reachable at all |
+| seniority signal | **scope fact** | title ladder, years, scope of decisions | tells you which rung the plan is aiming at |
+
+The **Kind** column is what Station 5 plans from. The four **plannable gates**
+are things a person can work to clear, so each measured one becomes a
+milestone lane, and a plannable gate left without a lane is a planning hole.
+The two **scope facts** are not worked to clear at all: they decide which ring
+is reachable and which rung is in play, so they are recorded and carried into
+`moat.md` like any other field, but they never become a lane and their absence
+is never a planning hole. The lane enum in
+`references/growth-state-contract.md` is driven by the plannable gates alone —
+there is no lane value for either scope fact, and adding one would be the
+error this column exists to prevent.
 
 Where a board exposes no requirement text at list level, record
 "gates not exposed" for that family and say so in `market-report.md`'s
-not-checked section. An unmeasured gate must not become a Station 5 lane.
+not-checked section. An unmeasured plannable gate must not become a Station 5
+lane.
 
 ## Trend-signal taxonomy (career-growth's own)
 

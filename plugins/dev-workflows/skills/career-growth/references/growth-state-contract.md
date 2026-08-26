@@ -38,9 +38,9 @@ milestones:                     # Station 5 output; one entry per milestone, any
       registry_url: https://learn.microsoft.com/credentials/...
       justification: b          # a = an institution or ring demonstrably reads it
                                  # b = forces capability the readiness check graded unknown
-    projects:                   # certificate lane only; [] on other lanes
+    projects:                   # any lane; [] when that lane plans no project
       - name: <kebab-slug>
-        exam_objectives: ["Extend the platform"]
+        exam_objectives: ["Extend the platform"]   # certificate lane only; absent on a non-cert project
         status: planned         # planned | in-progress | done
         published_url: null     # public repo URL when published; null when private
 ```
@@ -69,6 +69,13 @@ nested `cert:` sub-object, and mini projects live inside that same entry's
   certificate-lane milestone with no justification is a contract violation,
   not a default. `a` means an institution or ring demonstrably reads the
   cert; `b` means it forces capability the readiness check graded unknown.
+- **`projects:` is allowed on any lane.** Nothing restricts projects to the
+  certificate lane: Station 5 designs a project for every other lane too,
+  backwards from that gate's own measurement rather than from an exam
+  blueprint. What *is* certificate-specific is `exam_objectives`, which is
+  simply **absent** on a non-cert project; `name`, `status` and
+  `published_url` are the fields every project carries. `[]` is the right
+  value only when a lane genuinely plans no project.
 - **`baseline: unvalidated` must reach the reader.** `growth-plan.md` labels
   that milestone's size **unvalidated**; nothing downstream re-checks it.
 - A cert confirmed retired by a reachable registry is removed from
@@ -93,7 +100,7 @@ say what was carried and what defaulted:
 | `version: 1` | `version: 2` |
 | a `target_certs[]` entry (`code`, `name`, `status`, `verified_on`, `registry_url`) | one `milestones` entry, `lane: certificate`, with `cert.code`/`cert.status`/`cert.verified_on`/`cert.registry_url` carried across and `cert.justification` unset |
 | a `mini_projects[]` entry with `for_cert: <code>` | folded into that cert's `milestones[].projects[]` |
-| a `mini_projects[]` entry with `for_cert: none` | becomes its own lane milestone (no `cert:` sub-object), keeping its `milestone`, `exam_objectives`, `status` and `published_url` |
+| a `mini_projects[]` entry with `for_cert: none` | becomes its own lane milestone (no `cert:` sub-object) that carries the project inside its own `projects[]`, keeping the project's `name`, `status` and `published_url`; `exam_objectives` is dropped, being certificate-specific |
 | — | `baseline: unvalidated` on every carried milestone (v1 recorded no baseline at all) |
 | — | `profession`: ask (it is the once-ever question) |
 | — | `declared_destination`: ask; null is the normal answer |

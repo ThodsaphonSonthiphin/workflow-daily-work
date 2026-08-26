@@ -1,6 +1,6 @@
 ---
 name: career-growth
-description: "Quarterly career review that turns your real evidence and a live market survey into a defensible moat and a gate-driven growth plan. Builds an evidence-graded skill inventory (resume, repos, cross-repo git history, held certs/LinkedIn, optional Azure DevOps work items, short gap-fill interview), surveys Thailand + SEA + global-remote job markets with live-verified certificates and a triangulated 3-year outlook, proposes moat candidates that must pass four tests (rare, evidenced, paid, durable), lets the user pick, then plans certs and exam-objective-driven mini projects into a personal career git repo. Trigger when the user wants a career review, skill-gap analysis, certification roadmap or plan, job-market survey, \"what should I learn next\", a moat / unique edge / competitive advantage plan, or says \"พัฒนาสกิลตัวเอง\", \"วางแผน cert\", \"ตลาดแรงงานต้องการอะไร\", \"สร้างจุดเด่น\", \"quarterly career review\". Re-run it every quarter. Precedence: reach for this skill for the full periodic review; reach for `verify-then-advise` for a single verified recommendation, or to check whether one named product or credential is still current."
+description: "Quarterly career review that turns your real evidence and a live market survey into a defensible moat and a gate-driven growth plan. Builds an evidence-graded skill inventory (resume, repos, cross-repo git history, held certs/LinkedIn, optional Azure DevOps work items, short gap-fill interview), runs a two-pass survey of the Thailand + SEA + global-remote markets that first scans the job families a profession is hired into before it looks at your own skills at all, then deep-dives the families you confirm for their entry requirements, live-verified certificates and a triangulated 3-year outlook, proposes moat candidates that must pass four tests (rare, evidenced, paid, durable), lets the user pick, then plans one milestone lane per measured entry requirement — certificates included only where an institution demonstrably reads one or it forces capability graded unknown — with exam-objective-driven mini projects, into a personal career git repo. Trigger when the user wants a career review, skill-gap analysis, certification roadmap or plan, job-market survey, \"what should I learn next\", a moat / unique edge / competitive advantage plan, or says \"พัฒนาสกิลตัวเอง\", \"วางแผน cert\", \"ตลาดแรงงานต้องการอะไร\", \"สร้างจุดเด่น\", \"quarterly career review\". Re-run it every quarter. Precedence: reach for this skill for the full periodic review; reach for `verify-then-advise` for a single verified recommendation, or to check whether one named product or credential is still current."
 effort: max
 ---
 
@@ -80,8 +80,11 @@ Two rules have no sibling equivalent and stay entirely career-growth's own:
    never decide. An `[External-research]` count — anything a research run
    reported rather than you measuring it — is a lead to re-measure, never a
    citable count. *Bearing a verdict means* feeding a four-test line, a cert
-   or lane ranking, or the family shortlist; round 1's unreproducible counts
-   reached all three.
+   or lane ranking, the family shortlist, **or any sentence asserting a market
+   has or lacks something** — "Ring 1 named zero certificates" is exactly that
+   last class, and it is the measurement that made this plan gate-driven
+   (workflow-daily-work-0152); round 1's unreproducible counts reached all
+   four.
 
 ## Step 0 — Preflight
 
@@ -190,18 +193,30 @@ is chosen here, and the run continues as soon as the set is agreed.
 
 ### Pass 2b — the scoped deep-dive
 
-For each family in the confirmed set:
+Pass 2b runs over the confirmed families **plus the inventory's skill areas**.
+Pass 2b *is* allowed to read Station 1's output — only pass 2a is blind — so
+this wider scope is deliberate and must not be narrowed back: drop the skill
+areas and no skill-level demand is ever measured, which leaves a moat
+candidate that is a skill *combination* rather than a job family without a
+citable count to argue the `paid` test on.
+
+For each family in the confirmed set, and for each skill area from Station 1's
+inventory — step 1's gates are a property of a family, while steps 2 to 6 are
+measured for both:
 
 1. **Read the requirement text** and extract its **family gates** — the
-   measurable entry requirements: language, certificates named, domain
-   experience, lead / delivery, location / eligibility, seniority signal —
-   the six fields `references/market-sources.md` defines. Where a board
-   exposes no requirement text, say so per family rather than leaving the
-   field absent: a gate nobody measured must never become a lane in
-   Station 5.
+   measurable entry requirements `references/market-sources.md` defines, in
+   two kinds. Four are **plannable gates** and become Station 5 lanes:
+   language, certificates named, domain experience, lead / delivery. Two are
+   **scope facts** — location / eligibility and seniority signal: record them,
+   because they decide whether a ring is reachable at all and which rung the
+   plan is aimed at, but nobody works to clear them, so they never become a
+   lane and their absence is not a planning hole. Where a board exposes no
+   requirement text, say so per family rather than leaving the field absent:
+   a plannable gate nobody measured must never become a lane in Station 5.
 2. **Count genuinely** — read the returned titles and count only the postings
-   actually about that family, recording the board count and the genuine
-   count as a dated pair (evidence rule 5; method in
+   actually about that family or skill area, recording the board count and the
+   genuine count as a dated pair (evidence rule 5; method in
    `references/market-sources.md`).
 3. **Certificates** — every cert a posting or partner program names is
    live-verified per `verify-then-advise` stage 2 before it may be mentioned,
@@ -303,16 +318,22 @@ is closable by no certificate at all.
    arithmetic, domain evidence — whatever pass 2b actually measured. **A gate
    with no lane is a planning hole**: name it as one rather than dropping it.
    The converse holds too — a lane with no measured gate behind it does not
-   belong in the plan.
+   belong in the plan. **A scope fact is not a gate for this purpose**:
+   location / eligibility and seniority signal come across from `moat.md` and
+   decide which ring is reachable and which rung the plan aims at, but nobody
+   works to clear them, so they never become lanes and their absence is not a
+   planning hole.
 
 2. **Baseline every lane before sizing it.** Every lane needs a
-   **measured baseline** before its milestone can be scheduled. This is
-   the certificate
-   lane's existing discipline, generalised: a published **practice assessment**
-   outranks any estimate for a cert; a scored test or a recorded mock call is
-   the baseline for a language lane; a public repo's absence is its own
-   baseline for an evidence lane. Where no measurement exists, say so plainly
-   and label the figure **unvalidated** — nothing downstream will re-check it.
+   **measured baseline** before its milestone can be scheduled. This is the
+   certificate lane's existing discipline, generalised: a published
+   **practice assessment** outranks any estimate for a cert, and on that lane
+   the baseline means sitting one **cold, as a measurement, before the exam is
+   scheduled** — a score taken after studying measures the studying, not the
+   gap the plan has to close. A scored test or a recorded mock call is the
+   baseline for a language lane; a public repo's absence is its own baseline
+   for an evidence lane. Where no measurement exists, say so plainly and label
+   the figure **unvalidated** — nothing downstream will re-check it.
 
 3. **The certificate lane.** Identify the certs that evidence the moat, each
    already live-verified in Station 2. If the moat needs one Station 2 did not
@@ -336,25 +357,23 @@ is closable by no certificate at all.
      stranger. Record the grade per domain, not just the total: the domain
      table is what makes a wrong estimate visible next round.
    - **Rank, and show the trade** — order candidate certs by
-     **moat-fit ÷ remaining hours**, not by moat-fit alone. A cert the
-     user has largely
-     already earned through delivered work can outrank a closer-fitting one —
-     most sharply when the user holds **no live credential**, or when a dated
-     employer cliff lands sooner than the closer cert could. Where the two
-     orderings disagree, present both with the cost of each in hours and let
-     the user choose; never silently resolve it.
+     **moat-fit ÷ remaining hours**, not by moat-fit alone. A cert the user
+     has largely already earned through delivered work can outrank a
+     closer-fitting one — most sharply when the user holds **no live
+     credential**, or when a dated employer cliff lands sooner than the closer
+     cert could. Where the two orderings disagree, present both with the cost
+     of each in hours and let the user choose; never silently resolve it.
 
 4. **Mini projects** — for a certificate lane, design each project
-   *backwards from exam objectives*: the project exists to build the
-   knowledge the exam
-   tests, and passing the exam is the milestone. For every other lane, design
-   it backwards from that gate's own measurement, and clearing the gate is the
-   milestone. Aim each project at what the baseline graded **unknown** — hours
-   spent on already-cleared ground buy nothing. Size each to the user's stated
-   study hours; if study hours were never captured (the interview's
-   *Constraints & preferences* section can be skipped), ask for them now before
-   sizing. Offer (never require) to publish each project to a public repo when
-   its content allows — record `published_url` when taken.
+   *backwards from exam objectives*: the project exists to build the knowledge
+   the exam tests, and passing the exam is the milestone. For every other
+   lane, design it backwards from that gate's own measurement, and clearing
+   the gate is the milestone. Aim each project at what the baseline graded
+   **unknown** — hours spent on already-cleared ground buy nothing. Size each
+   to the user's stated study hours; if study hours were never captured (the
+   interview's *Constraints & preferences* section can be skipped), ask for
+   them now before sizing. Offer (never require) to publish each project to a
+   public repo when its content allows — record `published_url` when taken.
 
 5. **Zero-study-hour milestones list first — across every lane.** Publishing
    existing work, asking an employer a question, confirming a credential's
@@ -365,12 +384,12 @@ is closable by no certificate at all.
 6. Write **`growth-plan.md`** to the career repo: an overview Mermaid diagram
    (lanes × milestones on a quarter timeline); the **lane table**
    (gate · lane · milestone · baseline (measured / unvalidated) · study
-   hours); for the
-   certificate lane, its readiness table per candidate cert with per-domain
-   grades, the remaining-hour figure marked validated or unvalidated, the
-   ranking with the trade shown, and each cert's (a)/(b) justification; the
-   certs dropped and why; then per-project sections (what it builds, the gate
-   or objective domains covered, milestone, size, publish decision).
+   hours); for the certificate lane, its readiness table per candidate cert
+   with per-domain grades, the remaining-hour figure marked validated or
+   unvalidated, the ranking with the trade shown, and each cert's (a)/(b)
+   justification; the certs dropped and why; then per-project sections (what
+   it builds, the gate or objective domains covered, milestone, size, publish
+   decision).
 
 7. **Wrap up:** propose the career-repo commit (assisted — show the diff
    summary, let the user approve). On approval, write/finalise
@@ -407,7 +426,8 @@ is closable by no certificate at all.
   incentive read, and the four-grade claim scale. Station 2 runs its
   six-stage method in full; career-growth owns the person-side inventory,
   the trend-signal taxonomy, and the decision structure (the four-test moat
-  argument, the approval gate, the readiness-ranked cert plan).
+  argument, the approval gate, and the gate-driven plan of one lane per
+  measured family gate).
   Precedence: reach for career-growth for the full periodic review; reach for
   `verify-then-advise` for a single verified recommendation, or to check
   whether one named product or credential is still current.

@@ -179,10 +179,14 @@ _Avoid_: goal (unvalidated wish), moat (a declared destination has not passed
 the four tests yet), bare destination (taken by the publishing term).
 
 **Family gate**:
-A measurable entry requirement a **Job family** states in its posting text —
-a language level, a named certificate, domain experience, lead delivery — read
-during MARKET's pass 2b. Each gate of the chosen moat or declared destination
-becomes a milestone lane in `growth-plan.md` (workflow-daily-work-0152).
+A measurable entry requirement a **Job family** states in its posting text,
+read during MARKET's pass 2b in six fields — language level, named
+certificates, domain experience, lead delivery, location / eligibility,
+seniority signal. The first four are **plannable gates**: each one of the
+chosen moat or declared destination becomes a milestone lane in
+`growth-plan.md` (workflow-daily-work-0152). The last two are **scope facts**
+— recorded, and they decide which ring is reachable and which rung is in play,
+but they never become a lane and their absence is not a planning hole.
 Distinct from the Station 4 approval gate (a pipeline stop, not a market fact).
 _Avoid_: requirement (too generic), bare gate (ambiguous with the approval gate).
 
