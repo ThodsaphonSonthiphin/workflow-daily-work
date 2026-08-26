@@ -21,23 +21,29 @@ CAREER-GROWTH — five stations, full run every time
   │    certs/LinkedIn · ADO (if available) ·
   │    gap-fill interview
   ▼
-  ② MARKET      live survey — 3 rings
-  │    Thailand · SEA · global remote
-  │    certs live-verified · 3-yr outlook
-  │    triangulated (≥3 signal types)
+  ② MARKET      two passes over the rings
+  │  2a  job-family scan — profession-anchored,
+  │      INVENTORY-BLIND, capped per ring
+  │      ⛔ light stop: you confirm the set
+  │  2b  deep-dive — family gates read,
+  │      genuine counts, certs live-verified,
+  │      3-yr outlook triangulated (≥3 signals)
   ▼
   ③ GAP + MOAT  inventory × market
-  │    candidates argued against 4 tests:
-  │    rare · evidenced · paid · durable
+  │    candidates may anchor on any deep-dived
+  │    family; a declared destination is a
+  │    mandatory candidate
+  │    four tests: rare · evidenced ·
+  │    paid · durable
   ▼
   ④ PRESENT ⛔  the user picks the moat
   │    (approval gate — nothing below
   │     runs without an explicit pick)
   ▼
-  ⑤ PLAN        cert-driven guideline
-       readiness-checked, ranked by
-       moat-fit ÷ hours still to spend
-       mini projects from exam objectives
+  ⑤ PLAN        gate-driven lanes
+       one lane per measured family gate;
+       cert lane keeps readiness ÷ hours;
+       every cert states its (a)/(b) case
        → career repo, assisted commit
 ```
 
@@ -62,12 +68,20 @@ claim grading and the counter-signal hunt that stress-test it:
    (`references/market-sources.md`); `verify-then-advise` contributes the
    claim-grading scale and the counter-signal hunt that stress-test the case.
 
-One rule has no sibling equivalent and stays entirely career-growth's own:
+Two rules have no sibling equivalent and stay entirely career-growth's own:
 
 4. **Personal data never enters this plugin or the current project.** All outputs
    go to the career repo. Commits there are assisted — propose, show, let the user
    approve — never automatic.
-
+5. **A verdict-bearing count is a board+genuine pair** — a posting count may
+   support a verdict only when it carries both the raw board figure **and** a
+   genuine figure from reading the returned titles (method in
+   `references/market-sources.md`). A count labeled `unread` may inform but
+   never decide. An `[External-research]` count — anything a research run
+   reported rather than you measuring it — is a lead to re-measure, never a
+   citable count. *Bearing a verdict means* feeding a four-test line, a cert
+   or lane ranking, or the family shortlist; round 1's unreproducible counts
+   reached all three.
 ## Step 0 — Preflight
 
 1. **Career repo path** — if `$ARGUMENTS` is present and resolves to a usable
@@ -78,15 +92,27 @@ One rule has no sibling equivalent and stays entirely career-growth's own:
    to create/`git init` it.
 2. Read `growth-state.md` and the four artifacts from the career repo if present
    (see `references/growth-state-contract.md`). They pre-fill this run; they never
-   skip a station.
-3. Detect the optional ADO source: if the `ado-backlog` plugin's skills are
+   skip a station. A **v1** file is read, not rejected — migrate it per that
+   reference's migration section before using its values.
+3. **Profession** — ask for the **coarsest true label** for what the user does
+   ("software engineering", "data", "finance"), not their specialisation. This
+   is pass 2a's only anchor, and a narrow answer re-creates the bias the two
+   passes exist to remove. It is **asked once, ever**: carried in
+   `growth-state.md` and confirmed rather than re-asked on later rounds.
+4. **Declared destination** (optional) — ask whether the user is already aiming
+   at a named target: role + ring + stack (e.g. "Solution Architect, Bangkok,
+   Microsoft Business Applications"). **Absent is a valid answer** and the
+   normal one on a first round. A declared destination forces its job families
+   into pass 2b's deep-dive set and becomes a mandatory candidate in Station 3
+   — it is an input to validate, never a shortcut past the Station 4 gate
+   (workflow-daily-work-0151).
+5. Detect the optional ADO source: if the `ado-backlog` plugin's skills are
    available in this session, plan to use its assigned-work view in Station 1
    with `$env:AZDO_SHOW_DONE = "true"` — that view's default output is open
    work, and only its Done/Resolved table is delivered-work evidence;
    otherwise tell the user the ADO source is skipped and continue.
-4. Confirm the target market rings — default **Thailand + SEA + global remote**;
+6. Confirm the target market rings — default **Thailand + SEA + global remote**;
    the user may narrow or swap for this run.
-
 ## Station 1 — INVENTORY
 
 Build the skill inventory from five sources (skip cleanly what the user lacks):
