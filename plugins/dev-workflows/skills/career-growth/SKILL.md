@@ -240,94 +240,127 @@ whose public evidence is still missing, feeding the `evidenced` test as proof
 still to be created rather than proof already held; `unverified` ones count as
 gaps to close even when claimed.
 
-- **Gap list** — market-demanded skills the user lacks or holds unverified.
-- **Moat candidates** — skill *combinations* (never single hot skills), each with
-  its **gap** (what the person is missing for this combination, drawn from the
-  Gap list) and a four-test argument, one line per test:
-  `rare` (evidence of scarcity in the rings) · `evidenced` (what public proof the
-  user has or would gain) · `paid` (demand claims with sources and confidence
-  grade — a `Directional` claim may support a direction but must never be the
-  sole basis for this verdict) · `durable` (the triangulated 3-year case
-  against AI/automation absorption — synthesise
-  Station 2's per-skill AI-absorption assessments into one argument for *this
-  combination*, not per skill).
+- **Gap list** — market-demanded skills the user lacks or holds unverified,
+  plus every **family gate** from pass 2b that the inventory does not clear.
+- **Moat candidates** — skill *combinations* (never single hot skills). A
+  candidate **may anchor on any deep-dived job family**, including one the
+  inventory barely touches, as long as it states the gap plainly
+  (workflow-daily-work-0149). Each candidate carries:
+  - its **gap** — what the person is missing for this combination, drawn from
+    the Gap list;
+  - the gates it faces: each candidate **lists the family gates it must clear**
+    (from pass 2b). Station 5 turns exactly this list into lanes, so a
+    candidate whose gates were never measured cannot be planned;
+  - a four-test argument, one line per test — `rare` (evidence of scarcity in
+    the rings) · `evidenced` (what public proof the user has or would gain) ·
+    `paid` (demand claims with sources and confidence grade; a `Directional`
+    claim may support a direction but never be the sole basis for this verdict,
+    and per evidence rule 5 an `unread` or external-only count may not support
+    it at all) · `durable` (the triangulated 3-year case against AI/automation
+    absorption — synthesise Station 2's per-family AI-absorption assessments
+    into one argument for *this combination*, not per skill).
+- **A declared destination is a mandatory candidate.** If Step 0 captured one,
+  it appears in this station's candidate set whatever the evidence says, argued
+  against the same four tests, alongside **at least one comparator** candidate
+  so the user is choosing rather than confirming. A failing verdict is reported
+  as a failing verdict; the skill never quietly substitutes a different target
+  (workflow-daily-work-0151).
 - Anything failing a test may appear only as a labeled **supporting skill** —
-  never as a moat candidate.
+  never as a moat candidate. The one exception is a declared destination, which
+  stays on the table *with its failures shown*, because the user declared it
+  and only the user may withdraw it.
 
 ## Station 4 — PRESENT ⛔ approval gate
 
-Present the candidates (a compact table: combination · gap · the four test
-verdicts · strongest evidence) and ask the user to **pick one moat, or reject
-all**. On reject: collect the objections as constraints and loop back to
-Station 3. Never pick for the user; never proceed past this gate without an
-explicit pick.
+Present the candidates — a compact table: combination · anchoring job family ·
+gap · the family gates to clear · the four test verdicts · strongest evidence —
+and ask the user to **pick one moat, or reject all**. On reject: collect the
+objections as constraints and loop back to Station 3. Never pick for the user;
+never proceed past this gate without an explicit pick. The user may pick a
+candidate that failed a test — that is their call to make with the verdict in
+front of them, and the pick is recorded with the failure intact.
 
 On a pick, write **`moat.md`** to the career repo: the chosen combination, its
 gap, its full four-test argument, the rejected candidates (one line each, why),
-and an overview Mermaid decision diagram (chosen vs rejected).
+and an overview Mermaid decision diagram (chosen vs rejected). It also
+**records the chosen candidate's family gates** verbatim — that list is the
+input Station 5 plans its lanes from, so a gate missing here is a lane missing
+there.
 
 ## Station 5 — PLAN
 
-For the chosen moat:
+The plan is **gate-driven**: it is built from the family gates recorded in
+`moat.md`, not from a certificate list (workflow-daily-work-0152, which
+supersedes ADR 0051's cert-driven framing in part). Round 2 of this skill
+measured zero certificate mentions across every Ring 1 posting it read, while
+the gate that actually blocked the destination — client-facing spoken English —
+is closable by no certificate at all.
 
-1. **Candidate certs** — identify the certificates that evidence the moat, each
-   already live-verified in Station 2. If the chosen moat needs a certificate
-   Station 2 did not verify, verify it now via `verify-then-advise`'s
-   registry-verification stage before naming it — if the registry is
-   unreachable or the cert is retired, say so and fall back to the non-cert
-   milestone route in item 4 instead of naming an unverified cert. Fetch each
-   exam's **study guide** and extract its objective domains. This produces a
-   candidate list, **not yet a ranking** — item 2 decides the order.
+1. **Draw the lanes.** Create **one lane per measured family gate** from
+   `moat.md`: language, certificate, published work, employer/partner
+   arithmetic, domain evidence — whatever pass 2b actually measured. **A gate
+   with no lane is a planning hole**: name it as one rather than dropping it.
+   The converse holds too — a lane with no measured gate behind it does not
+   belong in the plan.
 
-2. **Readiness check — the person, not just the moat.** Moat fit alone picks
-   the cert that best *describes* the destination, which is not the same as the
-   cert that best *repays the hours*. For each candidate cert, take its objective
-   domains from item 1 and grade every domain against `profile.md`:
-   **known** (a `verified` entry already attests it) · **partial** ·
-   **unknown** (no entry, or only `unverified` ones). Then:
+2. **Baseline every lane before sizing it.** A lane needs a **measured baseline** before its milestone can be scheduled. This is the certificate
+   lane's existing discipline, generalised: a published **practice assessment**
+   outranks any estimate for a cert; a scored test or a recorded mock call is
+   the baseline for a language lane; a public repo's absence is its own
+   baseline for an evidence lane. Where no measurement exists, say so plainly
+   and label the figure **unvalidated** — nothing downstream will re-check it.
 
-   - Estimate **remaining hours** from the partial + unknown share weighted by
-     each domain's published exam weighting — never from the exam's total
-     nominal prep time, which assumes a stranger.
-   - **A published practice assessment outranks any estimate.** Where the vendor
-     offers one, say so and instruct the user to sit it cold as a measurement
-     before the cert is scheduled; the estimate stands only until that number
-     exists. Where the vendor offers none — common for a newly released exam —
-     state that plainly and label the hour figure **unvalidated**, because
-     nothing downstream will re-check it.
-   - Record the readiness grade per domain in `growth-plan.md`, not just the
-     total. The domain table is what makes a wrong estimate visible next round.
+3. **The certificate lane.** Identify the certs that evidence the moat, each
+   already live-verified in Station 2. If the moat needs one Station 2 did not
+   verify, verify it now via `verify-then-advise`'s registry-verification stage
+   before naming it; if the registry is unreachable or the cert is retired, say
+   so and use a non-cert milestone in this lane instead. Fetch each exam's
+   **study guide** and extract its objective domains. Then:
 
-3. **Rank, and show the trade.** Order the candidates by
-   **moat-fit ÷ remaining hours**, not by moat-fit alone. A cert the user has
-   largely already earned through delivered work can outrank a closer-fitting
-   one — most sharply when the user currently holds **no live credential**, or
-   when a dated employer/partner cliff from Station 2 lands sooner than the
-   closer cert could. Where the two orderings disagree, present both with the
-   cost of each in hours and let the user choose; never silently resolve it.
-   State any cert dropped from the plan and why, so a later round can revisit.
+   - **Every cert states its justification**, one of exactly two: **(a)** an
+     institution or ring demonstrably reads it — a partner-program requirement,
+     a posting that names it, an employer rule, each from Station 2's
+     institutional-incentive read; or **(b)** it forces capability the
+     readiness check graded **unknown**. A cert with neither **is dropped from
+     the plan and recorded as dropped**, with its reason, so a later round
+     revisits it instead of rediscovering it.
+   - **Readiness check** — grade every objective domain against `profile.md`:
+     **known** (a `verified` entry attests it) · **partial** · **unknown** (no
+     entry, or only `unverified` ones). Estimate **remaining hours** from the
+     partial + unknown share weighted by each domain's published exam
+     weighting — never from the exam's total nominal prep time, which assumes a
+     stranger. Record the grade per domain, not just the total: the domain
+     table is what makes a wrong estimate visible next round.
+   - **Rank, and show the trade** — order candidate certs by **moat-fit ÷ remaining hours**, not by moat-fit alone. A cert the user has largely
+     already earned through delivered work can outrank a closer-fitting one —
+     most sharply when the user holds **no live credential**, or when a dated
+     employer cliff lands sooner than the closer cert could. Where the two
+     orderings disagree, present both with the cost of each in hours and let
+     the user choose; never silently resolve it.
 
-4. **Mini projects** — design each project *backwards from exam objectives*: the
-   project exists to build the knowledge the exam tests; passing the exam is the
-   milestone. Aim each project at the domains the readiness check graded
-   **unknown** — hours spent on already-known domains buy nothing. Size each to
-   the user's stated study hours — if study hours were never captured (the
-   interview's *Constraints & preferences* section can be skipped), ask for them
-   now before sizing. Offer (never require) to publish each project to a public
-   repo when its content allows — record `published_url` when taken.
+4. **Mini projects** — for a certificate lane, design each project *backwards from exam objectives*: the project exists to build the knowledge the exam
+   tests, and passing the exam is the milestone. For every other lane, design
+   it backwards from that gate's own measurement, and clearing the gate is the
+   milestone. Aim each project at what the baseline graded **unknown** — hours
+   spent on already-cleared ground buy nothing. Size each to the user's stated
+   study hours; if study hours were never captured (the interview's
+   *Constraints & preferences* section can be skipped), ask for them now before
+   sizing. Offer (never require) to publish each project to a public repo when
+   its content allows — record `published_url` when taken.
 
-5. **Non-cert milestones** — any moat component with no matching cert gets an
-   explicit alternative milestone (a shipped artifact or delivered work), stated
-   in the same pass/fail form. A milestone that costs no study hours (publishing
-   existing work, a conversation with an employer, confirming a credential's
-   expiry) is listed **first**, since it buys moat progress without spending the
-   scarcest resource.
+5. **Zero-study-hour milestones list first — across every lane.** Publishing
+   existing work, asking an employer a question, confirming a credential's
+   expiry date, booking a language assessment: each buys gate progress without
+   spending the scarcest resource, so each is listed ahead of anything costing
+   study hours, whichever lane it sits in.
 
-6. Write **`growth-plan.md`** to the career repo (overview Mermaid diagram: certs
-   + projects on a quarter timeline; the readiness table per candidate cert with
-   its per-domain grades and remaining-hour figure, marked validated or
-   unvalidated; the ranking with the trade shown; then per-project sections:
-   objective domains covered, milestone, size, publish decision).
+6. Write **`growth-plan.md`** to the career repo: an overview Mermaid diagram
+   (lanes × milestones on a quarter timeline); the **lane table** (gate · lane · milestone · baseline (measured / unvalidated) · study hours); for the
+   certificate lane, its readiness table per candidate cert with per-domain
+   grades, the remaining-hour figure marked validated or unvalidated, the
+   ranking with the trade shown, and each cert's (a)/(b) justification; the
+   certs dropped and why; then per-project sections (what it builds, the gate
+   or objective domains covered, milestone, size, publish decision).
 
 7. **Wrap up:** propose the career-repo commit (assisted — show the diff
    summary, let the user approve). On approval, write/finalise
@@ -335,21 +368,24 @@ For the chosen moat:
    `references/growth-state-contract.md`, **then** commit all five artifacts
    together — `profile.md`, `market-report.md`, `moat.md`, `growth-plan.md`,
    and `growth-state.md` — so the file asserting a committed round exists is
-   itself inside that commit. A committed round is what `last_run` means, so
-   a crashed run and a declined commit both leave it unchanged: on decline,
-   do not write `growth-state.md` at all. Then print the `next_review_due`
-   date with a reminder that re-runs are user-initiated. If the user declines
-   the commit, say plainly that the run is not recorded as complete and the
-   next run's posting-trend-delta signal will have no prior round to diff
-   against.
+   itself inside that commit. A committed round is what `last_run` means, so a
+   crashed run and a declined commit both leave it unchanged: on decline, do
+   not write `growth-state.md` at all. Then print the `next_review_due` date
+   with a reminder that re-runs are user-initiated. If the user declines the
+   commit, say plainly that the run is not recorded as complete and the next
+   run's posting-trend-delta signal will have no prior round to diff against.
 
 ## Failure & degradation
 
 | Situation | Behavior |
 |---|---|
 | A job board 403s | try the alternates in `references/market-sources.md`; only then report the metric unavailable |
+| **Pass 2a returns no families for a ring** | report the ring as unsurveyed and continue with the rings that answered — never fall back to inventory keywords, which is the bias the pass exists to remove |
+| **A board exposes no requirement text** | record "gates not exposed" for that family; the family may still be deep-dived on counts, but an unmeasured gate must not become a Station 5 lane |
 | Vendor cert registry unreachable | withhold cert recommendations — never from memory; keep a previously-targeted cert's existing status and leave its stale `verified_on` in place, noting the verification could not be refreshed. `retired-blocked` is only for a confirmed retirement listing |
 | No published prep hours and no practice assessment for a cert | rank it anyway, on the estimate, but label the figure **unvalidated** in `growth-plan.md` and name the missing measurement as a risk — never present an unmeasured estimate as a schedule |
+| A gate has no measurable baseline | keep the lane, label its size **unvalidated**, and list the measurement itself as that lane's first (usually zero-study-hour) milestone |
+| **A v1 `growth-state.md` is found** | migrate it per `references/growth-state-contract.md` and say what was carried and what defaulted — never rewrite it silently, and never reject the round for it |
 | `ado-backlog` absent | skip the ADO source with an explicit notice |
 | No web access at all | the run stops after INVENTORY — Stations 2 through 5 do not run, because without market evidence the `paid` and `durable` tests cannot be argued; say why, never fabricate |
 | User rejects all candidates | loop to Station 3 with their objections as constraints |
