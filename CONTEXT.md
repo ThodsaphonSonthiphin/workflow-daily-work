@@ -159,6 +159,33 @@ how it passes each test.
 _Avoid_: strength, unique selling point (marketing term), specialty (implies depth
 only — a moat is a combination).
 
+**Job family**:
+A named, hireable role with its own career ladder inside a market ring — e.g.
+*Solution Architect*, *AI Platform Engineer* — the unit MARKET's pass 2a counts
+(workflow-daily-work-0148). Distinct from a skill keyword (*Dataverse*, *MCP*):
+round 1 counted keywords and missed the families; a family is what a person is
+actually hired as, and it carries the gates (language, certs, domain) a plan
+must clear.
+_Avoid_: job title (one posting's string, not the ladder), role keyword.
+
+**Declared destination**:
+A career target the user declares themselves — role + ring + stack, e.g.
+*Solution Architect, Bangkok, Microsoft Business Applications* — entering the
+pipeline as an optional preflight input that Station 3 must argue against the
+four tests as a mandatory candidate (workflow-daily-work-0151). It is an input
+to validate, never a shortcut past the Station 4 gate, and never silently
+swapped. Unrelated to the publishing **Destination** below (where a page lands).
+_Avoid_: goal (unvalidated wish), moat (a declared destination has not passed
+the four tests yet), bare destination (taken by the publishing term).
+
+**Family gate**:
+A measurable entry requirement a **Job family** states in its posting text —
+a language level, a named certificate, domain experience, lead delivery — read
+during MARKET's pass 2b. Each gate of the chosen moat or declared destination
+becomes a milestone lane in `growth-plan.md` (workflow-daily-work-0152).
+Distinct from the Station 4 approval gate (a pipeline stop, not a market fact).
+_Avoid_: requirement (too generic), bare gate (ambiguous with the approval gate).
+
 ## GitHub terms (github-backlog plugin)
 
 **GitHub Owner**:
