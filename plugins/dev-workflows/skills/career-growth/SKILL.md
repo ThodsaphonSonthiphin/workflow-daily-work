@@ -137,11 +137,13 @@ overview Mermaid diagram (skill map grouped by evidence grade).
 
 ## Station 2 — MARKET
 
-Load the `verify-then-advise` skill via your harness's mechanism and run its
-six-stage method in full over each confirmed ring, for the skill areas from
-Station 1's inventory plus any adjacent areas confirmed with the user. Two
-stages run before the source-list work even starts and are easy to miss if
-you assume you already know the method:
+Two passes over the confirmed rings. Pass 2a looks at the market with no
+knowledge of the person; pass 2b spends the research budget only where the
+user has agreed it should go (workflow-daily-work-0148, -0149).
+
+Both passes run `verify-then-advise`'s six-stage method — load that skill via
+your harness's mechanism. Two of its stages run before any source-list work
+and are easy to miss if you assume you already know the method:
 
 - **Inventory the moving parts** (stage 1) — before researching anything,
   list every external entity this round's advice will name (certs, vendors,
@@ -151,39 +153,82 @@ you assume you already know the method:
   script; never sum rounded per-item parts.
 
 `references/market-sources.md` is the **starting** board and ring list — it
-bounds where the survey begins, not where it must stop. Two more of the
-sibling's stages reach outside that list by design and are required here,
-not optional:
+bounds where the survey begins, not where it must stop.
 
-- **Counter-signal hunt** (stage 3) — a counter-signal is by definition not on
-  a curated list; look for the contradicting view (independent analysts,
-  adoption data, post-mortems) before advising a direction.
-- **Institutional-incentive read** (stage 5) — read the user's **employer's**
-  partner-program, customer, or team requirements for the skill areas in play,
-  and surface any dated cliff running against them. This is what turns a
-  personal wish into an employer-funded case, and the sibling names it the
-  single most useful output of the method.
+### Pass 2a — inventory-blind job-family scan
 
-Gather: demand (posting counts per ring, primary artifacts counted per stage 4
-before citing commentary), the certificates employers name (each live-verified
-per stage 2 before it may be mentioned), compensation signals where boards
-expose them (aggregator numbers grade `Directional`, per the sibling), the
-3-year outlook (triangulated — at least three signal types — with the
-AI-absorption assessment stated per skill), and — for every certificate that
-survives verification — a **published preparation-hour figure** and whether the
-vendor offers a **practice assessment**. Station 5's readiness check needs both;
-record "not published" explicitly rather than leaving the field absent.
+This pass **may not read Station 1's output**, and that prohibition is the
+whole point: a survey scoped by the skills a person already holds can only
+find more of what they already have. Round 1 of this skill scoped Station 2
+that way and never counted the job family that later decided the plan.
 
-Write **`market-report.md`** to the career repo: overview Mermaid diagram (rings
-× demand), a demand table per ring (skill · postings · source · date ·
-**confidence grade**), the verified cert list (code, registry status,
-`verified_on`, registry URL, published prep hours or "not published", practice
-assessment available yes/no), the counter-signals found (or "looked, found
-none"), the institutional-incentive findings (with any dated cliff), and the
-triangulated outlook with each signal cited and graded. Also record **what was
-not checked** — geographies skipped, sources that blocked, questions left open.
-The file is overwritten each run; git history keeps the prior rounds.
+1. Anchor on the **profession** captured in Step 0 — nothing narrower.
+2. Enumerate the **job families** that exist in each ring under that
+   profession: named, separately-laddered roles a person is hired *as*, not
+   skill keywords. Cap at **8–10 job families per ring** so MARKET stays a
+   single-session stage (ADR 0047). When the cap truncates, `market-report.md`
+   names the dropped families — a silent truncation reads as "that was all
+   there was".
+3. Per family record: ring · the titles it appears under · a board count
+   labeled `unread` · any entry requirement the list view already exposes.
+   Pass 2a counts are **not** verdict-bearing (evidence rule 5), which is why
+   an `unread` figure is acceptable here and nowhere downstream.
+4. Note where a family has **no ladder in a ring** at all. Round 1's most
+   useful structural finding was exactly this shape — a capability that
+   existed only as a differentiator inside a conventional title, never as a
+   job to apply for.
 
+### The light stop — the user confirms the deep-dive set
+
+Present the per-ring family table and propose the deep-dive set. A family
+that is **inventory-adjacent** (it plainly matches Station 1's evidence) or
+that belongs to a **declared destination** enters automatically; the user
+adds or cuts the rest. This is a light stop, not the Station 4 gate — no moat
+is chosen here, and the run continues as soon as the set is agreed.
+
+### Pass 2b — the scoped deep-dive
+
+For each family in the confirmed set:
+
+1. **Read the requirement text** and extract its **family gates** — the
+   measurable entry requirements (language level, named certificates, domain
+   experience, lead delivery, clearance). Where a board exposes no
+   requirement text, say so per family rather than leaving the field absent:
+   a gate nobody measured must never become a lane in Station 5.
+2. **Count genuinely** — read the returned titles and count only the postings
+   actually about that family, recording the board count and the genuine
+   count as a dated pair (evidence rule 5; method in
+   `references/market-sources.md`).
+3. **Certificates** — every cert a posting or partner program names is
+   live-verified per `verify-then-advise` stage 2 before it may be mentioned,
+   together with its published **preparation-hour** figure and whether a
+   **practice assessment** exists. Record "not published" explicitly rather
+   than leaving the field absent; Station 5's readiness check needs both.
+4. **Counter-signal hunt** (stage 3) — a counter-signal is by definition not
+   on a curated list; look for the contradicting view (independent analysts,
+   adoption data, post-mortems) before advising a direction.
+5. **Institutional-incentive read** (stage 5) — read the user's **employer's**
+   partner-program, customer, or team requirements for the families in play,
+   and surface any dated cliff running against them. This turns a personal
+   wish into an employer-funded case, and it is also the evidence a
+   certificate needs to earn a lane in Station 5.
+6. **Compensation** where boards expose it (aggregator numbers grade
+   `Directional`), and the **3-year outlook** triangulated across at least
+   three signal types, with the AI-absorption assessment stated per family.
+
+Write **`market-report.md`** to the career repo: overview Mermaid diagram
+(rings × families), **the per-ring family table** from pass 2a with its
+dropped-family note, the deep-dive set and who chose each entry, a
+**family-gate table per deep-dived family**, the demand table (family · board
+count · genuine count · source · date · **confidence grade**), the verified
+cert list (code, registry status, `verified_on`, registry URL, published prep
+hours or "not published", practice assessment yes/no), the counter-signals
+found (or "looked, found none"), the institutional-incentive findings with any
+dated cliff, and the triangulated outlook with each signal cited and graded.
+Also record **what was not checked** — geographies skipped, sources that
+blocked, families dropped by the cap, requirement text a board would not
+expose, questions left open. The file is overwritten each run; git history in
+the career repo keeps the prior rounds.
 ## Station 3 — GAP + MOAT
 
 Cross INVENTORY × MARKET, weighted by Station 1's evidence grades: `verified`
