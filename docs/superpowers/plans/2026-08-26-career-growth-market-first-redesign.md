@@ -159,7 +159,7 @@ CHECKS = [
     ("s2-auto",         "skill", "has", "enters automatically", True),
     ("s2-2b-heading",   "skill", "has", "### Pass 2b — the scoped deep-dive", True),
     ("s2-gates",        "skill", "has", "extract its **family gates**", True),
-    ("s2-gate-unread",  "skill", "has", "say so per family rather than leaving the field absent", True),
+    ("s2-gate-unread",  "skill", "has", "say so per family rather than leaving the", True),
     ("s2-family-table", "skill", "has", "the per-ring family table", True),
     ("s2-old-scope",    "skill", "has", "for the skill areas from Station 1's inventory plus any adjacent", False),
 
@@ -564,10 +564,12 @@ is chosen here, and the run continues as soon as the set is agreed.
 For each family in the confirmed set:
 
 1. **Read the requirement text** and extract its **family gates** — the
-   measurable entry requirements (language level, named certificates, domain
-   experience, lead delivery, clearance). Where a board exposes no
-   requirement text, say so per family rather than leaving the field absent:
-   a gate nobody measured must never become a lane in Station 5.
+   measurable entry requirements: language, certificates named, domain
+   experience, lead / delivery, location / eligibility, seniority signal —
+   the six fields `references/market-sources.md` defines. Where a board
+   exposes no requirement text, say so per family rather than leaving the
+   field absent: a gate nobody measured must never become a lane in
+   Station 5.
 2. **Count genuinely** — read the returned titles and count only the postings
    actually about that family, recording the board count and the genuine
    count as a dated pair (evidence rule 5; method in

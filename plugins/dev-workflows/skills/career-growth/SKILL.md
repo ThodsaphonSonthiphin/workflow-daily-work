@@ -193,10 +193,12 @@ is chosen here, and the run continues as soon as the set is agreed.
 For each family in the confirmed set:
 
 1. **Read the requirement text** and extract its **family gates** — the
-   measurable entry requirements (language level, named certificates, domain
-   experience, lead delivery, clearance). Where a board exposes no
-   requirement text, say so per family rather than leaving the field absent:
-   a gate nobody measured must never become a lane in Station 5.
+   measurable entry requirements: language, certificates named, domain
+   experience, lead / delivery, location / eligibility, seniority signal —
+   the six fields `references/market-sources.md` defines. Where a board
+   exposes no requirement text, say so per family rather than leaving the
+   field absent: a gate nobody measured must never become a lane in
+   Station 5.
 2. **Count genuinely** — read the returned titles and count only the postings
    actually about that family, recording the board count and the genuine
    count as a dated pair (evidence rule 5; method in
