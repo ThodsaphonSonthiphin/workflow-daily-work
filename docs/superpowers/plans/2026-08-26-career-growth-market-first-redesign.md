@@ -212,7 +212,7 @@ CHECKS = [
     ("ib-lang-exists",  "ib", "has", "Which human languages do you work in", True),  # untouched
 
     # --- desc: the seven advertised descriptions ---
-    ("desc-skill",      "skill",  "has", "cert-driven", False),
+    ("desc-skill",      "skill",  "has", "a defensible moat and a cert-driven growth plan", False),
     ("desc-skill-gate", "skill",  "has", "gate-driven", True),
     ("desc-plugin",     "plugin", "has", "cert-driven", False),
     ("desc-market",     "market", "has", "cert-driven", False),
