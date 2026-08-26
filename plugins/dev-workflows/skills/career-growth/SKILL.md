@@ -303,7 +303,9 @@ is closable by no certificate at all.
    The converse holds too — a lane with no measured gate behind it does not
    belong in the plan.
 
-2. **Baseline every lane before sizing it.** A lane needs a **measured baseline** before its milestone can be scheduled. This is the certificate
+2. **Baseline every lane before sizing it.** Every lane needs a
+   **measured baseline** before its milestone can be scheduled. This is
+   the certificate
    lane's existing discipline, generalised: a published **practice assessment**
    outranks any estimate for a cert; a scored test or a recorded mock call is
    the baseline for a language lane; a public repo's absence is its own
@@ -331,14 +333,18 @@ is closable by no certificate at all.
      weighting — never from the exam's total nominal prep time, which assumes a
      stranger. Record the grade per domain, not just the total: the domain
      table is what makes a wrong estimate visible next round.
-   - **Rank, and show the trade** — order candidate certs by **moat-fit ÷ remaining hours**, not by moat-fit alone. A cert the user has largely
+   - **Rank, and show the trade** — order candidate certs by
+     **moat-fit ÷ remaining hours**, not by moat-fit alone. A cert the
+     user has largely
      already earned through delivered work can outrank a closer-fitting one —
      most sharply when the user holds **no live credential**, or when a dated
      employer cliff lands sooner than the closer cert could. Where the two
      orderings disagree, present both with the cost of each in hours and let
      the user choose; never silently resolve it.
 
-4. **Mini projects** — for a certificate lane, design each project *backwards from exam objectives*: the project exists to build the knowledge the exam
+4. **Mini projects** — for a certificate lane, design each project
+   *backwards from exam objectives*: the project exists to build the
+   knowledge the exam
    tests, and passing the exam is the milestone. For every other lane, design
    it backwards from that gate's own measurement, and clearing the gate is the
    milestone. Aim each project at what the baseline graded **unknown** — hours
@@ -355,7 +361,9 @@ is closable by no certificate at all.
    study hours, whichever lane it sits in.
 
 6. Write **`growth-plan.md`** to the career repo: an overview Mermaid diagram
-   (lanes × milestones on a quarter timeline); the **lane table** (gate · lane · milestone · baseline (measured / unvalidated) · study hours); for the
+   (lanes × milestones on a quarter timeline); the **lane table**
+   (gate · lane · milestone · baseline (measured / unvalidated) · study
+   hours); for the
    certificate lane, its readiness table per candidate cert with per-domain
    grades, the remaining-hour figure marked validated or unvalidated, the
    ranking with the trade shown, and each cert's (a)/(b) justification; the

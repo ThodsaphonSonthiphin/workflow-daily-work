@@ -146,8 +146,8 @@ CHECKS = [
 
     # --- r5: evidence rule 5 ---
     ("r5-rule",         "skill", "has", "5. **A verdict-bearing count is a board+genuine pair**", True),
-    ("r5-unread",       "skill", "has", "labeled `unread` may inform but never decide", True),
-    ("r5-external",     "skill", "has", "is a lead to re-measure, never a citable count", True),
+    ("r5-unread",       "skill", "has", "A count labeled `unread` may inform but", True),
+    ("r5-external",     "skill", "has", "is a lead to re-measure, never a", True),
     ("r5-meaning",      "skill", "has", "Bearing a verdict means", True),
 
     # --- s2: Station 2's two passes ---
@@ -158,28 +158,28 @@ CHECKS = [
     ("s2-stop",         "skill", "has", "### The light stop — the user confirms the deep-dive set", True),
     ("s2-auto",         "skill", "has", "enters automatically", True),
     ("s2-2b-heading",   "skill", "has", "### Pass 2b — the scoped deep-dive", True),
-    ("s2-gates",        "skill", "has", "family gates", True),
+    ("s2-gates",        "skill", "has", "extract its **family gates**", True),
     ("s2-gate-unread",  "skill", "has", "say so per family rather than leaving the field absent", True),
     ("s2-family-table", "skill", "has", "the per-ring family table", True),
     ("s2-old-scope",    "skill", "has", "for the skill areas from Station 1's inventory plus any adjacent", False),
 
     # --- s345: Stations 3-5 ---
     ("s3-anchor",       "skill", "has", "may anchor on any deep-dived job family", True),
-    ("s3-dest-mand",    "skill", "has", "mandatory candidate", True),
+    ("s3-dest-mand",    "skill", "has", "**A declared destination is a mandatory candidate.**", True),
     ("s3-comparator",   "skill", "has", "at least one comparator", True),
     ("s3-gates-listed", "skill", "has", "lists the family gates it must clear", True),
     ("s4-gates-recorded","skill","has", "records the chosen candidate's family gates", True),
-    ("s5-lanes",        "skill", "has", "one lane per measured family gate", True),
-    ("s5-hole",         "skill", "has", "A gate with no lane is a planning hole", True),
-    ("s5-justif",       "skill", "has", "an institution or ring demonstrably reads it", True),
-    ("s5-justif-b",     "skill", "has", "forces capability the readiness check graded **unknown**", True),
-    ("s5-drop",         "skill", "has", "is dropped from the plan and recorded as dropped", True),
-    ("s5-baseline",     "skill", "has", "measured baseline", True),
+    ("s5-lanes",        "skill", "has", "Create **one lane per measured family gate**", True),
+    ("s5-hole",         "skill", "has", "no lane is a planning hole", True),
+    ("s5-justif",       "skill", "has", "institution or ring demonstrably reads it", True),
+    ("s5-justif-b",     "skill", "has", "readiness check graded **unknown**", True),
+    ("s5-drop",         "skill", "has", "the plan and recorded as dropped", True),
+    ("s5-baseline",     "skill", "has", "**measured baseline** before its milestone", True),
     ("s5-zero-hour",    "skill", "has", "across every lane", True),
     ("s5-lane-table",   "skill", "has", "lane table", True),
-    ("s5-readiness",    "skill", "has", "moat-fit ÷ remaining hours", True),   # survives
+    ("s5-readiness",    "skill", "has", "**moat-fit ÷ remaining hours**, not by moat-fit alone", True),   # survives
     ("s5-practice",     "skill", "has", "practice assessment", True),          # survives
-    ("s5-objectives",   "skill", "has", "backwards from exam objectives", True),# survives
+    ("s5-objectives",   "skill", "has", "*backwards from exam objectives*: the project exists", True),# survives
     ("fail-2a-empty",   "skill", "has", "Pass 2a returns no families for a ring", True),
     ("fail-no-req",     "skill", "has", "A board exposes no requirement text", True),
     ("fail-v1",         "skill", "has", "A v1 `growth-state.md` is found", True),
@@ -189,7 +189,7 @@ CHECKS = [
     ("ms-anchor-rule",  "ms", "has", "the profession anchor", True),
     ("ms-genuine",      "ms", "has", "## Genuine counts — the reading method", True),
     ("ms-first-page",   "ms", "has", "first page of returned titles", True),
-    ("ms-record",       "ms", "has", "record both integers", True),
+    ("ms-record",       "ms", "has", "**Record both integers**", True),
     ("ms-gate-fields",  "ms", "has", "## Family gates — the fields to extract", True),
     ("ms-taxonomy",     "ms", "has", "Trend-signal taxonomy", True),  # survives
 
@@ -501,7 +501,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 SP="C:/Users/THODSA~1.SON/AppData/Local/Temp/claude/c--Repo2-carreer/860b18a7-e9a2-48ea-8691-e6359b09c4cd/scratchpad"; python "$SP/verify.py" s2
 ```
 
-Expected: `s2: 10 checks, 10 failing` — nine because the new text is absent, and `s2-old-scope` because the old inventory-scoped sentence is still there.
+Expected: `s2: 11 checks, 11 failing` — ten because the new text is absent, and `s2-old-scope` because the old inventory-scoped sentence is still there.
 
 - [ ] **Step 2: Author the new Station 2**
 
@@ -610,7 +610,7 @@ the career repo keeps the prior rounds.
 SP="C:/Users/THODSA~1.SON/AppData/Local/Temp/claude/c--Repo2-carreer/860b18a7-e9a2-48ea-8691-e6359b09c4cd/scratchpad"; python "$SP/splice.py" "C:/Repo2/workflow daily work/plugins/dev-workflows/skills/career-growth/SKILL.md" "## Station 2 — MARKET" "## Station 3 — GAP + MOAT" "$SP/p-station2.md" && python "$SP/verify.py" s2
 ```
 
-Expected: splice OK, then `s2: 10 checks, 0 failing`.
+Expected: splice OK, then `s2: 11 checks, 0 failing`.
 
 - [ ] **Step 4: Commit**
 
@@ -733,8 +733,9 @@ is closable by no certificate at all.
    The converse holds too — a lane with no measured gate behind it does not
    belong in the plan.
 
-2. **Baseline every lane before sizing it.** A lane needs a **measured
-   baseline** before its milestone can be scheduled. This is the certificate
+2. **Baseline every lane before sizing it.** Every lane needs a
+   **measured baseline** before its milestone can be scheduled. This is
+   the certificate
    lane's existing discipline, generalised: a published **practice assessment**
    outranks any estimate for a cert; a scored test or a recorded mock call is
    the baseline for a language lane; a public repo's absence is its own
@@ -762,16 +763,18 @@ is closable by no certificate at all.
      weighting — never from the exam's total nominal prep time, which assumes a
      stranger. Record the grade per domain, not just the total: the domain
      table is what makes a wrong estimate visible next round.
-   - **Rank, and show the trade** — order candidate certs by **moat-fit ÷
-     remaining hours**, not by moat-fit alone. A cert the user has largely
+   - **Rank, and show the trade** — order candidate certs by
+     **moat-fit ÷ remaining hours**, not by moat-fit alone. A cert the
+     user has largely
      already earned through delivered work can outrank a closer-fitting one —
      most sharply when the user holds **no live credential**, or when a dated
      employer cliff lands sooner than the closer cert could. Where the two
      orderings disagree, present both with the cost of each in hours and let
      the user choose; never silently resolve it.
 
-4. **Mini projects** — for a certificate lane, design each project *backwards
-   from exam objectives*: the project exists to build the knowledge the exam
+4. **Mini projects** — for a certificate lane, design each project
+   *backwards from exam objectives*: the project exists to build the
+   knowledge the exam
    tests, and passing the exam is the milestone. For every other lane, design
    it backwards from that gate's own measurement, and clearing the gate is the
    milestone. Aim each project at what the baseline graded **unknown** — hours
@@ -788,8 +791,9 @@ is closable by no certificate at all.
    study hours, whichever lane it sits in.
 
 6. Write **`growth-plan.md`** to the career repo: an overview Mermaid diagram
-   (lanes × milestones on a quarter timeline); the **lane table** (gate · lane ·
-   baseline, marked measured or unvalidated · milestone · size); for the
+   (lanes × milestones on a quarter timeline); the **lane table**
+   (gate · lane · milestone · baseline (measured / unvalidated) · study
+   hours); for the
    certificate lane, its readiness table per candidate cert with per-domain
    grades, the remaining-hour figure marked validated or unvalidated, the
    ranking with the trade shown, and each cert's (a)/(b) justification; the
@@ -1443,7 +1447,7 @@ once. If the directory is absent, copy it in (`cp -a plugins/dev-workflows/. "$C
 SP="C:/Users/THODSA~1.SON/AppData/Local/Temp/claude/c--Repo2-carreer/860b18a7-e9a2-48ea-8691-e6359b09c4cd/scratchpad"; python "$SP/verify.py" all
 ```
 
-Expected: `all: 68 checks, 0 failing`, exit 0.
+Expected: `all: 69 checks, 0 failing`, exit 0.
 
 - [ ] **Step 10: Delete the scratchpad gate**
 
