@@ -24,6 +24,11 @@ flowchart LR
 - Have you led anything — a feature, a rollout, a person, a vendor call?
 - What do colleagues come to you for?
 
+A self-reported language level **is not a measured baseline.** It grades
+`interview-attested` like any other answer here, and if a family gate turns
+out to be language, Station 5's language lane still needs a real measurement
+— a scored test or a recorded mock call — before its milestone can be sized.
+
 ## Domain knowledge
 
 - Which business domains have you shipped into (e.g. shipping/logistics, finance),
@@ -32,6 +37,17 @@ flowchart LR
 
 ## Constraints & preferences
 
+- What is the **coarsest label** for what you do — "software engineering",
+  "data", "finance" — not your specialisation? *(Asked once, ever; later
+  rounds confirm the stored answer rather than re-asking. A narrow answer
+  here re-creates the inventory bias the two-pass market scan exists to
+  remove, so push back on "Power Platform developer" and take "software
+  engineering".)*
+- Are you already aiming at a **declared destination** — a named role, in a
+  named ring, on a named stack? *(Optional; "no" is the normal first-round
+  answer. A declared destination becomes a mandatory Station 3 candidate
+  argued against the four tests, so it is an input to validate, not a
+  shortcut.)*
 - Hours per week you can actually study, sustainably?
 - Exam budget per quarter (certs cost money) — any employer sponsorship?
 - Remote / relocation constraints across the target rings?
