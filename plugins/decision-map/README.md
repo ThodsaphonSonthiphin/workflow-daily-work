@@ -14,6 +14,57 @@ description of what the tool does is
 design spec at `docs/superpowers/specs/2026-07-31-decision-map-design.md` is a
 historical record and is superseded in part — it carries a banner saying how.
 
+## Where it fits
+
+decision-map owns one slice of the delivery arc — the design and
+architecture-decision phase. It does not gather requirements, and it does not
+build:
+
+```mermaid
+flowchart LR
+    A["requirements"] --> B["design /<br/>architecture decisions"] --> C["plan"] --> D["build"] --> E["ship"]
+    subgraph owned["decision-map"]
+        B
+    end
+```
+
+Most of its vocabulary has a familiar counterpart, so a reader coming from
+ordinary delivery practice can place it quickly:
+
+| decision-map | Usual counterpart |
+|---|---|
+| Decision map | RFC, design epic, architecture backlog |
+| Decision ticket | spike ticket, an open question awaiting its ADR |
+| `research` ticket (AFK) | spike |
+| `prototype` ticket | tracer bullet, throwaway prototype |
+| `grilling` ticket (HITL) | design review with a stakeholder |
+| fog | unknown-unknowns, the parking lot |
+| frontier | the ready queue — unblocked, unclaimed tickets |
+| Milestone | shippable increment, release slice |
+| claim | assignment, plus a WIP limit of one |
+| dry-run gate | `plan` before `apply` |
+| ADR | ADR — the same artifact |
+
+Four things it does that an ordinary backlog does not:
+
+- **Decisions are separated from build work.** Every ticket is a question, not
+  a slice of a build, so nothing can quietly mix "decide the auth model" in
+  with "add the login button" and let the first of them go unanswered.
+- **Fog is a first-class artifact.** You are not required to know every
+  question up front. Uncertainty you cannot yet phrase is held as fog and
+  graduated into tickets as it sharpens.
+- **State lives in the map, not in the conversation.** The session that
+  answered a question can end, be compacted, or crash, and the next one still
+  starts from the same place.
+- **Who decides is declared per ticket.** A HITL ticket resolves only through
+  live exchange with the human — the agent never answers its own design
+  question and then records the result as settled.
+
+**Reach for it when both are true:** the effort spans more than one session,
+*and* you cannot yet list the decisions it needs. If you can already list them,
+or the whole thing fits in one session, `grill-then-plan` is the cheaper route
+— chart-map stops and says so itself when its opening grill surfaces no fog.
+
 ## Lifecycle
 
 One chart, then work-map sessions in a loop — one ticket each — until a
