@@ -14,6 +14,43 @@ description of what the tool does is
 design spec at `docs/superpowers/specs/2026-07-31-decision-map-design.md` is a
 historical record and is superseded in part — it carries a banner saying how.
 
+## Lifecycle
+
+One chart, then work-map sessions in a loop — one ticket each — until a
+milestone (or the whole map) is ready to build:
+
+```mermaid
+flowchart TD
+    A["Effort too big for one session"] --> B["chart-map: name the destination,<br/>grill breadth-first"]
+    B -->|"no fog surfaced"| C["No map needed —<br/>grill-then-plan, one session"]
+    B -->|"fog surfaced"| D["Create map + tickets + milestones<br/>(dry-run gated), fire research subagents, STOP"]
+    D --> E["work-map: one session, one ticket —<br/>claim from the earliest incomplete milestone"]
+    E --> F{"ticket type"}
+    F -->|"grilling (HITL)"| G["sp-grill-with-doc<br/>→ answer + ADR"]
+    F -->|"prototype (HITL)"| H["mockup — the user's<br/>reaction decides"]
+    F -->|"research (AFK)"| I["research subagent"]
+    F -->|"task"| J["do it, or hand<br/>the user a checklist"]
+    G --> K["record the resolution on the ticket,<br/>graduate cleared fog, STOP"]
+    H --> K
+    I --> K
+    J --> K
+    K --> L{"map state"}
+    L -->|"tickets still open"| E
+    L -->|"a milestone completed"| M["build that increment:<br/>sp-writing-plans → execute"]
+    L -->|"frontier empty, fog remains"| N["graduate the sharpest fog<br/>into a new ticket"]
+    N --> E
+    L -->|"empty and no fog left"| O["map done — hand off to<br/>sp-writing-plans → build"]
+    M --> E
+```
+
+Two notes the diagram compresses. A `grilling` ticket whose deliverable is
+*meant* to be a written plan may load `grill-then-plan` instead of
+`sp-grill-with-doc` — work-map's Step 3 table carries that one exception. And a
+completed milestone is a shippable increment (ADR 0094): building it may begin
+while later milestones stay open, but work-map's only *explicit* hand-off to
+`sp-writing-plans` is at map-done — for a per-milestone build you invoke it
+yourself.
+
 ## Skills
 
 | Skill | Command | What it does |
