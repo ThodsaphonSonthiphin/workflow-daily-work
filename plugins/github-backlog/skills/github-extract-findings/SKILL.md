@@ -9,12 +9,12 @@ description: >-
   "here's a naming audit", "these are the problems we found", "turn this
   spreadsheet into GitHub issues", "I reviewed the code and noted these gaps",
   "make a backlog from this doc". If the goal is eventually GitHub Issues, this
-  runs first. Hands off to triage-findings (then classify-github-issues,
+  runs first. Hands off to github-triage-findings (then classify-github-issues,
   github-create-issues). Driven end-to-end by the findings-to-github-issues orchestrator.
 effort: max
 ---
 
-# extract-findings
+# github-extract-findings
 
 Turn whatever the user has — a spreadsheet, a doc, or pasted text — into a clean
 `findings.json`. This is the entry point of the github-backlog pipeline: every later
@@ -87,7 +87,7 @@ Show the user:
 - counts: total findings, and a breakdown by `severity`/`kind` if you set them,
 - the first 3–5 normalized findings.
 
-Once the user confirms the mapping looks right, hand off to **triage-findings**.
+Once the user confirms the mapping looks right, hand off to **github-triage-findings**.
 
 ## Notes
 

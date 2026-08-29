@@ -2,7 +2,7 @@
 name: github-triage-findings
 description: >-
   Decide WHICH findings become GitHub Issues and in what order/batches, working
-  from a findings.json produced by extract-findings. Use this AFTER findings are
+  from a findings.json produced by github-extract-findings. Use this AFTER findings are
   extracted and BEFORE creating issues — especially when there are more findings
   than you want to file at once. Triggers on "start with the critical ones",
   "which should we file first", "don't dump everything into GitHub", "let's do
@@ -13,9 +13,9 @@ description: >-
 effort: max
 ---
 
-# triage-findings
+# github-triage-findings
 
-You have a `findings.json` (from `extract-findings`). Filing every row blindly
+You have a `findings.json` (from `github-extract-findings`). Filing every row blindly
 creates a noisy, unprioritized backlog. This skill is the human-in-the-loop gate:
 **show the shape of the findings, agree on a scope and order, emit a smaller set**,
 then hand off to `classify-github-issues`. The win is an auditable *wave* structure.
