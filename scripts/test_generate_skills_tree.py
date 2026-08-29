@@ -229,6 +229,25 @@ def test_argument_hint_lands_after_a_folded_description_block():
         'argument-hint: "[x]"\neffort: high\n---\n\nbody\n'), out
 
 
+def test_compiled_python_never_travels():
+    assert g.is_compiled_python("scripts/__pycache__/x.cpython-313.pyc")
+    assert g.is_compiled_python("scripts/x.pyc")
+    assert not g.is_compiled_python("scripts/x.py")
+    repo = _repo()
+    try:
+        src = _skill(repo, "p", "one", "one", "body\n")
+        _write(os.path.join(src, "scripts", "x.py"), "x = 1\n")
+        _write(os.path.join(src, "scripts", "__pycache__", "x.cpython-313.pyc"), "junk")
+        _write(os.path.join(src, "stray.pyc"), "junk")
+        out = os.path.join(repo, "skills")
+        g.emit_skill(g.Skill("p", "one", src), out, {})
+        assert os.path.isfile(os.path.join(out, "one", "scripts", "x.py"))
+        assert not os.path.exists(os.path.join(out, "one", "scripts", "__pycache__"))
+        assert not os.path.exists(os.path.join(out, "one", "stray.pyc"))
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_licence_mapping_covers_the_seven_vendored_skills():
     assert g.licence_for("wait-what") == "LICENSE-mattpocock-skills"
     assert g.licence_for("sp-writing-plans") == "LICENSE-superpowers"

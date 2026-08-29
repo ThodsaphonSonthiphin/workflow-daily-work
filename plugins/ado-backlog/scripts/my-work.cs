@@ -5,10 +5,11 @@
 // number is a clickable terminal hyperlink (opens the work item in the browser).
 // Built-in libraries only (HttpClient + System.Text.Json) — no SDK, no NuGet packages.
 //
-// Run (PowerShell):
+// Run (PowerShell) — the path depends on how you installed the my-work skill:
 //   az login
 //   $env:AZDO_ORG = "Cartagena365"
-//   dotnet run "${CLAUDE_PLUGIN_ROOT}/scripts/my-work.cs"
+//   dotnet run "${CLAUDE_PLUGIN_ROOT}/scripts/my-work.cs"   # plugin install
+//   dotnet run "${CLAUDE_SKILL_DIR}/scripts/my-work.cs"     # npx skills install
 //
 // Options:
 //   $env:AZDO_PAT            = "..."     # use a PAT (Work Items = Read) instead of the az token

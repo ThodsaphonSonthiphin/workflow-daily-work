@@ -105,6 +105,17 @@ def is_excluded(rel):
     return parts[-1].startswith("test_")
 
 
+def is_compiled_python(rel):
+    """Byte-compiled Python: never authored, never useful in a skill.
+
+    Running any script in a source skill leaves a __pycache__ beside it, and
+    _copy_tree copies a skill's own directories wholesale - so without this
+    the tree's contents would depend on whether anyone had run the scripts.
+    """
+    parts = rel.split("/")
+    return "__pycache__" in parts or parts[-1].endswith((".pyc", ".pyo"))
+
+
 def local_imports(py_path):
     """Module names imported by py_path that exist as .py siblings.
 
@@ -250,7 +261,7 @@ def emit_skill(skill, out_root, hints):
         target = os.path.join(dest, entry)
         if os.path.isdir(source):
             _copy_tree(source, target, owned, entry)
-        else:
+        elif not is_compiled_python(entry):
             _copy_file(source, target, rewrite=entry.endswith(".md"))
             owned.add(entry)
 
@@ -302,6 +313,8 @@ def _copy_tree(source, target, owned=None, prefix=""):
             rel = os.path.relpath(src, source)
             # Record with forward slashes, relative to skill destination
             skill_rel = (prefix + "/" + rel.replace(os.sep, "/")).lstrip("/")
+            if is_compiled_python(skill_rel):
+                continue
             _copy_file(src, os.path.join(target, rel),
                        rewrite=entry.endswith(".md"),
                        base=posixpath.dirname(skill_rel))

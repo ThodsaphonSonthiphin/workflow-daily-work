@@ -96,8 +96,8 @@ Installing the skill is not the same as being able to run it. These are once per
 | you installed | do this | check it |
 |---|---|---|
 | anything from `dev-workflows` | Python 3 on PATH. Several skills hand off to the upstream `superpowers` plugin at plan-execution time: `/plugin marketplace add anthropics/claude-plugins-official` then `/plugin install superpowers@claude-plugins-official`. | ask for a plan and confirm the handoff lands |
-| anything from `ado-backlog` | `pip install openpyxl`, `az login`, and set `AZDO_ORG` / `AZDO_PROJECT` to **bare names** (`Cartagena365`, `GlassHull`) — not URLs. `AZDO_PAT` is the fallback when Entra tokens are unavailable. | `/ado-auth` |
-| anything from `github-backlog` | `pip install openpyxl`, `gh auth login`, and set `GH_OWNER` / `GH_REPO`. | `/github-auth` |
+| anything from `ado-backlog` | `pip install openpyxl`, `az login`, and set `AZDO_ORG` / `AZDO_PROJECT` to **bare names** (`Cartagena365`, `GlassHull`) — not URLs. `AZDO_PAT` is the fallback when Entra tokens are unavailable. | `/ado-auth` for the credentials; for the rest, the sweep below |
+| anything from `github-backlog` | `pip install openpyxl`, `gh auth login`, and set `GH_OWNER` / `GH_REPO`. | `/github-auth` for the credentials; for the rest, the sweep below |
 
 The `setup-check` commands are plugin-channel only. Through npx, `/ado-auth` and
 `/github-auth` check your credentials, not the full prerequisite sweep — for that, run
