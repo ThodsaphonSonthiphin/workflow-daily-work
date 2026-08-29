@@ -16,7 +16,11 @@
 - **The tree is generated, never hand-edited.** Nothing in this plan writes `skills/` by hand except through `generate_skills_tree.py`.
 - **All 55 skill directories are generated** (ADR 0161) — no conditional membership.
 - **Rewrite rule** (ADR 0164): a `.md` target becomes a path relative to the skill directory; every other target becomes `${CLAUDE_SKILL_DIR}/<path>`. A target the rule cannot classify falls back to `${CLAUDE_SKILL_DIR}`, which is always correct in Claude Code.
-- **No `${CLAUDE_PLUGIN_ROOT}` token may survive** anywhere under `skills/`.
+- **No resolvable `${CLAUDE_PLUGIN_ROOT}/<path>` reference may survive in a `.md` file**
+  under `skills/`. A bare token in a non-`.md` file (only `.md` files are
+  reference-rewritten) and the prose form `${CLAUDE_PLUGIN_ROOT}/...`, which names no
+  path, are legitimate — the real tree contains one of each. Narrowed from "no token
+  survives" by the ruling recorded against Task 5.
 - **Directory name equals frontmatter `name`** for every generated skill (ADR 0162).
 - **Excluded from copying:** files whose basename starts with `test_`, and anything under a `fixtures/` directory — *unless* a `SKILL.md` names the file directly (ADR 0155; `sa-doc` relies on the override for `scripts/fixtures/sa-model-bookstore.yaml`).
 - **`${CLAUDE_PLUGIN_ROOT}/...`** (literal three dots) in `ado-create-work-items` is prose about quoting, not a reference. It must never be treated as a path.
@@ -1041,7 +1045,13 @@ echo "licences:"; ls skills/wait-what/LICENSE-mattpocock-skills skills/sp-writin
 echo "the map_core case:"; ls skills/chart-map/scripts/map_core.py skills/work-map/scripts/map_core.py
 ```
 
-Expected: `directories: 55`, `surviving plugin-root tokens: 0`, no MISMATCH lines, and all four file listings succeed.
+Expected: `directories: 55`, no MISMATCH lines, and all four file listings succeed.
+
+`surviving plugin-root tokens` will report **2**, and both are correct: a usage comment
+inside `skills/my-work/scripts/my-work.cs` (only `.md` files are reference-rewritten) and
+the prose form `"${CLAUDE_PLUGIN_ROOT}/..."` in `skills/ado-create-work-items/SKILL.md`,
+which names no path. Any OTHER survivor is a real failure. Task 6's checker encodes this
+narrower rule.
 
 - [ ] **Step 8: Prove the whole point end to end, against the local tree**
 
@@ -1285,10 +1295,17 @@ def check(repo):
 
     if os.path.isdir(committed_root):
         for rel, data in sorted(_files_under(committed_root).items()):
-            if b"${CLAUDE_PLUGIN_ROOT}" in data:
+            # Only a .md file is reference-rewritten, and only a token followed by
+            # a real path is a reference at all. A ${CLAUDE_PLUGIN_ROOT} inside a
+            # .cs comment, or the documented prose form ${CLAUDE_PLUGIN_ROOT}/...
+            # which names nothing, are both legitimate survivors (ADR 0164, and
+            # the ruling recorded against Task 5).
+            if not rel.endswith(".md"):
+                continue
+            for named in g.REF_RE.findall(data.decode("utf-8", "replace")):
                 findings.append(
-                    "CLAUDE_PLUGIN_ROOT survives in skills/%s - it expands to "
-                    "nothing outside a plugin install" % rel)
+                    "skills/%s still names ${CLAUDE_PLUGIN_ROOT}/%s - that "
+                    "expands to nothing outside a plugin install" % (rel, named))
         for rel, data in sorted(_files_under(committed_root).items()):
             if not rel.endswith(".md"):
                 continue

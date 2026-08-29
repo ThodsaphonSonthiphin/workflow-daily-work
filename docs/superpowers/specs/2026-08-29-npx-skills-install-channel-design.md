@@ -90,7 +90,9 @@ For each source skill the generated directory contains:
 Invariants the checker asserts (§5):
 
 - the directory name equals the frontmatter `name` (ADR 0162);
-- no `${CLAUDE_PLUGIN_ROOT}` token survives anywhere in the tree;
+- no **resolvable** `${CLAUDE_PLUGIN_ROOT}/<path>` reference survives in any `.md` file —
+  a bare token inside a non-`.md` file, and the prose form `${CLAUDE_PLUGIN_ROOT}/...`
+  that names no path, are legitimate survivors (the built tree holds one of each);
 - every relative path a generated file names resolves inside its own directory, and every
   `${CLAUDE_SKILL_DIR}/…` path names a file that exists in that directory;
 - the frontmatter `name` is unique across the whole tree;
