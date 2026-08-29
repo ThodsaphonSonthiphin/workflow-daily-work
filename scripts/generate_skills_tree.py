@@ -92,6 +92,10 @@ class MissingReference(Exception):
     """A SKILL.md names a file that is not in its plugin."""
 
 
+class ReferenceCollision(Exception):
+    """A resolved reference would overwrite a file the skill already owns."""
+
+
 def is_excluded(rel):
     """Test files and fixtures do not travel unless a SKILL.md names them."""
     parts = rel.split("/")
@@ -219,13 +223,16 @@ def emit_skill(skill, out_root, hints):
     dest = os.path.join(out_root, skill.name)
     os.makedirs(dest, exist_ok=True)
 
+    owned = set()  # Track files written in Pass 1
+
     for entry in sorted(os.listdir(skill.src_dir)):
         source = os.path.join(skill.src_dir, entry)
         target = os.path.join(dest, entry)
         if os.path.isdir(source):
-            _copy_tree(source, target)
+            _copy_tree(source, target, owned, entry)
         else:
             _copy_file(source, target, rewrite=entry.endswith(".md"))
+            owned.add(entry)
 
     md_path = os.path.join(dest, "SKILL.md")
     text = read_text(md_path)
@@ -236,6 +243,10 @@ def emit_skill(skill, out_root, hints):
 
     refs = plugin_root_refs(read_text(os.path.join(skill.src_dir, "SKILL.md")))
     for rel, absolute in sorted(resolve_files(plugin_root, refs).items()):
+        if rel in owned:
+            raise ReferenceCollision(
+                "%s: the reference %s would overwrite the skill's own file of the "
+                "same name" % (skill.name, rel))
         target = os.path.join(dest, rel.replace("/", os.sep))
         os.makedirs(os.path.dirname(target), exist_ok=True)
         _copy_file(absolute, target, rewrite=rel.endswith(".md"))
@@ -261,10 +272,14 @@ def _copy_file(source, target, rewrite):
             fdst.write(fsrc.read())
 
 
-def _copy_tree(source, target):
+def _copy_tree(source, target, owned=None, prefix=""):
     for root, _dirs, files in os.walk(source):
         for entry in sorted(files):
             src = os.path.join(root, entry)
             rel = os.path.relpath(src, source)
             _copy_file(src, os.path.join(target, rel),
                        rewrite=entry.endswith(".md"))
+            if owned is not None:
+                # Record with forward slashes, relative to skill destination
+                skill_rel = (prefix + "/" + rel.replace(os.sep, "/")).lstrip("/")
+                owned.add(skill_rel)

@@ -203,6 +203,27 @@ def test_emit_uses_the_frontmatter_name_as_the_directory():
         shutil.rmtree(repo)
 
 
+def test_emit_raises_on_reference_collision_with_owned_file():
+    repo = _repo()
+    try:
+        # Create a skill that owns references/x.md
+        src = _skill(repo, "p", "one", "one",
+                     'see `${CLAUDE_PLUGIN_ROOT}/references/x.md`\n')
+        # Write the skill's own references/x.md
+        _write(os.path.join(src, "references", "x.md"), "skill content\n")
+        # Write a different file at the same path in the plugin
+        _write(os.path.join(repo, "plugins", "p", "references", "x.md"),
+               "plugin content\n")
+        out = os.path.join(repo, "skills")
+        try:
+            g.emit_skill(g.Skill("p", "one", src), out, {})
+            raise AssertionError("expected ReferenceCollision")
+        except g.ReferenceCollision as e:
+            assert "references/x.md" in str(e), e
+    finally:
+        shutil.rmtree(repo)
+
+
 if __name__ == "__main__":
     TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
