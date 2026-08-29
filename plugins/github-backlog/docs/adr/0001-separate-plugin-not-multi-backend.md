@@ -1,5 +1,7 @@
 # ADR 0001 — Ship github-backlog as a separate plugin, not a multi-backend ado-backlog
 
+> **Partially superseded.** This ADR names the duplicated skills `extract-findings` and `triage-findings` below. The GitHub copies were renamed to `github-extract-findings` and `github-triage-findings`; ADO keeps the bare names ([ADR workflow-daily-work-0156](../../../../docs/adr/workflow-daily-work-0156-the-github-backlog-twins-take-the-prefix-their-siblings-already-carry.md)).
+
 - **Status:** Accepted
 - **Date:** 2026-06-02
 

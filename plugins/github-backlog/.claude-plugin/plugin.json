@@ -1,7 +1,7 @@
 {
   "name": "github-backlog",
   "displayName": "GitHub Backlog Toolkit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Turn findings from any input into GitHub Issues: extract -> triage -> classify (labels + milestone) -> visual dry-run -> create -> write issue links back. Composable: each step is its own skill, plus a one-shot orchestrator.",
   "author": {
     "name": "ThodsaphonSonthiphin",

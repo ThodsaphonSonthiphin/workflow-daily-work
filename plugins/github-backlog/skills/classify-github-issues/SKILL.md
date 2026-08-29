@@ -14,12 +14,12 @@ effort: max
 
 # classify-github-issues
 
-Turn findings (from `extract-findings` + `triage-findings`) into a
+Turn findings (from `github-extract-findings` + `github-triage-findings`) into a
 `github_backlog_input.json` that `github-create-issues` can create. Unlike ADO,
 GitHub Issues are flat — type, priority, and size are expressed as labels; the
 batch grouping is a milestone; the parent tracker is a tracking issue created last.
 
-Schemas live in `references/data-contracts.md` — read it for the exact shapes.
+Schemas live in `${CLAUDE_PLUGIN_ROOT}/references/data-contracts.md` — read it for the exact shapes.
 
 ## 1. Map findings to label sets
 
@@ -122,7 +122,8 @@ Let the user adjust any value before proceeding to the dry-run.
 
 ## 7. Write github_backlog_input.json
 
-Assemble the full JSON per the contract in `references/data-contracts.md` and write
+Assemble the full JSON per the contract in
+`${CLAUDE_PLUGIN_ROOT}/references/data-contracts.md` and write
 it next to the findings file. Every item must have a `key`, a non-empty `title`,
 at least one label of each type/priority/size dimension, and a populated `body`.
 

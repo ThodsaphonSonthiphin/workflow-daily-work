@@ -29,7 +29,7 @@ visual dry-run that creates nothing, an explicit human approval, then the real w
 ## Data flow
 
 ```
-extract-findings         -> findings.json
+github-extract-findings         -> findings.json
 classify-github-issues   -> github_backlog_input.json  (consumed by create_github_issues.py)
 github-create-issues     -> github_backlog_result.json (consumed by github_tracking.py)
 ```
@@ -47,15 +47,15 @@ powershell -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/scripts/setup_ch
 Checks gh CLI, Python + requests + openpyxl, `GH_OWNER` / `GH_REPO`, and repo
 reachability. For auth specifics, delegate to **github-auth**.
 
-### 1. Extract → `findings.json` (delegate to **extract-findings**)
+### 1. Extract → `findings.json` (delegate to **github-extract-findings**)
 
-Have **extract-findings** read the source and normalize it to `findings.json`.
+Have **github-extract-findings** read the source and normalize it to `findings.json`.
 **Confirm the column mapping with the user** before moving on — which column is the
 `key`, which are `current` / `expected`, where `severity` and `status` come from.
 
-### 2. Triage → scoped subset (delegate to **triage-findings**)
+### 2. Triage → scoped subset (delegate to **github-triage-findings**)
 
-Have **triage-findings** filter `findings.json` to the wave worth creating now.
+Have **github-triage-findings** filter `findings.json` to the wave worth creating now.
 **Recommend Critical + confirmed first.** Hold `needs-review` for a later wave.
 
 ### 3. Classify → `github_backlog_input.json` (delegate to **classify-github-issues**)

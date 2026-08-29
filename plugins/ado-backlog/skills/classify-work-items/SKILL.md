@@ -23,7 +23,7 @@ that `ado-create-work-items` can create. The hard part is **typing**: an ADO wor
 type only exists if the project's process defines it. Get this wrong and creation fails
 on the board, so we discover the process *before* we decide types.
 
-Schemas live in `references/data-contracts.md` — read it for the exact
+Schemas live in `${CLAUDE_PLUGIN_ROOT}/references/data-contracts.md` — read it for the exact
 `findings.json` / `backlog_input.json` shapes. Don't duplicate them here.
 
 ## 1. Discover the project's process and valid types — FIRST
@@ -47,7 +47,7 @@ $proj.capabilities.processTemplate.templateName    # -> Agile | Scrum | Basic | 
 
 (With a PAT instead: `$headers = @{ Authorization = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(":$env:AZDO_PAT")) }`.)
 
-Once you know the process name, **use the process→types table in `references/data-contracts.md`**
+Once you know the process name, **use the process→types table in `${CLAUDE_PLUGIN_ROOT}/references/data-contracts.md`**
 to map it to valid types. Do *not* try to `ConvertFrom-Json` the full
 `/_apis/wit/workitemtypes` payload in PowerShell 5.1 — that response has case-duplicate
 keys (e.g. `URL` vs `url`) and the 5.1 parser throws on them. The table is the reliable source.
@@ -65,7 +65,8 @@ discovered process (columns: defect / new capability / grouping parent):
   that's mislabeled, is a correctness defect — it should be fixed, not "built". Most
   rename / disambiguation findings (`kind: rename` | `disambiguation`) land here.
   *Basic has no dedicated defect type* — on the Basic process, defects and new capabilities
-  both collapse to `Issue` (its only non-Epic/Task type), matching the table in `data-contracts.md`.
+  both collapse to `Issue` (its only non-Epic/Task type), matching the table in
+  `${CLAUDE_PLUGIN_ROOT}/references/data-contracts.md`.
 
 - **A capability that doesn't exist yet** (e.g. `kind: missing` — a field, view, or feature
   that's absent) → the **new-capability** type: `User Story` (Agile),
@@ -127,7 +128,7 @@ If a finding has no severity, default to `3` (Medium) and note it.
 `backlog_result.json` and `ado-writeback-tracking` uses it to write the ticket link onto the
 right row. Drop it and write-back can't match.
 
-Tiny example (one defect item; full shape in `references/data-contracts.md`):
+Tiny example (one defect item; full shape in `${CLAUDE_PLUGIN_ROOT}/references/data-contracts.md`):
 
 ```json
 {
@@ -154,7 +155,7 @@ If these findings are one initiative, add a top-level `parent` object with a `Fe
 Attach a **time estimate** to each item as a **child Task** that carries the hours. (Agile's
 User Story has no hours field — only Story Points — so the hour estimate lives on a Task,
 uniformly under every Bug/Story; see `docs/adr/0001`.) Add an `estimate` object per item
-(schema in `references/data-contracts.md`).
+(schema in `${CLAUDE_PLUGIN_ROOT}/references/data-contracts.md`).
 
 Estimate with **work-kind anchors**, adjusted for the detail. There is no team history to
 calibrate from, so anchors are the baseline:

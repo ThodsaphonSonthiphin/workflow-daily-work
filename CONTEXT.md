@@ -52,6 +52,27 @@ _Avoid_: command (a command is a thin user-typed entry point, not the capability
 A user-typed `/ado-backlog:<name>` entry point under `commands/<name>.md`; a thin
 wrapper that hands off to a skill. Not where logic lives.
 
+**Install channel**:
+One of the two supported ways a colleague gets these skills onto their machine. The
+**plugin channel** is `/plugin install <plugin>@workflow-daily-work`, which installs a
+whole Plugin — skills, commands and hooks — and updates as a managed bundle. The **npx
+channel** is `npx skills@latest add ThodsaphonSonthiphin/workflow-daily-work`, the
+skills.sh CLI, which installs individual Skills as files the user owns and may edit, and
+carries no commands and no hooks. Neither is a fallback for the other; each has a
+different unit and a different owner of the installed files.
+_Avoid_: install method, install path (that is a filesystem location).
+
+**Generated tree**:
+`skills/` at the marketplace root — one directory per Skill, produced by the generator
+from the sources under `plugins/*/skills/` and **never hand-edited**. It exists because
+the npx channel copies a skill directory and nothing above it, so every plugin-level
+reference has to be resolved into the skill before it ships. The skills.sh CLI takes the
+root copy in preference to the plugin one of the same name, which is what makes the tree
+authoritative for that channel while `plugins/` stays authoritative for the plugin
+channel (ADR 0154).
+_Avoid_: dist, build output, mirror (`docs/personal-skills-mirror.md` is a different
+thing).
+
 **Orchestrator**:
 The one skill (`findings-to-ado-backlog`) that sequences the other skills end-to-end
 and enforces the safety gates. A skill, but the conductor — not a peer step.

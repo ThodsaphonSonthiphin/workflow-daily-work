@@ -265,9 +265,10 @@ ado-backlog is not installed. Install it with:
   git. Reads never write; writes always offer commit and never commit unprompted.
 - A bundled **PreToolUse hook** (`hooks/commit-log.py`, registered in
   `hooks/hooks.json`) also appends every `git commit` message to `daily-state.md`
-  `## Log` (via `daily-state.py log`) — active automatically on plugin enable,
-  best-effort, and it never blocks a commit. So `## Log` is fed both by `--note` on
-  save/wrap AND automatically by each commit.
+  `## Log` (via `daily-state.py log`) — but only **when the plugin is enabled**;
+  hooks never travel with a skills-only install. Best-effort, and it never blocks a
+  commit. So `## Log` is fed by `--note` on save/wrap, and — where the hook is
+  active — by each commit as well.
 - If `daily-state.py show` prints `no state yet`, skip the welcome-back silently —
   it is never an error.
 - The full map lives in PLAYBOOK.md at the marketplace repo root — for humans;
