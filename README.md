@@ -49,6 +49,20 @@ read second. The only command worth memorising is `/dev-workflows:daily` — typ
 /plugin install dev-workflows@workflow-daily-work
 ```
 
+Or install the skills on their own — no marketplace, no plugin, files you own and can
+edit. This works on Claude Code and on any other agent skills.sh supports:
+
+```text
+# everything
+npx skills@latest add ThodsaphonSonthiphin/workflow-daily-work --all
+
+# just one
+npx skills@latest add ThodsaphonSonthiphin/workflow-daily-work --skill grill-then-plan
+```
+
+The two routes are alternatives, not steps — [INSTALL.md](INSTALL.md) explains which to
+pick and what each one leaves out.
+
 Then add whichever backlog or planning plugin you need:
 
 ```text
