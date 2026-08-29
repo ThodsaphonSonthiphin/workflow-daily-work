@@ -99,5 +99,11 @@ Installing the skill is not the same as being able to run it. These are once per
 | anything from `ado-backlog` | `pip install openpyxl`, `az login`, and set `AZDO_ORG` / `AZDO_PROJECT` to **bare names** (`Cartagena365`, `GlassHull`) — not URLs. `AZDO_PAT` is the fallback when Entra tokens are unavailable. | `/ado-auth` |
 | anything from `github-backlog` | `pip install openpyxl`, `gh auth login`, and set `GH_OWNER` / `GH_REPO`. | `/github-auth` |
 
-The `setup-check` commands are plugin-channel only. Through npx, run `/ado-auth` or
-`/github-auth` instead — same checks, invoked by skill name.
+The `setup-check` commands are plugin-channel only. Through npx, `/ado-auth` and
+`/github-auth` check your credentials, not the full prerequisite sweep — for that, run
+the script bundled with the same skill:
+
+```text
+powershell -ExecutionPolicy Bypass -File "${CLAUDE_SKILL_DIR}/scripts/setup_check.ps1"
+powershell -ExecutionPolicy Bypass -File "${CLAUDE_SKILL_DIR}/scripts/setup_check_github.ps1"
+```
