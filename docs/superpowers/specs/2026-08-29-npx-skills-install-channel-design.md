@@ -92,9 +92,12 @@ Invariants the checker asserts (§5):
 - the directory name equals the frontmatter `name` (ADR 0162);
 - no **resolvable** `${CLAUDE_PLUGIN_ROOT}/<path>` reference survives in any `.md` file —
   a bare token inside a non-`.md` file, and the prose form `${CLAUDE_PLUGIN_ROOT}/...`
-  that names no path, are legitimate survivors (the built tree holds one of each);
+  that names no path, are legitimate survivors (the built tree holds one of each)
+  — this narrowing amended the invariant after the tree was first built (ADR 0168);
 - every relative path a generated file names resolves inside its own directory, and every
-  `${CLAUDE_SKILL_DIR}/…` path names a file that exists in that directory;
+  `${CLAUDE_SKILL_DIR}/…` path names a file that exists in that directory. A bare
+  relative path to a plugin-level file is the second way to name a file that never
+  arrives, and the checker holds that half too (ADR 0170);
 - the frontmatter `name` is unique across the whole tree;
 - regenerating from the current sources reproduces the tree byte-for-byte.
 
