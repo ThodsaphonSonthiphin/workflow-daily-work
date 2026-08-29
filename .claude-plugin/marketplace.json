@@ -106,7 +106,7 @@
       "name": "github-backlog",
       "source": "./plugins/github-backlog",
       "description": "Turn findings from any input (spreadsheet, doc, pasted text) into GitHub Issues: extract, triage, classify by labels and milestone, visual dry-run, create with an approval gate, and write issue links back to the source.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "ThodsaphonSonthiphin",
         "url": "https://github.com/ThodsaphonSonthiphin"

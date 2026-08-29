@@ -4,7 +4,7 @@ Three JSON shapes connect the pipeline steps. Keep them stable — the bundled
 scripts depend on these exact field names.
 
 ```
-extract-findings          -> findings.json              (backend-agnostic)
+github-extract-findings          -> findings.json              (backend-agnostic)
 classify-github-issues    -> github_backlog_input.json  (consumed by create_github_issues.py)
 github-create-issues      -> github_backlog_result.json (consumed by github_tracking.py)
 ```

@@ -14,7 +14,7 @@ effort: max
 
 # classify-github-issues
 
-Turn findings (from `extract-findings` + `triage-findings`) into a
+Turn findings (from `github-extract-findings` + `github-triage-findings`) into a
 `github_backlog_input.json` that `github-create-issues` can create. Unlike ADO,
 GitHub Issues are flat — type, priority, and size are expressed as labels; the
 batch grouping is a milestone; the parent tracker is a tracking issue created last.

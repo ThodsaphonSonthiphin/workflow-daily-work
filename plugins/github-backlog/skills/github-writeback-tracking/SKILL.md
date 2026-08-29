@@ -14,7 +14,7 @@ effort: max
 
 Closes the loop: once issues exist in GitHub, stamp their numbers and URLs back onto
 the spreadsheet the findings came from. The link between a row and its issue is the
-**`key`** field, carried from [[extract-findings]] through `github_backlog_result.json`.
+**`key`** field, carried from [[github-extract-findings]] through `github_backlog_result.json`.
 
 ## When this applies
 
@@ -56,7 +56,7 @@ Per row it writes: `Issue #` ← `items[].number`, `Issue URL` ← `items[].url`
 
 ## The `--key` must line up
 
-The `--key` column name must match the `keyColumn` chosen in [[extract-findings]] and
+The `--key` column name must match the `keyColumn` chosen in [[github-extract-findings]] and
 the `key` values in `github_backlog_result.json`. Values are compared as strings.
 
 If the script prints `warn: key <x> not found in source`, the key in the result

@@ -1,5 +1,5 @@
 ---
-name: extract-findings
+name: github-extract-findings
 description: >-
   Normalize ANY input into findings.json — the first step toward turning review
   notes into a GitHub Issues backlog. Use whenever someone hands you a list of

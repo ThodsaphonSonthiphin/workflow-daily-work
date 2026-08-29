@@ -1,5 +1,5 @@
 ---
-name: triage-findings
+name: github-triage-findings
 description: >-
   Decide WHICH findings become GitHub Issues and in what order/batches, working
   from a findings.json produced by extract-findings. Use this AFTER findings are

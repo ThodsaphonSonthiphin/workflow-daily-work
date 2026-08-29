@@ -40,7 +40,7 @@ Flat GitHub-default style, auto-created if missing:
 ## Pipeline
 
 ```
-extract-findings → triage-findings → classify-github-issues
+github-extract-findings → github-triage-findings → classify-github-issues
   → [visual dry-run] → github-create-issues → github-writeback-tracking
 ```
 
