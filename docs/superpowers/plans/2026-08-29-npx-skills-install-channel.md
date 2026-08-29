@@ -527,10 +527,6 @@ Append to `scripts/generate_skills_tree.py`:
 ```python
 IMPORT_RE = re.compile(r"^\s*(?:import|from)\s+([A-Za-z_][A-Za-z0-9_]*)", re.M)
 
-# The rewritten form, so the checker can prove each target landed in the
-# directory the CLI will copy.
-SKILL_DIR_REF_RE = re.compile(r"\$\{CLAUDE_SKILL_DIR\}/([A-Za-z0-9_][A-Za-z0-9_./-]*)")
-
 
 class MissingReference(Exception):
     """A SKILL.md names a file that is not in its plugin."""
@@ -710,6 +706,10 @@ Expected: seven FAIL lines reporting missing attributes `rewrite_refs`, `apply_a
 Append to `scripts/generate_skills_tree.py`:
 
 ```python
+# The rewritten form rewrite_refs() produces, so Task 6's checker can prove
+# each target landed in the directory the CLI will copy.
+SKILL_DIR_REF_RE = re.compile(r"\$\{CLAUDE_SKILL_DIR\}/([A-Za-z0-9_][A-Za-z0-9_./-]*)")
+
 SUPERPOWERS_LICENCE = "LICENSE-superpowers"
 MATTPOCOCK_LICENCE = "LICENSE-mattpocock-skills"
 
@@ -1442,14 +1442,18 @@ git add .github/workflows/skills-tree.yml
 git commit -m "ci: fail the build when skills/ drifts from its sources (ADR 0159)"
 ```
 
-- [ ] **Step 5: Push and confirm the run is green**
+- [ ] **Step 5: Record that the run is still unproven**
 
-```bash
-git push
-gh run list --workflow=skills-tree --limit 1
-```
+Do **not** push from here. A push is a side effect outside this worktree and belongs to
+the branch-finishing conversation, not to a task.
 
-Expected: one run, conclusion `success`. A workflow that has never run is not a gate. If `gh` is unavailable, open the Actions tab and confirm by eye.
+A workflow that has never run is not a gate, and this one has not run. Step 3 proves the
+three commands succeed locally on this machine's Python; it does not prove the workflow
+parses on GitHub's runner or that the checkout gives it the same tree. State that in your
+report as an open item, so it reaches the human who decides whether to push:
+
+> CI is written and locally equivalent, but has never executed. First push must be
+> watched: `gh run list --workflow=skills-tree --limit 1` should report `success`.
 
 ---
 
@@ -1488,13 +1492,21 @@ No skill names beyond the single worked example, no counts, no versions — ADR 
 - [ ] **Step 2: Verify the README claim by running it**
 
 ```bash
-tmp=$(mktemp -d) && cd "$tmp" && \
-  npx --yes skills@latest add ThodsaphonSonthiphin/workflow-daily-work \
-      --skill grill-then-plan --agent claude-code -y && \
-  ls .claude/skills; cd - >/dev/null
+repo=$(pwd)
+tmp=$(mktemp -d) && cd "$tmp"
+npx --yes skills@latest add "$repo" --skill grill-then-plan --agent claude-code -y
+ls .claude/skills
+cd "$repo"
 ```
 
-Expected: exactly `grill-then-plan`. Note this installs from the **pushed** repo, so it only reflects Task 5 after Task 7's push. If it returns the pre-generation content, push first.
+Expected: exactly `grill-then-plan`.
+
+The probe targets the **local checkout**, not `ThodsaphonSonthiphin/workflow-daily-work`.
+This branch is not pushed, so the GitHub form would install the pre-generation tree and
+report a false pass. The local path exercises the same discovery and copy code — the CLI
+accepts a local path as a source. What it does not prove is that the published repo
+serves the same thing; that is confirmed after the branch merges and is called out in
+Task 7's open item.
 
 - [ ] **Step 3: Write `INSTALL.md`**
 
@@ -1611,14 +1623,17 @@ The `setup-check` commands are plugin-channel only. Through npx, run `/ado-auth`
 For each fenced `npx` command in the file, run it in a throwaway directory and confirm the count it claims:
 
 ```bash
+repo=$(pwd)
 tmp=$(mktemp -d) && cd "$tmp"
-npx --yes skills@latest add ThodsaphonSonthiphin/workflow-daily-work --skill=wait-what --agent claude-code -y >/dev/null 2>&1
+npx --yes skills@latest add "$repo" --skill=wait-what --agent claude-code -y >/dev/null 2>&1
 echo "equals form installed: $(ls .claude/skills | wc -l | tr -d ' ')   (expect 55)"
 rm -rf .claude
-npx --yes skills@latest add ThodsaphonSonthiphin/workflow-daily-work --skill wait-what --agent claude-code -y >/dev/null 2>&1
+npx --yes skills@latest add "$repo" --skill wait-what --agent claude-code -y >/dev/null 2>&1
 echo "space form installed: $(ls .claude/skills | wc -l | tr -d ' ')   (expect 1)"
-cd - >/dev/null
+cd "$repo"
 ```
+
+Local path again, and for the same reason as Step 2.
 
 If the equals-form count is no longer the full set, the CLI has been fixed upstream — soften section 2 to say so rather than leaving a false warning in place.
 
