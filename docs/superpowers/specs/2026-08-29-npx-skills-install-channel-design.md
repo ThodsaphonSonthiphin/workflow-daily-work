@@ -211,7 +211,13 @@ Everything that churns:
 
 ## 9. Known risks
 
-- **The tree doubles the repo's skill directories.** Accepted for one unconditional rule
+- **The tree doubles the repo's skill directories, and a quarter of it is copies of
+  itself.** Measured on the built tree: 55 authored directories become 110, and `skills/`
+  holds 164 tracked files totalling 1.73 MiB (2.1 MB on disk). 38 of those 164 are
+  byte-identical to another file in the tree — 461 KiB, 26% of it. `diagram-convention.md`
+  arrives 12 times, identical every time; `data-contracts.md` arrives 12 times in three
+  different versions, one of them 89 KiB, for 232 KiB between them. That is the price of
+  the CLI copying one directory and nothing above it. Accepted for one unconditional rule
   (ADR 0161); CI is what makes it safe.
 - **`install-antigravity.py` and the generator now do overlapping work.** Not merged now;
   if both need the same rewrite rule twice, that is the signal to extract it.
