@@ -340,6 +340,8 @@ def build(repo, out_root):
     if os.path.isdir(out_root):
         for entry in sorted(os.listdir(out_root)):
             path = os.path.join(out_root, entry)
+            if os.path.islink(path):
+                continue
             if os.path.isdir(path) and entry not in names:
                 _remove_tree(path)
     for skill in skills:
@@ -351,11 +353,27 @@ def build(repo, out_root):
 
 
 def _remove_tree(path):
+    """Delete path and everything under it, without ever following a symlink.
+
+    os.walk(topdown=False) does not descend into a symlinked subdirectory
+    (followlinks defaults to False), but it still hands that symlink back in
+    dirs, and os.rmdir() on a symlink raises OSError - so it is unlinked
+    instead. path itself gets the same treatment: if the caller hands in a
+    symlink directly, os.walk() would otherwise list and delete the
+    contents of whatever it points at, outside this tree entirely.
+    """
+    if os.path.islink(path):
+        os.remove(path)
+        return
     for root, dirs, files in os.walk(path, topdown=False):
         for name in files:
             os.remove(os.path.join(root, name))
         for name in dirs:
-            os.rmdir(os.path.join(root, name))
+            child = os.path.join(root, name)
+            if os.path.islink(child):
+                os.remove(child)
+            else:
+                os.rmdir(child)
     os.rmdir(path)
 
 

@@ -288,6 +288,34 @@ def test_build_emits_one_directory_per_skill_and_clears_stale_ones():
         shutil.rmtree(repo)
 
 
+def test_build_leaves_a_symlink_in_the_output_root_alone():
+    repo = _repo()
+    outside = None
+    try:
+        _skill(repo, "p", "one", "one")
+        out = os.path.join(repo, "skills")
+        os.makedirs(out)
+
+        # A symlink whose name matches no skill must not be treated as a
+        # stale directory to clean up: following it would walk (and delete)
+        # whatever it points at, entirely outside the output tree.
+        outside = tempfile.mkdtemp(prefix="skilltree-outside-")
+        _write(os.path.join(outside, "keep.txt"), "do not touch\n")
+        link = os.path.join(out, "ghost-link")
+        os.symlink(outside, link)
+
+        built = g.build(repo, out)
+
+        assert built == ["one"], built
+        assert os.path.islink(link), "the symlink itself must survive"
+        assert os.path.isdir(outside), "its target must not be walked into"
+        assert os.listdir(outside) == ["keep.txt"], os.listdir(outside)
+    finally:
+        shutil.rmtree(repo)
+        if outside:
+            shutil.rmtree(outside, ignore_errors=True)
+
+
 if __name__ == "__main__":
     TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
