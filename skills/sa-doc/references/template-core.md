@@ -89,7 +89,7 @@ furniture that both HTML and PDF need — emit them literally in the Markdown:
 
 ## Diagram rules
 
-Follow `references/diagram-convention.md`: overview
+Follow `diagram-convention.md`: overview
 diagram first (Rule 1), type-matched section diagrams (Rule 2 — including the
 `classDiagram` row for the OO/domain view and the `stateDiagram-v2` row for
 entity lifecycles), every diagram introduced by at least one sentence.

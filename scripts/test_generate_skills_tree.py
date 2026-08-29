@@ -152,9 +152,57 @@ def test_rewrite_sends_md_relative_and_everything_else_to_skill_dir():
     assert "CLAUDE_PLUGIN_ROOT" not in out, out
 
 
+def test_rewrite_resolves_an_md_link_against_the_containing_directory():
+    text = ('see [x](${CLAUDE_PLUGIN_ROOT}/references/x.md)\n'
+            'and [d](${CLAUDE_PLUGIN_ROOT}/docs/d.md)\n'
+            'run `${CLAUDE_PLUGIN_ROOT}/scripts/y.py`\n')
+    out = g.rewrite_refs(text, "references")
+    assert "[x](x.md)" in out, out                 # sibling, not references/x.md
+    assert "[d](../docs/d.md)" in out, out         # climbs out of references/
+    assert "${CLAUDE_SKILL_DIR}/scripts/y.py" in out, out  # depth-independent
+
+
 def test_rewrite_leaves_the_prose_ellipsis_alone():
     text = 'always wrap `"${CLAUDE_PLUGIN_ROOT}/..."`'
     assert g.rewrite_refs(text) == text
+
+
+def test_emit_rewrites_a_nested_reference_relative_to_its_own_file():
+    repo = _repo()
+    try:
+        src = _skill(repo, "p", "one", "one",
+                     'read `${CLAUDE_PLUGIN_ROOT}/references/tpl.md`\n')
+        _write(os.path.join(repo, "plugins", "p", "references", "tpl.md"),
+               "the convention is in `${CLAUDE_PLUGIN_ROOT}/references/conv.md`\n")
+        _write(os.path.join(repo, "plugins", "p", "references", "conv.md"), "c\n")
+        out = os.path.join(repo, "skills")
+        g.emit_skill(g.Skill("p", "one", src), out, {})
+        md = io.open(os.path.join(out, "one", "SKILL.md"), encoding="utf-8").read()
+        tpl = io.open(os.path.join(out, "one", "references", "tpl.md"),
+                      encoding="utf-8").read()
+        assert "`references/tpl.md`" in md, md
+        # tpl.md sits inside references/, so its sibling is `conv.md` - not
+        # `references/conv.md`, which would resolve to references/references/.
+        assert "`conv.md`" in tpl, tpl
+        assert "references/conv.md" not in tpl, tpl
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_emit_rewrites_a_reference_inside_an_owned_subdirectory():
+    repo = _repo()
+    try:
+        src = _skill(repo, "p", "one", "one", "body\n")
+        _write(os.path.join(src, "references", "own.md"),
+               "see `${CLAUDE_PLUGIN_ROOT}/references/own.md`\n")
+        _write(os.path.join(repo, "plugins", "p", "references", "own.md"), "x\n")
+        out = os.path.join(repo, "skills")
+        g.emit_skill(g.Skill("p", "one", src), out, {})
+        own = io.open(os.path.join(out, "one", "references", "own.md"),
+                      encoding="utf-8").read()
+        assert "`own.md`" in own and "references/own.md" not in own, own
+    finally:
+        shutil.rmtree(repo)
 
 
 def test_argument_hint_is_inserted_after_description():

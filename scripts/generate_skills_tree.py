@@ -17,6 +17,7 @@ import argparse
 import collections
 import io
 import os
+import posixpath
 import re
 import sys
 
@@ -172,14 +173,20 @@ def licence_for(name):
     return VENDORED.get(name)
 
 
-def rewrite_refs(text):
+def rewrite_refs(text, base=""):
     """Rewrite plugin-root references by kind (ADR 0164).
 
-    A .md target becomes a path relative to the skill directory - the Agent
-    Skills standard form. Everything else becomes ${CLAUDE_SKILL_DIR}/..., so
-    a Bash command resolves from any working directory. An unclassifiable
-    target falls back to ${CLAUDE_SKILL_DIR}, which is never wrong in
-    Claude Code.
+    A .md target becomes a markdown link path, which resolves against the
+    directory of the file that carries it - so `base`, the containing file's
+    own directory relative to the skill root, decides the answer. A reference
+    to references/x.md is `references/x.md` from SKILL.md and plain `x.md`
+    from inside references/. Getting that wrong points a nested template at a
+    references/references/ that does not exist.
+
+    Everything else becomes ${CLAUDE_SKILL_DIR}/..., which is absolute once
+    expanded and therefore the same at every depth, so a Bash command resolves
+    from any working directory. An unclassifiable target falls back to
+    ${CLAUDE_SKILL_DIR}, which is never wrong in Claude Code.
     """
     def sub(m):
         ref = m.group(1)
@@ -190,7 +197,7 @@ def rewrite_refs(text):
         if not ref:
             return m.group(0)
         if ref.endswith(".md"):
-            return ref + trailing
+            return (posixpath.relpath(ref, base) if base else ref) + trailing
         return "${CLAUDE_SKILL_DIR}/" + ref + trailing
     return REF_RE.sub(sub, text)
 
@@ -262,7 +269,8 @@ def emit_skill(skill, out_root, hints):
                 "same name" % (skill.name, rel))
         target = os.path.join(dest, rel.replace("/", os.sep))
         os.makedirs(os.path.dirname(target), exist_ok=True)
-        _copy_file(absolute, target, rewrite=rel.endswith(".md"))
+        _copy_file(absolute, target, rewrite=rel.endswith(".md"),
+                   base=posixpath.dirname(rel))
 
     licence = licence_for(skill.name)
     if licence:
@@ -276,10 +284,12 @@ def _write_text(path, text):
         f.write(text)
 
 
-def _copy_file(source, target, rewrite):
+def _copy_file(source, target, rewrite, base=""):
+    """Copy source to target. `base` is target's directory relative to the
+    skill root, which is what a rewritten markdown link resolves against."""
     os.makedirs(os.path.dirname(target), exist_ok=True)
     if rewrite:
-        _write_text(target, rewrite_refs(read_text(source)))
+        _write_text(target, rewrite_refs(read_text(source), base))
     else:
         with open(source, "rb") as fsrc, open(target, "wb") as fdst:
             fdst.write(fsrc.read())
@@ -290,11 +300,12 @@ def _copy_tree(source, target, owned=None, prefix=""):
         for entry in sorted(files):
             src = os.path.join(root, entry)
             rel = os.path.relpath(src, source)
+            # Record with forward slashes, relative to skill destination
+            skill_rel = (prefix + "/" + rel.replace(os.sep, "/")).lstrip("/")
             _copy_file(src, os.path.join(target, rel),
-                       rewrite=entry.endswith(".md"))
+                       rewrite=entry.endswith(".md"),
+                       base=posixpath.dirname(skill_rel))
             if owned is not None:
-                # Record with forward slashes, relative to skill destination
-                skill_rel = (prefix + "/" + rel.replace(os.sep, "/")).lstrip("/")
                 owned.add(skill_rel)
 
 

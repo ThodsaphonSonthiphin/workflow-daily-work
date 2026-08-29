@@ -91,7 +91,7 @@ generation a button is, only what it does.
 2. **Mermaid everywhere** — sequenceDiagram for lifecycles, erDiagram for data,
    flowchart TD for decision logic, graph TD for hierarchies. Implements the
    marketplace diagram convention
-   (`references/diagram-convention.md`), including its
+   (`diagram-convention.md`), including its
    mandatory overview diagram at the top of ARCHITECTURE.md.
 3. **No speculation.** Only what the extracted files and queries showed.
    Unclear behavior is documented as *unclear*, with what was checked.
