@@ -65,7 +65,8 @@ discovered process (columns: defect / new capability / grouping parent):
   that's mislabeled, is a correctness defect — it should be fixed, not "built". Most
   rename / disambiguation findings (`kind: rename` | `disambiguation`) land here.
   *Basic has no dedicated defect type* — on the Basic process, defects and new capabilities
-  both collapse to `Issue` (its only non-Epic/Task type), matching the table in `data-contracts.md`.
+  both collapse to `Issue` (its only non-Epic/Task type), matching the table in
+  `references/data-contracts.md`.
 
 - **A capability that doesn't exist yet** (e.g. `kind: missing` — a field, view, or feature
   that's absent) → the **new-capability** type: `User Story` (Agile),

@@ -94,4 +94,4 @@ Once the verify call returns `200`, auth is good — continue with
 [[ado-create-work-items]] (which drives `create-backlog.cs`) or
 [[ado-writeback-tracking]]. The same `AZDO_ORG` / `AZDO_PROJECT` env vars carry
 straight into those steps, so leave them set in this shell. Field shapes and the
-`org`/`project` precedence rules live in `references/data-contracts.md`.
+`org`/`project` precedence rules live in `${CLAUDE_PLUGIN_ROOT}/references/data-contracts.md`.

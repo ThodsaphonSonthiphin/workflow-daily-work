@@ -122,7 +122,8 @@ Let the user adjust any value before proceeding to the dry-run.
 
 ## 7. Write github_backlog_input.json
 
-Assemble the full JSON per the contract in `references/data-contracts.md` and write
+Assemble the full JSON per the contract in
+`references/data-contracts.md` and write
 it next to the findings file. Every item must have a `key`, a non-empty `title`,
 at least one label of each type/priority/size dimension, and a populated `body`.
 
