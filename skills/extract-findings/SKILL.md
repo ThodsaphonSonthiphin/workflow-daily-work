@@ -15,6 +15,9 @@ description: >-
 effort: max
 ---
 
+<!-- generated: third-party requirements -->
+> **Requires:** `pip install openpyxl` — this skill's scripts import `openpyxl`.
+
 # extract-findings
 
 Turn whatever the user has — a spreadsheet, a doc, or pasted text — into a clean

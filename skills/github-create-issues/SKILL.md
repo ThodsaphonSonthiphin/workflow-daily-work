@@ -13,6 +13,9 @@ description: >-
 effort: max
 ---
 
+<!-- generated: third-party requirements -->
+> **Requires:** `pip install requests` — this skill's scripts import `requests`.
+
 # github-create-issues
 
 Take a `github_backlog_input.json` and create the issues in GitHub by driving

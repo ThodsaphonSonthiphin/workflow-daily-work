@@ -15,6 +15,9 @@ argument-hint: "[path-to-findings-file]"
 effort: max
 ---
 
+<!-- generated: third-party requirements -->
+> **Requires:** `pip install requests` — this skill's scripts import `requests`.
+
 # findings-to-github-issues (orchestrator)
 
 Run the full pipeline: a source document in, a GitHub Issues backlog out. You

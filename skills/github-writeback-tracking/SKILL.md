@@ -10,6 +10,9 @@ description: >-
 effort: max
 ---
 
+<!-- generated: third-party requirements -->
+> **Requires:** `pip install openpyxl` — this skill's scripts import `openpyxl`.
+
 # github-writeback-tracking
 
 Closes the loop: once issues exist in GitHub, stamp their numbers and URLs back onto

@@ -96,6 +96,130 @@ def test_local_imports_finds_only_siblings_that_exist():
         shutil.rmtree(repo)
 
 
+def test_imported_modules_ignores_prose_in_a_docstring():
+    repo = _repo()
+    try:
+        p = os.path.join(repo, "a.py")
+        # Both lines are real: local_map_ops.py wraps a docstring onto "from
+        # being substituted away", check_plugin_copies.py onto "from content".
+        _write(p, '"""Doc.\n\n    stops a line\n'
+                  '    from being substituted away, and confirms provenance\n'
+                  '    from content.\n    """\nimport os\nimport openpyxl\n')
+        assert g.imported_modules(p) == ["os", "openpyxl"], g.imported_modules(p)
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_imported_modules_takes_the_top_level_name_and_skips_relatives():
+    repo = _repo()
+    try:
+        p = os.path.join(repo, "a.py")
+        _write(p, "import xml.etree.ElementTree as ET\n"
+                  "from openpyxl.styles import Font\n"
+                  "from . import sibling\n")
+        assert g.imported_modules(p) == ["xml", "openpyxl"], g.imported_modules(p)
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_imported_modules_falls_back_to_the_regex_on_a_parse_error():
+    repo = _repo()
+    try:
+        p = os.path.join(repo, "a.py")
+        _write(p, "import requests\nthis is not python(\n")
+        assert g.imported_modules(p) == ["requests"], g.imported_modules(p)
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_requirements_name_a_third_party_import():
+    repo = _repo()
+    try:
+        d = os.path.join(repo, "one", "scripts")
+        _write(os.path.join(d, "a.py"), "import os\nimport yaml\n")
+        got = g.third_party_requirements(os.path.join(repo, "one"))
+        assert got == [("pyyaml", "yaml")], got
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_requirements_are_empty_when_every_import_is_stdlib():
+    repo = _repo()
+    try:
+        d = os.path.join(repo, "one", "scripts")
+        _write(os.path.join(d, "a.py"),
+               "import os\nimport json\nfrom pathlib import Path\n")
+        assert g.third_party_requirements(os.path.join(repo, "one")) == []
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_requirements_do_not_count_a_sibling_module_as_third_party():
+    repo = _repo()
+    try:
+        d = os.path.join(repo, "one", "scripts")
+        _write(os.path.join(d, "a.py"), "import map_core\nimport openpyxl\n")
+        _write(os.path.join(d, "map_core.py"), "x = 1\n")
+        got = g.third_party_requirements(os.path.join(repo, "one"))
+        assert got == [("openpyxl", "openpyxl")], got
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_requirements_block_lands_below_the_frontmatter():
+    text = "---\nname: a\ndescription: d\n---\n\n# a\n\nbody\n"
+    out = g.apply_requirements(text, [("pyyaml", "yaml")])
+    assert out == ("---\nname: a\ndescription: d\n---\n\n"
+                   "<!-- generated: third-party requirements -->\n"
+                   "> **Requires:** `pip install pyyaml` — this skill's "
+                   "scripts import `yaml`.\n\n# a\n\nbody\n"), out
+
+
+def test_requirements_block_is_absent_when_nothing_is_needed():
+    text = "---\nname: a\ndescription: d\n---\n\n# a\n"
+    assert g.apply_requirements(text, []) == text
+
+
+def test_requirements_block_is_replaced_not_stacked():
+    text = "---\nname: a\n---\n\n# a\n"
+    once = g.apply_requirements(text, [("pyyaml", "yaml")])
+    twice = g.apply_requirements(once, [("openpyxl", "openpyxl")])
+    assert twice.count(g.REQUIRES_MARKER) == 1, twice
+    assert "pyyaml" not in twice, twice
+    assert g.apply_requirements(once, []) == text
+
+
+def test_emit_states_a_requirement_a_resolved_reference_brought_in():
+    repo = _repo()
+    try:
+        # The importing script is a PLUGIN-level file the SKILL.md names, so
+        # the requirement can only be seen after references are resolved.
+        src = _skill(repo, "p", "one", "one",
+                     'run `${CLAUDE_PLUGIN_ROOT}/scripts/y.py`\n')
+        _write(os.path.join(repo, "plugins", "p", "scripts", "y.py"),
+               "import yaml\n")
+        out = os.path.join(repo, "skills")
+        g.emit_skill(g.Skill("p", "one", src), out, {})
+        md = io.open(os.path.join(out, "one", "SKILL.md"), encoding="utf-8").read()
+        assert "pip install pyyaml" in md, md
+        assert md.index(g.REQUIRES_MARKER) < md.index("${CLAUDE_SKILL_DIR}"), md
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_emit_leaves_a_stdlib_only_skill_without_a_requirement_line():
+    repo = _repo()
+    try:
+        src = _skill(repo, "p", "one", "one", "body\n")
+        _write(os.path.join(src, "scripts", "a.py"), "import os, json\n")
+        out = os.path.join(repo, "skills")
+        g.emit_skill(g.Skill("p", "one", src), out, {})
+        md = io.open(os.path.join(out, "one", "SKILL.md"), encoding="utf-8").read()
+        assert g.REQUIRES_MARKER not in md, md
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_resolve_pulls_a_transitive_import_no_skill_names():
     repo = _repo()
     try:

@@ -5,15 +5,21 @@ The skills.sh CLI copies a skill DIRECTORY and nothing above it, so a skill
 that names ${CLAUDE_PLUGIN_ROOT}/references/... installs and then fails. This
 generator writes a resolved copy of every skill into skills/<name>/ at the
 repo root: the files it names, the files those import, its vendored licence,
-and its command's argument-hint (ADRs 0153-0164).
+its command's argument-hint (ADRs 0153-0164), and - derived from that same
+import graph - a line in its own SKILL.md naming the third-party packages its
+scripts need, because an installed skill's reader never chose a plugin and has
+no per-plugin table to look the answer up in.
 
 The tree is generated and committed. Never hand-edit it; check_skills_tree.py
 fails the build if you do.
+
+Requires Python 3.10+ (sys.stdlib_module_names).
 
 Usage:
   python3 scripts/generate_skills_tree.py [--repo PATH] [--out PATH]
 """
 import argparse
+import ast
 import collections
 import io
 import os
@@ -89,6 +95,43 @@ def discover_skills(repo):
 IMPORT_RE = re.compile(r"^\s*(?:import|from)\s+([A-Za-z_][A-Za-z0-9_]*)", re.M)
 
 
+def imported_modules(py_path):
+    """Top-level module names py_path imports, in source order, unique.
+
+    ast first, because a regex over the raw text reads English prose in a
+    docstring as an import - `local_map_ops.py` has a line beginning "from
+    being substituted away" and `check_plugin_copies.py` one beginning "from
+    content", and both would otherwise be reported as packages to install.
+
+    The regex stays as the fallback for a file ast cannot parse: the sources
+    are this repo's own scripts, and one that fails to parse must not take the
+    whole build down with it. `import a.b` and `from a.b import c` both yield
+    `a`; a relative `from . import x` yields nothing, being local by
+    definition.
+    """
+    text = read_text(py_path)
+    out = []
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        for mod in IMPORT_RE.findall(text):
+            if mod not in out:
+                out.append(mod)
+        return out
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            names = [node.module] if node.level == 0 and node.module else []
+        else:
+            continue
+        for name in names:
+            top = name.split(".")[0]
+            if top and top not in out:
+                out.append(top)
+    return out
+
+
 class MissingReference(Exception):
     """A SKILL.md names a file that is not in its plugin."""
 
@@ -117,19 +160,10 @@ def is_compiled_python(rel):
 
 
 def local_imports(py_path):
-    """Module names imported by py_path that exist as .py siblings.
-
-    A regex, not ast.parse: the sources are this repo's own scripts, and a
-    file that fails to parse must not take the whole build down with it.
-    """
+    """Module names imported by py_path that exist as .py siblings."""
     directory = os.path.dirname(py_path)
-    out = []
-    for mod in IMPORT_RE.findall(read_text(py_path)):
-        if mod in out:
-            continue
-        if os.path.isfile(os.path.join(directory, mod + ".py")):
-            out.append(mod)
-    return out
+    return [mod for mod in imported_modules(py_path)
+            if os.path.isfile(os.path.join(directory, mod + ".py"))]
 
 
 def resolve_files(plugin_root, refs):
@@ -247,6 +281,74 @@ def apply_argument_hint(text, hint):
     return "---" + "\n".join(out) + tail
 
 
+# Import name and pip name are usually the same word; where they are not, the
+# only cure is to say so. Kept deliberately tiny - one entry per package this
+# repo's scripts actually import - and consulted only after introspection has
+# already decided the module is third-party.
+PIP_NAMES = {"yaml": "pyyaml"}
+
+# The generated block is anchored by this marker so it can be recognised,
+# replaced and recognised as machine-written. It is the first thing in the
+# body, which is where a model reading the skill starts.
+REQUIRES_MARKER = "<!-- generated: third-party requirements -->"
+REQUIRES_BLOCK_RE = re.compile(
+    re.escape(REQUIRES_MARKER) + r"\n(?:>.*\n)*\n?")
+
+
+def third_party_requirements(skill_dir):
+    """The packages the .py files under skill_dir import and do not carry.
+
+    Returns sorted (pip name, import name) pairs. Introspection, never a
+    list: a module is third-party when a `.py` file that travels with the
+    skill imports it, no sibling `.py` in that skill supplies it, and
+    `sys.stdlib_module_names` does not know it. A hardcoded package list
+    would be stale the day someone adds an import; this is recomputed from
+    the real import graph every time the tree is built.
+
+    `sys.stdlib_module_names` is Python 3.10+, which is why the generator's
+    floor is 3.10.
+    """
+    found = set()
+    for base, _dirs, files in os.walk(skill_dir):
+        for entry in sorted(files):
+            if not entry.endswith(".py"):
+                continue
+            for mod in imported_modules(os.path.join(base, entry)):
+                if mod in sys.stdlib_module_names:
+                    continue
+                if os.path.isfile(os.path.join(base, mod + ".py")):
+                    continue
+                found.add((PIP_NAMES.get(mod, mod), mod))
+    return sorted(found)
+
+
+def apply_requirements(text, packages):
+    """Put (or remove) the generated requirement block below the frontmatter.
+
+    An installed skill is on its own - its reader never chose a plugin, so a
+    per-plugin table elsewhere cannot answer "what does THIS need". The answer
+    therefore travels inside the skill's own SKILL.md, one blockquote line
+    under a marker comment, and only for the skills that need one.
+
+    Both names are printed because they differ (`pip install pyyaml`,
+    `import yaml`) and the reader arrives here holding the import name, out of
+    a ModuleNotFoundError.
+    """
+    text = REQUIRES_BLOCK_RE.sub("", text)
+    if not packages:
+        return text
+    block = ("%s\n> **Requires:** `pip install %s` — this skill's scripts "
+             "import %s.\n\n") % (
+        REQUIRES_MARKER, " ".join(pip for pip, _ in packages),
+        ", ".join("`%s`" % mod for _, mod in packages))
+    end = text.find("\n---", 3) if text.startswith("---") else -1
+    if end == -1:
+        return block + text
+    head = text[:end + len("\n---")]
+    tail = text[end + len("\n---"):].lstrip("\n")
+    return head + "\n\n" + block + tail
+
+
 def emit_skill(skill, out_root, hints):
     """Write one resolved skill directory. Returns its path."""
     # src_dir is <repo>/plugins/<plugin>/skills/<dirname>; up two is the plugin.
@@ -265,13 +367,6 @@ def emit_skill(skill, out_root, hints):
             _copy_file(source, target, rewrite=entry.endswith(".md"))
             owned.add(entry)
 
-    md_path = os.path.join(dest, "SKILL.md")
-    text = read_text(md_path)
-    hint = hints.get(skill.name)
-    if hint:
-        text = apply_argument_hint(text, hint)
-        _write_text(md_path, text)
-
     refs = plugin_root_refs(read_text(os.path.join(skill.src_dir, "SKILL.md")))
     for rel, absolute in sorted(resolve_files(plugin_root, refs).items()):
         if rel in owned:
@@ -287,6 +382,17 @@ def emit_skill(skill, out_root, hints):
     if licence:
         _copy_file(os.path.join(plugin_root, licence),
                    os.path.join(dest, licence), rewrite=False)
+
+    # Last, because both edits are to the SKILL.md the passes above wrote, and
+    # the requirement line can only be derived once every .py the skill carries
+    # has arrived - a plugin-level script resolved in the pass above counts.
+    md_path = os.path.join(dest, "SKILL.md")
+    text = read_text(md_path)
+    hint = hints.get(skill.name)
+    if hint:
+        text = apply_argument_hint(text, hint)
+    text = apply_requirements(text, third_party_requirements(dest))
+    _write_text(md_path, text)
     return dest
 
 

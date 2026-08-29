@@ -14,6 +14,9 @@ description: >-
 effort: max
 ---
 
+<!-- generated: third-party requirements -->
+> **Requires:** `pip install openpyxl` — this skill's scripts import `openpyxl`.
+
 # ado-writeback-tracking
 
 Closes the loop: once items exist in ADO, stamp their IDs and URLs back onto the

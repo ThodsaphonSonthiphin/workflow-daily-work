@@ -5,6 +5,9 @@ argument-hint: "[brief / file path / 'academic'|'professional' / 'pdf'|'md']"
 effort: max
 ---
 
+<!-- generated: third-party requirements -->
+> **Requires:** `pip install pyyaml` — this skill's scripts import `yaml`.
+
 # sa-doc — SA&D document generator
 
 One validated model, one consistent document. Every section of the output is

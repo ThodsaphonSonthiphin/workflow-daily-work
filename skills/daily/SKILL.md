@@ -18,6 +18,9 @@ argument-hint: "[start|work|file|report|wrap] | save [\"note\"]"
 effort: max
 ---
 
+<!-- generated: third-party requirements -->
+> **Requires:** `pip install pyyaml` — this skill's scripts import `yaml`.
+
 # daily — the one command to remember
 
 Route the user to the right skill for their moment in the day. You are a router:

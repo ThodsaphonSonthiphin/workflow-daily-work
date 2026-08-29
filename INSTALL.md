@@ -91,13 +91,21 @@ npx skills@latest add ThodsaphonSonthiphin/workflow-daily-work --skill github-tr
 
 ## Machine setup, either way
 
-Installing the skill is not the same as being able to run it. These are once per machine:
+Installing the skill is not the same as being able to run it. These are once per machine.
+
+**Python packages: read the skill, not this table.** Every skill whose bundled scripts
+import a third-party package says so on its own first line, under a
+`<!-- generated: third-party requirements -->` marker — for example `daily` opens with
+`Requires: pip install pyyaml`. That line is derived from the skill's real import graph
+when the tree is generated, so it cannot drift. The table below is keyed by the **plugin**
+a skill came from, which is the right question in the plugin channel and the wrong one in
+the npx channel, where you installed a skill and never chose a plugin.
 
 | you installed | do this | check it |
 |---|---|---|
-| anything from `dev-workflows` | Python 3 on PATH. Several skills hand off to the upstream `superpowers` plugin at plan-execution time: `/plugin marketplace add anthropics/claude-plugins-official` then `/plugin install superpowers@claude-plugins-official`. | ask for a plan and confirm the handoff lands |
+| anything from `dev-workflows` | Python 3.10+ on PATH, and `pip install pyyaml openpyxl` to cover every script in the plugin. Several skills hand off to the upstream `superpowers` plugin at plan-execution time: `/plugin marketplace add anthropics/claude-plugins-official` then `/plugin install superpowers@claude-plugins-official`. | ask for a plan and confirm the handoff lands |
 | anything from `ado-backlog` | `pip install openpyxl`, `az login`, and set `AZDO_ORG` / `AZDO_PROJECT` to **bare names** (`Cartagena365`, `GlassHull`) — not URLs. `AZDO_PAT` is the fallback when Entra tokens are unavailable. | `/ado-auth` for the credentials; for the rest, the sweep below |
-| anything from `github-backlog` | `pip install openpyxl`, `gh auth login`, and set `GH_OWNER` / `GH_REPO`. | `/github-auth` for the credentials; for the rest, the sweep below |
+| anything from `github-backlog` | `pip install openpyxl requests`, `gh auth login`, and set `GH_OWNER` / `GH_REPO`. | `/github-auth` for the credentials; for the rest, the sweep below |
 
 The `setup-check` commands are plugin-channel only. Through npx, `/ado-auth` and
 `/github-auth` check your credentials, not the full prerequisite sweep — for that, run

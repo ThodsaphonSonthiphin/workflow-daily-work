@@ -86,6 +86,13 @@ For each source skill the generated directory contains:
    `LICENSE-superpowers` for the six `sp-*`, `LICENSE-mattpocock-skills` for `wait-what`.
 5. **`argument-hint`** in the frontmatter, lifted from the skill's command wrapper where
    one exists (ADR 0157). Nothing else about the frontmatter changes.
+6. **A requirement line**, for the 10 skills that need one: a marker comment and one
+   blockquote under the frontmatter naming the third-party packages their bundled scripts
+   import. Derived from the same import graph as item 3 — a module is third-party when a
+   `.py` that travels with the skill imports it, no sibling `.py` supplies it, and
+   `sys.stdlib_module_names` does not know it. The npx channel's unit is the skill and its
+   reader never chose a plugin, so the answer has to travel inside `SKILL.md`; deriving it
+   is what stops it drifting the way INSTALL.md's per-plugin table did.
 
 Invariants the checker asserts (§5):
 
@@ -124,7 +131,7 @@ flowchart TD
     I -->|yes| T["parse its imports,<br/>queue local siblings"]
     I -->|"no — .cs/.ps1/.md/.yaml"| N["no tracing<br/>(measured: no sibling loads)"]
     T --> Q
-    N --> Z["write licence + argument-hint"]
+    N --> Z["write licence, argument-hint,<br/>and the requirement line<br/>derived from the same graph"]
     Q --> Z
 ```
 
@@ -188,8 +195,11 @@ Everything that churns:
 4. **What the npx channel does not carry** — no hooks, no aliases, no automatic updates
    (`npx skills update <name>`).
 5. **The renames** from §6, for anyone with the old names installed.
-6. **Per-plugin machine setup**, unchanged: `az login`, `gh auth login`, `openpyxl`,
-   `AZDO_ORG` / `AZDO_PROJECT`, `GH_OWNER` / `GH_REPO`.
+6. **Machine setup** — `az login`, `gh auth login`, `AZDO_ORG` / `AZDO_PROJECT`,
+   `GH_OWNER` / `GH_REPO`, and the Python packages per plugin. The table is keyed by the
+   plugin a skill came from, which the npx channel's reader never chose, so it says so and
+   points at each skill's own generated requirement line (§3 item 6) for the answer that
+   cannot drift.
 
 ## 8. Out of scope
 

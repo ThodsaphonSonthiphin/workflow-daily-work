@@ -14,6 +14,9 @@ argument-hint: "[path-to-findings-file]"
 effort: max
 ---
 
+<!-- generated: third-party requirements -->
+> **Requires:** `pip install openpyxl` — this skill's scripts import `openpyxl`.
+
 # findings-to-ado-backlog (orchestrator)
 
 Run the full pipeline: a source document in, an ADO backlog out. You coordinate six

@@ -4,6 +4,9 @@ description: Use when you need to produce a test-case suite for a feature, chang
 effort: max
 ---
 
+<!-- generated: third-party requirements -->
+> **Requires:** `pip install openpyxl` — this skill's scripts import `openpyxl`.
+
 # Generating Test Cases
 
 Turn a feature, change, or fixed bug into a structured, **evidence-grounded** test-case suite, then render it to whatever destination the user wants. Coverage is derived once from the sources of truth; the output format is a late, swappable step.

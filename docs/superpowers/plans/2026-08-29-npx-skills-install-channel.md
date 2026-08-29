@@ -6,7 +6,7 @@
 
 **Architecture:** A generator reads the 55 authored skills under `plugins/*/skills/` and writes a resolved copy of each into `skills/<name>/` at the repo root. "Resolved" means every `${CLAUDE_PLUGIN_ROOT}/…` reference has been rewritten and the file it names has been copied into the skill directory, together with anything that file imports. A checker regenerates into a temp directory and fails if the committed tree differs. GitHub Actions runs the checker on every push.
 
-**Tech Stack:** Python 3.9+ standard library only (no PyYAML, no pytest — the repo's test harness is a `__main__` block that runs `test_*` functions and exits 1 on failure, matching `plugins/dev-workflows/scripts/test_check_plugin_copies.py`). GitHub Actions for CI.
+**Tech Stack:** Python 3.10+ standard library only — 3.10 because `sys.stdlib_module_names` is how the generator tells a third-party import from a stdlib one, and 3.9 is end-of-life while CI pins 3.11 (no PyYAML, no pytest — the repo's test harness is a `__main__` block that runs `test_*` functions and exits 1 on failure, matching `plugins/dev-workflows/scripts/test_check_plugin_copies.py`). GitHub Actions for CI.
 
 **Spec:** [docs/superpowers/specs/2026-08-29-npx-skills-install-channel-design.md](../specs/2026-08-29-npx-skills-install-channel-design.md)
 
