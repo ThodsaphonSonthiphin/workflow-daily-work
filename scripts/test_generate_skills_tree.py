@@ -76,6 +76,71 @@ def test_refs_stops_at_the_closing_quote_or_backtick():
     assert g.plugin_root_refs(text) == ["scripts/a.cs"]
 
 
+def test_excluded_covers_test_files_and_fixtures():
+    assert g.is_excluded("scripts/test_thing.py") is True
+    assert g.is_excluded("scripts/fixtures/model.yaml") is True
+    assert g.is_excluded("scripts/thing.py") is False
+    assert g.is_excluded("references/latest_notes.md") is False
+
+
+def test_local_imports_finds_only_siblings_that_exist():
+    repo = _repo()
+    try:
+        d = os.path.join(repo, "scripts")
+        _write(os.path.join(d, "a.py"),
+               "import os\nimport map_core\nfrom helper import x\n")
+        _write(os.path.join(d, "map_core.py"), "x = 1\n")
+        found = g.local_imports(os.path.join(d, "a.py"))
+        assert found == ["map_core"], found
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_resolve_pulls_a_transitive_import_no_skill_names():
+    repo = _repo()
+    try:
+        root = os.path.join(repo, "plugins", "p")
+        _write(os.path.join(root, "scripts", "local_map_ops.py"),
+               "import map_core\n")
+        _write(os.path.join(root, "scripts", "map_core.py"), "import deeper\n")
+        _write(os.path.join(root, "scripts", "deeper.py"), "x = 1\n")
+        got = g.resolve_files(root, ["scripts/local_map_ops.py"])
+        assert sorted(got) == ["scripts/deeper.py",
+                               "scripts/local_map_ops.py",
+                               "scripts/map_core.py"], sorted(got)
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_resolve_skips_excluded_siblings_but_honours_a_named_one():
+    repo = _repo()
+    try:
+        root = os.path.join(repo, "plugins", "p")
+        _write(os.path.join(root, "scripts", "a.py"), "import test_a\n")
+        _write(os.path.join(root, "scripts", "test_a.py"), "x = 1\n")
+        _write(os.path.join(root, "scripts", "fixtures", "m.yaml"), "k: v\n")
+        got = g.resolve_files(root, ["scripts/a.py"])
+        assert sorted(got) == ["scripts/a.py"], sorted(got)
+        got2 = g.resolve_files(root, ["scripts/a.py", "scripts/fixtures/m.yaml"])
+        assert sorted(got2) == ["scripts/a.py", "scripts/fixtures/m.yaml"], sorted(got2)
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_resolve_raises_on_a_reference_that_does_not_exist():
+    repo = _repo()
+    try:
+        root = os.path.join(repo, "plugins", "p")
+        os.makedirs(root)
+        try:
+            g.resolve_files(root, ["references/missing.md"])
+            raise AssertionError("expected MissingReference")
+        except g.MissingReference as e:
+            assert "references/missing.md" in str(e), e
+    finally:
+        shutil.rmtree(repo)
+
+
 if __name__ == "__main__":
     TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
