@@ -38,10 +38,18 @@ it names a real file under that skill's own plugin root and no such file arrived
 skill directory. All three conditions are load-bearing. Requiring the path shape keeps
 ordinary English out; requiring the file to exist in the plugin means prose can only be
 flagged by naming something the plugin actually has; and the arrival test is the defect
-itself. Three exclusions come straight from the spec's own list of what the tree never
-carries — `hooks/`, `commands/`, and the test files and fixtures `is_excluded()` drops —
-which is what separates `daily`'s correct sentence from `classify-work-items`' broken
-one. Scoping to `.md` targets keeps it to the read half of ADR 0164, whose run half
+itself. Scoping to `.md` targets keeps it to the read half of ADR 0164, whose run half
 already has its clause over `${CLAUDE_SKILL_DIR}`.
+
+That `.md` scope is also, measured, what separates `daily`'s correct sentence from
+`classify-work-items`' broken one: what `daily` and `ticket-trace` name is
+`hooks/commit-log.py`, `hooks/hooks.json` and `scripts/test_picture_record.py`, and the
+rule never looks at a path that does not end `.md`. Three exclusions come straight from
+the spec's own list of what the tree never carries — `hooks/`, `commands/`, and the test
+files and fixtures `is_excluded()` drops — but removing all three produces zero extra
+findings, because not one of the 40 bare `.md` paths in the tree begins with `hooks/` or
+`commands/` or is excluded. They stay as a guard for the day a skill names a
+plugin-channel `.md` — `commands/` holds sixteen of them — not because they are doing the
+discrimination today.
 
 Run against the tree as it stood, the check reported those three and nothing else.
