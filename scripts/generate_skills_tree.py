@@ -196,7 +196,14 @@ def rewrite_refs(text):
 
 
 def apply_argument_hint(text, hint):
-    """Set argument-hint in the leading frontmatter block."""
+    """Set argument-hint in the leading frontmatter block.
+
+    `description:` is often a YAML block scalar (`>-`, `|`, ...) whose value
+    continues on the following indented lines. The hint must land after that
+    whole block, not right after the header line, or the inserted
+    unindented `argument-hint:` line splits the scalar and the frontmatter
+    stops parsing as YAML.
+    """
     if not hint or not text.startswith("---"):
         return text
     end = text.find("\n---", 3)
@@ -206,9 +213,15 @@ def apply_argument_hint(text, hint):
     lines = [ln for ln in head.splitlines() if not ln.startswith("argument-hint:")]
     inserted = False
     out = []
-    for ln in lines:
+    i, n = 0, len(lines)
+    while i < n:
+        ln = lines[i]
         out.append(ln)
+        i += 1
         if not inserted and ln.startswith("description:"):
+            while i < n and lines[i][:1] in (" ", "\t"):
+                out.append(lines[i])
+                i += 1
             out.append("argument-hint: " + hint)
             inserted = True
     if not inserted:
@@ -283,3 +296,80 @@ def _copy_tree(source, target, owned=None, prefix=""):
                 # Record with forward slashes, relative to skill destination
                 skill_rel = (prefix + "/" + rel.replace(os.sep, "/")).lstrip("/")
                 owned.add(skill_rel)
+
+
+SKILL_REF_RE = re.compile(r"\*\*`?([a-z0-9][a-z0-9-]*)`?\*\*")
+HINT_RE = re.compile(r"^argument-hint:\s*(.+?)\s*$", re.M)
+
+
+def collect_argument_hints(repo):
+    """skill name -> argument-hint, from the command wrappers (ADR 0157).
+
+    Only an unambiguous pairing is carried: exactly one command naming that
+    skill, with a non-empty hint. Two commands hinting one skill, or a command
+    that names no skill, are skipped rather than guessed at.
+    """
+    root = os.path.join(repo, PLUGINS_DIRNAME)
+    seen = {}
+    if not os.path.isdir(root):
+        return {}
+    for plugin in sorted(os.listdir(root)):
+        commands = os.path.join(root, plugin, "commands")
+        if not os.path.isdir(commands):
+            continue
+        for entry in sorted(os.listdir(commands)):
+            if not entry.endswith(".md"):
+                continue
+            text = read_text(os.path.join(commands, entry))
+            hint_match = HINT_RE.search(text)
+            skill_match = SKILL_REF_RE.search(text)
+            if not hint_match or not skill_match:
+                continue
+            hint = hint_match.group(1)
+            if hint in ('""', "''", ""):
+                continue
+            seen.setdefault(skill_match.group(1), []).append(hint)
+    return dict((k, v[0]) for k, v in seen.items() if len(v) == 1)
+
+
+def build(repo, out_root):
+    """Emit every skill into out_root, replacing whatever was there."""
+    skills = discover_skills(repo)
+    hints = collect_argument_hints(repo)
+    names = set(s.name for s in skills)
+    if os.path.isdir(out_root):
+        for entry in sorted(os.listdir(out_root)):
+            path = os.path.join(out_root, entry)
+            if os.path.isdir(path) and entry not in names:
+                _remove_tree(path)
+    for skill in skills:
+        dest = os.path.join(out_root, skill.name)
+        if os.path.isdir(dest):
+            _remove_tree(dest)
+        emit_skill(skill, out_root, hints)
+    return sorted(names)
+
+
+def _remove_tree(path):
+    for root, dirs, files in os.walk(path, topdown=False):
+        for name in files:
+            os.remove(os.path.join(root, name))
+        for name in dirs:
+            os.rmdir(os.path.join(root, name))
+    os.rmdir(path)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo", default=".")
+    parser.add_argument("--out", default=None,
+                        help="defaults to <repo>/skills")
+    args = parser.parse_args(argv)
+    out = args.out or os.path.join(args.repo, TREE_DIRNAME)
+    built = build(args.repo, out)
+    print("generated %d skills into %s" % (len(built), out))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

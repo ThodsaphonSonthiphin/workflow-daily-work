@@ -169,6 +169,18 @@ def test_argument_hint_replaces_an_existing_one():
     assert 'argument-hint: "[new]"' in out and "[old]" not in out, out
 
 
+def test_argument_hint_lands_after_a_folded_description_block():
+    # description: >- opens a YAML block scalar that continues on indented
+    # lines; the hint must not be inserted inside that block, or the
+    # unindented argument-hint: line breaks the folded scalar.
+    text = ("---\nname: a\ndescription: >-\n  line one\n  line two\n"
+            "effort: high\n---\n\nbody\n")
+    out = g.apply_argument_hint(text, '"[x]"')
+    assert out == (
+        "---\nname: a\ndescription: >-\n  line one\n  line two\n"
+        'argument-hint: "[x]"\neffort: high\n---\n\nbody\n'), out
+
+
 def test_licence_mapping_covers_the_seven_vendored_skills():
     assert g.licence_for("wait-what") == "LICENSE-mattpocock-skills"
     assert g.licence_for("sp-writing-plans") == "LICENSE-superpowers"
@@ -220,6 +232,58 @@ def test_emit_raises_on_reference_collision_with_owned_file():
             raise AssertionError("expected ReferenceCollision")
         except g.ReferenceCollision as e:
             assert "references/x.md" in str(e), e
+    finally:
+        shutil.rmtree(repo)
+
+
+def _command(repo, plugin, filename, skill, hint):
+    body = "---\ndescription: d\n"
+    if hint is not None:
+        body += "argument-hint: %s\n" % hint
+    body += "---\n\nUse the **`%s`** skill.\n" % skill
+    _write(os.path.join(repo, "plugins", plugin, "commands", filename), body)
+
+
+def test_hints_are_collected_from_commands_that_name_one_skill():
+    repo = _repo()
+    try:
+        _command(repo, "p", "run.md", "orchestrator", '"[path]"')
+        assert g.collect_argument_hints(repo) == {"orchestrator": '"[path]"'}
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_an_empty_hint_is_not_collected():
+    repo = _repo()
+    try:
+        _command(repo, "p", "a.md", "one", '""')
+        _command(repo, "p", "b.md", "two", None)
+        assert g.collect_argument_hints(repo) == {}
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_two_commands_hinting_the_same_skill_collect_neither():
+    repo = _repo()
+    try:
+        _command(repo, "p", "a.md", "one", '"[x]"')
+        _command(repo, "q", "b.md", "one", '"[y]"')
+        assert g.collect_argument_hints(repo) == {}
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_build_emits_one_directory_per_skill_and_clears_stale_ones():
+    repo = _repo()
+    try:
+        _skill(repo, "p", "one", "one")
+        _skill(repo, "p", "two", "two")
+        out = os.path.join(repo, "skills")
+        os.makedirs(os.path.join(out, "stale"))
+        _write(os.path.join(out, "stale", "SKILL.md"), "---\nname: stale\n---\n")
+        built = g.build(repo, out)
+        assert built == ["one", "two"], built
+        assert sorted(os.listdir(out)) == ["one", "two"], os.listdir(out)
     finally:
         shutil.rmtree(repo)
 
