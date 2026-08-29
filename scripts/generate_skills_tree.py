@@ -143,3 +143,128 @@ def resolve_files(plugin_root, refs):
                 sibling = "%s/%s.py" % (parent, mod) if parent else mod + ".py"
                 queue.append((sibling, False))
     return resolved
+
+
+# The rewritten form rewrite_refs() produces, so Task 6's checker can prove
+# each target landed in the directory the CLI will copy.
+SKILL_DIR_REF_RE = re.compile(r"\$\{CLAUDE_SKILL_DIR\}/([A-Za-z0-9_][A-Za-z0-9_./-]*)")
+
+SUPERPOWERS_LICENCE = "LICENSE-superpowers"
+MATTPOCOCK_LICENCE = "LICENSE-mattpocock-skills"
+
+VENDORED = {
+    "sp-brainstorming": SUPERPOWERS_LICENCE,
+    "sp-executing-plans": SUPERPOWERS_LICENCE,
+    "sp-receiving-code-review": SUPERPOWERS_LICENCE,
+    "sp-requesting-code-review": SUPERPOWERS_LICENCE,
+    "sp-subagent-driven-development": SUPERPOWERS_LICENCE,
+    "sp-writing-plans": SUPERPOWERS_LICENCE,
+    "wait-what": MATTPOCOCK_LICENCE,
+}
+
+
+def licence_for(name):
+    """The licence file a vendored skill must carry (ADR 0158)."""
+    return VENDORED.get(name)
+
+
+def rewrite_refs(text):
+    """Rewrite plugin-root references by kind (ADR 0164).
+
+    A .md target becomes a path relative to the skill directory - the Agent
+    Skills standard form. Everything else becomes ${CLAUDE_SKILL_DIR}/..., so
+    a Bash command resolves from any working directory. An unclassifiable
+    target falls back to ${CLAUDE_SKILL_DIR}, which is never wrong in
+    Claude Code.
+    """
+    def sub(m):
+        ref = m.group(1)
+        trailing = ""
+        while ref and ref[-1] in ".,;:)":
+            trailing = ref[-1] + trailing
+            ref = ref[:-1]
+        if not ref:
+            return m.group(0)
+        if ref.endswith(".md"):
+            return ref + trailing
+        return "${CLAUDE_SKILL_DIR}/" + ref + trailing
+    return REF_RE.sub(sub, text)
+
+
+def apply_argument_hint(text, hint):
+    """Set argument-hint in the leading frontmatter block."""
+    if not hint or not text.startswith("---"):
+        return text
+    end = text.find("\n---", 3)
+    if end == -1:
+        return text
+    head, tail = text[3:end], text[end:]
+    lines = [ln for ln in head.splitlines() if not ln.startswith("argument-hint:")]
+    inserted = False
+    out = []
+    for ln in lines:
+        out.append(ln)
+        if not inserted and ln.startswith("description:"):
+            out.append("argument-hint: " + hint)
+            inserted = True
+    if not inserted:
+        out.append("argument-hint: " + hint)
+    return "---" + "\n".join(out) + tail
+
+
+def emit_skill(skill, out_root, hints):
+    """Write one resolved skill directory. Returns its path."""
+    # src_dir is <repo>/plugins/<plugin>/skills/<dirname>; up two is the plugin.
+    plugin_root = os.path.dirname(os.path.dirname(skill.src_dir))
+    dest = os.path.join(out_root, skill.name)
+    os.makedirs(dest, exist_ok=True)
+
+    for entry in sorted(os.listdir(skill.src_dir)):
+        source = os.path.join(skill.src_dir, entry)
+        target = os.path.join(dest, entry)
+        if os.path.isdir(source):
+            _copy_tree(source, target)
+        else:
+            _copy_file(source, target, rewrite=entry.endswith(".md"))
+
+    md_path = os.path.join(dest, "SKILL.md")
+    text = read_text(md_path)
+    hint = hints.get(skill.name)
+    if hint:
+        text = apply_argument_hint(text, hint)
+        _write_text(md_path, text)
+
+    refs = plugin_root_refs(read_text(os.path.join(skill.src_dir, "SKILL.md")))
+    for rel, absolute in sorted(resolve_files(plugin_root, refs).items()):
+        target = os.path.join(dest, rel.replace("/", os.sep))
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        _copy_file(absolute, target, rewrite=rel.endswith(".md"))
+
+    licence = licence_for(skill.name)
+    if licence:
+        _copy_file(os.path.join(plugin_root, licence),
+                   os.path.join(dest, licence), rewrite=False)
+    return dest
+
+
+def _write_text(path, text):
+    with io.open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+
+
+def _copy_file(source, target, rewrite):
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    if rewrite:
+        _write_text(target, rewrite_refs(read_text(source)))
+    else:
+        with open(source, "rb") as fsrc, open(target, "wb") as fdst:
+            fdst.write(fsrc.read())
+
+
+def _copy_tree(source, target):
+    for root, _dirs, files in os.walk(source):
+        for entry in sorted(files):
+            src = os.path.join(root, entry)
+            rel = os.path.relpath(src, source)
+            _copy_file(src, os.path.join(target, rel),
+                       rewrite=entry.endswith(".md"))

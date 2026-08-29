@@ -141,6 +141,68 @@ def test_resolve_raises_on_a_reference_that_does_not_exist():
         shutil.rmtree(repo)
 
 
+def test_rewrite_sends_md_relative_and_everything_else_to_skill_dir():
+    text = ('see `${CLAUDE_PLUGIN_ROOT}/references/x.md`\n'
+            'python "${CLAUDE_PLUGIN_ROOT}/scripts/y.py"\n'
+            'load "${CLAUDE_PLUGIN_ROOT}/scripts/fixtures/m.yaml"\n')
+    out = g.rewrite_refs(text)
+    assert "`references/x.md`" in out, out
+    assert '"${CLAUDE_SKILL_DIR}/scripts/y.py"' in out, out
+    assert '"${CLAUDE_SKILL_DIR}/scripts/fixtures/m.yaml"' in out, out
+    assert "CLAUDE_PLUGIN_ROOT" not in out, out
+
+
+def test_rewrite_leaves_the_prose_ellipsis_alone():
+    text = 'always wrap `"${CLAUDE_PLUGIN_ROOT}/..."`'
+    assert g.rewrite_refs(text) == text
+
+
+def test_argument_hint_is_inserted_after_description():
+    text = "---\nname: a\ndescription: d\n---\n\nbody\n"
+    out = g.apply_argument_hint(text, '"[x]"')
+    assert out == '---\nname: a\ndescription: d\nargument-hint: "[x]"\n---\n\nbody\n', out
+
+
+def test_argument_hint_replaces_an_existing_one():
+    text = '---\nname: a\nargument-hint: "[old]"\n---\n\nbody\n'
+    out = g.apply_argument_hint(text, '"[new]"')
+    assert 'argument-hint: "[new]"' in out and "[old]" not in out, out
+
+
+def test_licence_mapping_covers_the_seven_vendored_skills():
+    assert g.licence_for("wait-what") == "LICENSE-mattpocock-skills"
+    assert g.licence_for("sp-writing-plans") == "LICENSE-superpowers"
+    assert g.licence_for("sp-grill-with-doc") is None
+    assert g.licence_for("grill-then-plan") is None
+
+
+def test_emit_writes_skill_files_and_the_named_reference():
+    repo = _repo()
+    try:
+        src = _skill(repo, "p", "one", "one",
+                     'run `${CLAUDE_PLUGIN_ROOT}/scripts/y.py`\n')
+        _write(os.path.join(repo, "plugins", "p", "scripts", "y.py"), "x = 1\n")
+        out = os.path.join(repo, "skills")
+        g.emit_skill(g.Skill("p", "one", src), out, {})
+        md = io.open(os.path.join(out, "one", "SKILL.md"), encoding="utf-8").read()
+        assert "${CLAUDE_SKILL_DIR}/scripts/y.py" in md, md
+        assert os.path.isfile(os.path.join(out, "one", "scripts", "y.py"))
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_emit_uses_the_frontmatter_name_as_the_directory():
+    repo = _repo()
+    try:
+        src = _skill(repo, "p", "gamma", "delta")
+        out = os.path.join(repo, "skills")
+        g.emit_skill(g.Skill("p", "delta", src), out, {})
+        assert os.path.isdir(os.path.join(out, "delta"))
+        assert not os.path.isdir(os.path.join(out, "gamma"))
+    finally:
+        shutil.rmtree(repo)
+
+
 if __name__ == "__main__":
     TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
