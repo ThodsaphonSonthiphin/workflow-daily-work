@@ -15,6 +15,8 @@ import argparse
 import collections
 import io
 import os
+import posixpath
+import re
 import shutil
 import sys
 import tempfile
@@ -22,6 +24,24 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import generate_skills_tree as g
+
+# A bare relative path naming a markdown document: at least one directory
+# segment, then a `.md` file. The lookbehind keeps the match off the tail of a
+# longer path and off an already-rewritten ${CLAUDE_SKILL_DIR}/... token.
+#
+# Requiring BOTH a slash and the .md suffix is what keeps ordinary English out
+# of the check: `and/or` has no extension, `read/write.md` names no real file.
+# The finding needs a third thing on top - the path must resolve to a real file
+# in the owning plugin - so prose can only be flagged by naming a plugin file.
+BARE_MD_REF_RE = re.compile(
+    r"(?<![\w/${.-])"
+    r"([A-Za-z0-9_][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_][A-Za-z0-9_.-]*)+\.md)\b")
+
+# Directories the generated tree deliberately never carries (spec S3,
+# Exclusions: "Commands and hooks are not represented in the tree"). A skill
+# naming a file under one is describing a plugin-channel feature, not
+# resolving a reference - `daily` and `ticket-trace` both do, correctly.
+NEVER_TRAVELS = ("hooks", "commands")
 
 
 def _files_under(root):
@@ -34,6 +54,57 @@ def _files_under(root):
             with open(path, "rb") as f:
                 out[rel] = f.read().replace(b"\r\n", b"\n")
     return out
+
+
+def _bare_reference_findings(repo, tree_files):
+    """The first half of the spec S3 invariant: a relative path a generated
+    file names must resolve inside its own skill directory.
+
+    The rewriter only ever followed `${CLAUDE_PLUGIN_ROOT}/...`. A plugin-level
+    file named by a BARE relative path - `references/data-contracts.md` - was
+    invisible to it, so the reference travelled and the file did not, and the
+    installed skill read as if the document were there.
+
+    A finding needs all three of these, and the third is what stops the check
+    crying wolf: the path is shaped like a path, it names a real file under the
+    skill's OWN plugin root, and no such file arrived in the skill directory.
+    Prose can only be flagged by naming a file the plugin actually has.
+
+    Scoped to `.md` targets - the read half of ADR 0164. The run half already
+    has its clause above, over `${CLAUDE_SKILL_DIR}/...`, and a bare path to a
+    script is a run path written the wrong way, which that clause is the right
+    place to grow into.
+    """
+    findings = []
+    plugin_roots = dict(
+        (s.name, os.path.dirname(os.path.dirname(s.src_dir)))
+        for s in g.discover_skills(repo))
+    for rel, data in sorted(tree_files.items()):
+        if not rel.endswith(".md"):
+            continue
+        parts = rel.split("/")
+        skill_dir, here = parts[0], "/".join(parts[:-1])
+        plugin_root = plugin_roots.get(skill_dir)
+        if plugin_root is None:
+            continue  # a stray directory; the drift comparison already said so
+        for named in dict.fromkeys(
+                BARE_MD_REF_RE.findall(data.decode("utf-8", "replace"))):
+            if named.split("/")[0] in NEVER_TRAVELS or g.is_excluded(named):
+                continue
+            if not os.path.isfile(
+                    os.path.join(plugin_root, named.replace("/", os.sep))):
+                continue
+            # A markdown link resolves against the containing file; prose in a
+            # nested file often spells the path from the skill root instead.
+            # Either arrival counts - the point is that the file is present.
+            if (posixpath.normpath(posixpath.join(here, named)) in tree_files
+                    or "%s/%s" % (skill_dir, named) in tree_files):
+                continue
+            findings.append(
+                "skills/%s names %s, a file its plugin has and the skill does "
+                "not - write it as ${CLAUDE_PLUGIN_ROOT}/%s in the source so "
+                "the generator resolves it (ADR 0170)" % (rel, named, named))
+    return findings
 
 
 def check(repo):
@@ -66,7 +137,8 @@ def check(repo):
         shutil.rmtree(temp_root, ignore_errors=True)
 
     if os.path.isdir(committed_root):
-        for rel, data in sorted(_files_under(committed_root).items()):
+        tree_files = _files_under(committed_root)
+        for rel, data in sorted(tree_files.items()):
             # Only a .md file is reference-rewritten, and only a token followed by
             # a real path is a reference at all. A ${CLAUDE_PLUGIN_ROOT} inside a
             # .cs comment, or the documented prose form ${CLAUDE_PLUGIN_ROOT}/...
@@ -78,7 +150,7 @@ def check(repo):
                 findings.append(
                     "skills/%s still names ${CLAUDE_PLUGIN_ROOT}/%s - that "
                     "expands to nothing outside a plugin install" % (rel, named))
-        for rel, data in sorted(_files_under(committed_root).items()):
+        for rel, data in sorted(tree_files.items()):
             if not rel.endswith(".md"):
                 continue
             skill_dir = rel.split("/")[0]
@@ -89,6 +161,8 @@ def check(repo):
                     findings.append(
                         "skills/%s names %s, which is not in that skill "
                         "directory - the CLI copies nothing else" % (rel, named))
+
+        findings.extend(_bare_reference_findings(repo, tree_files))
 
         for entry in sorted(os.listdir(committed_root)):
             md = os.path.join(committed_root, entry, "SKILL.md")

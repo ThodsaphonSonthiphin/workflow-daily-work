@@ -103,6 +103,74 @@ def test_a_reference_pointing_outside_the_skill_dir_is_a_finding():
         shutil.rmtree(repo)
 
 
+def _repo_with_plugin_files(body, plugin_files):
+    """A one-skill repo whose plugin also holds `plugin_files` {rel: text}."""
+    repo = tempfile.mkdtemp(prefix="checktree-")
+    for rel, text in plugin_files.items():
+        _write(os.path.join(repo, "plugins", "p", rel.replace("/", os.sep)), text)
+    _write(os.path.join(repo, "plugins", "p", "skills", "one", "SKILL.md"),
+           "---\nname: one\ndescription: d\n---\n\n%s" % body)
+    g.build(repo, os.path.join(repo, "skills"))
+    return repo
+
+
+def test_a_bare_relative_ref_to_a_plugin_file_is_a_finding():
+    repo = _repo_with_plugin_files(
+        "Schemas live in `references/data-contracts.md`.\n",
+        {"references/data-contracts.md": "the shapes\n"})
+    try:
+        findings = c.check(repo)
+        assert any("references/data-contracts.md" in f for f in findings), findings
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_the_plugin_root_form_of_the_same_reference_is_clean():
+    repo = _repo_with_plugin_files(
+        "Schemas live in `${CLAUDE_PLUGIN_ROOT}/references/data-contracts.md`.\n",
+        {"references/data-contracts.md": "the shapes\n"})
+    try:
+        assert c.check(repo) == [], c.check(repo)
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_prose_about_a_plugin_only_hook_is_not_a_finding():
+    repo = _repo_with_plugin_files(
+        "A bundled hook (`hooks/commit-log.py`, registered in `hooks/hooks.json`,\n"
+        "documented in `hooks/README.md`) runs when the plugin is enabled.\n",
+        {"hooks/commit-log.py": "#\n", "hooks/hooks.json": "{}\n",
+         "hooks/README.md": "hooks\n"})
+    try:
+        assert c.check(repo) == [], c.check(repo)
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_english_shaped_like_a_path_is_not_a_finding():
+    repo = _repo_with_plugin_files(
+        "Grant read/write access, then diff the before/after.md snapshot.\n",
+        {"references/data-contracts.md": "the shapes\n"})
+    try:
+        assert c.check(repo) == [], c.check(repo)
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_a_bare_ref_that_did_travel_is_not_a_finding():
+    repo = tempfile.mkdtemp(prefix="checktree-")
+    try:
+        _write(os.path.join(repo, "plugins", "p", "references", "own.md"), "x\n")
+        _write(os.path.join(repo, "plugins", "p", "skills", "one",
+                            "references", "own.md"), "the skill's own copy\n")
+        _write(os.path.join(repo, "plugins", "p", "skills", "one", "SKILL.md"),
+               "---\nname: one\ndescription: d\n---\n\nSee `references/own.md`.\n")
+        g.build(repo, os.path.join(repo, "skills"))
+        assert c.check(repo) == [], c.check(repo)
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_main_exits_1_on_findings_and_0_when_clean():
     repo = _repo_with([("one", "one", "body\n")])
     try:
