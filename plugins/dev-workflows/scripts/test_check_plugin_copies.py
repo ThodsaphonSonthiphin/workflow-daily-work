@@ -15,6 +15,7 @@ from check_plugin_copies import (normalize, content_hash, read_normalized,
                                  plugin_root, source_skills, git_output,
                                  source_blockers, _git_dir_above, PRUNE,
                                  derive_roots, scan_for_skill_dirs,
+                                 _is_generated_skills_tree_hit,
                                  PROVENANCE_MIN, PROVENANCE_MIN_LINES,
                                  line_overlap, historical_hashes,
                                  classify, role_of, repair_for, claimed_install,
@@ -386,6 +387,64 @@ def test_scan_deduplicates_overlapping_roots():
         _write(os.path.join(d, "x", "alpha", "SKILL.md"), "a\n")
         hits = scan_for_skill_dirs([d, os.path.join(d, "x")], ["alpha"])
         assert len(hits) == 1
+
+
+def test_is_generated_skills_tree_hit_true_under_a_marketplace_root():
+    with tempfile.TemporaryDirectory() as d:
+        marketplace_root_dir = os.path.join(d, "mkt")
+        hit = os.path.join(marketplace_root_dir, "skills", "alpha")
+        os.makedirs(os.path.join(marketplace_root_dir, ".claude-plugin"))
+        _write(os.path.join(marketplace_root_dir, ".claude-plugin",
+                            "marketplace.json"), "{}\n")
+        os.makedirs(hit)
+        assert _is_generated_skills_tree_hit(hit) is True
+
+
+def test_is_generated_skills_tree_hit_false_under_a_plugin_root():
+    # A plugin's own skills/ sits under .claude-plugin/plugin.json, not
+    # marketplace.json - the structural discriminator must not fire here.
+    with tempfile.TemporaryDirectory() as d:
+        plugin_root_dir = os.path.join(d, "plugins", "myplug")
+        hit = os.path.join(plugin_root_dir, "skills", "alpha")
+        os.makedirs(os.path.join(plugin_root_dir, ".claude-plugin"))
+        _write(os.path.join(plugin_root_dir, ".claude-plugin", "plugin.json"),
+               "{}\n")
+        os.makedirs(hit)
+        assert _is_generated_skills_tree_hit(hit) is False
+
+
+def test_is_generated_skills_tree_hit_false_when_no_manifest_present():
+    with tempfile.TemporaryDirectory() as d:
+        hit = os.path.join(d, "someplace", "skills", "alpha")
+        os.makedirs(hit)
+        assert _is_generated_skills_tree_hit(hit) is False
+
+
+def test_scan_skips_a_marketplaces_own_generated_skills_tree():
+    with tempfile.TemporaryDirectory() as d:
+        marketplace_root_dir = os.path.join(d, "mkt")
+        os.makedirs(os.path.join(marketplace_root_dir, ".claude-plugin"))
+        _write(os.path.join(marketplace_root_dir, ".claude-plugin",
+                            "marketplace.json"), "{}\n")
+        _write(os.path.join(marketplace_root_dir, "skills", "alpha",
+                            "SKILL.md"), "generated copy\n")
+        skipped = []
+        hits = scan_for_skill_dirs([d], ["alpha"], skipped=skipped)
+        assert hits == []
+        assert len(skipped) == 1
+        assert skipped[0].endswith(os.path.join("skills", "alpha"))
+
+
+def test_scan_still_finds_an_ordinary_vendored_copy_under_a_skills_dir():
+    # Same shape (<root>/skills/<name>/SKILL.md) but <root> holds no
+    # marketplace.json - an ordinary vendored copy, must still be found.
+    with tempfile.TemporaryDirectory() as d:
+        _write(os.path.join(d, "someproject", "skills", "alpha",
+                            "SKILL.md"), "vendored copy\n")
+        skipped = []
+        hits = scan_for_skill_dirs([d], ["alpha"], skipped=skipped)
+        assert len(hits) == 1
+        assert skipped == []
 
 
 def test_identical_content_is_in_sync():
@@ -974,6 +1033,47 @@ def test_a_directory_literally_named_backups_outside_claude_home_is_still_graded
         assert len(outside) == 1
         assert outside[0]["verdict"] == "STALE"
         assert outside[0]["graded"] is True
+
+
+def test_a_marketplaces_own_generated_skills_tree_is_never_reported_stale():
+    # `repo` (from _machine) already holds .claude-plugin/marketplace.json.
+    # A rewritten-by-design copy at <repo>/skills/<name>/SKILL.md - the
+    # shape scripts/generate_skills_tree.py produces - must never surface as
+    # a row to grade, however wildly its content diverges from the source
+    # (ADR workflow-daily-work-0165). A genuine vendored copy elsewhere,
+    # with the same drifted content, must still be caught.
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        _write(os.path.join(repo, "skills", "alpha", "SKILL.md"),
+               "nothing\nalike\nat\nall\n")
+        _write(os.path.join(code, "consumer", "skills", "alpha",
+                            "SKILL.md"), _body("alpha v1"))  # drifted, but
+        # over the PROVENANCE_MIN_LINES floor, so it grades STALE not
+        # UNRELATED - the source (from _machine) is _body("alpha v2")
+        result = audit("myplug", "mkt", claude, agents)
+
+        generated = [r for r in result["rows"]
+                    if r["path"] == os.path.join(repo, "skills", "alpha")]
+        assert generated == []          # never appears as a row at all
+        assert result["generated_tree_skips"] == \
+            [os.path.join(repo, "skills", "alpha")]
+
+        vendored = [r for r in result["rows"] if "consumer" in r["path"]]
+        assert len(vendored) == 1
+        assert vendored[0]["verdict"] == "STALE"
+        assert vendored[0]["graded"] is True
+
+
+def test_report_accounts_for_generated_tree_skips_in_its_summary():
+    with tempfile.TemporaryDirectory() as d:
+        claude, agents, code, repo = _machine(d)
+        _write(os.path.join(repo, "skills", "alpha", "SKILL.md"),
+               "nothing\nalike\nat\nall\n")
+        result = audit("myplug", "mkt", claude, agents)
+        _, output = _captured_stdout(report, result)
+        assert "1 hit skipped" in output
+        assert "generated skills/ tree" in output
+        assert os.path.join(repo, "skills", "alpha") in output
 
 
 def test_vendored_repair_for_a_git_tracked_copy_says_commit_in_that_repo():

@@ -208,7 +208,34 @@ def derive_roots(registry, claude_home, agents_home):
     return roots
 
 
-def scan_for_skill_dirs(roots, names, errors=None):
+def _is_generated_skills_tree_hit(dirpath):
+    """True when dirpath is `<marketplace-root>/skills/<name>` - a
+    marketplace's OWN generated distribution tree (built by
+    scripts/generate_skills_tree.py), not a copy anyone should repair.
+
+    Each SKILL.md under that tree is a REWRITTEN copy of its plugin source
+    by design (plugin-root references resolved to skill-relative paths), so
+    it deliberately differs from the source it came from and grades as
+    drifted every time - its only repair is regeneration, never a hand
+    edit or a merge (ADR workflow-daily-work-0165).
+
+    Discriminated structurally, never by name or path string: the directory
+    holding `skills/` must itself hold `.claude-plugin/marketplace.json` -
+    the same manifest plugin_root() reads to resolve a plugin's source. A
+    plugin's own skills/ instead sits under a directory holding
+    `.claude-plugin/plugin.json`, so this test does not fire for a plugin's
+    source tree or for an ordinary vendored copy that happens to sit under a
+    directory literally named `skills`.
+    """
+    skills_dir = os.path.dirname(dirpath)
+    if os.path.basename(skills_dir) != "skills":
+        return False
+    candidate_root = os.path.dirname(skills_dir)
+    return os.path.isfile(os.path.join(candidate_root, ".claude-plugin",
+                                       "marketplace.json"))
+
+
+def scan_for_skill_dirs(roots, names, errors=None, skipped=None):
     """Every directory named after one of `names` that holds a SKILL.md.
 
     Finds copies nobody registered - the reason a scan was chosen over a
@@ -224,6 +251,16 @@ def scan_for_skill_dirs(roots, names, errors=None):
     contract is "find every copy", a skipped directory must never be silent -
     a copy inside it would simply be absent from the report, which reads as
     "there is no copy there".
+
+    `skipped`, when given, collects hits excluded here because
+    _is_generated_skills_tree_hit() says so (ADR workflow-daily-work-0165).
+    That exclusion belongs in this inventory step, not as a labelled verdict
+    in classify(): the tool's contract is "find every copy that MIGHT need
+    repair", and a generated-tree hit never does, so it should never surface
+    as a row at all. Per the tool's own honesty rule, the caller must still
+    account for `skipped` in its summary - silently dropping hits from the
+    scan would be exactly the "no copy there" under-report this docstring
+    already warns against for `errors`.
     """
     wanted = set(os.path.normcase(n) for n in names)
     seen, hits = set(), []
@@ -238,6 +275,10 @@ def scan_for_skill_dirs(roots, names, errors=None):
             dirnames[:] = [d for d in dirnames if d not in PRUNE]
             if (os.path.normcase(os.path.basename(dirpath)) in wanted
                     and "SKILL.md" in filenames):
+                if _is_generated_skills_tree_hit(dirpath):
+                    if skipped is not None:
+                        skipped.append(os.path.abspath(dirpath))
+                    continue
                 key = _key(dirpath)
                 if key not in seen:
                     seen.add(key)
@@ -634,8 +675,10 @@ def audit(plugin, marketplace, claude_home, agents_home, extra_roots=()):
     backups_root = os.path.normpath(os.path.join(claude_home, "backups"))
 
     scan_errors = []
+    generated_tree_skips = []
     rows = []
-    for directory in scan_for_skill_dirs(roots, list(skills), scan_errors):
+    for directory in scan_for_skill_dirs(roots, list(skills), scan_errors,
+                                         generated_tree_skips):
         display = os.path.basename(directory)
         name = by_name[os.path.normcase(display)]
         role = role_of(directory, claude_home, agents_home, source_root)
@@ -668,6 +711,7 @@ def audit(plugin, marketplace, claude_home, agents_home, extra_roots=()):
             "cache_graded_version": grading["version"],
             "cache_graded_because": grading["because"],
             "scan_errors": scan_errors,
+            "generated_tree_skips": sorted(generated_tree_skips),
             "warning": agent_list_warning(agents_home)}
 
 
@@ -696,6 +740,15 @@ def report(result):
               % (len(result["scan_errors"]),
                  "y" if len(result["scan_errors"]) == 1 else "ies"))
         for entry in result["scan_errors"]:
+            print("  - %s" % entry)
+    if result["generated_tree_skips"]:
+        print("%d hit%s skipped: a marketplace's own generated skills/ tree "
+              "(each SKILL.md there is a REWRITTEN copy by design - the "
+              "repair is regeneration via scripts/generate_skills_tree.py, "
+              "never a hand edit; ADR workflow-daily-work-0165):"
+              % (len(result["generated_tree_skips"]),
+                 "" if len(result["generated_tree_skips"]) == 1 else "s"))
+        for entry in result["generated_tree_skips"]:
             print("  - %s" % entry)
     print("")
     grouped = {}
