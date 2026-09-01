@@ -28,3 +28,21 @@ plugins/dev-workflows/skills/ticket-trace-workspace/
 # Python bytecode (was tracked by mistake)
 __pycache__/
 *.pyc
+
+# --- added by offboarding rescue: never publish local secrets/bulk ---
+.env
+.env.*
+!.env.example
+appsettings.Development.json
+appsettings.Production.json
+**/.local-publish/
+**/.azure-migration-backup/
+*.pfx
+*.pem
+*.key
+node_modules/
+bin/
+obj/
+.venv/
+dist/
+build/

@@ -1,7 +1,7 @@
 ---
 type: daily-state
 schema_version: 1
-updated: '2026-08-14T09:53:44+07:00'
+updated: '2026-08-24T19:31:26+07:00'
 ---
 
 # Daily state
@@ -159,3 +159,6 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
 - 2026-08-10T21:02:24+07:00 — feat(skills): sp-grill-with-doc and the ask-in-user-terms rule (dev-workflows 0.33.0) (dfb55af)
 - 2026-08-12T20:42:27+07:00 — docs(reflections): 2026-08-12 second pass - four Route F findings, all about patching files through this harness (f3e7eb9)
 - 2026-08-14T09:53:44+07:00 — docs(decision-map): chart superpowers-review-to-scrutinize (11 tickets, 1 resolved) (29ff84c)
+- 2026-08-24T18:21:40+07:00 — docs(read-picture): the skill reports the counts, and counts() was never a seam (ae4b479)
+- 2026-08-24T19:30:28+07:00 — fix(dev-workflows): propagate scrutinize's tautology rule into its dispatched fork (d0820b3)
+- 2026-08-24T19:31:26+07:00 — fix(dev-workflows): ADR-mint scan reads the first 3+ digit run, reports unparsed count (d56fe47)
