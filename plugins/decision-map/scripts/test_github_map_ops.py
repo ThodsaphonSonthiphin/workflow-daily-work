@@ -19,6 +19,7 @@ import tempfile
 import unittest
 import contextlib
 from pathlib import Path
+from unittest import mock
 
 import github_map_ops as gh
 import local_map_ops
@@ -61,18 +62,30 @@ class Base(unittest.TestCase):
     def setUp(self):
         self.fake = FakeGitHub(repo=REPO)
         self.ops = ops_for(self.fake)
+        # The pointer (ADR 0173) is a real file: never let a test write it
+        # into the working tree.
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
 
     def chart(self, inp=None, **kw):
         with captured_stderr():
-            return gh.chart(self.ops, copy.deepcopy(inp or INPUT), real=True, **kw)
+            return gh.chart(self.ops, copy.deepcopy(inp or INPUT), real=True,
+                            root=self.root, **kw)
 
     def dry(self, inp=None, **kw):
         with captured_stderr() as err:
-            out = gh.chart(self.ops, copy.deepcopy(inp or INPUT), real=False, **kw)
+            out = gh.chart(self.ops, copy.deepcopy(inp or INPUT), real=False,
+                           root=self.root, **kw)
         return out, err.getvalue()
 
     def map_number(self):
         return int(gh.read_map(self.ops, "billing")["map"]["id"])
+
+    def pointer_path(self, slug="billing"):
+        return self.root / slug / "map.md"
 
 
 # ---------------------------------------------------------------------------
@@ -145,8 +158,8 @@ class TestDryRun(Base):
             p.write_text(json.dumps(INPUT), encoding="utf-8")
             buf, err = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(err):
-                rc = gh.main(["chart", "--repo", REPO, "--input", str(p)],
-                             api=self.fake)
+                rc = gh.main(["chart", "--repo", REPO, "--input", str(p),
+                              "--root", str(self.root)], api=self.fake)
             self.assertEqual(rc, 0)
             json.loads(buf.getvalue())          # parses, so nothing leaked in
             self.assertIn("DRY RUN", err.getvalue())
@@ -843,7 +856,8 @@ class TestCliContract(Base):
             p.write_text(json.dumps(INPUT), encoding="utf-8")
             out, err = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                rc = gh.main(["chart", "--input", str(p)], api=self.fake)
+                rc = gh.main(["chart", "--input", str(p),
+                              "--root", str(self.root)], api=self.fake)
             self.assertEqual(rc, 0, err.getvalue())
 
     def test_output_file_gets_the_same_document_as_stdout(self):
@@ -853,6 +867,7 @@ class TestCliContract(Base):
             with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(err):
                 rc = gh.main(["chart", "--repo", REPO, "--input",
                               self._input_file(d), "--real",
+                              "--root", str(self.root),
                               "--output", str(outp)], api=self.fake)
             self.assertEqual(rc, 0, err.getvalue())
             self.assertEqual(json.loads(outp.read_text(encoding="utf-8")),
@@ -954,7 +969,7 @@ class TestReviewRegressions(Base):
         # NOT self.dry(): that swallows stderr internally, and the warning is
         # half of what is under test here.
         with captured_stderr() as err:
-            out = gh.chart(self.ops, copy.deepcopy(INPUT), real=False)
+            out = gh.chart(self.ops, copy.deepcopy(INPUT), real=False, root=self.root)
         actions = {e["path"]: e["action"] for e in out["planned"]}
         self.assertNotEqual(actions["<map>"], "create",
                             f"chart would re-create the map: {out['planned']}")
@@ -1021,8 +1036,8 @@ class TestReviewRegressions(Base):
                     out, err = io.StringIO(), io.StringIO()
                     with contextlib.redirect_stdout(out), \
                             contextlib.redirect_stderr(err):
-                        rc = gh.main(["chart", "--repo", REPO, "--input", str(p)],
-                                     api=self.fake)
+                        rc = gh.main(["chart", "--repo", REPO, "--input", str(p),
+                                      "--root", str(self.root)], api=self.fake)
                 self.assertEqual(rc, gh.EXIT_ERROR)
                 self.assertEqual(out.getvalue(), "")
                 self.assertEqual(len(err.getvalue().strip().splitlines()), 1,
@@ -1184,7 +1199,7 @@ class TestReviewRegressions(Base):
         self.ops.link_child = boom
         with captured_stderr():
             with self.assertRaises(gh.GitHubError) as cm:
-                gh.chart(self.ops, copy.deepcopy(INPUT), real=True)
+                gh.chart(self.ops, copy.deepcopy(INPUT), real=True, root=self.root)
         msg = str(cm.exception)
         self.assertIn("carries the key marker", msg)
         self.assertIn("BEFORE re-running", msg)
@@ -1192,76 +1207,36 @@ class TestReviewRegressions(Base):
 
 
 class TestPositionDiagram(Base):
-    def test_a_created_ticket_issue_body_carries_a_graph_region(self):
+    def test_a_created_ticket_issue_body_carries_no_graph_region(self):
         body = gh.render_ticket_issue_body("auth-model", "why?")
-        self.assertIn(map_core.GRAPH_START, body)
-        self.assertIn('ME["auth-model (this ticket)"]', body)
-        self.assertLess(body.index(map_core.GRAPH_START),
-                        body.index(map_core.GIST_START),
-                        "position before the machine-readable gist region")
+        self.assertNotIn(map_core.GRAPH_START, body, "ADR 0171: no diagram on GitHub")
+        self.assertEqual(body, "<!-- decision-map:key:auth-model -->\n\n## Question\n\nwhy?\n\n"
+                               f"{map_core.GIST_START}\n{map_core.GIST_END}\n")
 
-    def test_adding_a_dependency_patches_both_issue_bodies(self):
-        # INPUT already wires auth-model -> rollout-order, so chart() alone
-        # must leave both ends rendered
+    def test_a_dependency_is_written_natively_and_patches_no_body(self):
         out = self.chart()
         by_key = {t["key"]: int(t["id"]) for t in out["tickets"]}
         blocked = self.fake.issue(by_key["rollout-order"])["body"]
         blocker = self.fake.issue(by_key["auth-model"])["body"]
-        self.assertIn('P0["auth-model"] --> ME', blocked,
-                      "the blocked issue shows its blocker as a parent")
-        self.assertIn('ME --> C0["rollout-order"]', blocker,
-                      "the blocker issue shows what it unblocks as a child")
+        self.assertNotIn(map_core.GRAPH_START, blocked)
+        self.assertNotIn(map_core.GRAPH_START, blocker)
+        rollout = next(t for t in out["tickets"] if t["key"] == "rollout-order")
+        self.assertEqual(rollout["blockedBy"], ["auth-model"],
+                         "the edge lives in GitHub's own dependency, not in a picture")
 
-    def test_an_existing_ticket_gaining_a_new_blocker_role_is_announced_in_the_plan(self):
-        """`chart_plan`'s `pending` pass announces the BLOCKED end of a new
-        edge, but had no counterpart to local's `blocker_gains` -- the pass
-        that announces the BLOCKER end when it is an existing (not created)
-        ticket. Without it, a dry-run plan was silent about an issue the real
-        run's post-write graph-region pass does patch -- both ends render
-        (ADR 0064) -- breaking the ADR-0039 gate's promise that nothing the
-        run writes is missing from the plan."""
+    def test_block_writes_the_dependency_and_patches_no_body(self):
         inp = copy.deepcopy(INPUT)
-        inp["tickets"].append({"key": "billing-flag", "title": "Billing flag",
-                               "type": "task", "question": "flagged how?"})
+        inp["tickets"][0]["blocks"] = []
         self.chart(inp)
-        inp2 = copy.deepcopy(inp)
-        for t in inp2["tickets"]:
-            if t["key"] == "auth-model":
-                # rollout-order: already blocked by auth-model, unchanged.
-                # billing-flag: a genuinely NEW edge from an EXISTING blocker.
-                t["blocks"] = ["rollout-order", "billing-flag"]
-        out, _err = self.dry(inp2)
-        by_path = {e["path"]: e for e in out["planned"]}
-        self.assertEqual(by_path["auth-model"]["action"], "merge",
-                         "the blocker's own issue must be announced, not skipped")
-        self.assertIn("renders as a child in the graph: billing-flag",
-                      by_path["auth-model"]["detail"])
-        self.assertEqual(by_path["rollout-order"]["action"], "skip (exists)",
-                         "an edge that already exists must not be re-announced")
-
-        # the plan told the truth: the real run patches auth-model's issue too
-        self.fake.reset_counters()
-        self.chart(inp2)
-        patched = {int(p.rsplit("/", 1)[-1]) for m, p, _b in self.fake.writes if m == "PATCH"}
-        by_key = {t["key"]: int(t["id"])
-                 for t in gh.read_map(self.ops, "billing")["tickets"]}
-        self.assertIn(by_key["auth-model"], patched,
-                     "the plan promised auth-model's issue would be touched")
-
-    def test_block_patches_both_issue_bodies_too(self):
-        """chart() wires its edges through the same `_ensure_edge` path as
-        `block`, but exercises a different data source for the graph patch
-        (a post-write snapshot vs. block()'s pre-write one) -- so block needs
-        its own direct check that both ends render."""
-        inp = copy.deepcopy(INPUT)
-        del inp["tickets"][0]["blocks"]          # chart with NO edge yet
-        out = self.chart(inp)
-        by_key = {t["key"]: int(t["id"]) for t in out["tickets"]}
-        gh.block(self.ops, "billing", "rollout-order", "auth-model")
-        blocked = self.fake.issue(by_key["rollout-order"])["body"]
-        blocker = self.fake.issue(by_key["auth-model"])["body"]
-        self.assertIn('P0["auth-model"] --> ME', blocked)
-        self.assertIn('ME --> C0["rollout-order"]', blocker)
+        by_key = {t["key"]: int(t["id"]) for t in gh.read_map(self.ops, "billing")["tickets"]}
+        before = {k: self.fake.issue(n)["body"] for k, n in by_key.items()}
+        writes_before = len(self.fake.writes)
+        out = gh.block(self.ops, "billing", "rollout-order", "auth-model")
+        self.assertEqual(out["blockedBy"], ["auth-model"])
+        after = {k: self.fake.issue(n)["body"] for k, n in by_key.items()}
+        self.assertEqual(before, after, "block must not patch either ticket's body")
+        patches = [w for w in self.fake.writes[writes_before:] if w[0] == "PATCH"]
+        self.assertEqual(patches, [], patches)
 
     def test_an_over_long_gist_warns_on_the_tracker_too(self):
         self.chart()
@@ -1312,52 +1287,36 @@ class TestPositionDiagram(Base):
         inp = copy.deepcopy(INPUT)
         inp["tickets"] = [t for t in inp["tickets"] if t["key"] in keys]
         with captured_stderr() as err:
-            out = gh.chart(self.ops, inp, real=real, force=True)
+            out = gh.chart(self.ops, inp, real=real, force=True, root=self.root)
         return out, err.getvalue()
 
-    def _body(self, key):
-        return self.fake.issue(
-            {t["key"]: int(t["id"])
-             for t in gh.read_map(self.ops, "billing")["tickets"]}[key])["body"]
-
-    def test_force_on_a_blocker_keeps_the_child_it_still_unblocks(self):
-        """--force resets the OVERWRITE'd issue's body to an EMPTY diagram. Its
-        own blockers are removed for real (documented), but the edges naming IT
-        as a blocker live on the other issues and survive -- so the dependency
-        stayed live on GitHub while the picture of it was destroyed, and no
-        later run repairs it (`chart` skips the ticket, `_ensure_edge` no-ops on
-        an edge that exists)."""
+    def test_force_on_a_blocker_keeps_the_edge_it_still_unblocks(self):
+        """--force-recharting ONLY the blocker (auth-model), leaving the
+        blocked ticket (rollout-order) out of the input, must not disturb the
+        native dependency: `chart`'s OVERWRITE branch clears the edges where
+        the OVERWRITE'd ticket is the BLOCKED side (its own
+        `blocker_refs_of`), and that loop has no business touching an edge
+        where the OVERWRITE'd ticket is the BLOCKER instead."""
         self.chart()
-        self.assertIn('ME --> C0["rollout-order"]', self._body("auth-model"))
         self._force_only(["auth-model"])
         self.assertEqual(
             gh.read_map(self.ops, "billing")["tickets"][1]["blockedBy"],
             ["auth-model"], "the dependency survives --force")
-        self.assertIn('ME --> C0["rollout-order"]', self._body("auth-model"),
-                      "so the picture of it must survive with it")
 
     def test_force_clears_a_dead_edge_from_a_blocker_the_input_never_names(self):
-        """The mirror harm. --force removes rollout-order's dependencies, which
-        is documented -- but auth-model, which this input never mentions, was
-        left drawing `ME --> C0["rollout-order"]` for an edge `remove_blocked_by`
-        had just deleted. A picture of a dead edge is the staleness-read-as-fact
-        harm ADR 0064 exists to prevent."""
+        """--force removes rollout-order's dependency on auth-model. Nothing
+        re-renders a diagram at the blocker's end any more (ADR 0171), so
+        auth-model -- which this input never names and holds no position
+        diagram of its own -- gets no plan entry at all and no write."""
         self.chart()
         out, plan = self._force_only(["rollout-order"], real=False)
-        entry = next(e for e in out["planned"] if e["path"] == "auth-model")
-        self.assertEqual(entry["action"], "merge",
-                         "the ADR-0039 gate must show the neighbour write")
-        self.assertEqual(entry["detail"],
-                         "no longer renders as a child in the graph: rollout-order",
-                         "the contract forbids an undescribed merge")
-        self.assertIn("no longer renders as a child in the graph", plan)
+        self.assertIsNone(
+            next((e for e in out["planned"] if e["path"] == "auth-model"), None),
+            "the blocker the input never names has nothing left to announce")
+        self.assertNotIn("no longer renders as a child in the graph", plan)
 
         self._force_only(["rollout-order"])
         self.assertEqual(gh.read_map(self.ops, "billing")["tickets"][1]["blockedBy"], [])
-        self.assertNotIn('C0["rollout-order"]', self._body("auth-model"),
-                         "the blocker must stop drawing the edge that was removed")
-        _out2, plan2 = self._force_only(["rollout-order"], real=False)
-        self.assertNotIn("no longer renders as a child", plan2)
 
 
 class GhApiSpy(gh.GhApi):
@@ -1541,7 +1500,8 @@ class GitHubMilestoneProjectionTest(Base):
 
     def test_a_new_ticket_issue_leads_with_its_question(self):
         body = gh.render_ticket_issue_body("k", "which one?")
-        self.assertLess(body.index("## Question"), body.index(map_core.GRAPH_START))
+        self.assertNotIn(map_core.GRAPH_START, body)
+        self.assertLess(body.index("## Question"), body.index(map_core.GIST_START))
         self.assertEqual(body.count(map_core.KEY_MARKER % "k"), 1)
         self.assertEqual(body.count(map_core.GIST_START), 1)
 
@@ -1564,6 +1524,255 @@ class GitHubMilestoneProjectionTest(Base):
         # presence must match, or the two backends disagree about the shape
         # of a ticket for the same logical map.
         self.assertEqual(set(gh_ticket) - {"dbId", "repo"}, set(local_ticket))
+
+
+class MapCoreStripAndPointerTest(unittest.TestCase):
+    """The three helpers both backends share (ADRs 0171-0173)."""
+
+    def test_strip_removes_the_region_and_leaves_one_blank_line(self):
+        region = map_core.position_diagram_region("k", ["a"], [])
+        body = f"<!-- decision-map:key:k -->\n\n## Question\n\nwhy?\n\n{region}\n{map_core.GIST_START}\n{map_core.GIST_END}\n"
+        out = map_core.strip_graph_region(body)
+        self.assertNotIn(map_core.GRAPH_START, out)
+        self.assertEqual(out, f"<!-- decision-map:key:k -->\n\n## Question\n\nwhy?\n\n{map_core.GIST_START}\n{map_core.GIST_END}\n")
+
+    def test_strip_of_a_diagram_first_body_keeps_the_question(self):
+        region = map_core.position_diagram_region("k", [], ["c"])
+        body = f"<!-- decision-map:key:k -->\n\n{region}\n## Question\n\nwhy?\n"
+        self.assertEqual(map_core.strip_graph_region(body),
+                         "<!-- decision-map:key:k -->\n\n## Question\n\nwhy?\n")
+
+    def test_strip_is_identity_without_a_region_and_idempotent(self):
+        body = "<!-- decision-map:key:k -->\n\n## Question\n\nwhy?\n"
+        self.assertEqual(map_core.strip_graph_region(body), body)
+        once = map_core.strip_graph_region(
+            body + "\n" + map_core.position_diagram_region("k", [], []))
+        self.assertEqual(map_core.strip_graph_region(once), once)
+
+    def test_render_pointer_is_deterministic_and_scrubbed(self):
+        a = map_core.render_pointer("Decision map — billing", "acme/widgets", 42,
+                                    "https://github.com/acme/widgets/issues/42")
+        b = map_core.render_pointer("Decision map — billing", "acme/widgets", 42,
+                                    "https://github.com/acme/widgets/issues/42")
+        self.assertEqual(a, b)
+        self.assertTrue(a.startswith("---\ntype: decision-map-pointer\nbackend: github\n"
+                                     "repo: acme/widgets\nissue: 42\n"
+                                     "url: https://github.com/acme/widgets/issues/42\n---\n"
+                                     "# Decision map — billing\n"))
+        evil = map_core.render_pointer("t <!-- decision-map:key:x -->", "acme/widgets", 1, "u")
+        self.assertNotIn(map_core.MARKER_PREFIX, evil)
+
+    def test_pointer_of_reads_a_pointer_and_rejects_everything_else(self):
+        text = map_core.render_pointer("t", "acme/widgets", 42, "u")
+        ptr = map_core.pointer_of(text)
+        self.assertEqual((ptr["backend"], ptr["repo"], ptr["issue"]),
+                         ("github", "acme/widgets", "42"))
+        self.assertIsNone(map_core.pointer_of("# a local map\n\n## Destination\nd\n"))
+        self.assertIsNone(map_core.pointer_of("---\ntitle: a ticket\n---\n"))
+        self.assertIsNone(map_core.pointer_of(None))
+        self.assertEqual(map_core.pointer_of(text.replace("\n", "\r\n"))["issue"], "42")
+
+    def test_pointer_of_refuses_a_pointer_missing_its_target(self):
+        # A half-pointer IS a map that lives elsewhere, just a damaged pointer
+        # to it -- not a bare usage error, so its remedy differs.
+        with self.assertRaises(map_core.MapElsewhereError):
+            map_core.pointer_of("---\ntype: decision-map-pointer\nbackend: github\n---\n")
+
+
+class LegacyDiagramStripTest(Base):
+    """A map charted by an older version carries diagrams; the next chart
+    takes them back, announced ticket by ticket (ADR 0172)."""
+
+    def _seed_legacy_diagrams(self):
+        out = self.chart()
+        by_key = {t["key"]: int(t["id"]) for t in out["tickets"]}
+        for key, n in by_key.items():
+            issue = self.fake.issue(n)
+            issue["body"] = map_core.set_graph_region(
+                issue["body"], map_core.position_diagram_region(key, [], []))
+            self.assertIn(map_core.GRAPH_START, issue["body"])
+        return by_key
+
+    def test_the_dry_run_announces_each_strip_and_writes_nothing(self):
+        by_key = self._seed_legacy_diagrams()
+        writes_before = len(self.fake.writes)
+        out, err = self.dry()
+        details = {e["path"]: e["detail"] for e in out["planned"]}
+        for key in by_key:
+            self.assertEqual(details[key], "removes the position diagram (ADR 0171)")
+            self.assertEqual(next(e["action"] for e in out["planned"] if e["path"] == key), "merge")
+        self.assertIn("removes the position diagram", err)
+        self.assertEqual(len(self.fake.writes), writes_before)
+
+    def test_the_real_run_strips_and_the_second_run_is_a_no_op(self):
+        by_key = self._seed_legacy_diagrams()
+        self.chart()
+        for key, n in by_key.items():
+            body = self.fake.issue(n)["body"]
+            self.assertNotIn(map_core.GRAPH_START, body, key)
+            self.assertEqual(body, gh.render_ticket_issue_body(
+                key, next(t["question"] for t in INPUT["tickets"] if t["key"] == key)),
+                "a stripped legacy body equals a freshly rendered one")
+        before = {n: self.fake.issue(n)["body"] for n in by_key.values()}
+        writes_before = len(self.fake.writes)
+        out, _ = self.dry()
+        self.assertTrue(all(e["action"] == "skip (exists)" for e in out["planned"]
+                            if e["path"] in by_key), out["planned"])
+        self.chart()
+        self.assertEqual(before, {n: self.fake.issue(n)["body"] for n in by_key.values()})
+        self.assertEqual([w for w in self.fake.writes[writes_before:] if w[0] == "PATCH"], [])
+
+    def test_resolve_on_a_legacy_ticket_works_before_any_chart_strips_it(self):
+        by_key = self._seed_legacy_diagrams()
+        gh.resolve(self.ops, "billing", "auth-model", "shared keys", None, None)
+        body = self.fake.issue(by_key["auth-model"])["body"]
+        self.assertIn(map_core.GRAPH_START, body, "resolve leaves the region alone")
+        self.assertIn("shared keys", map_core.region_body(
+            map_core.norm_eol(body), map_core.GIST_START, map_core.GIST_END))
+
+    def test_a_strip_and_an_edge_union_share_one_merge_line(self):
+        inp = copy.deepcopy(INPUT)
+        inp["tickets"][0]["blocks"] = []
+        self.chart(inp)
+        by_key = {t["key"]: int(t["id"]) for t in gh.read_map(self.ops, "billing")["tickets"]}
+        issue = self.fake.issue(by_key["rollout-order"])
+        issue["body"] = map_core.set_graph_region(
+            issue["body"], map_core.position_diagram_region("rollout-order", [], []))
+        out, _ = self.dry()          # INPUT wires auth-model -> rollout-order
+        entry = next(e for e in out["planned"] if e["path"] == "rollout-order")
+        self.assertEqual(entry["action"], "merge")
+        self.assertIn("unions blockedBy: auth-model", entry["detail"])
+        self.assertIn("removes the position diagram (ADR 0171)", entry["detail"])
+
+
+class MapPointerTest(Base):
+    """chart --real leaves docs/decision-map/<slug>/map.md behind (ADR 0173)."""
+
+    def test_the_dry_run_plans_the_pointer_and_writes_nothing(self):
+        out, err = self.dry()
+        paths = [e["path"] for e in out["planned"]]
+        ptr = self.pointer_path().as_posix()
+        self.assertIn(ptr, paths)
+        self.assertEqual(paths.index(ptr), paths.index("<map>") + 1,
+                         "the pointer is planned right after the map")
+        self.assertEqual(next(e["action"] for e in out["planned"] if e["path"] == ptr), "create")
+        self.assertFalse(self.pointer_path().exists())
+        self.assertIn(ptr, err)
+
+    def test_the_real_run_writes_a_pointer_naming_the_map_issue(self):
+        out = self.chart()
+        text = self.pointer_path().read_text(encoding="utf-8")
+        ptr = map_core.pointer_of(text)
+        self.assertEqual(ptr["repo"], REPO)
+        self.assertEqual(ptr["issue"], out["map"]["id"])
+        self.assertEqual(ptr["url"], f"https://github.com/{REPO}/issues/{out['map']['id']}")
+        self.assertIn(f"# {INPUT['map']['title']}", text)
+
+    def test_the_second_run_skips_an_identical_pointer(self):
+        self.chart()
+        before = self.pointer_path().read_bytes()
+        out, _ = self.dry()
+        entry = next(e for e in out["planned"] if e["path"] == self.pointer_path().as_posix())
+        self.assertEqual(entry["action"], "skip (exists)")
+        self.chart()
+        self.assertEqual(self.pointer_path().read_bytes(), before)
+
+    def test_a_stale_pointer_to_the_same_issue_is_refreshed_as_a_merge(self):
+        out = self.chart()
+        p = self.pointer_path()
+        p.write_text(map_core.render_pointer("old title", REPO, int(out["map"]["id"]),
+                                             f"https://github.com/{REPO}/issues/{out['map']['id']}"),
+                     encoding="utf-8")
+        plan, _ = self.dry()
+        entry = next(e for e in plan["planned"] if e["path"] == p.as_posix())
+        self.assertEqual((entry["action"], entry["detail"]), ("merge", "refreshes the Map pointer"))
+        self.chart()
+        self.assertIn(f"# {INPUT['map']['title']}", p.read_text(encoding="utf-8"))
+
+    def test_a_case_different_repo_match_is_not_an_error_and_plans_a_merge(self):
+        # GitHub repo names are case-insensitive; a pointer written as
+        # "acme/widgets" must not demand --force just because this chart's
+        # --repo is spelled "Acme/Widgets".
+        out = self.chart()
+        number = int(out["map"]["id"])
+        action, detail = gh._plan_pointer(
+            self.root, "billing", "Acme/Widgets", number,
+            INPUT["map"]["title"], force=False)
+        self.assertEqual((action, detail), ("merge", "refreshes the Map pointer"))
+
+    def test_a_pointer_to_another_issue_is_refused_unless_forced(self):
+        self.chart()
+        p = self.pointer_path()
+        p.write_text(map_core.render_pointer("t", "other/repo", 7, "u"), encoding="utf-8")
+        with self.assertRaises(gh.ChartValidationError) as cm:
+            self.dry()
+        self.assertIn("other/repo#7", str(cm.exception))
+        plan, _ = self.dry(force=True)
+        entry = next(e for e in plan["planned"] if e["path"] == p.as_posix())
+        self.assertEqual(entry["action"], "OVERWRITE")
+        self.chart(force=True)
+        self.assertEqual(map_core.pointer_of(p.read_text(encoding="utf-8"))["repo"], REPO)
+
+    def test_a_local_map_at_the_slug_is_refused_always(self):
+        p = self.pointer_path()
+        p.parent.mkdir(parents=True)
+        p.write_text("# Decision map — billing\n\n## Destination\nd\n", encoding="utf-8")
+        for force in (False, True):
+            with self.assertRaises(gh.ChartValidationError) as cm:
+                self.dry(force=force)
+            self.assertIn("not a Map pointer", str(cm.exception))
+
+    def test_the_pointer_is_written_after_the_tracker_writes(self):
+        # A failure on the tracker must leave no pointer to a half-charted map.
+        real_link = self.ops.link_child
+        def boom(*a, **k):
+            raise gh.GitHubError("simulated outage")
+        self.ops.link_child = boom
+        with self.assertRaises(gh.GitHubError):
+            self.chart()
+        self.assertFalse(self.pointer_path().exists())
+        self.ops.link_child = real_link
+
+    def test_a_force_rename_refreshes_the_pointer_and_the_next_run_is_a_no_op(self):
+        # A --force that renames the map must plan the pointer against the
+        # title the run will END with, not the pre-run title -- otherwise the
+        # pointer is left stale and the byte-identical no-op guarantee (ADR
+        # 0172) breaks on the very next run.
+        self.chart()
+        renamed = copy.deepcopy(INPUT)
+        renamed["map"]["title"] = "RENAMED title"
+        plan, _ = self.dry(renamed, force=True)
+        entry = next(e for e in plan["planned"] if e["path"] == self.pointer_path().as_posix())
+        self.assertEqual((entry["action"], entry["detail"]),
+                         ("merge", "refreshes the Map pointer"))
+        self.chart(renamed, force=True)
+        text = self.pointer_path().read_text(encoding="utf-8")
+        self.assertIn("# RENAMED title", text)
+
+        # The following identical dry run must see the pointer as settled...
+        plan2, _ = self.dry(renamed, force=True)
+        entry2 = next(e for e in plan2["planned"] if e["path"] == self.pointer_path().as_posix())
+        self.assertEqual(entry2["action"], "skip (exists)")
+
+        # ...and the following identical real run must leave the pointer
+        # bytes untouched AND never even write it (deferred minor (c)).
+        before = self.pointer_path().read_bytes()
+        with mock.patch.object(Path, "write_text", autospec=True,
+                               side_effect=Path.write_text) as spy:
+            self.chart(renamed, force=True)
+        spy.assert_not_called()
+        self.assertEqual(self.pointer_path().read_bytes(), before)
+
+    def test_main_accepts_root(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "in.json"
+            p.write_text(json.dumps(INPUT), encoding="utf-8")
+            buf, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(err):
+                rc = gh.main(["chart", "--repo", REPO, "--input", str(p), "--real",
+                              "--root", str(self.root)], api=self.fake)
+            self.assertEqual(rc, 0, err.getvalue())
+            self.assertTrue(self.pointer_path().exists())
 
 
 if __name__ == "__main__":

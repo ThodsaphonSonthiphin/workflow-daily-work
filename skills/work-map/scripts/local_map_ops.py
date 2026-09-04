@@ -90,6 +90,7 @@ from map_core import (
     TYPES_EXPECTING_A_DOC as _TYPES_EXPECTING_A_DOC,
     DEFAULT_TICKET_TYPE as _DEFAULT_TICKET_TYPE,
     MISSING_DOC_LINK as _MISSING_DOC_LINK,
+    pointer_of as _pointer_of, MapElsewhereError as _MapElsewhereError,
     ChartValidationError, UnsafeIdentifierError, InvalidEdgeError,
     CliUsageError, MarkerIntegrityError,
     scrub as _scrub, one_line as _one_line, mode as _mode,
@@ -203,7 +204,21 @@ def _fm_dump(fm):
 
 
 def _map_dir(root, slug):
-    return Path(root) / _safe_segment(slug, "map slug")
+    """The map's folder -- and THE enforcing line for the Map pointer
+    (ADR 0173). Every subcommand resolves its map through here, so a
+    pointer is refused before anything reads it as an empty local map
+    (the absence-read-as-a-fact shape ADR 0061 forbids).
+    """
+    d = Path(root) / _safe_segment(slug, "map slug")
+    p = d / "map.md"
+    if p.exists():
+        ptr = _pointer_of(p.read_text(encoding="utf-8"))
+        if ptr is not None:
+            raise _MapElsewhereError(
+                f"map {slug!r} lives on GitHub ({ptr['repo']}#{ptr['issue']}), not "
+                f"in this folder; run github_map_ops.py <subcommand> --repo "
+                f"{ptr['repo']} --map {ptr['issue']} instead")
+    return d
 
 
 def _ticket_path(root, slug, ticket):
@@ -845,6 +860,7 @@ EXIT_FINDINGS = 3
 # misdirects -- a reconstituted marker reported itself as "hand-edited
 # markers in the file", which was false).
 _REMEDY = {
+    _MapElsewhereError: "the local backend never reads a GitHub map",
     CliUsageError: "run with --help to see the arguments this subcommand needs",
     ChartValidationError: "correct the field named above in map_input.json and re-run",
     UnsafeIdentifierError: "pass the id exactly as chart created it",
@@ -935,6 +951,9 @@ def main():
         problem = " ".join(str(e).split())
         if problem.startswith(f"{a.cmd}: "):       # don't say "chart: chart: ..."
             problem = problem[len(a.cmd) + 2:]
+        # `_map_dir` doesn't know the subcommand it's guarding, so it writes
+        # the literal placeholder; only `main` knows which one is running.
+        problem = problem.replace("<subcommand>", a.cmd)
         print(f"error: {a.cmd}: {problem} -- {remedy}", file=sys.stderr)
         return EXIT_ERROR
     text = json.dumps(result, indent=2)

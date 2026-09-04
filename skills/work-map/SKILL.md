@@ -31,8 +31,9 @@ WORK A DECISION MAP — one decision, then stop
 
   ① PREFLIGHT
   │   which backend holds THIS map?
-  │   local docs/decision-map/<slug>/
-  │   or GitHub issues (needs --repo)
+  │   read docs/decision-map/<slug>/map.md:
+  │   a Map pointer → GitHub (repo + issue
+  │   are in it); a real map → local
   ▼
   ② FRONTIER
   │   read the map, then list the frontier
@@ -69,8 +70,8 @@ empty or missing map and looks like a finished effort.
 
 | backend | where the map lives | how to tell |
 |---|---|---|
-| **local markdown** (default) | `docs/decision-map/<slug>/` | the directory exists in this repo |
-| **GitHub Issues** | an issue labelled `decision-map:map`, one **sub-issue** per ticket | the user names a repo or a board, or no local directory exists |
+| **local markdown** (default) | `docs/decision-map/<slug>/` | the directory exists and its `map.md` is a real map (an H1, `## Destination` …) |
+| **GitHub Issues** | an issue labelled `decision-map:map`, one **sub-issue** per ticket, plus a **Map pointer** in the repo | `docs/decision-map/<slug>/map.md` opens with `type: decision-map-pointer` frontmatter naming `repo:` and `issue:` — take `--repo` and `--map` from it, do not ask (ADR 0173). No directory at all means *either* no map here *or* a GitHub map charted before pointers existed: say both, and ask which |
 
 Azure DevOps is **not** available (ADR 0059). If ADO specifically is a hard
 requirement, stop and say decision-map cannot do that yet. Do **not** offer
@@ -81,7 +82,7 @@ Then fix these two, and use them for every command from Step 1 down:
 | | local | GitHub |
 |---|---|---|
 | **`<ops>`** | `${CLAUDE_SKILL_DIR}/scripts/local_map_ops.py` | `${CLAUDE_SKILL_DIR}/scripts/github_map_ops.py` |
-| **extra flag on every call** | *none* — `--root` defaults to `docs/decision-map` | **`--repo <owner>/<repo>`, always** |
+| **extra flag on every call** | *none* — `--root` defaults to `docs/decision-map` | **`--repo <owner>/<repo>`, always** — read from the Map pointer when one exists; this is not inferring it from the git remote, the pointer was written by a chart the user approved |
 | **what `--map` takes** | the slug | the map's **issue number** *or* its slug |
 
 Run `<ops>` with `python`, from the repo root. Everything from Step 1 down is
@@ -104,9 +105,10 @@ The map and any repo docs a resolution produces are committed through
 ## Step 1 — Load the map, show the frontier
 
 If the user did not name a map, list the maps and ask which one — on local they
-are the directories under `docs/decision-map/`; on GitHub they are the issues
-labelled `decision-map:map`. If there is no map at all, this is the wrong skill:
-point at `/decision-map:chart`.
+are the directories under `docs/decision-map/`; on GitHub they are the Map
+pointers under `docs/decision-map/` (each names its issue), falling back to the
+issues labelled `decision-map:map` for a map charted before pointers existed. If
+there is no map at all, this is the wrong skill: point at `/decision-map:chart`.
 
 **Read the map first**, and read it before the frontier:
 
@@ -431,9 +433,11 @@ copies of one diagram will. That is why shape 1 carries a `--body-file` even
 when the ADR holds every word of the reasoning — the body file may be nothing
 but the diagram.
 
-This is separate from the **position diagram** the ops script generates below
-`## Question` — that one is the ticket's place in the map, and you never author
-or edit it.
+This is separate from the **position diagram** the local ops script generates
+below `## Question` — that one is the ticket's place in the map, and you never
+author or edit it. On GitHub there is no such diagram (ADR 0171): the issue
+sidebar is the position. If you meet one on an old GitHub ticket, leave it; the
+next `chart` strips it (ADR 0172).
 
 Shape 1's body file holds the diagram at minimum; add prose to it when there is
 a confirming exchange worth keeping alongside the ADR. **Quote the user's
@@ -610,13 +614,13 @@ each resolved the same ticket.
 **3. Ask for explicit approval. Never create without it.** The approval is for
 the plan you just showed — if the input changes at all, re-run the dry run.
 
-**Carry the end-of-session commit offer in this same ask, on local.** In the
-same message, ask whether to commit `docs/decision-map/<slug>/` and any repo
-docs this session produced, once the session ends -- so the session pauses once,
-here, instead of twice. This does not weaken assisted git: a bundled offer is
-still an explicit offer the user answers, and nothing is committed without that
-yes. On GitHub there is nothing to commit for the map itself, but any repo docs
-still need the same ask.
+**Carry the end-of-session commit offer in this same ask, on both backends.** In
+the same message, ask whether to commit what `--real` will leave in the repo once
+the session ends — on local `docs/decision-map/<slug>/`, on GitHub the **Map
+pointer** `docs/decision-map/<slug>/map.md` (ADR 0173) — and any repo docs this
+session produced, so the session pauses once, here, instead of twice. This does
+not weaken assisted git: a bundled offer is still an explicit offer the user
+answers, and nothing is committed without that yes.
 
 **4. On approval, re-run with `--real`:**
 

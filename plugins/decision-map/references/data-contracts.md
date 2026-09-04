@@ -268,10 +268,10 @@ Its reach is exactly the items the plan labels `OVERWRITE`:
 | the map itself | `OVERWRITE` | the **whole map document is regenerated** from the input. Fog and out-of-scope lines that existed only on the map and are absent from the input are lost — the one place additive's union guarantee does not apply — and so is any human prose added *outside* the generated regions. On a tracker that prose is the map item's description, where a team naturally adds context, and the plan shows one `OVERWRITE` line for all of it |
 | named only in a `blocks` list, not in `tickets[]`, and **does not yet hold that edge** | `merge` | **nothing discarded** — it gains the edge and keeps its status, assignee, gist and resolution, exactly as on the additive path |
 | named only in a `blocks` list and **already holds that edge** | *absent from the plan* | **untouched** — `block` and `chart` both no-op on an edge that exists, so there is nothing to announce |
-| present on the map but in neither `tickets[]` nor any `blocks`, and **blocking an `OVERWRITE`'d ticket** | `merge` | **nothing discarded** — but its `graph` region is re-rendered to drop the child it just lost. The edge was written at both of its ends, so resetting one end stales the other; leaving it would make the blocker draw an edge that no longer exists (ADR 0064) |
+| present on the map but in neither `tickets[]` nor any `blocks`, and **blocking an `OVERWRITE`'d ticket** | `merge` | **local backend only** — **nothing discarded** — but its `graph` region is re-rendered to drop the child it just lost. The edge was written at both of its ends, so resetting one end stales the other; leaving it would make the blocker draw an edge that no longer exists (ADR 0064) |
 | present on the map but in neither `tickets[]` nor any `blocks`, and not blocking an `OVERWRITE`'d ticket | *absent from the plan* | **untouched** — `--force` never reaches an item this input does not name |
 
-**Both ends, on removal as well as addition.** An `OVERWRITE` resets the
+*(local backend only — on GitHub nothing draws the edge, ADR 0171.)* **Both ends, on removal as well as addition.** An `OVERWRITE` resets the
 ticket's own `blockedBy`, and the matching child line lives in the *blocker's*
 diagram — so `--force` writes two diagrams per edge it deletes, exactly as
 additive `chart` writes two per edge it adds. The `OVERWRITE`'d ticket's own
@@ -384,8 +384,9 @@ the `path` bullet below. The GitHub shape, for the same map charted fresh:
     { "path": "label:decision-map:map",            "action": "create", "detail": null },
     { "path": "label:decision-map:type:grilling",  "action": "create", "detail": null },
     { "path": "<map>",                             "action": "create", "detail": null },
+    { "path": "docs/decision-map/billing/map.md",  "action": "create", "detail": null },
     { "path": "auth-model",                        "action": "create", "detail": null },
-    { "path": "rollout-order",                     "action": "merge",  "detail": "unions blockedBy: auth-model" }
+    { "path": "rollout-order",                     "action": "merge",  "detail": "unions blockedBy: auth-model; removes the position diagram (ADR 0171)" }
   ],
   "divergence": []
 }
@@ -401,7 +402,9 @@ the `path` bullet below. The GitHub shape, for the same map charted fresh:
 - `path` identifies the item. The name is historical — it is the file path on
   the local backend, and on a tracker it is the ticket **`key`**, the literal
   `<map>` for the map item, or `label:<name>` for a label the run will create.
-  It is a display and correlation handle, not something to parse.
+  It is a display and correlation handle, not something to parse. On GitHub
+  one entry is a real file: the **Map pointer**, `<root>/<slug>/map.md`,
+  planned right after the map (ADR 0173).
 - An edge whose blocked ticket is itself being created or overwritten is **not**
   announced separately: it is part of that ticket's own `create` / `OVERWRITE`
   line, and there is no prior state on it for the edge to merge into.
@@ -1158,13 +1161,50 @@ lost too.
 | blocking | `System.LinkTypes.Dependency-Reverse` on the blocked item → predecessor | **native issue dependencies** — `POST /issues/{n}/dependencies/blocked_by` with `issue_id`; readable both directions (GA 2025-08-21, no fallback) | frontmatter `blocked_by: [slug]` |
 | resolution | work-item comment | issue comment | `## Resolution` section inside the `decision-map:resolution` markers (see below) |
 | ticket `gist` | `decision-map:gist` region in `System.Description` | same region in the issue body | frontmatter `gist:` |
-| ticket position diagram | `decision-map:graph` region in `System.Description` | same region in the issue body — **shipping**, not spec-only (ADR 0063, ADR 0064) | the same region in `tickets/<slug>.md`, **below** `## Question` (ADR 0102 — the card's identity is its question, and the diagram is context read second) |
+| ticket position diagram | `decision-map:graph` region in `System.Description` | **not written** (ADR 0171) — the issue sidebar's *Blocked by* / *Blocking* is the position. A region left by an older version is tolerated (the pair stays declared in `TRACKER_TICKET_REGIONS`) and stripped by the next `chart`, announced as `merge … removes the position diagram (ADR 0171)` (ADR 0172) | the same region in `tickets/<slug>.md`, **below** `## Question` (ADR 0102 — the card's identity is its question, and the diagram is context read second) |
 | ticket `type` | body line `Decision-Map-Type: <type>` | label `decision-map:type:<type>` — native GitHub issue types are **organisation-scoped** and simply absent on a user-owned repo | frontmatter `type:` |
 | map `key` (the slug) | `<!-- decision-map:key:<slug> -->` in `System.Description` | `<!-- decision-map:key:<slug> -->` in the map issue body | the directory name `<slug>/` |
 | map `destination` | prose in the map item's description | prose in the map issue body | `## Destination` |
 | map `notes` | `decision-map:notes` region in the map item's description (still prose, on a map that predates the region) | same region in the map issue body (still prose, on a map that predates it) | `decision-map:notes` region in `map.md` (still a bare paragraph, on a map that predates it) |
 | map `milestones` | `decision-map:milestones` region in the map item's description | same region in the map issue body | `decision-map:milestones` region in `map.md` |
 | map `notYetSpecified` / `outOfScope` | `decision-map:fog` / `decision-map:scope` regions in the map item's description | same regions in the map issue body | the same two regions in `map.md` |
+
+### The Map pointer (GitHub backend, ADR 0173)
+
+A GitHub `chart --real` writes one file into the repo, `<root>/<slug>/map.md`
+(`--root` defaults to `docs/decision-map`, the same default as the local
+backend, and — chart only — is where the Map pointer is written), so
+`docs/decision-map/` lists every map whichever backend holds it:
+
+```markdown
+---
+type: decision-map-pointer
+backend: github
+repo: acme/widgets
+issue: 42
+url: https://github.com/acme/widgets/issues/42
+---
+# Decision map — billing
+
+This decision map lives on GitHub Issues, not in this folder: ...
+```
+
+It carries no state — no tickets, status or frontier — and only `chart`
+writes it, **last**, after every tracker write. In the plan it is one entry
+(`path` = the file's posix path): `create` when absent; `skip (exists)` when
+byte-identical; `merge` with detail `refreshes the Map pointer` when it names
+the same repo and issue with different bytes; a **validation error** when it
+names another repo or issue (`--force` makes that `OVERWRITE`) or when the file
+is not a pointer at all — one slug cannot name a local map and a GitHub map in
+the same repo.
+
+The local backend refuses a pointer in every subcommand, exit `2`, naming the
+backend, the target and the real subcommand to run instead (`map 'billing'
+lives on GitHub (acme/widgets#42) … run github_map_ops.py read --repo
+acme/widgets --map 42`). It must never read one as an empty local map.
+
+The shared-region rule of ADR 0062 reads, from here on, *every region both
+backends write*: `graph` is written by the local backend only.
 
 ### Where each field lives on a tracker
 
@@ -1381,7 +1421,10 @@ HTML comment pair: the resolution block and the graph region in
 `tickets/<slug>.md`, and the "Decisions so far" index, the Notes list, the
 Milestones list, the "Not yet specified" list and the "Out of scope" list in
 `map.md` (`MAP_REGIONS` + `TICKET_REGIONS` in `map_core.py`). Everything else
-in those files is user content.
+in those files is user content. ADR 0171 does not touch this list: the local
+backend still writes the graph region on every ticket it renders. A tracker
+declares the matching pair in `TRACKER_TICKET_REGIONS` but, per ADR 0171,
+never writes it — see "The Map pointer" above.
 
 An additive `chart` rewrites only the `map.md` regions the input actually adds
 lines to — `fog` and `scope` always eligible, `notes` and `milestones` only

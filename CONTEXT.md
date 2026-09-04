@@ -161,6 +161,16 @@ Distinct from GitHub's native milestone object and from an ADO iteration — tho
 are backend furniture, not this term.
 _Avoid_: sprint, iteration, phase, epic, release.
 
+**Map pointer**:
+The file `docs/decision-map/<slug>/map.md` that a **GitHub-backed** Decision map leaves
+in the repo: YAML frontmatter naming the backend, the repo and the map issue, plus one
+paragraph, and nothing else — no tickets, no status. Written by `chart --real` and
+committed like a local map, so `docs/decision-map/` lists every map whichever backend
+holds it; `work-map` reads the repo and issue from it, and the local ops script refuses
+it loudly rather than read it as an empty map (ADR 0173).
+_Avoid_: stub map, mirror (nothing is mirrored — the map's content is only on GitHub),
+link file.
+
 **HITL / AFK ticket**:
 Every Decision ticket is one or the other. **HITL** (human-in-the-loop) resolves
 only through live exchange with the human — the agent never answers its own

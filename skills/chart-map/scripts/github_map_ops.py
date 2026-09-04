@@ -48,7 +48,6 @@ cheapest):
     frontier         1 GraphQL
     claim            1 GraphQL + 1 PATCH               (+1 `gh api user`)
     block            1 GraphQL + 1 POST                (0 writes if it exists)
-                     + 1 PATCH per end when the edge is new (2 PATCHes)
     comment          1 GraphQL + 1 POST
     resolve          1 GraphQL + 1 comment + 1 ticket PATCH (body AND state in
                      the same call) + 1 map PATCH      = 4 calls
@@ -58,12 +57,9 @@ cheapest):
     supplies every ticket's status and gist, so re-projecting costs no extra
     reads.
 
-    The position-diagram patch on `chart` costs no extra READ: it reuses the
-    "1 closing GraphQL" snapshot above, which is fetched only after every
-    create, link and edge write, so it already carries the current state of
-    every ticket an edge touched this run. `block` writes exactly one edge, so
-    it folds that edge into each end's parent/child list BY HAND from the one
-    snapshot it already holds, rather than fetch a second one mid-call.
+    The diagram-strip pass on `chart` (ADR 0172) costs no extra READ: it
+    reuses the "1 closing GraphQL" snapshot above, and costs one PATCH per
+    ticket that still carries a graph region, none otherwise.
 
 RATE LIMITS. The binding limit is the **secondary** one — 80 content-creating
 requests per minute — not the 5,000/hour primary. `_Throttle` below counts
@@ -72,6 +68,7 @@ line, so a small map runs at full speed and a 40-ticket chart paces itself
 instead of failing halfway through with a map half-created.
 """
 import argparse, json, subprocess, sys, time
+from pathlib import Path
 
 from map_core import (
     VALID_TICKET_TYPES,
@@ -82,7 +79,7 @@ from map_core import (
     DECISIONS_START, DECISIONS_END,
     FORCE_COST,
     ChartValidationError, UnsafeIdentifierError, InvalidEdgeError,
-    CliUsageError, MarkerIntegrityError, JoinIntegrityError,
+    CliUsageError, MapElsewhereError, MarkerIntegrityError, JoinIntegrityError,
     scrub, one_line, mode as derive_mode,
     assert_regions, safe_segment, norm_eol,
     region_body, replace_region, region_re,
@@ -90,9 +87,8 @@ from map_core import (
     merge_map_lists,
     decisions_region, validate_chart_input, key_of_body, milestone_index,
     milestone_progress,
-    position_diagram_region, set_graph_region,
     lint_findings, RULES_NEEDING_RESOLUTION_BODY,
-    force_orphaned_blockers, force_orphan_detail, rewired_edges,
+    strip_graph_region, render_pointer, pointer_of,
 )
 
 MAP_LABEL = "decision-map:map"
@@ -646,20 +642,17 @@ def render_map_issue_body(m, slug):
 
 
 def render_ticket_issue_body(key, question):
-    """The ticket issue body: key marker, the question, the position diagram,
-    an empty gist region.
+    """The ticket issue body: key marker, the question, an empty gist region.
 
-    The QUESTION comes first (ADR 0102) -- the card's identity is what it asks,
-    and the diagram is context read second. Every region is still written at
-    creation rather than inserted later, for the reason the local backend does
-    the same: a writer that has to decide *where* a region goes is guessing at
-    the boundary of content it did not write, which is the pattern that cost
-    three review rounds. A fresh ticket has no blockers and unblocks nothing
-    yet, so the diagram renders with empty parent/child lists; `chart`'s
-    edge-wiring pass re-renders it once real edges exist.
+    No position diagram (ADR 0171): the GitHub backend writes real sub-issues
+    and real blocked-by dependencies, so the issue's own sidebar already shows
+    the parent, its blockers and what it blocks -- live, which the diagram by
+    decision was not (ADR 0064). The gist region is still written at creation
+    rather than inserted later, for the reason the local backend does the
+    same: a writer that has to decide *where* a region goes is guessing at
+    the boundary of content it did not write.
     """
     return (f"{KEY_MARKER % key}\n\n## Question\n\n{scrub(question)}\n\n"
-            f"{position_diagram_region(key, [], [])}\n"
             f"{GIST_START}\n{GIST_END}\n")
 
 
@@ -679,6 +672,44 @@ def _key_marker_in(text):
     """
     found = key_of_body(text, "this document", labelled=False)
     return KEY_MARKER % found if found else "\x00"
+
+
+def _issue_url(repo, number):
+    return f"https://github.com/{repo}/issues/{int(number)}"
+
+
+def _pointer_path(root, slug):
+    return Path(root) / safe_segment(slug, "map slug") / "map.md"
+
+
+def _plan_pointer(root, slug, repo, issue, title, force):
+    """-> (action, detail) for the Map pointer file (ADR 0173).
+
+    `issue` is None when the map does not exist on the tracker yet, so a
+    pointer that is already there can only be pointing somewhere else.
+    """
+    p = _pointer_path(root, slug)
+    if not p.exists():
+        return "create", None
+    text = p.read_text(encoding="utf-8")
+    ptr = pointer_of(text)
+    if ptr is None:
+        raise ChartValidationError(
+            f"{p.as_posix()} exists and is not a Map pointer: a local map already "
+            f"uses slug {slug!r} in this repo; pick another slug for the GitHub map")
+    # GitHub repo names are case-insensitive (owner and name both), so compare
+    # them that way; a case-only difference falls through to the byte
+    # comparison below, which reports it as a `merge` that respells the repo.
+    if issue is None or (ptr["repo"].lower(), ptr["issue"]) != (repo.lower(), str(issue)):
+        if force:
+            return "OVERWRITE", None
+        raise ChartValidationError(
+            f"{p.as_posix()} points at {ptr['repo']}#{ptr['issue']}, but this chart "
+            f"targets {repo}#{issue if issue is not None else '<new>'}; pass --force "
+            "to overwrite the pointer, or move it aside")
+    if norm_eol(text) == render_pointer(title, repo, issue, _issue_url(repo, issue)):
+        return "skip (exists)", None
+    return "merge", "refreshes the Map pointer"
 
 
 # ---------------------------------------------------------------------------
@@ -926,7 +957,7 @@ def _plan_map(ops, snap, inp, slug, force):
     return "merge", text, map_merge_detail(added), div
 
 
-def chart_plan(ops, snap, inp, force):
+def chart_plan(ops, snap, inp, force, root):
     """Everything a chart would touch, in plan order: labels, the map, then the
     tickets and the edges.
 
@@ -957,6 +988,15 @@ def chart_plan(ops, snap, inp, force):
         map_detail = f"{map_detail}; re-adds the {MAP_LABEL} label"
     entries.append({"path": "<map>", "action": map_action, "detail": map_detail})
     div += map_div
+
+    ptr_action, ptr_detail = _plan_pointer(
+        root, slug, ops.repo,
+        snap.map["number"] if snap is not None else None,
+        inp["map"]["title"] if map_action == "OVERWRITE"
+        else ((snap.map.get("title") if snap is not None else None) or inp["map"]["title"]),
+        force)
+    entries.append({"path": _pointer_path(root, slug).as_posix(),
+                    "action": ptr_action, "detail": ptr_detail})
 
     existing_keys = set(snap.keys) if snap else set()
     action_by_key = {}
@@ -1014,62 +1054,26 @@ def chart_plan(ops, snap, inp, force):
         entry["action"] = "merge"
         entry["detail"] = "unions blockedBy: " + ", ".join(blockers)
 
-    # The blocker end of every edge the run will write. An edge is drawn at
-    # both of its ends (ADR 0064), so the blocker's issue is patched too by the
-    # real run's post-write graph-region pass -- and nothing the run writes may
-    # be missing from the plan. A blocker that is itself being created or
-    # overwritten already carries the edge in its own line, so it is skipped
-    # here (mirrors local_map_ops.py's `blocker_gains`).
-    blocker_gains = {}
-    for t in inp["tickets"]:
-        for blocked in t.get("blocks") or []:
-            if action_by_key.get(t["key"]) in ("create", "OVERWRITE"):
+    # Diagrams an older version wrote (ADR 0172). Nothing re-renders them
+    # (ADR 0171), so the only thing left to announce about a graph region is
+    # its removal -- one merge line per ticket that still carries one, on
+    # top of whatever that ticket's line already says. A ticket being created
+    # or overwritten gets a fresh body from its own line and is not listed.
+    if snap is not None:
+        for key in snap.keys:
+            if action_by_key.get(key) in ("create", "OVERWRITE"):
                 continue
-            # `t["key"]` is not create/OVERWRITE, so by construction of the
-            # tickets loop above it is "skip (exists)" -- an existing ticket.
-            if action_by_key.get(blocked) not in ("create", "OVERWRITE"):
-                # `blocked` already exists too -- tell an already-unioned edge
-                # (no write) from a new one, by issue IDENTITY, the same rule
-                # the `pending` pass above uses.
-                if snap is not None and blocked in snap.tickets \
-                        and t["key"] in snap.tickets and snap.holds_edge(blocked, t["key"]):
-                    continue                   # genuinely no change
-            # else: `blocked` is being freshly created/overwritten in this same
-            # input, so it cannot already hold the edge -- the blocker still
-            # gains a child once pass 2 wires it.
-            gained = blocker_gains.setdefault(t["key"], [])
-            if blocked not in gained:
-                gained.append(blocked)
-    for blocker_key, gained in blocker_gains.items():
-        # `blocker_gains` is keyed by a ticket of THIS input, and the tickets
-        # loop above gave every one of those an entry -- so the lookup always
-        # hits, and the entry is "skip (exists)" (create/OVERWRITE `continue`d
-        # above) or the "merge" the `pending` pass just set.
-        entry = by_key[blocker_key]
-        entry["action"] = "merge"
-        detail = "renders as a child in the graph: " + ", ".join(sorted(gained))
-        entry["detail"] = (entry["detail"] + "; " + detail) if entry["detail"] else detail
-
-    # The OTHER end of every edge --force DELETES. An OVERWRITE'd ticket's own
-    # blockedBy is reset by `remove_blocked_by`, but the matching child line
-    # lives in the blocker's diagram, and every pass above is driven by edges
-    # this input ADDS -- so a blocker not re-listed in tickets[] was left
-    # drawing an edge that no longer exists, silently and for ever. Announced
-    # here, and re-rendered by chart()'s post-write graph pass (mirrors
-    # local_map_ops.py's `force_orphans`).
-    force_orphans = force_orphaned_blockers(
-        action_by_key,
-        lambda k: [b for b in snap.blockers_of(k)[0] if b in snap.tickets],
-        rewired_edges(inp["tickets"]))
-    for blocker_key, lost in force_orphans.items():
-        entry = by_key.get(blocker_key)
-        if entry is None:                      # not re-listed in tickets[]
-            entry = {"path": blocker_key, "action": "skip (exists)", "detail": None}
-            entries.append(entry)
-            by_key[blocker_key] = entry
-        entry["action"] = "merge"
-        detail = force_orphan_detail(lost)
-        entry["detail"] = (entry["detail"] + "; " + detail) if entry["detail"] else detail
+            if GRAPH_START not in norm_eol(snap.tickets[key].get("body")):
+                continue
+            entry = by_key.get(key)
+            if entry is None:
+                entry = {"path": key, "action": "skip (exists)", "detail": None}
+                entries.append(entry)
+                by_key[key] = entry
+            entry["action"] = "merge"
+            detail = "removes the position diagram (ADR 0171)"
+            entry["detail"] = (entry["detail"] + "; " + detail) if entry["detail"] else detail
+    force_orphans = {}
 
     # Edges whose blocked ticket is being written fresh are wired unconditionally
     # (nothing survives on it to check against) and are NOT announced separately:
@@ -1084,7 +1088,7 @@ def chart_plan(ops, snap, inp, force):
     return entries, map_body, div, {**fresh, **pending}, force_orphans
 
 
-def chart(ops, inp, real, force=False):
+def chart(ops, inp, real, force=False, root="docs/decision-map"):
     # VALIDATE BEFORE DEREFERENCING ANYTHING. Reading inp["target"]["slug"]
     # first meant a map_input.json missing "target" raised a bare KeyError --
     # exit 1 with a traceback, where the local backend exits 2 with one stderr
@@ -1105,7 +1109,7 @@ def chart(ops, inp, real, force=False):
     validate_chart_input(inp, ticket_exists=ticket_exists)
     slug = inp["target"]["slug"]
     snap = fetched["snap"] if "snap" in fetched else ops.try_snapshot(slug)
-    entries, map_body, div, edges, force_orphans = chart_plan(ops, snap, inp, force)
+    entries, map_body, div, edges, force_orphans = chart_plan(ops, snap, inp, force, root)
     actions = {e["path"]: e["action"] for e in entries}
 
     if not real:
@@ -1214,35 +1218,30 @@ def chart(ops, inp, real, force=False):
 
     # The closing snapshot below is chart()'s own return value (see the cost
     # table's "1 closing GraphQL") -- fetched AFTER every create, link and edge
-    # write above, so it already carries every ticket this run created and
-    # every edge this run wired. Reuse it, rather than add a read, to render
-    # the position diagram of every ticket an edge touched this run, BOTH ends
-    # (spec 1, "Both ends"): the blocked ticket gains a parent node, the
-    # blocker gains a child node.
+    # write above. Reuse it to take back the position diagrams an older version
+    # wrote (ADR 0172): one PATCH per ticket that still carries the region, and
+    # none on a ticket that does not, so the second run is byte-identical. The
+    # plan announced each of these as a merge line.
     final_snap = ops.snapshot(str(map_number))
-    touched = set(edges) | {blocker for blockers in edges.values() for blocker in blockers}
-    # --force disturbs two more diagrams, and neither shows up in `edges`
-    # because `edges` is what this input ADDS:
-    #
-    #   - the OVERWRITE'd ticket itself, whose body was reset to an EMPTY
-    #     diagram above. Its parents are gone for real, but its CHILDREN are
-    #     edges held on other tickets, which survive -- so without this the
-    #     edge stays live in the model and absent from the picture, for ever
-    #     (a later chart skips the ticket as "no change", and `block`
-    #     correctly refuses to rewrite an edge that already exists);
-    #   - a blocker that LOST a child to `remove_blocked_by`, which is the
-    #     mirror harm: an edge in the picture and gone from the model.
-    #
-    # Both are what ADR 0064's both-ends rule requires, and the plan announced
-    # each of them. `k in final_snap.tickets` guards the ticket that is being
-    # rewritten in another repo's issue the closing snapshot cannot see.
-    touched |= {k for k, a in actions.items()
-                if a == "OVERWRITE" and k in final_snap.tickets}
-    touched |= {k for k in force_orphans if k in final_snap.tickets}
-    for key in sorted(touched):
-        parents, _missing = final_snap.blockers_of(key)
-        _patch_graph_region(ops, final_snap, key, parents,
-                            _children_of(final_snap, key))
+    for key in final_snap.keys:
+        body = norm_eol(final_snap.tickets[key].get("body"))
+        new_body = strip_graph_region(body)
+        if new_body == body:
+            continue
+        _assert_ticket_body(new_body, f"ticket {key!r} (#{final_snap.number_of(key)})")
+        ops.patch_issue(final_snap.number_of(key), {"body": new_body},
+                        repo=final_snap.repo_of(key))
+
+    # Last, after every tracker write and the strip pass: a run that failed
+    # above leaves no pointer to a half-charted map, and on a fresh map the
+    # issue number only exists now (ADR 0173).
+    ptr_path = _pointer_path(root, slug)
+    if actions[ptr_path.as_posix()] != "skip (exists)":
+        ptr_path.parent.mkdir(parents=True, exist_ok=True)
+        ptr_path.write_text(
+            render_pointer(final_snap.map.get("title") or inp["map"]["title"],
+                           ops.repo, map_number, _issue_url(ops.repo, map_number)),
+            encoding="utf-8")
 
     out = final_snap.map_json()
     out["divergence"] = div
@@ -1266,41 +1265,6 @@ def _ensure_edge(ops, blocked_number, blocker_db_id, repo=None):
         if "already been taken" in str(e):
             return
         raise
-
-
-def _children_of(snap, key):
-    """Every OTHER ticket in `snap` whose blockers include `key`.
-
-    A ticket's parents are its own blockedBy edges; its children are only
-    discoverable by scanning every other ticket in the snapshot -- the same
-    price the local backend pays with a directory scan (`map_core.
-    position_diagram_region` renders both ends, but only the caller can supply
-    which tickets a key unblocks).
-    """
-    return sorted(k for k in snap.keys
-                  if k != key and key in snap.blockers_of(k)[0])
-
-
-def _patch_graph_region(ops, snap, key, parents, children):
-    """Re-render `key`'s position diagram from `parents`/`children` and write
-    it back if that changes the stored body.
-
-    Takes the lists rather than deriving them itself, because the two callers
-    source them differently. `chart` reads them straight off a snapshot taken
-    AFTER every edge this run was wired, so that snapshot already reflects
-    them in full. `block` wires exactly one edge and knows both ends' new
-    parent/child by hand -- cheaper than a second snapshot fetch mid-call, and
-    the same in-memory-augmentation trick the local backend uses for the
-    ticket whose file it just wrote (spec 1, "Both ends"; both `parents` and
-    `children` are de-duplicated and sorted by `position_diagram_region`
-    itself, so a caller may pass either list with an extra entry unsorted).
-    """
-    body = norm_eol(snap.tickets[key].get("body"))
-    new_body = set_graph_region(body, position_diagram_region(key, parents, children))
-    if new_body == body:
-        return
-    _assert_ticket_body(new_body, f"ticket {key!r} (#{snap.number_of(key)})")
-    ops.patch_issue(snap.number_of(key), {"body": new_body}, repo=snap.repo_of(key))
 
 
 # ---------------------------------------------------------------------------
@@ -1442,15 +1406,9 @@ def block(ops, ref, ticket, blocked_by):
             f"allows at most {MAX_BLOCKERS} per relationship type")
     _ensure_edge(ops, number, snap.tickets[blocker_key]["databaseId"], repo=repo)
     new_held = held + [blocker_key]
-    # Both ends (spec 1): `key` gains a parent, `blocker_key` gains a child.
-    # `snap` predates this write, so the new edge is folded in by hand on
-    # whichever side it changes rather than re-read -- the everything-else
-    # about each ticket (its own other parents, its own other children) is
-    # unaffected by this one edge and comes straight off `snap`.
-    _patch_graph_region(ops, snap, key, new_held, _children_of(snap, key))
-    blocker_parents, _blocker_missing = snap.blockers_of(blocker_key)
-    _patch_graph_region(ops, snap, blocker_key, blocker_parents,
-                        _children_of(snap, blocker_key) + [key])
+    # No body is patched (ADR 0171): the edge is GitHub's own dependency and
+    # the sidebar renders it. The graph region of a ticket charted by an older
+    # version is left exactly as found -- only `chart` strips it (ADR 0172).
     return {"ticket": key, "blockedBy": new_held}
 
 
@@ -1575,6 +1533,7 @@ EXIT_ERROR = 2
 EXIT_FINDINGS = 3
 
 _REMEDY = {
+    MapElsewhereError: "restore the Map pointer from git, or delete it and re-chart",
     CliUsageError: "run with --help to see the arguments this subcommand needs",
     ChartValidationError: "correct the field named above in map_input.json and re-run",
     UnsafeIdentifierError: "pass the id exactly as chart created it",
@@ -1622,7 +1581,7 @@ def _dispatch(a, api=None):
         repo = a.repo or (f"{target.get('owner')}/{target.get('repo')}"
                           if target.get("owner") and target.get("repo") else None)
         ops = GitHubOps(api, repo)
-        return chart(ops, inp, real=a.real and not a.dry, force=a.force)
+        return chart(ops, inp, real=a.real and not a.dry, force=a.force, root=a.root)
 
     ops = GitHubOps(api, a.repo)
     if a.cmd == "read":
@@ -1671,6 +1630,9 @@ def build_parser():
     ap.add_argument("--repo", help="OWNER/REPO. Required except on chart, where "
                                    "map_input.json's target.owner/target.repo "
                                    "may supply it")
+    ap.add_argument("--root", default="docs/decision-map",
+                    help="chart only: where the Map pointer file is written "
+                         "(<root>/<slug>/map.md, ADR 0173)")
     ap.add_argument("--input"); ap.add_argument("--output")
     ap.add_argument("--map", dest="ref",
                     help="the map's issue number, or its slug (resolved through "

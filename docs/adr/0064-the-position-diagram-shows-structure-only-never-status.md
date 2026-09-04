@@ -50,3 +50,8 @@ Nothing is lost, because status is already answered authoritatively elsewhere:
 `frontier` computes open blockers on every read and `work-map` renders it at
 session start. The diagram answers *what is this ticket wired to*; the frontier
 answers *can I take it right now*.
+
+**Amendment (2026-09-04).** Local backend only from here on. The GitHub backend
+writes no position diagram at all (ADR 0171) and strips the ones an earlier
+version wrote on its next `chart` (ADR 0172); this ADR's reasoning stands
+unchanged for `tickets/<key>.md`.
