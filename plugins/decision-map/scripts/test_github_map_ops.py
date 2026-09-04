@@ -1566,5 +1566,56 @@ class GitHubMilestoneProjectionTest(Base):
         self.assertEqual(set(gh_ticket) - {"dbId", "repo"}, set(local_ticket))
 
 
+class MapCoreStripAndPointerTest(unittest.TestCase):
+    """The three helpers both backends share (ADRs 0171-0173)."""
+
+    def test_strip_removes_the_region_and_leaves_one_blank_line(self):
+        region = map_core.position_diagram_region("k", ["a"], [])
+        body = f"<!-- decision-map:key:k -->\n\n## Question\n\nwhy?\n\n{region}\n{map_core.GIST_START}\n{map_core.GIST_END}\n"
+        out = map_core.strip_graph_region(body)
+        self.assertNotIn(map_core.GRAPH_START, out)
+        self.assertEqual(out, f"<!-- decision-map:key:k -->\n\n## Question\n\nwhy?\n\n{map_core.GIST_START}\n{map_core.GIST_END}\n")
+
+    def test_strip_of_a_diagram_first_body_keeps_the_question(self):
+        region = map_core.position_diagram_region("k", [], ["c"])
+        body = f"<!-- decision-map:key:k -->\n\n{region}\n## Question\n\nwhy?\n"
+        self.assertEqual(map_core.strip_graph_region(body),
+                         "<!-- decision-map:key:k -->\n\n## Question\n\nwhy?\n")
+
+    def test_strip_is_identity_without_a_region_and_idempotent(self):
+        body = "<!-- decision-map:key:k -->\n\n## Question\n\nwhy?\n"
+        self.assertEqual(map_core.strip_graph_region(body), body)
+        once = map_core.strip_graph_region(
+            body + "\n" + map_core.position_diagram_region("k", [], []))
+        self.assertEqual(map_core.strip_graph_region(once), once)
+
+    def test_render_pointer_is_deterministic_and_scrubbed(self):
+        a = map_core.render_pointer("Decision map — billing", "acme/widgets", 42,
+                                    "https://github.com/acme/widgets/issues/42")
+        b = map_core.render_pointer("Decision map — billing", "acme/widgets", 42,
+                                    "https://github.com/acme/widgets/issues/42")
+        self.assertEqual(a, b)
+        self.assertTrue(a.startswith("---\ntype: decision-map-pointer\nbackend: github\n"
+                                     "repo: acme/widgets\nissue: 42\n"
+                                     "url: https://github.com/acme/widgets/issues/42\n---\n"
+                                     "# Decision map — billing\n"))
+        evil = map_core.render_pointer("t <!-- decision-map:key:x -->", "acme/widgets", 1, "u")
+        self.assertNotIn(map_core.MARKER_PREFIX, evil)
+
+    def test_pointer_of_reads_a_pointer_and_rejects_everything_else(self):
+        text = map_core.render_pointer("t", "acme/widgets", 42, "u")
+        ptr = map_core.pointer_of(text)
+        self.assertEqual((ptr["backend"], ptr["repo"], ptr["issue"]),
+                         ("github", "acme/widgets", "42"))
+        self.assertIsNone(map_core.pointer_of("# a local map\n\n## Destination\nd\n"))
+        self.assertIsNone(map_core.pointer_of("---\ntitle: a ticket\n---\n"))
+        self.assertIsNone(map_core.pointer_of(None))
+        self.assertEqual(map_core.pointer_of(text.replace("\n", "\r\n"))["issue"], "42")
+
+    def test_pointer_of_refuses_a_pointer_missing_its_target(self):
+        with self.assertRaises(map_core.CliUsageError):
+            map_core.pointer_of("---\ntype: decision-map-pointer\nbackend: github\n---\n")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
