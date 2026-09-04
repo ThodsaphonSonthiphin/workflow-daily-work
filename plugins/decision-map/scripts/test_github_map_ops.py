@@ -1280,6 +1280,19 @@ class TestPositionDiagram(Base):
             {t["key"]: int(t["id"])
              for t in gh.read_map(self.ops, "billing")["tickets"]}[key])["body"]
 
+    def test_force_on_a_blocker_keeps_the_edge_it_still_unblocks(self):
+        """--force-recharting ONLY the blocker (auth-model), leaving the
+        blocked ticket (rollout-order) out of the input, must not disturb the
+        native dependency: `chart`'s OVERWRITE branch clears the edges where
+        the OVERWRITE'd ticket is the BLOCKED side (its own
+        `blocker_refs_of`), and that loop has no business touching an edge
+        where the OVERWRITE'd ticket is the BLOCKER instead."""
+        self.chart()
+        self._force_only(["auth-model"])
+        self.assertEqual(
+            gh.read_map(self.ops, "billing")["tickets"][1]["blockedBy"],
+            ["auth-model"], "the dependency survives --force")
+
     def test_force_clears_a_dead_edge_from_a_blocker_the_input_never_names(self):
         """The mirror harm. --force removes rollout-order's dependencies, which
         is documented -- but auth-model, which this input never mentions, was
