@@ -120,9 +120,11 @@ TICKET_REGIONS = ((RESOLUTION_START, RESOLUTION_END),
 # A tracker records the resolution as a native comment, so the resolution
 # markers are local-only; the gist region is the tracker's machine-readable
 # home for the same one-liner the local backend keeps in frontmatter. The
-# graph region is shared -- a position diagram is as useful on an issue as
-# in a file, and rendering it in one place is what stops the two backends
-# drifting the way _MAP_DIAGRAM already has.
+# graph region is DECLARED here but never written by a tracker backend
+# (ADR 0171): assert_regions rejects any marker outside a declared region, so
+# dropping the pair would make every ticket charted by an older version
+# unwritable at its next resolve. Declared-not-written keeps them writable;
+# `chart` is the one subcommand that strips the region (ADR 0172).
 TRACKER_TICKET_REGIONS = ((GIST_START, GIST_END),
                           (GRAPH_START, GRAPH_END))
 

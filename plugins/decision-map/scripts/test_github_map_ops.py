@@ -1192,76 +1192,36 @@ class TestReviewRegressions(Base):
 
 
 class TestPositionDiagram(Base):
-    def test_a_created_ticket_issue_body_carries_a_graph_region(self):
+    def test_a_created_ticket_issue_body_carries_no_graph_region(self):
         body = gh.render_ticket_issue_body("auth-model", "why?")
-        self.assertIn(map_core.GRAPH_START, body)
-        self.assertIn('ME["auth-model (this ticket)"]', body)
-        self.assertLess(body.index(map_core.GRAPH_START),
-                        body.index(map_core.GIST_START),
-                        "position before the machine-readable gist region")
+        self.assertNotIn(map_core.GRAPH_START, body, "ADR 0171: no diagram on GitHub")
+        self.assertEqual(body, "<!-- decision-map:key:auth-model -->\n\n## Question\n\nwhy?\n\n"
+                               f"{map_core.GIST_START}\n{map_core.GIST_END}\n")
 
-    def test_adding_a_dependency_patches_both_issue_bodies(self):
-        # INPUT already wires auth-model -> rollout-order, so chart() alone
-        # must leave both ends rendered
+    def test_a_dependency_is_written_natively_and_patches_no_body(self):
         out = self.chart()
         by_key = {t["key"]: int(t["id"]) for t in out["tickets"]}
         blocked = self.fake.issue(by_key["rollout-order"])["body"]
         blocker = self.fake.issue(by_key["auth-model"])["body"]
-        self.assertIn('P0["auth-model"] --> ME', blocked,
-                      "the blocked issue shows its blocker as a parent")
-        self.assertIn('ME --> C0["rollout-order"]', blocker,
-                      "the blocker issue shows what it unblocks as a child")
+        self.assertNotIn(map_core.GRAPH_START, blocked)
+        self.assertNotIn(map_core.GRAPH_START, blocker)
+        rollout = next(t for t in out["tickets"] if t["key"] == "rollout-order")
+        self.assertEqual(rollout["blockedBy"], ["auth-model"],
+                         "the edge lives in GitHub's own dependency, not in a picture")
 
-    def test_an_existing_ticket_gaining_a_new_blocker_role_is_announced_in_the_plan(self):
-        """`chart_plan`'s `pending` pass announces the BLOCKED end of a new
-        edge, but had no counterpart to local's `blocker_gains` -- the pass
-        that announces the BLOCKER end when it is an existing (not created)
-        ticket. Without it, a dry-run plan was silent about an issue the real
-        run's post-write graph-region pass does patch -- both ends render
-        (ADR 0064) -- breaking the ADR-0039 gate's promise that nothing the
-        run writes is missing from the plan."""
+    def test_block_writes_the_dependency_and_patches_no_body(self):
         inp = copy.deepcopy(INPUT)
-        inp["tickets"].append({"key": "billing-flag", "title": "Billing flag",
-                               "type": "task", "question": "flagged how?"})
+        inp["tickets"][0]["blocks"] = []
         self.chart(inp)
-        inp2 = copy.deepcopy(inp)
-        for t in inp2["tickets"]:
-            if t["key"] == "auth-model":
-                # rollout-order: already blocked by auth-model, unchanged.
-                # billing-flag: a genuinely NEW edge from an EXISTING blocker.
-                t["blocks"] = ["rollout-order", "billing-flag"]
-        out, _err = self.dry(inp2)
-        by_path = {e["path"]: e for e in out["planned"]}
-        self.assertEqual(by_path["auth-model"]["action"], "merge",
-                         "the blocker's own issue must be announced, not skipped")
-        self.assertIn("renders as a child in the graph: billing-flag",
-                      by_path["auth-model"]["detail"])
-        self.assertEqual(by_path["rollout-order"]["action"], "skip (exists)",
-                         "an edge that already exists must not be re-announced")
-
-        # the plan told the truth: the real run patches auth-model's issue too
-        self.fake.reset_counters()
-        self.chart(inp2)
-        patched = {int(p.rsplit("/", 1)[-1]) for m, p, _b in self.fake.writes if m == "PATCH"}
-        by_key = {t["key"]: int(t["id"])
-                 for t in gh.read_map(self.ops, "billing")["tickets"]}
-        self.assertIn(by_key["auth-model"], patched,
-                     "the plan promised auth-model's issue would be touched")
-
-    def test_block_patches_both_issue_bodies_too(self):
-        """chart() wires its edges through the same `_ensure_edge` path as
-        `block`, but exercises a different data source for the graph patch
-        (a post-write snapshot vs. block()'s pre-write one) -- so block needs
-        its own direct check that both ends render."""
-        inp = copy.deepcopy(INPUT)
-        del inp["tickets"][0]["blocks"]          # chart with NO edge yet
-        out = self.chart(inp)
-        by_key = {t["key"]: int(t["id"]) for t in out["tickets"]}
-        gh.block(self.ops, "billing", "rollout-order", "auth-model")
-        blocked = self.fake.issue(by_key["rollout-order"])["body"]
-        blocker = self.fake.issue(by_key["auth-model"])["body"]
-        self.assertIn('P0["auth-model"] --> ME', blocked)
-        self.assertIn('ME --> C0["rollout-order"]', blocker)
+        by_key = {t["key"]: int(t["id"]) for t in gh.read_map(self.ops, "billing")["tickets"]}
+        before = {k: self.fake.issue(n)["body"] for k, n in by_key.items()}
+        writes_before = len(self.fake.writes)
+        out = gh.block(self.ops, "billing", "rollout-order", "auth-model")
+        self.assertEqual(out["blockedBy"], ["auth-model"])
+        after = {k: self.fake.issue(n)["body"] for k, n in by_key.items()}
+        self.assertEqual(before, after, "block must not patch either ticket's body")
+        patches = [w for w in self.fake.writes[writes_before:] if w[0] == "PATCH"]
+        self.assertEqual(patches, [], patches)
 
     def test_an_over_long_gist_warns_on_the_tracker_too(self):
         self.chart()
@@ -1319,22 +1279,6 @@ class TestPositionDiagram(Base):
         return self.fake.issue(
             {t["key"]: int(t["id"])
              for t in gh.read_map(self.ops, "billing")["tickets"]}[key])["body"]
-
-    def test_force_on_a_blocker_keeps_the_child_it_still_unblocks(self):
-        """--force resets the OVERWRITE'd issue's body to an EMPTY diagram. Its
-        own blockers are removed for real (documented), but the edges naming IT
-        as a blocker live on the other issues and survive -- so the dependency
-        stayed live on GitHub while the picture of it was destroyed, and no
-        later run repairs it (`chart` skips the ticket, `_ensure_edge` no-ops on
-        an edge that exists)."""
-        self.chart()
-        self.assertIn('ME --> C0["rollout-order"]', self._body("auth-model"))
-        self._force_only(["auth-model"])
-        self.assertEqual(
-            gh.read_map(self.ops, "billing")["tickets"][1]["blockedBy"],
-            ["auth-model"], "the dependency survives --force")
-        self.assertIn('ME --> C0["rollout-order"]', self._body("auth-model"),
-                      "so the picture of it must survive with it")
 
     def test_force_clears_a_dead_edge_from_a_blocker_the_input_never_names(self):
         """The mirror harm. --force removes rollout-order's dependencies, which
@@ -1541,7 +1485,8 @@ class GitHubMilestoneProjectionTest(Base):
 
     def test_a_new_ticket_issue_leads_with_its_question(self):
         body = gh.render_ticket_issue_body("k", "which one?")
-        self.assertLess(body.index("## Question"), body.index(map_core.GRAPH_START))
+        self.assertNotIn(map_core.GRAPH_START, body)
+        self.assertLess(body.index("## Question"), body.index(map_core.GIST_START))
         self.assertEqual(body.count(map_core.KEY_MARKER % "k"), 1)
         self.assertEqual(body.count(map_core.GIST_START), 1)
 

@@ -90,7 +90,6 @@ from map_core import (
     merge_map_lists,
     decisions_region, validate_chart_input, key_of_body, milestone_index,
     milestone_progress,
-    position_diagram_region, set_graph_region,
     lint_findings, RULES_NEEDING_RESOLUTION_BODY,
     force_orphaned_blockers, force_orphan_detail, rewired_edges,
 )
@@ -646,20 +645,17 @@ def render_map_issue_body(m, slug):
 
 
 def render_ticket_issue_body(key, question):
-    """The ticket issue body: key marker, the question, the position diagram,
-    an empty gist region.
+    """The ticket issue body: key marker, the question, an empty gist region.
 
-    The QUESTION comes first (ADR 0102) -- the card's identity is what it asks,
-    and the diagram is context read second. Every region is still written at
-    creation rather than inserted later, for the reason the local backend does
-    the same: a writer that has to decide *where* a region goes is guessing at
-    the boundary of content it did not write, which is the pattern that cost
-    three review rounds. A fresh ticket has no blockers and unblocks nothing
-    yet, so the diagram renders with empty parent/child lists; `chart`'s
-    edge-wiring pass re-renders it once real edges exist.
+    No position diagram (ADR 0171): the GitHub backend writes real sub-issues
+    and real blocked-by dependencies, so the issue's own sidebar already shows
+    the parent, its blockers and what it blocks -- live, which the diagram by
+    decision was not (ADR 0064). The gist region is still written at creation
+    rather than inserted later, for the reason the local backend does the
+    same: a writer that has to decide *where* a region goes is guessing at
+    the boundary of content it did not write.
     """
     return (f"{KEY_MARKER % key}\n\n## Question\n\n{scrub(question)}\n\n"
-            f"{position_diagram_region(key, [], [])}\n"
             f"{GIST_START}\n{GIST_END}\n")
 
 
@@ -1214,35 +1210,9 @@ def chart(ops, inp, real, force=False):
 
     # The closing snapshot below is chart()'s own return value (see the cost
     # table's "1 closing GraphQL") -- fetched AFTER every create, link and edge
-    # write above, so it already carries every ticket this run created and
-    # every edge this run wired. Reuse it, rather than add a read, to render
-    # the position diagram of every ticket an edge touched this run, BOTH ends
-    # (spec 1, "Both ends"): the blocked ticket gains a parent node, the
-    # blocker gains a child node.
+    # write above. Task 4 of the 2026-09-04 plan turns it into the strip pass
+    # (ADR 0172); nothing re-renders a diagram here any more (ADR 0171).
     final_snap = ops.snapshot(str(map_number))
-    touched = set(edges) | {blocker for blockers in edges.values() for blocker in blockers}
-    # --force disturbs two more diagrams, and neither shows up in `edges`
-    # because `edges` is what this input ADDS:
-    #
-    #   - the OVERWRITE'd ticket itself, whose body was reset to an EMPTY
-    #     diagram above. Its parents are gone for real, but its CHILDREN are
-    #     edges held on other tickets, which survive -- so without this the
-    #     edge stays live in the model and absent from the picture, for ever
-    #     (a later chart skips the ticket as "no change", and `block`
-    #     correctly refuses to rewrite an edge that already exists);
-    #   - a blocker that LOST a child to `remove_blocked_by`, which is the
-    #     mirror harm: an edge in the picture and gone from the model.
-    #
-    # Both are what ADR 0064's both-ends rule requires, and the plan announced
-    # each of them. `k in final_snap.tickets` guards the ticket that is being
-    # rewritten in another repo's issue the closing snapshot cannot see.
-    touched |= {k for k, a in actions.items()
-                if a == "OVERWRITE" and k in final_snap.tickets}
-    touched |= {k for k in force_orphans if k in final_snap.tickets}
-    for key in sorted(touched):
-        parents, _missing = final_snap.blockers_of(key)
-        _patch_graph_region(ops, final_snap, key, parents,
-                            _children_of(final_snap, key))
 
     out = final_snap.map_json()
     out["divergence"] = div
@@ -1266,41 +1236,6 @@ def _ensure_edge(ops, blocked_number, blocker_db_id, repo=None):
         if "already been taken" in str(e):
             return
         raise
-
-
-def _children_of(snap, key):
-    """Every OTHER ticket in `snap` whose blockers include `key`.
-
-    A ticket's parents are its own blockedBy edges; its children are only
-    discoverable by scanning every other ticket in the snapshot -- the same
-    price the local backend pays with a directory scan (`map_core.
-    position_diagram_region` renders both ends, but only the caller can supply
-    which tickets a key unblocks).
-    """
-    return sorted(k for k in snap.keys
-                  if k != key and key in snap.blockers_of(k)[0])
-
-
-def _patch_graph_region(ops, snap, key, parents, children):
-    """Re-render `key`'s position diagram from `parents`/`children` and write
-    it back if that changes the stored body.
-
-    Takes the lists rather than deriving them itself, because the two callers
-    source them differently. `chart` reads them straight off a snapshot taken
-    AFTER every edge this run was wired, so that snapshot already reflects
-    them in full. `block` wires exactly one edge and knows both ends' new
-    parent/child by hand -- cheaper than a second snapshot fetch mid-call, and
-    the same in-memory-augmentation trick the local backend uses for the
-    ticket whose file it just wrote (spec 1, "Both ends"; both `parents` and
-    `children` are de-duplicated and sorted by `position_diagram_region`
-    itself, so a caller may pass either list with an extra entry unsorted).
-    """
-    body = norm_eol(snap.tickets[key].get("body"))
-    new_body = set_graph_region(body, position_diagram_region(key, parents, children))
-    if new_body == body:
-        return
-    _assert_ticket_body(new_body, f"ticket {key!r} (#{snap.number_of(key)})")
-    ops.patch_issue(snap.number_of(key), {"body": new_body}, repo=snap.repo_of(key))
 
 
 # ---------------------------------------------------------------------------
@@ -1442,15 +1377,9 @@ def block(ops, ref, ticket, blocked_by):
             f"allows at most {MAX_BLOCKERS} per relationship type")
     _ensure_edge(ops, number, snap.tickets[blocker_key]["databaseId"], repo=repo)
     new_held = held + [blocker_key]
-    # Both ends (spec 1): `key` gains a parent, `blocker_key` gains a child.
-    # `snap` predates this write, so the new edge is folded in by hand on
-    # whichever side it changes rather than re-read -- the everything-else
-    # about each ticket (its own other parents, its own other children) is
-    # unaffected by this one edge and comes straight off `snap`.
-    _patch_graph_region(ops, snap, key, new_held, _children_of(snap, key))
-    blocker_parents, _blocker_missing = snap.blockers_of(blocker_key)
-    _patch_graph_region(ops, snap, blocker_key, blocker_parents,
-                        _children_of(snap, blocker_key) + [key])
+    # No body is patched (ADR 0171): the edge is GitHub's own dependency and
+    # the sidebar renders it. The graph region of a ticket charted by an older
+    # version is left exactly as found -- only `chart` strips it (ADR 0172).
     return {"ticket": key, "blockedBy": new_held}
 
 
