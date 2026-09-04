@@ -3416,5 +3416,72 @@ class LocalMilestoneProjectionTest(unittest.TestCase):
             tmp.cleanup()
 
 
+class MapPointerRefusalTest(unittest.TestCase):
+    """A Map pointer (ADR 0173) is not a local map: every subcommand refuses
+    it loudly, naming the GitHub command, instead of reading an empty map."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        d = self.root / "billing"
+        d.mkdir()
+        (d / "map.md").write_text(map_core.render_pointer(
+            "Decision map — billing", "acme/widgets", 42,
+            "https://github.com/acme/widgets/issues/42"), encoding="utf-8")
+        self.input_path = self.root / "map_input.json"
+        inp = copy.deepcopy(INPUT)
+        inp["target"]["slug"] = "billing"
+        self.input_path.write_text(json.dumps(inp), encoding="utf-8")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _run(self, argv):
+        old = sys.argv
+        sys.argv = ["local_map_ops.py"] + argv
+        out, err = io.StringIO(), io.StringIO()
+        try:
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                rc = ops.main()
+        finally:
+            sys.argv = old
+        return rc, out.getvalue(), err.getvalue()
+
+    def test_read_does_not_return_an_empty_map(self):
+        with self.assertRaises(map_core.MapElsewhereError) as cm:
+            ops.read_map(self.root, "billing")
+        self.assertIn("acme/widgets#42", str(cm.exception))
+
+    def test_every_subcommand_exits_2_and_names_the_github_command(self):
+        cases = {
+            "read": ["read", "--map", "billing"],
+            "frontier": ["frontier", "--map", "billing"],
+            "lint": ["lint", "--map", "billing"],
+            "claim": ["claim", "--map", "billing", "--ticket", "t"],
+            "block": ["block", "--map", "billing", "--ticket", "t", "--blocked-by", "u"],
+            "resolve": ["resolve", "--map", "billing", "--ticket", "t", "--gist", "g"],
+            "chart": ["chart", "--input", str(self.input_path), "--real"],
+        }
+        body = self.root / "b.md"
+        body.write_text("note", encoding="utf-8")
+        cases["comment"] = ["comment", "--map", "billing", "--ticket", "t",
+                            "--body-file", str(body)]
+        for cmd, argv in cases.items():
+            with self.subTest(cmd=cmd):
+                rc, out, err = self._run(argv + ["--root", str(self.root)])
+                self.assertEqual(rc, 2, err)
+                self.assertEqual(out, "")
+                self.assertIn("lives on GitHub (acme/widgets#42)", err)
+                self.assertIn("github_map_ops.py", err)
+                self.assertIn("--repo acme/widgets --map 42", err)
+        self.assertFalse((self.root / "billing" / "tickets").exists(),
+                         "chart must not scaffold a local map over a pointer")
+
+    def test_a_local_map_is_still_read_normally(self):
+        inp = copy.deepcopy(INPUT)
+        ops.chart(self.root, inp, real=True)
+        self.assertEqual(ops.read_map(self.root, "example-effort")["backend"], "local")
+
+
 if __name__ == "__main__":
     unittest.main()
