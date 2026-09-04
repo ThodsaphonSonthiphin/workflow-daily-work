@@ -22,6 +22,7 @@ import argparse
 import json
 import sys
 import traceback
+from pathlib import Path
 
 import github_map_ops as gh
 import map_core
@@ -70,11 +71,14 @@ def main():
 
     api = gh.GhApi()
     ops = gh.GitHubOps(api, a.repo)
+    import tempfile
+    tmp = tempfile.TemporaryDirectory()
+    root = Path(tmp.name)
     created = []
 
     try:
         print("1. chart --dry-run (must write nothing)")
-        plan = gh.chart(ops, json.loads(json.dumps(INPUT)), real=False)
+        plan = gh.chart(ops, json.loads(json.dumps(INPUT)), real=False, root=root)
         check("dry run reports a plan", plan.get("dryRun") is True)
         check("plan names the map and both tickets",
               {"<map>", "first-decision", "second-decision"}
@@ -95,13 +99,20 @@ def main():
               f"announced={sorted(announced)} expected={sorted(want - have)}")
 
         print("2. chart --real")
-        out = gh.chart(ops, json.loads(json.dumps(INPUT)), real=True)
+        out = gh.chart(ops, json.loads(json.dumps(INPUT)), real=True, root=root)
         map_number = int(out["map"]["id"])
         created = [map_number] + [int(t["id"]) for t in out["tickets"]]
         check("map came back with our slug as its key", out["map"]["key"] == SLUG)
         check("both tickets exist, key-ascending",
               [t["key"] for t in out["tickets"]]
               == ["first-decision", "second-decision"])
+        for t in out["tickets"]:
+            body = ops.api.rest(f"repos/{a.repo}/issues/{t['id']}")["body"]
+            check(f"ticket {t['key']} carries no position diagram (ADR 0171)",
+                  map_core.GRAPH_START not in (body or ""))
+        ptr = map_core.pointer_of((root / SLUG / "map.md").read_text(encoding="utf-8"))
+        check("the Map pointer names the map issue (ADR 0173)",
+              ptr is not None and ptr["issue"] == str(map_number), ptr)
         second = next(t for t in out["tickets"] if t["key"] == "second-decision")
         check("the native dependency read back as a key",
               second["blockedBy"] == ["first-decision"], second["blockedBy"])
@@ -111,12 +122,16 @@ def main():
         print("3. the byte-identical no-op — the whole point of this script")
         before = {n: ops.api.rest(f"repos/{a.repo}/issues/{n}")["body"]
                   for n in created}
-        again = gh.chart(ops, json.loads(json.dumps(INPUT)), real=True)
+        pointer_before = (root / SLUG / "map.md").read_bytes()
+        again = gh.chart(ops, json.loads(json.dumps(INPUT)), real=True, root=root)
         after = {n: ops.api.rest(f"repos/{a.repo}/issues/{n}")["body"]
                  for n in created}
+        pointer_after = (root / SLUG / "map.md").read_bytes()
         check("an identical re-chart changed no byte of any body",
               before == after,
               [n for n in before if before[n] != after[n]])
+        check("the pointer is byte-identical across a re-chart",
+              pointer_before == pointer_after)
         check("an identical re-chart reported no divergence",
               again["divergence"] == [], again["divergence"])
 
@@ -204,6 +219,7 @@ def main():
                         pass
         elif created:
             print(f"kept: issues #{', #'.join(str(n) for n in created)}")
+        tmp.cleanup()
 
     failed = [c for c in CHECKS if not c["ok"]]
     print(f"\n{len(CHECKS) - len(failed)}/{len(CHECKS)} checks passed; "
