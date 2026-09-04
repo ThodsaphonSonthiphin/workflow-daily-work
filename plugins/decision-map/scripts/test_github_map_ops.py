@@ -61,18 +61,30 @@ class Base(unittest.TestCase):
     def setUp(self):
         self.fake = FakeGitHub(repo=REPO)
         self.ops = ops_for(self.fake)
+        # The pointer (ADR 0173) is a real file: never let a test write it
+        # into the working tree.
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
 
     def chart(self, inp=None, **kw):
         with captured_stderr():
-            return gh.chart(self.ops, copy.deepcopy(inp or INPUT), real=True, **kw)
+            return gh.chart(self.ops, copy.deepcopy(inp or INPUT), real=True,
+                            root=self.root, **kw)
 
     def dry(self, inp=None, **kw):
         with captured_stderr() as err:
-            out = gh.chart(self.ops, copy.deepcopy(inp or INPUT), real=False, **kw)
+            out = gh.chart(self.ops, copy.deepcopy(inp or INPUT), real=False,
+                           root=self.root, **kw)
         return out, err.getvalue()
 
     def map_number(self):
         return int(gh.read_map(self.ops, "billing")["map"]["id"])
+
+    def pointer_path(self, slug="billing"):
+        return self.root / slug / "map.md"
 
 
 # ---------------------------------------------------------------------------
@@ -145,8 +157,8 @@ class TestDryRun(Base):
             p.write_text(json.dumps(INPUT), encoding="utf-8")
             buf, err = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(err):
-                rc = gh.main(["chart", "--repo", REPO, "--input", str(p)],
-                             api=self.fake)
+                rc = gh.main(["chart", "--repo", REPO, "--input", str(p),
+                              "--root", str(self.root)], api=self.fake)
             self.assertEqual(rc, 0)
             json.loads(buf.getvalue())          # parses, so nothing leaked in
             self.assertIn("DRY RUN", err.getvalue())
@@ -843,7 +855,8 @@ class TestCliContract(Base):
             p.write_text(json.dumps(INPUT), encoding="utf-8")
             out, err = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                rc = gh.main(["chart", "--input", str(p)], api=self.fake)
+                rc = gh.main(["chart", "--input", str(p),
+                              "--root", str(self.root)], api=self.fake)
             self.assertEqual(rc, 0, err.getvalue())
 
     def test_output_file_gets_the_same_document_as_stdout(self):
@@ -853,6 +866,7 @@ class TestCliContract(Base):
             with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(err):
                 rc = gh.main(["chart", "--repo", REPO, "--input",
                               self._input_file(d), "--real",
+                              "--root", str(self.root),
                               "--output", str(outp)], api=self.fake)
             self.assertEqual(rc, 0, err.getvalue())
             self.assertEqual(json.loads(outp.read_text(encoding="utf-8")),
@@ -954,7 +968,7 @@ class TestReviewRegressions(Base):
         # NOT self.dry(): that swallows stderr internally, and the warning is
         # half of what is under test here.
         with captured_stderr() as err:
-            out = gh.chart(self.ops, copy.deepcopy(INPUT), real=False)
+            out = gh.chart(self.ops, copy.deepcopy(INPUT), real=False, root=self.root)
         actions = {e["path"]: e["action"] for e in out["planned"]}
         self.assertNotEqual(actions["<map>"], "create",
                             f"chart would re-create the map: {out['planned']}")
@@ -1021,8 +1035,8 @@ class TestReviewRegressions(Base):
                     out, err = io.StringIO(), io.StringIO()
                     with contextlib.redirect_stdout(out), \
                             contextlib.redirect_stderr(err):
-                        rc = gh.main(["chart", "--repo", REPO, "--input", str(p)],
-                                     api=self.fake)
+                        rc = gh.main(["chart", "--repo", REPO, "--input", str(p),
+                                      "--root", str(self.root)], api=self.fake)
                 self.assertEqual(rc, gh.EXIT_ERROR)
                 self.assertEqual(out.getvalue(), "")
                 self.assertEqual(len(err.getvalue().strip().splitlines()), 1,
@@ -1184,7 +1198,7 @@ class TestReviewRegressions(Base):
         self.ops.link_child = boom
         with captured_stderr():
             with self.assertRaises(gh.GitHubError) as cm:
-                gh.chart(self.ops, copy.deepcopy(INPUT), real=True)
+                gh.chart(self.ops, copy.deepcopy(INPUT), real=True, root=self.root)
         msg = str(cm.exception)
         self.assertIn("carries the key marker", msg)
         self.assertIn("BEFORE re-running", msg)
@@ -1272,7 +1286,7 @@ class TestPositionDiagram(Base):
         inp = copy.deepcopy(INPUT)
         inp["tickets"] = [t for t in inp["tickets"] if t["key"] in keys]
         with captured_stderr() as err:
-            out = gh.chart(self.ops, inp, real=real, force=True)
+            out = gh.chart(self.ops, inp, real=real, force=True, root=self.root)
         return out, err.getvalue()
 
     def test_force_on_a_blocker_keeps_the_edge_it_still_unblocks(self):
@@ -1626,6 +1640,95 @@ class LegacyDiagramStripTest(Base):
         self.assertEqual(entry["action"], "merge")
         self.assertIn("unions blockedBy: auth-model", entry["detail"])
         self.assertIn("removes the position diagram (ADR 0171)", entry["detail"])
+
+
+class MapPointerTest(Base):
+    """chart --real leaves docs/decision-map/<slug>/map.md behind (ADR 0173)."""
+
+    def test_the_dry_run_plans_the_pointer_and_writes_nothing(self):
+        out, err = self.dry()
+        paths = [e["path"] for e in out["planned"]]
+        ptr = self.pointer_path().as_posix()
+        self.assertIn(ptr, paths)
+        self.assertEqual(paths.index(ptr), paths.index("<map>") + 1,
+                         "the pointer is planned right after the map")
+        self.assertEqual(next(e["action"] for e in out["planned"] if e["path"] == ptr), "create")
+        self.assertFalse(self.pointer_path().exists())
+        self.assertIn(ptr, err)
+
+    def test_the_real_run_writes_a_pointer_naming_the_map_issue(self):
+        out = self.chart()
+        text = self.pointer_path().read_text(encoding="utf-8")
+        ptr = map_core.pointer_of(text)
+        self.assertEqual(ptr["repo"], REPO)
+        self.assertEqual(ptr["issue"], out["map"]["id"])
+        self.assertEqual(ptr["url"], f"https://github.com/{REPO}/issues/{out['map']['id']}")
+        self.assertIn(f"# {INPUT['map']['title']}", text)
+
+    def test_the_second_run_skips_an_identical_pointer(self):
+        self.chart()
+        before = self.pointer_path().read_bytes()
+        out, _ = self.dry()
+        entry = next(e for e in out["planned"] if e["path"] == self.pointer_path().as_posix())
+        self.assertEqual(entry["action"], "skip (exists)")
+        self.chart()
+        self.assertEqual(self.pointer_path().read_bytes(), before)
+
+    def test_a_stale_pointer_to_the_same_issue_is_refreshed_as_a_merge(self):
+        out = self.chart()
+        p = self.pointer_path()
+        p.write_text(map_core.render_pointer("old title", REPO, int(out["map"]["id"]),
+                                             f"https://github.com/{REPO}/issues/{out['map']['id']}"),
+                     encoding="utf-8")
+        plan, _ = self.dry()
+        entry = next(e for e in plan["planned"] if e["path"] == p.as_posix())
+        self.assertEqual((entry["action"], entry["detail"]), ("merge", "refreshes the Map pointer"))
+        self.chart()
+        self.assertIn(f"# {INPUT['map']['title']}", p.read_text(encoding="utf-8"))
+
+    def test_a_pointer_to_another_issue_is_refused_unless_forced(self):
+        self.chart()
+        p = self.pointer_path()
+        p.write_text(map_core.render_pointer("t", "other/repo", 7, "u"), encoding="utf-8")
+        with self.assertRaises(gh.ChartValidationError) as cm:
+            self.dry()
+        self.assertIn("other/repo#7", str(cm.exception))
+        plan, _ = self.dry(force=True)
+        entry = next(e for e in plan["planned"] if e["path"] == p.as_posix())
+        self.assertEqual(entry["action"], "OVERWRITE")
+        self.chart(force=True)
+        self.assertEqual(map_core.pointer_of(p.read_text(encoding="utf-8"))["repo"], REPO)
+
+    def test_a_local_map_at_the_slug_is_refused_always(self):
+        p = self.pointer_path()
+        p.parent.mkdir(parents=True)
+        p.write_text("# Decision map — billing\n\n## Destination\nd\n", encoding="utf-8")
+        for force in (False, True):
+            with self.assertRaises(gh.ChartValidationError) as cm:
+                self.dry(force=force)
+            self.assertIn("not a Map pointer", str(cm.exception))
+
+    def test_the_pointer_is_written_after_the_tracker_writes(self):
+        # A failure on the tracker must leave no pointer to a half-charted map.
+        real_link = self.ops.link_child
+        def boom(*a, **k):
+            raise gh.GitHubError("simulated outage")
+        self.ops.link_child = boom
+        with self.assertRaises(gh.GitHubError):
+            self.chart()
+        self.assertFalse(self.pointer_path().exists())
+        self.ops.link_child = real_link
+
+    def test_main_accepts_root(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "in.json"
+            p.write_text(json.dumps(INPUT), encoding="utf-8")
+            buf, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(err):
+                rc = gh.main(["chart", "--repo", REPO, "--input", str(p), "--real",
+                              "--root", str(self.root)], api=self.fake)
+            self.assertEqual(rc, 0, err.getvalue())
+            self.assertTrue(self.pointer_path().exists())
 
 
 if __name__ == "__main__":

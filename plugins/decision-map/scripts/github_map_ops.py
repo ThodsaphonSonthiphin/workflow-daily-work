@@ -72,6 +72,7 @@ line, so a small map runs at full speed and a 40-ticket chart paces itself
 instead of failing halfway through with a map half-created.
 """
 import argparse, json, subprocess, sys, time
+from pathlib import Path
 
 from map_core import (
     VALID_TICKET_TYPES,
@@ -91,7 +92,7 @@ from map_core import (
     decisions_region, validate_chart_input, key_of_body, milestone_index,
     milestone_progress,
     lint_findings, RULES_NEEDING_RESOLUTION_BODY,
-    strip_graph_region,
+    strip_graph_region, render_pointer, pointer_of,
 )
 
 MAP_LABEL = "decision-map:map"
@@ -677,6 +678,41 @@ def _key_marker_in(text):
     return KEY_MARKER % found if found else "\x00"
 
 
+def _issue_url(repo, number):
+    return f"https://github.com/{repo}/issues/{int(number)}"
+
+
+def _pointer_path(root, slug):
+    return Path(root) / safe_segment(slug, "map slug") / "map.md"
+
+
+def _plan_pointer(root, slug, repo, issue, title, force):
+    """-> (action, detail) for the Map pointer file (ADR 0173).
+
+    `issue` is None when the map does not exist on the tracker yet, so a
+    pointer that is already there can only be pointing somewhere else.
+    """
+    p = _pointer_path(root, slug)
+    if not p.exists():
+        return "create", None
+    text = p.read_text(encoding="utf-8")
+    ptr = pointer_of(text)
+    if ptr is None:
+        raise ChartValidationError(
+            f"{p.as_posix()} exists and is not a Map pointer: a local map already "
+            f"uses slug {slug!r} in this repo; pick another slug for the GitHub map")
+    if issue is None or (ptr["repo"], ptr["issue"]) != (repo, str(issue)):
+        if force:
+            return "OVERWRITE", None
+        raise ChartValidationError(
+            f"{p.as_posix()} points at {ptr['repo']}#{ptr['issue']}, but this chart "
+            f"targets {repo}#{issue if issue is not None else '<new>'}; pass --force "
+            "to overwrite the pointer, or move it aside")
+    if norm_eol(text) == render_pointer(title, repo, issue, _issue_url(repo, issue)):
+        return "skip (exists)", None
+    return "merge", "refreshes the Map pointer"
+
+
 # ---------------------------------------------------------------------------
 # the backend
 # ---------------------------------------------------------------------------
@@ -922,7 +958,7 @@ def _plan_map(ops, snap, inp, slug, force):
     return "merge", text, map_merge_detail(added), div
 
 
-def chart_plan(ops, snap, inp, force):
+def chart_plan(ops, snap, inp, force, root):
     """Everything a chart would touch, in plan order: labels, the map, then the
     tickets and the edges.
 
@@ -953,6 +989,14 @@ def chart_plan(ops, snap, inp, force):
         map_detail = f"{map_detail}; re-adds the {MAP_LABEL} label"
     entries.append({"path": "<map>", "action": map_action, "detail": map_detail})
     div += map_div
+
+    ptr_action, ptr_detail = _plan_pointer(
+        root, slug, ops.repo,
+        snap.map["number"] if snap is not None else None,
+        (snap.map.get("title") if snap is not None else None) or inp["map"]["title"],
+        force)
+    entries.append({"path": _pointer_path(root, slug).as_posix(),
+                    "action": ptr_action, "detail": ptr_detail})
 
     existing_keys = set(snap.keys) if snap else set()
     action_by_key = {}
@@ -1044,7 +1088,7 @@ def chart_plan(ops, snap, inp, force):
     return entries, map_body, div, {**fresh, **pending}, force_orphans
 
 
-def chart(ops, inp, real, force=False):
+def chart(ops, inp, real, force=False, root="docs/decision-map"):
     # VALIDATE BEFORE DEREFERENCING ANYTHING. Reading inp["target"]["slug"]
     # first meant a map_input.json missing "target" raised a bare KeyError --
     # exit 1 with a traceback, where the local backend exits 2 with one stderr
@@ -1065,7 +1109,7 @@ def chart(ops, inp, real, force=False):
     validate_chart_input(inp, ticket_exists=ticket_exists)
     slug = inp["target"]["slug"]
     snap = fetched["snap"] if "snap" in fetched else ops.try_snapshot(slug)
-    entries, map_body, div, edges, force_orphans = chart_plan(ops, snap, inp, force)
+    entries, map_body, div, edges, force_orphans = chart_plan(ops, snap, inp, force, root)
     actions = {e["path"]: e["action"] for e in entries}
 
     if not real:
@@ -1187,6 +1231,17 @@ def chart(ops, inp, real, force=False):
         _assert_ticket_body(new_body, f"ticket {key!r} (#{final_snap.number_of(key)})")
         ops.patch_issue(final_snap.number_of(key), {"body": new_body},
                         repo=final_snap.repo_of(key))
+
+    # Last, after every tracker write and the strip pass: a run that failed
+    # above leaves no pointer to a half-charted map, and on a fresh map the
+    # issue number only exists now (ADR 0173).
+    ptr_path = _pointer_path(root, slug)
+    if actions[ptr_path.as_posix()] != "skip (exists)":
+        ptr_path.parent.mkdir(parents=True, exist_ok=True)
+        ptr_path.write_text(
+            render_pointer(final_snap.map.get("title") or inp["map"]["title"],
+                           ops.repo, map_number, _issue_url(ops.repo, map_number)),
+            encoding="utf-8")
 
     out = final_snap.map_json()
     out["divergence"] = div
@@ -1525,7 +1580,7 @@ def _dispatch(a, api=None):
         repo = a.repo or (f"{target.get('owner')}/{target.get('repo')}"
                           if target.get("owner") and target.get("repo") else None)
         ops = GitHubOps(api, repo)
-        return chart(ops, inp, real=a.real and not a.dry, force=a.force)
+        return chart(ops, inp, real=a.real and not a.dry, force=a.force, root=a.root)
 
     ops = GitHubOps(api, a.repo)
     if a.cmd == "read":
@@ -1574,6 +1629,9 @@ def build_parser():
     ap.add_argument("--repo", help="OWNER/REPO. Required except on chart, where "
                                    "map_input.json's target.owner/target.repo "
                                    "may supply it")
+    ap.add_argument("--root", default="docs/decision-map",
+                    help="chart only: where the Map pointer file is written "
+                         "(<root>/<slug>/map.md, ADR 0173)")
     ap.add_argument("--input"); ap.add_argument("--output")
     ap.add_argument("--map", dest="ref",
                     help="the map's issue number, or its slug (resolved through "
