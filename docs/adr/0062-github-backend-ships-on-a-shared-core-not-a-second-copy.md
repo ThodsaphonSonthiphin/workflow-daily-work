@@ -161,3 +161,7 @@ an unblocked ticket.
 - The two backends now differ in one visible way beyond handles: GitHub pins
   ordering deliberately, whereas the local backend gets it from `sorted()` on a
   glob. Both emit key-ascending; only one of them would notice if that changed.
+- **Amendment (2026-09-04).** "Byte-identical regions on both backends" now
+  reads *every region both backends write*: the `graph` region is written by
+  the local backend only (ADR 0171), and the Map pointer is a file only the
+  GitHub backend writes (ADR 0173). `map_core` still holds both renderers.

@@ -73,7 +73,7 @@ charting.
 | backend | where the map lives | how it is shared | needs |
 |---|---|---|---|
 | **local markdown** (default) | `docs/decision-map/<slug>/` in this repo | by committing the repo | nothing |
-| **GitHub Issues** | an issue per map, a **sub-issue** per ticket, native `blocked-by` dependencies | the repo's issue tracker — visible to anyone with access | `gh auth status` passing, and a repo you may write issues to |
+| **GitHub Issues** | an issue per map, a **sub-issue** per ticket, native `blocked-by` dependencies — plus a **Map pointer** at `docs/decision-map/<slug>/map.md` so the repo lists the map (ADR 0173) | the repo's issue tracker — visible to anyone with access | `gh auth status` passing, and a repo you may write issues to |
 
 Default to **local** and say so; only use GitHub if the user asks for a board or
 names a repo. Azure DevOps is **not** available (ADR 0059 — its half of the
@@ -90,7 +90,7 @@ Then fix these two, and use them for every command from Step 1 down:
 | | local | GitHub |
 |---|---|---|
 | **`<ops>`** | `${CLAUDE_SKILL_DIR}/scripts/local_map_ops.py` | `${CLAUDE_SKILL_DIR}/scripts/github_map_ops.py` |
-| **extra flag on every call** | *none* — `--root` defaults to `docs/decision-map` | **`--repo <owner>/<repo>`, always.** It is never inferred from the git remote: this writes issues |
+| **extra flag on every call** | *none* — `--root` defaults to `docs/decision-map` | **`--repo <owner>/<repo>`, always.** It is never inferred from the git remote: this writes issues; `--root` only if the pointer must land somewhere other than `docs/decision-map` |
 
 Run `<ops>` with `python`, from the repo root, so a local map lands at its
 ADR-0042 default location. Everything from Step 1 down is backend-neutral — the
@@ -294,13 +294,13 @@ a partially-failed chart is resumable by simply re-running it. If you see an
 the plan you just showed — if the input changes at all, re-run the dry run and
 show the new plan.
 
-**Carry the end-of-session commit offer in this same ask, on local.** In the
-same message, ask whether to commit the new `docs/decision-map/<slug>/` folder
-once the session ends, alongside any repo docs it produced -- so the session
-pauses once, here, instead of twice. This does not weaken assisted git: a
-bundled offer is still an explicit offer the user answers, and nothing is
-committed without that yes. On GitHub there is nothing to commit for the map
-itself, but any repo docs still need the same ask.
+**Carry the end-of-session commit offer in this same ask, on both backends.** In
+the same message, ask whether to commit what `--real` will leave in the repo once
+the session ends — on local the new `docs/decision-map/<slug>/` folder, on GitHub
+the **Map pointer** `docs/decision-map/<slug>/map.md` (ADR 0173) — alongside any
+repo docs it produced, so the session pauses once, here, instead of twice. This
+does not weaken assisted git: a bundled offer is still an explicit offer the user
+answers, and nothing is committed without that yes.
 
 **4. On approval, re-run with `--real`:**
 
@@ -314,9 +314,12 @@ The script wires the **blocking edges** itself, in a second pass once every
 ticket exists. There are no parent links to wire: on the local backend
 containment *is* the directory — a ticket belongs to this map because it sits in
 that map's tickets — and the map document holds no index of open tickets, only
-the "Decisions so far" list that `resolve` projects from the closed ones. Each
-created ticket also carries a generated **position diagram** below `## Question`,
-written and maintained by the script rather than by you (ADR 0063/0064).
+the "Decisions so far" list that `resolve` projects from the closed ones. On **local**, each created ticket also carries a generated **position diagram**
+below `## Question`, written and maintained by the script rather than by you (ADR
+0063/0064). On **GitHub** there is none (ADR 0171): the issue's own sidebar shows
+the parent and its *Blocked by* / *Blocking* relationships, and a `chart` re-run
+on a map charted by an older version strips the diagrams it once wrote — the plan
+lists each as `merge … removes the position diagram` (ADR 0172).
 
 **5. Check `divergence` in the result.** A non-empty list means the input asked
 for something an additive run deliberately did **not** apply — most often a
@@ -428,13 +431,13 @@ Report, in this order:
 One line per bullet, no filler, around ten lines in total -- group rather than
 itemize when a bullet would otherwise run to a list of its own.
 
-On **local**, offer to commit the new `docs/decision-map/<slug>/` folder
-(assisted git — offer, never automatic). On **GitHub** there is nothing to
-commit: the map is already live in the tracker the moment `--real` returned, so
-give the map issue's URL instead and say that anyone with repo access can see it
-now. If the Step 3 gate already carried this offer and the user approved it
-there, commit now without asking a second time -- the yes you are holding *is*
-that explicit offer, answered.
+Offer to commit (assisted git — offer, never automatic): on **local** the new
+`docs/decision-map/<slug>/` folder; on **GitHub** the Map pointer
+`docs/decision-map/<slug>/map.md` that `--real` just wrote (ADR 0173) — the map
+itself is already live in the tracker, so give the map issue's URL too and say
+that anyone with repo access can see it now. If the Step 3 gate already carried
+this offer and the user approved it there, commit now without asking a second
+time -- the yes you are holding *is* that explicit offer, answered.
 
 Then suggest `/decision-map:work` for the next session, and **stop**. Do not
 claim a ticket, do not resolve one, do not start the first decision. Charting is

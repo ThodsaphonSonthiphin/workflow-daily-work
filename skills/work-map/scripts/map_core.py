@@ -104,6 +104,11 @@ GIST_START = "<!-- decision-map:gist:start -->"
 GIST_END = "<!-- decision-map:gist:end -->"
 GRAPH_START = "<!-- decision-map:graph:start -->"
 GRAPH_END = "<!-- decision-map:graph:end -->"
+# The Map pointer (ADR 0173): the one file a GitHub-backed map leaves in the
+# repo, so `docs/decision-map/` lists every map whichever backend holds it. It
+# is recognised by this frontmatter `type`, never by its path -- a pointer and
+# a local map.md share a filename on purpose.
+POINTER_TYPE = "decision-map-pointer"
 
 MAP_REGIONS = ((DECISIONS_START, DECISIONS_END),
                (NOTES_START, NOTES_END),
@@ -115,9 +120,11 @@ TICKET_REGIONS = ((RESOLUTION_START, RESOLUTION_END),
 # A tracker records the resolution as a native comment, so the resolution
 # markers are local-only; the gist region is the tracker's machine-readable
 # home for the same one-liner the local backend keeps in frontmatter. The
-# graph region is shared -- a position diagram is as useful on an issue as
-# in a file, and rendering it in one place is what stops the two backends
-# drifting the way _MAP_DIAGRAM already has.
+# graph region is DECLARED here but never written by a tracker backend
+# (ADR 0171): assert_regions rejects any marker outside a declared region, so
+# dropping the pair would make every ticket charted by an older version
+# unwritable at its next resolve. Declared-not-written keeps them writable;
+# `chart` is the one subcommand that strips the region (ADR 0172).
 TRACKER_TICKET_REGIONS = ((GIST_START, GIST_END),
                           (GRAPH_START, GRAPH_END))
 
@@ -213,6 +220,12 @@ class InvalidEdgeError(ValueError):
 class CliUsageError(ValueError):
     """A subcommand was invoked without an argument it needs. Raised before any
     work, and reported as a one-line message rather than a traceback."""
+
+
+class MapElsewhereError(CliUsageError):
+    """The slug names a Map pointer (ADR 0173): the map lives on another
+    backend, and the local script must refuse rather than read the pointer as
+    an empty map -- the absence-read-as-a-fact shape ADR 0061 forbids."""
 
 
 class MarkerIntegrityError(Exception):
@@ -1040,6 +1053,80 @@ def set_graph_region(body, region):
     if nxt < 0:
         return body.rstrip("\n") + "\n\n" + region
     return body[:nxt + 1] + region + "\n" + body[nxt + 1:]
+
+
+def strip_graph_region(body):
+    """`body` with its position-diagram region removed (ADR 0172).
+
+    The GitHub backend no longer writes the region (ADR 0171); this is how a
+    `chart` re-run takes back the ones an earlier version wrote. The region
+    sat on a line of its own, so the blank line it leaves is collapsed to at
+    most one -- and a body that never had the region comes back byte-identical,
+    which is what restores the no-op guarantee from the second run onward.
+    Nothing outside the markers is touched.
+    """
+    m = region_re(GRAPH_START, GRAPH_END).search(body)
+    if not m:
+        return body
+    head = body[:m.start()].rstrip("\n")
+    tail = body[m.end():].lstrip("\n")
+    if not head:
+        return tail
+    if not tail:
+        return head + "\n"
+    return head + "\n\n" + tail
+
+
+def render_pointer(title, repo, issue, url):
+    """The whole Map pointer file (ADR 0173). Deterministic: the same inputs
+    give the same bytes, so `chart` can compare and report `skip (exists)`.
+
+    Every value passes through `one_line` -- the title is user text, and a
+    marker smuggled into it must not survive into a generated file."""
+    repo, url, title = one_line(repo), one_line(url), one_line(title)
+    n = int(issue)
+    return (
+        "---\n"
+        f"type: {POINTER_TYPE}\n"
+        "backend: github\n"
+        f"repo: {repo}\n"
+        f"issue: {n}\n"
+        f"url: {url}\n"
+        "---\n"
+        f"# {title}\n\n"
+        f"This decision map lives on GitHub Issues, not in this folder: the map is "
+        f"{repo}#{n} and every ticket is one of its sub-issues. Nothing here is a "
+        "copy of it. Work it with the decision-map plugin's GitHub backend "
+        f"(`github_map_ops.py`) and `--repo {repo} --map {n}`; the local backend "
+        "refuses this file on purpose.\n")
+
+
+_POINTER_FM_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
+
+
+def pointer_of(text):
+    """-> the pointer's frontmatter as a dict of strings, or None.
+
+    None for anything that is not a Map pointer: a local map.md (no
+    frontmatter), a ticket (frontmatter without the pointer type), or no text.
+    A file that CLAIMS the type but names no target is refused rather than
+    treated as a local map -- half a pointer is still not a map."""
+    m = _POINTER_FM_RE.match(norm_eol(text or ""))
+    if not m:
+        return None
+    fm = {}
+    for line in m.group(1).splitlines():
+        if ":" in line:
+            k, v = line.split(":", 1)
+            fm[k.strip()] = v.strip()
+    if fm.get("type") != POINTER_TYPE:
+        return None
+    for k in ("backend", "repo", "issue"):
+        if not fm.get(k):
+            raise CliUsageError(
+                f"map.md says it is a {POINTER_TYPE} but carries no {k!r}; "
+                "restore the pointer from git, or delete it and re-chart")
+    return fm
 
 
 def force_orphaned_blockers(actions, blockers_of, rewired):

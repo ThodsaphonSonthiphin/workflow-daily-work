@@ -118,12 +118,15 @@ GitHub Issues puts the same map on a real board.
 | Backend | Status | Needs | Ops script |
 |---|---|---|---|
 | Local markdown | **ships** (default) | nothing | `scripts/local_map_ops.py` → `docs/decision-map/<slug>/` |
-| GitHub Issues | **ships** (ADR 0062) | `gh auth status` passing, and `--repo <owner>/<repo>` on every call | `scripts/github_map_ops.py` |
+| GitHub Issues | **ships** (ADR 0062) | `gh auth status` passing, and `--repo <owner>/<repo>` on every call | `scripts/github_map_ops.py` → issues + a Map pointer at `docs/decision-map/<slug>/map.md` (ADR 0173) |
 | Azure DevOps | not built | — | — |
 
 Installing `ado-backlog` or `github-backlog` does **not** give decision-map a
 backend — neither plugin can drive a map. `github-backlog` is a
 *findings-to-issues* pipeline; it writes different things to the same tracker.
+
+On GitHub a ticket carries no position diagram — the issue sidebar shows its
+blockers live (ADR 0171).
 
 Everything above the ops script is backend-neutral: the skills, the subcommands,
 the flags and the JSON shapes are the same on both. Only the script name and that
