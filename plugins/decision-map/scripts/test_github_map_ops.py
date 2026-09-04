@@ -1275,11 +1275,6 @@ class TestPositionDiagram(Base):
             out = gh.chart(self.ops, inp, real=real, force=True)
         return out, err.getvalue()
 
-    def _body(self, key):
-        return self.fake.issue(
-            {t["key"]: int(t["id"])
-             for t in gh.read_map(self.ops, "billing")["tickets"]}[key])["body"]
-
     def test_force_on_a_blocker_keeps_the_edge_it_still_unblocks(self):
         """--force-recharting ONLY the blocker (auth-model), leaving the
         blocked ticket (rollout-order) out of the input, must not disturb the
@@ -1294,27 +1289,19 @@ class TestPositionDiagram(Base):
             ["auth-model"], "the dependency survives --force")
 
     def test_force_clears_a_dead_edge_from_a_blocker_the_input_never_names(self):
-        """The mirror harm. --force removes rollout-order's dependencies, which
-        is documented -- but auth-model, which this input never mentions, was
-        left drawing `ME --> C0["rollout-order"]` for an edge `remove_blocked_by`
-        had just deleted. A picture of a dead edge is the staleness-read-as-fact
-        harm ADR 0064 exists to prevent."""
+        """--force removes rollout-order's dependency on auth-model. Nothing
+        re-renders a diagram at the blocker's end any more (ADR 0171), so
+        auth-model -- which this input never names and holds no position
+        diagram of its own -- gets no plan entry at all and no write."""
         self.chart()
         out, plan = self._force_only(["rollout-order"], real=False)
-        entry = next(e for e in out["planned"] if e["path"] == "auth-model")
-        self.assertEqual(entry["action"], "merge",
-                         "the ADR-0039 gate must show the neighbour write")
-        self.assertEqual(entry["detail"],
-                         "no longer renders as a child in the graph: rollout-order",
-                         "the contract forbids an undescribed merge")
-        self.assertIn("no longer renders as a child in the graph", plan)
+        self.assertIsNone(
+            next((e for e in out["planned"] if e["path"] == "auth-model"), None),
+            "the blocker the input never names has nothing left to announce")
+        self.assertNotIn("no longer renders as a child in the graph", plan)
 
         self._force_only(["rollout-order"])
         self.assertEqual(gh.read_map(self.ops, "billing")["tickets"][1]["blockedBy"], [])
-        self.assertNotIn('C0["rollout-order"]', self._body("auth-model"),
-                         "the blocker must stop drawing the edge that was removed")
-        _out2, plan2 = self._force_only(["rollout-order"], real=False)
-        self.assertNotIn("no longer renders as a child", plan2)
 
 
 class GhApiSpy(gh.GhApi):
@@ -1573,6 +1560,72 @@ class MapCoreStripAndPointerTest(unittest.TestCase):
     def test_pointer_of_refuses_a_pointer_missing_its_target(self):
         with self.assertRaises(map_core.CliUsageError):
             map_core.pointer_of("---\ntype: decision-map-pointer\nbackend: github\n---\n")
+
+
+class LegacyDiagramStripTest(Base):
+    """A map charted by an older version carries diagrams; the next chart
+    takes them back, announced ticket by ticket (ADR 0172)."""
+
+    def _seed_legacy_diagrams(self):
+        out = self.chart()
+        by_key = {t["key"]: int(t["id"]) for t in out["tickets"]}
+        for key, n in by_key.items():
+            issue = self.fake.issue(n)
+            issue["body"] = map_core.set_graph_region(
+                issue["body"], map_core.position_diagram_region(key, [], []))
+            self.assertIn(map_core.GRAPH_START, issue["body"])
+        return by_key
+
+    def test_the_dry_run_announces_each_strip_and_writes_nothing(self):
+        by_key = self._seed_legacy_diagrams()
+        writes_before = len(self.fake.writes)
+        out, err = self.dry()
+        details = {e["path"]: e["detail"] for e in out["planned"]}
+        for key in by_key:
+            self.assertEqual(details[key], "removes the position diagram (ADR 0171)")
+            self.assertEqual(next(e["action"] for e in out["planned"] if e["path"] == key), "merge")
+        self.assertIn("removes the position diagram", err)
+        self.assertEqual(len(self.fake.writes), writes_before)
+
+    def test_the_real_run_strips_and_the_second_run_is_a_no_op(self):
+        by_key = self._seed_legacy_diagrams()
+        self.chart()
+        for key, n in by_key.items():
+            body = self.fake.issue(n)["body"]
+            self.assertNotIn(map_core.GRAPH_START, body, key)
+            self.assertEqual(body, gh.render_ticket_issue_body(
+                key, next(t["question"] for t in INPUT["tickets"] if t["key"] == key)),
+                "a stripped legacy body equals a freshly rendered one")
+        before = {n: self.fake.issue(n)["body"] for n in by_key.values()}
+        writes_before = len(self.fake.writes)
+        out, _ = self.dry()
+        self.assertTrue(all(e["action"] == "skip (exists)" for e in out["planned"]
+                            if e["path"] in by_key), out["planned"])
+        self.chart()
+        self.assertEqual(before, {n: self.fake.issue(n)["body"] for n in by_key.values()})
+        self.assertEqual([w for w in self.fake.writes[writes_before:] if w[0] == "PATCH"], [])
+
+    def test_resolve_on_a_legacy_ticket_works_before_any_chart_strips_it(self):
+        by_key = self._seed_legacy_diagrams()
+        gh.resolve(self.ops, "billing", "auth-model", "shared keys", None, None)
+        body = self.fake.issue(by_key["auth-model"])["body"]
+        self.assertIn(map_core.GRAPH_START, body, "resolve leaves the region alone")
+        self.assertIn("shared keys", map_core.region_body(
+            map_core.norm_eol(body), map_core.GIST_START, map_core.GIST_END))
+
+    def test_a_strip_and_an_edge_union_share_one_merge_line(self):
+        inp = copy.deepcopy(INPUT)
+        inp["tickets"][0]["blocks"] = []
+        self.chart(inp)
+        by_key = {t["key"]: int(t["id"]) for t in gh.read_map(self.ops, "billing")["tickets"]}
+        issue = self.fake.issue(by_key["rollout-order"])
+        issue["body"] = map_core.set_graph_region(
+            issue["body"], map_core.position_diagram_region("rollout-order", [], []))
+        out, _ = self.dry()          # INPUT wires auth-model -> rollout-order
+        entry = next(e for e in out["planned"] if e["path"] == "rollout-order")
+        self.assertEqual(entry["action"], "merge")
+        self.assertIn("unions blockedBy: auth-model", entry["detail"])
+        self.assertIn("removes the position diagram (ADR 0171)", entry["detail"])
 
 
 if __name__ == "__main__":

@@ -91,7 +91,7 @@ from map_core import (
     decisions_region, validate_chart_input, key_of_body, milestone_index,
     milestone_progress,
     lint_findings, RULES_NEEDING_RESOLUTION_BODY,
-    force_orphaned_blockers, force_orphan_detail, rewired_edges,
+    strip_graph_region,
 )
 
 MAP_LABEL = "decision-map:map"
@@ -1010,62 +1010,26 @@ def chart_plan(ops, snap, inp, force):
         entry["action"] = "merge"
         entry["detail"] = "unions blockedBy: " + ", ".join(blockers)
 
-    # The blocker end of every edge the run will write. An edge is drawn at
-    # both of its ends (ADR 0064), so the blocker's issue is patched too by the
-    # real run's post-write graph-region pass -- and nothing the run writes may
-    # be missing from the plan. A blocker that is itself being created or
-    # overwritten already carries the edge in its own line, so it is skipped
-    # here (mirrors local_map_ops.py's `blocker_gains`).
-    blocker_gains = {}
-    for t in inp["tickets"]:
-        for blocked in t.get("blocks") or []:
-            if action_by_key.get(t["key"]) in ("create", "OVERWRITE"):
+    # Diagrams an older version wrote (ADR 0172). Nothing re-renders them
+    # (ADR 0171), so the only thing left to announce about a graph region is
+    # its removal -- one merge line per ticket that still carries one, on
+    # top of whatever that ticket's line already says. A ticket being created
+    # or overwritten gets a fresh body from its own line and is not listed.
+    if snap is not None:
+        for key in snap.keys:
+            if action_by_key.get(key) in ("create", "OVERWRITE"):
                 continue
-            # `t["key"]` is not create/OVERWRITE, so by construction of the
-            # tickets loop above it is "skip (exists)" -- an existing ticket.
-            if action_by_key.get(blocked) not in ("create", "OVERWRITE"):
-                # `blocked` already exists too -- tell an already-unioned edge
-                # (no write) from a new one, by issue IDENTITY, the same rule
-                # the `pending` pass above uses.
-                if snap is not None and blocked in snap.tickets \
-                        and t["key"] in snap.tickets and snap.holds_edge(blocked, t["key"]):
-                    continue                   # genuinely no change
-            # else: `blocked` is being freshly created/overwritten in this same
-            # input, so it cannot already hold the edge -- the blocker still
-            # gains a child once pass 2 wires it.
-            gained = blocker_gains.setdefault(t["key"], [])
-            if blocked not in gained:
-                gained.append(blocked)
-    for blocker_key, gained in blocker_gains.items():
-        # `blocker_gains` is keyed by a ticket of THIS input, and the tickets
-        # loop above gave every one of those an entry -- so the lookup always
-        # hits, and the entry is "skip (exists)" (create/OVERWRITE `continue`d
-        # above) or the "merge" the `pending` pass just set.
-        entry = by_key[blocker_key]
-        entry["action"] = "merge"
-        detail = "renders as a child in the graph: " + ", ".join(sorted(gained))
-        entry["detail"] = (entry["detail"] + "; " + detail) if entry["detail"] else detail
-
-    # The OTHER end of every edge --force DELETES. An OVERWRITE'd ticket's own
-    # blockedBy is reset by `remove_blocked_by`, but the matching child line
-    # lives in the blocker's diagram, and every pass above is driven by edges
-    # this input ADDS -- so a blocker not re-listed in tickets[] was left
-    # drawing an edge that no longer exists, silently and for ever. Announced
-    # here, and re-rendered by chart()'s post-write graph pass (mirrors
-    # local_map_ops.py's `force_orphans`).
-    force_orphans = force_orphaned_blockers(
-        action_by_key,
-        lambda k: [b for b in snap.blockers_of(k)[0] if b in snap.tickets],
-        rewired_edges(inp["tickets"]))
-    for blocker_key, lost in force_orphans.items():
-        entry = by_key.get(blocker_key)
-        if entry is None:                      # not re-listed in tickets[]
-            entry = {"path": blocker_key, "action": "skip (exists)", "detail": None}
-            entries.append(entry)
-            by_key[blocker_key] = entry
-        entry["action"] = "merge"
-        detail = force_orphan_detail(lost)
-        entry["detail"] = (entry["detail"] + "; " + detail) if entry["detail"] else detail
+            if GRAPH_START not in norm_eol(snap.tickets[key].get("body")):
+                continue
+            entry = by_key.get(key)
+            if entry is None:
+                entry = {"path": key, "action": "skip (exists)", "detail": None}
+                entries.append(entry)
+                by_key[key] = entry
+            entry["action"] = "merge"
+            detail = "removes the position diagram (ADR 0171)"
+            entry["detail"] = (entry["detail"] + "; " + detail) if entry["detail"] else detail
+    force_orphans = {}
 
     # Edges whose blocked ticket is being written fresh are wired unconditionally
     # (nothing survives on it to check against) and are NOT announced separately:
@@ -1210,9 +1174,19 @@ def chart(ops, inp, real, force=False):
 
     # The closing snapshot below is chart()'s own return value (see the cost
     # table's "1 closing GraphQL") -- fetched AFTER every create, link and edge
-    # write above. Task 4 of the 2026-09-04 plan turns it into the strip pass
-    # (ADR 0172); nothing re-renders a diagram here any more (ADR 0171).
+    # write above. Reuse it to take back the position diagrams an older version
+    # wrote (ADR 0172): one PATCH per ticket that still carries the region, and
+    # none on a ticket that does not, so the second run is byte-identical. The
+    # plan announced each of these as a merge line.
     final_snap = ops.snapshot(str(map_number))
+    for key in final_snap.keys:
+        body = norm_eol(final_snap.tickets[key].get("body"))
+        new_body = strip_graph_region(body)
+        if new_body == body:
+            continue
+        _assert_ticket_body(new_body, f"ticket {key!r} (#{final_snap.number_of(key)})")
+        ops.patch_issue(final_snap.number_of(key), {"body": new_body},
+                        repo=final_snap.repo_of(key))
 
     out = final_snap.map_json()
     out["divergence"] = div
