@@ -805,8 +805,6 @@ once per run.** Never by a global search.
 | ADO | marker line `<!-- decision-map:key:<key> -->` in `System.Description` | one WIQL/link query for the map work item's `System.LinkTypes.Hierarchy-Forward` children, then read each child's description |
 | GitHub | marker line `<!-- decision-map:key:<key> -->` in the issue body | **one GraphQL request.** `repository.issue.subIssues` returns each child's `body`, `labels`, `assignees` **and** its `blockedBy` edges (including each edge target's `body`), so the whole join — plus every field `map.json` reports — arrives in a single round trip. The REST `GET /issues/{n}/sub_issues` listing carries bodies but **not** dependencies, so it costs 1 + n |
 
-`--root` (chart only) sets where the Map pointer is written.
-
 **A join that truncates must fail, not truncate.** GitHub caps sub-issues at 100
 so a single `first: 100` page covers every legal map — but a backend must still
 fail loudly if the response reports more, rather than trusting that cap to hold.
@@ -1175,7 +1173,8 @@ lost too.
 
 A GitHub `chart --real` writes one file into the repo, `<root>/<slug>/map.md`
 (`--root` defaults to `docs/decision-map`, the same default as the local
-backend), so `docs/decision-map/` lists every map whichever backend holds it:
+backend, and — chart only — is where the Map pointer is written), so
+`docs/decision-map/` lists every map whichever backend holds it:
 
 ```markdown
 ---
@@ -1200,8 +1199,8 @@ is not a pointer at all — one slug cannot name a local map and a GitHub map in
 the same repo.
 
 The local backend refuses a pointer in every subcommand, exit `2`, naming the
-backend, the target and the command to run instead (`map 'billing' lives on
-GitHub (acme/widgets#42) … run github_map_ops.py <subcommand> --repo
+backend, the target and the real subcommand to run instead (`map 'billing'
+lives on GitHub (acme/widgets#42) … run github_map_ops.py read --repo
 acme/widgets --map 42`). It must never read one as an empty local map.
 
 The shared-region rule of ADR 0062 reads, from here on, *every region both

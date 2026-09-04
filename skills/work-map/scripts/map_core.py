@@ -1123,7 +1123,9 @@ def pointer_of(text):
         return None
     for k in ("backend", "repo", "issue"):
         if not fm.get(k):
-            raise CliUsageError(
+            # A half-pointer IS a map that lives elsewhere, just a damaged
+            # pointer to it -- not a bare usage error, so its remedy differs.
+            raise MapElsewhereError(
                 f"map.md says it is a {POINTER_TYPE} but carries no {k!r}; "
                 "restore the pointer from git, or delete it and re-chart")
     return fm

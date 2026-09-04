@@ -19,6 +19,7 @@ import tempfile
 import unittest
 import contextlib
 from pathlib import Path
+from unittest import mock
 
 import github_map_ops as gh
 import local_map_ops
@@ -1572,7 +1573,9 @@ class MapCoreStripAndPointerTest(unittest.TestCase):
         self.assertEqual(map_core.pointer_of(text.replace("\n", "\r\n"))["issue"], "42")
 
     def test_pointer_of_refuses_a_pointer_missing_its_target(self):
-        with self.assertRaises(map_core.CliUsageError):
+        # A half-pointer IS a map that lives elsewhere, just a damaged pointer
+        # to it -- not a bare usage error, so its remedy differs.
+        with self.assertRaises(map_core.MapElsewhereError):
             map_core.pointer_of("---\ntype: decision-map-pointer\nbackend: github\n---\n")
 
 
@@ -1686,6 +1689,17 @@ class MapPointerTest(Base):
         self.chart()
         self.assertIn(f"# {INPUT['map']['title']}", p.read_text(encoding="utf-8"))
 
+    def test_a_case_different_repo_match_is_not_an_error_and_plans_a_merge(self):
+        # GitHub repo names are case-insensitive; a pointer written as
+        # "acme/widgets" must not demand --force just because this chart's
+        # --repo is spelled "Acme/Widgets".
+        out = self.chart()
+        number = int(out["map"]["id"])
+        action, detail = gh._plan_pointer(
+            self.root, "billing", "Acme/Widgets", number,
+            INPUT["map"]["title"], force=False)
+        self.assertEqual((action, detail), ("merge", "refreshes the Map pointer"))
+
     def test_a_pointer_to_another_issue_is_refused_unless_forced(self):
         self.chart()
         p = self.pointer_path()
@@ -1718,6 +1732,36 @@ class MapPointerTest(Base):
             self.chart()
         self.assertFalse(self.pointer_path().exists())
         self.ops.link_child = real_link
+
+    def test_a_force_rename_refreshes_the_pointer_and_the_next_run_is_a_no_op(self):
+        # A --force that renames the map must plan the pointer against the
+        # title the run will END with, not the pre-run title -- otherwise the
+        # pointer is left stale and the byte-identical no-op guarantee (ADR
+        # 0172) breaks on the very next run.
+        self.chart()
+        renamed = copy.deepcopy(INPUT)
+        renamed["map"]["title"] = "RENAMED title"
+        plan, _ = self.dry(renamed, force=True)
+        entry = next(e for e in plan["planned"] if e["path"] == self.pointer_path().as_posix())
+        self.assertEqual((entry["action"], entry["detail"]),
+                         ("merge", "refreshes the Map pointer"))
+        self.chart(renamed, force=True)
+        text = self.pointer_path().read_text(encoding="utf-8")
+        self.assertIn("# RENAMED title", text)
+
+        # The following identical dry run must see the pointer as settled...
+        plan2, _ = self.dry(renamed, force=True)
+        entry2 = next(e for e in plan2["planned"] if e["path"] == self.pointer_path().as_posix())
+        self.assertEqual(entry2["action"], "skip (exists)")
+
+        # ...and the following identical real run must leave the pointer
+        # bytes untouched AND never even write it (deferred minor (c)).
+        before = self.pointer_path().read_bytes()
+        with mock.patch.object(Path, "write_text", autospec=True,
+                               side_effect=Path.write_text) as spy:
+            self.chart(renamed, force=True)
+        spy.assert_not_called()
+        self.assertEqual(self.pointer_path().read_bytes(), before)
 
     def test_main_accepts_root(self):
         with tempfile.TemporaryDirectory() as d:

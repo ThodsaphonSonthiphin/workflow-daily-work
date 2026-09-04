@@ -951,6 +951,9 @@ def main():
         problem = " ".join(str(e).split())
         if problem.startswith(f"{a.cmd}: "):       # don't say "chart: chart: ..."
             problem = problem[len(a.cmd) + 2:]
+        # `_map_dir` doesn't know the subcommand it's guarding, so it writes
+        # the literal placeholder; only `main` knows which one is running.
+        problem = problem.replace("<subcommand>", a.cmd)
         print(f"error: {a.cmd}: {problem} -- {remedy}", file=sys.stderr)
         return EXIT_ERROR
     text = json.dumps(result, indent=2)

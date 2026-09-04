@@ -48,7 +48,6 @@ cheapest):
     frontier         1 GraphQL
     claim            1 GraphQL + 1 PATCH               (+1 `gh api user`)
     block            1 GraphQL + 1 POST                (0 writes if it exists)
-                     + 1 PATCH per end when the edge is new (2 PATCHes)
     comment          1 GraphQL + 1 POST
     resolve          1 GraphQL + 1 comment + 1 ticket PATCH (body AND state in
                      the same call) + 1 map PATCH      = 4 calls
@@ -58,12 +57,9 @@ cheapest):
     supplies every ticket's status and gist, so re-projecting costs no extra
     reads.
 
-    The position-diagram patch on `chart` costs no extra READ: it reuses the
-    "1 closing GraphQL" snapshot above, which is fetched only after every
-    create, link and edge write, so it already carries the current state of
-    every ticket an edge touched this run. `block` writes exactly one edge, so
-    it folds that edge into each end's parent/child list BY HAND from the one
-    snapshot it already holds, rather than fetch a second one mid-call.
+    The diagram-strip pass on `chart` (ADR 0172) costs no extra READ: it
+    reuses the "1 closing GraphQL" snapshot above, and costs one PATCH per
+    ticket that still carries a graph region, none otherwise.
 
 RATE LIMITS. The binding limit is the **secondary** one — 80 content-creating
 requests per minute — not the 5,000/hour primary. `_Throttle` below counts
@@ -83,7 +79,7 @@ from map_core import (
     DECISIONS_START, DECISIONS_END,
     FORCE_COST,
     ChartValidationError, UnsafeIdentifierError, InvalidEdgeError,
-    CliUsageError, MarkerIntegrityError, JoinIntegrityError,
+    CliUsageError, MapElsewhereError, MarkerIntegrityError, JoinIntegrityError,
     scrub, one_line, mode as derive_mode,
     assert_regions, safe_segment, norm_eol,
     region_body, replace_region, region_re,
@@ -701,7 +697,10 @@ def _plan_pointer(root, slug, repo, issue, title, force):
         raise ChartValidationError(
             f"{p.as_posix()} exists and is not a Map pointer: a local map already "
             f"uses slug {slug!r} in this repo; pick another slug for the GitHub map")
-    if issue is None or (ptr["repo"], ptr["issue"]) != (repo, str(issue)):
+    # GitHub repo names are case-insensitive (owner and name both), so compare
+    # them that way; a case-only difference falls through to the byte
+    # comparison below, which reports it as a `merge` that respells the repo.
+    if issue is None or (ptr["repo"].lower(), ptr["issue"]) != (repo.lower(), str(issue)):
         if force:
             return "OVERWRITE", None
         raise ChartValidationError(
@@ -993,7 +992,8 @@ def chart_plan(ops, snap, inp, force, root):
     ptr_action, ptr_detail = _plan_pointer(
         root, slug, ops.repo,
         snap.map["number"] if snap is not None else None,
-        (snap.map.get("title") if snap is not None else None) or inp["map"]["title"],
+        inp["map"]["title"] if map_action == "OVERWRITE"
+        else ((snap.map.get("title") if snap is not None else None) or inp["map"]["title"]),
         force)
     entries.append({"path": _pointer_path(root, slug).as_posix(),
                     "action": ptr_action, "detail": ptr_detail})
@@ -1533,6 +1533,7 @@ EXIT_ERROR = 2
 EXIT_FINDINGS = 3
 
 _REMEDY = {
+    MapElsewhereError: "restore the Map pointer from git, or delete it and re-chart",
     CliUsageError: "run with --help to see the arguments this subcommand needs",
     ChartValidationError: "correct the field named above in map_input.json and re-run",
     UnsafeIdentifierError: "pass the id exactly as chart created it",

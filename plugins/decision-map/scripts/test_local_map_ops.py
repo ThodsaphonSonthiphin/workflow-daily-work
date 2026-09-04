@@ -3472,8 +3472,7 @@ class MapPointerRefusalTest(unittest.TestCase):
                 self.assertEqual(rc, 2, err)
                 self.assertEqual(out, "")
                 self.assertIn("lives on GitHub (acme/widgets#42)", err)
-                self.assertIn("github_map_ops.py", err)
-                self.assertIn("--repo acme/widgets --map 42", err)
+                self.assertIn(f"github_map_ops.py {cmd} --repo acme/widgets --map 42", err)
         self.assertFalse((self.root / "billing" / "tickets").exists(),
                          "chart must not scaffold a local map over a pointer")
 
