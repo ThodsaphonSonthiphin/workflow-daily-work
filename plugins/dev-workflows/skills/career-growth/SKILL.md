@@ -139,7 +139,9 @@ not optional:
   single most useful output of the method.
 
 Gather: demand (posting counts per ring, primary artifacts counted per stage 4
-before citing commentary), the certificates employers name (each live-verified
+before citing commentary, **and the count of distinct employers behind those
+postings** — Station 3's `paid` test needs both numbers, per ADR 0174), the
+certificates employers name (each live-verified
 per stage 2 before it may be mentioned), compensation signals where boards
 expose them (aggregator numbers grade `Directional`, per the sibling), the
 3-year outlook (triangulated — at least three signal types — with the
@@ -149,8 +151,9 @@ vendor offers a **practice assessment**. Station 5's readiness check needs both;
 record "not published" explicitly rather than leaving the field absent.
 
 Write **`market-report.md`** to the career repo: overview Mermaid diagram (rings
-× demand), a demand table per ring (skill · postings · source · date ·
-**confidence grade**), the verified cert list (code, registry status,
+× demand), a demand table per ring (skill · postings · **distinct employers** · source ·
+date · **confidence grade**), the **employer floor** this run uses for the
+`paid` test and why (it differs by ring and by how the boards deduplicate), the verified cert list (code, registry status,
 `verified_on`, registry URL, published prep hours or "not published", practice
 assessment available yes/no), the counter-signals found (or "looked, found
 none"), the institutional-incentive findings (with any dated cliff), and the
@@ -171,19 +174,29 @@ gaps to close even when claimed.
   its **gap** (what the person is missing for this combination, drawn from the
   Gap list) and a four-test argument, one line per test:
   `rare` (evidence of scarcity in the rings) · `evidenced` (what public proof the
-  user has or would gain) · `paid` (demand claims with sources and confidence
-  grade — a `Directional` claim may support a direction but must never be the
-  sole basis for this verdict) · `durable` (the triangulated 3-year case
+  user has or would gain) · `paid` (two halves, both required, ADR 0174 —
+  **verified**: demand claims with sources and confidence grade, where a
+  `Directional` claim may support a direction but must never be the sole basis
+  for this verdict; **broad**: the demand comes from at least the run's stated
+  floor of distinct employers, spread across at least two rings, not
+  concentrated in one employer, client type or country — state both counts and
+  the ring spread on this line) · `durable` (the triangulated 3-year case
   against AI/automation absorption — synthesise
   Station 2's per-skill AI-absorption assessments into one argument for *this
   combination*, not per skill).
+- **Every combination is shaped as a broad core plus a rare edge** (ADR 0174).
+  Name which component is the core: a skill area the surveyed rings hire for
+  on its own, at scale. The edge is what makes the combination rare. A candidate
+  whose every component is niche fails `paid` on breadth — the core is what
+  keeps the person employable when any one employer falls; the edge is what
+  raises the price at each door.
 - Anything failing a test may appear only as a labeled **supporting skill** —
   never as a moat candidate.
 
 ## Station 4 — PRESENT ⛔ approval gate
 
-Present the candidates (a compact table: combination · gap · the four test
-verdicts · strongest evidence) and ask the user to **pick one moat, or reject
+Present the candidates (a compact table: combination with its core named · gap ·
+the four test verdicts · strongest evidence) and ask the user to **pick one moat, or reject
 all**. On reject: collect the objections as constraints and loop back to
 Station 3. Never pick for the user; never proceed past this gate without an
 explicit pick.

@@ -1,5 +1,13 @@
 # career-growth — design spec
 
+> ⚠️ **SUPERSEDED IN PART.** This spec's `paid` test ("demand verified by real
+> market signals") is weaker than what the skill now runs. Since
+> [ADR 0174](../../adr/workflow-daily-work-0174-the-paid-test-requires-breadth-and-a-moat-sits-on-a-common-core.md) `paid` also requires **breadth** — a floor of
+> distinct employers across at least two rings — and every moat candidate is shaped
+> as a **broad core plus a rare edge**, with the core named. The four tests, the
+> five stations and everything else here still hold; the skill wins over this
+> document where they differ.
+
 - **Date:** 2026-07-31
 - **Status:** Draft for review
 - **ADRs:** 0043–0052

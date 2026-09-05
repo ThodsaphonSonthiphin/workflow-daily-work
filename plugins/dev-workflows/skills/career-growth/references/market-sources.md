@@ -14,7 +14,7 @@ flowchart TD
     R1["ring 1 — Thailand"] --> B["job boards (fetchable)"]
     R2["ring 2 — SEA"] --> B
     R3["ring 3 — Global remote"] --> B
-    B --> DC["demand claims<br/>(source + posting count)"]
+    B --> DC["demand claims<br/>(source + posting count<br/>+ distinct employers)"]
     DC --> VTA["verify-then-advise<br/>(cert registries · claim grading)"]
     DC --> TT["trend-signal taxonomy<br/>(career-growth's own ·<br/>3-yr triangulation)"]
 ```
@@ -42,6 +42,17 @@ flowchart TD
 | LinkedIn Jobs (remote filter) | fetchable | primary |
 | Indeed (remote filter) | fetchable | cross-check |
 | We Work Remotely / RemoteOK / Hacker News "Who's hiring" | verify at run time | volume smaller; good rarity signal for niche combos |
+
+## Counting employers, not only postings
+
+Every demand claim records **two** counts: postings and **distinct employers**
+behind them (ADR 0174). Boards repeat one employer's posting across cities and
+recruiters, so a posting count alone can make three companies look like a
+market. Deduplicate by employer name per ring, and record the **employer floor**
+this run holds the `paid` test to — a number stated and defended in
+`market-report.md`, because it differs by ring and by how each board
+deduplicates. Ring 3's smaller boards are where a niche combination's true
+employer count shows most clearly.
 
 ## Trend-signal taxonomy (career-growth's own)
 

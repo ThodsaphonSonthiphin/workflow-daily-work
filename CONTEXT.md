@@ -184,9 +184,13 @@ _Avoid_: manual/automated (it's about who decides, not who executes).
 A skill combination that passes **all four tests**: (1) *rare* — few people in the
 same target market hold it; (2) *evidenced* — backed by tangible public proof
 (shipped repo, certificate, delivered work); (3) *paid* — demand verified by real
-market signals; (4) *durable* — expected to survive ≥3 years against AI/automation
-absorption (ADR 0044). Every recommendation the career-growth skill emits must state
-how it passes each test.
+market signals **and broad**: a floor of distinct employers across at least two
+rings, not one employer or one country (ADR 0174); (4) *durable* — expected to
+survive ≥3 years against AI/automation absorption (ADR 0044). Every recommendation
+the career-growth skill emits must state how it passes each test. A moat is shaped
+as a **broad core** (hired for on its own, at scale) plus a **rare edge** (what makes
+the combination scarce) — rarity is an add-on to employability, never a replacement
+(ADR 0174).
 _Avoid_: strength, unique selling point (marketing term), specialty (implies depth
 only — a moat is a combination).
 

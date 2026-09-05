@@ -1,6 +1,11 @@
 # ADR 0044 — a moat must pass all four tests: rare, evidenced, paid, durable
 
-- **Status:** Accepted
+- **Status:** Accepted — **superseded in part by
+  [ADR 0174](workflow-daily-work-0174-the-paid-test-requires-breadth-and-a-moat-sits-on-a-common-core.md)**:
+  the four tests stand, but the `paid` test as worded here is too weak. It now
+  means verified **and broad** — a floor of distinct employers across at least two
+  rings — and every combination must name a broad core the market hires for on its
+  own, with the rare edge on top. Rare counts people; nothing here counted employers.
 - **Date:** 2026-07-31
 
 ```mermaid

@@ -1,5 +1,12 @@
 # career-growth Skill Implementation Plan
 
+> ⚠️ **SUPERSEDED IN PART — do not generate requirements from the Station 2/3
+> text in this plan.** The `paid` test it transcribes lacks the breadth half
+> ([ADR 0174](../../adr/workflow-daily-work-0174-the-paid-test-requires-breadth-and-a-moat-sits-on-a-common-core.md)): distinct-employer counts in the demand table, an
+> employer floor across at least two rings, and the broad-core-plus-rare-edge
+> shape for every candidate. The shipped `SKILL.md` and `market-sources.md` are
+> current; this plan is the historical record of the first implementation.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship the `career-growth` skill in `dev-workflows` — a five-station, re-runnable career-review pipeline (evidence-graded inventory → live market survey → four-test moat candidates → user-picked moat → cert-driven plan) per the approved spec `docs/superpowers/specs/2026-07-31-career-growth-skill-design.md` (ADRs 0043–0052).
