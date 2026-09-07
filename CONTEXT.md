@@ -477,6 +477,14 @@ in the **Mistake profile** first so the user is less likely to recall rather tha
 (ADR 0197).
 _Avoid_: exercise, question, quiz item (all admit the invented items ticket #16 ruled out).
 
+**Hint level**:
+How much a **Drill item** withholds — `named` (the **Error class** is stated), `unnamed`
+(only that there is one error), or `open` (the sentence alone, not even a count). Each level
+removes a hint the stored pair already knows; none adds content, which is what separates the
+ladder from inventing items. Raised within a sitting after a correct answer and lowered after
+a wrong one, never persisted (ADRs 0204–0205).
+_Avoid_: difficulty level, tier, stage (they suggest a stored rating; nothing is stored).
+
 **Documented error**:
 A real Thai-learner sentence from #16's cited research, used as a **Drill item** when the
 **Mistake profile** has no sample of the user's own — on day one, or for a class whose
