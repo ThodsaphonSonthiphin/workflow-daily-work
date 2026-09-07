@@ -391,3 +391,55 @@ conversation never holds the images. Unlike `document-what-shipped` it must stay
 therefore unloadable by another Skill (ADR 0141).
 _Avoid_: image reader (too generic), OCR step (it answers a question, it does not
 transcribe), vision tool.
+
+## practice-english-writing terms (dev-workflows plugin)
+
+**Minimal fix**:
+The first of the two outputs the rewrite always returns — the smallest correction that
+makes the message right, where every change is attributable to one **Error class** and
+is shown that way. The user's frame, vocabulary and length survive it, which is what
+makes it learnable (ADR 0175).
+_Avoid_: correction, level 1, the fix (all lose the *minimal* constraint, which is the
+whole content of the term).
+
+**Natural version**:
+The second output — how a fluent writer would actually put the same message, in the
+detected **Register**. It may reorder, shorten or reframe freely. The distance between
+it and the **Minimal fix** is the lesson, not a byproduct: it carries the L1 shape
+difference that no **Error class** can name, because it is not an error (ADR 0175).
+_Avoid_: the rewrite (ambiguous — both levels are rewrites), polished version, native
+version (it is a register match, not a claim about who wrote it).
+
+**Error class**:
+One named, frozen category of mistake — `article`, `sv-agreement`, `preposition`,
+`plural`, `word-choice`, `verb-tense`, `copula`, `existential` — carrying an English
+label for the card and a Thai label for the explanation. The set is deliberately **open**:
+`other` is reserved, and observed frequency overrides the published ranking, because the
+evidence is drawn from a register nobody has sampled. Slugs are frozen on first use since
+they key the mistake memory.
+_Avoid_: error type, category, tag (the set is closed-ish and named — these suggest free
+labelling).
+
+**Protected span**:
+Text the rewrite copies through byte for byte. Delimited spans — backticks, fenced
+blocks, quotes — are protected mechanically and absolutely; bare tokens recognised as
+identifiers are protected best-effort and **flagged**, because the user who most needs
+this skill is the one least likely to have added the backticks (ADR 0176).
+_Avoid_: code block (only one of the shapes), literal, escaped text.
+
+**Guess flag**:
+The visible mark saying the skill decided something the message did not encode — most
+often noun number, which Thai leaves unmarked. Distinct from an **Error class** label,
+and never rendered alike: a guess flag says *I decided something you did not say*, an
+error label says *you got this wrong*. Where the guess would change the **scope of an
+instruction**, the skill asks instead of flagging (ADR 0177).
+_Avoid_: warning, assumption, note (none of them carry the contrast with an error label,
+which is the point of the term).
+
+**Register**:
+The kind of text a message is — commit subject, prompt, chat to a person, PR description
+— inferred per message rather than fixed, and named in the output so a wrong read costs
+one line. Natural everyday English is the **default**, not the only setting: a subjectless
+imperative commit line is correct, and correcting it would teach a false rule (ADR 0178).
+_Avoid_: tone, style, formality (all narrower — register decides grammar norms here, not
+just wording).
