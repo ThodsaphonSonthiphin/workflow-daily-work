@@ -477,6 +477,14 @@ in the **Mistake profile** first so the user is less likely to recall rather tha
 (ADR 0197).
 _Avoid_: exercise, question, quiz item (all admit the invented items ticket #16 ruled out).
 
+**Verdict**:
+The outcome of one **Error class** inside one **Drill item** — never a single pass/fail for
+the sentence. An answer passes a class when it repairs that class in correct English, whether
+or not it matches the stored correction; a divergent correct answer passes and the difference
+between the two is shown as a lesson, not a correction. Each verdict moves that class's
+**Hint level** on its own evidence (ADRs 0206–0207).
+_Avoid_: score, mark, grade (they suggest a tally; nothing is tallied and nothing is stored).
+
 **Hint level**:
 How much a **Drill item** withholds — `named` (the **Error class** is stated), `unnamed`
 (only that there is one error), or `open` (the sentence alone, not even a count). Each level
