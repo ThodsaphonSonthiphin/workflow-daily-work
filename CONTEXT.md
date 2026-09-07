@@ -439,6 +439,15 @@ instruction**, the skill asks instead of flagging (ADR 0177).
 _Avoid_: warning, assumption, note (none of them carry the contrast with an error label,
 which is the point of the term).
 
+**Register correction**:
+The user saying, in plain words, that the detected **Register** was wrong. It re-runs the
+whole correction rather than relabelling it — the register decides which **Error class**es
+apply at all, so a wrong read produces wrong labels and not merely wrong style — and the
+re-run replaces the **Mistake profile** entry the first run wrote, deleting counts that
+were never errors (ADRs 0191–0193). Possible only while that write is still in the
+conversation; afterwards the remedy is editing the profile by hand.
+_Avoid_: override, force, flag (all imply a syntax — it is plain language, deliberately).
+
 **Mistake profile**:
 The single store of the user's recurring errors — one file the skill owns at a fixed path
 outside every project, holding per **Error class** a count, a last-seen date, a breakdown
