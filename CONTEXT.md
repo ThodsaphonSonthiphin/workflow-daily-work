@@ -465,6 +465,22 @@ hold, and the trigger that restores its full explanation. Distinct from asking, 
 expands one message without changing the class's **Short form** state (ADR 0186).
 _Avoid_: regression, backslide, repeat.
 
+**Explanation**:
+The two-line Thai text for one **Error class** — line 1 the fact about Thai, line 2 what
+English does instead. Plain Thai, no particles, hard two-line ceiling. All nine are
+canonical in `plugins/dev-workflows/references/english-error-explanations.md` and nowhere
+else (ADRs 0187–0188). Withheld in the **Short form**, restored on **Relapse** or on
+request.
+_Avoid_: description, note, tip (it states a mechanism, not advice).
+
+**Caveat**:
+The precise version of an **Explanation**, kept below it and shown only on request. Exists
+only where the two-line version is knowingly coarser than the truth — its absence means
+the explanation is accurate as written. Carries its source, because the **user** is
+authoritative on whether the Thai reads naturally while the cited source is authoritative
+on whether the claim about Thai is true (ADR 0189).
+_Avoid_: footnote, disclaimer, exception (it is the accurate version, not an edge case).
+
 **Register**:
 The kind of text a message is — commit subject, prompt, chat to a person, PR description
 — inferred per message rather than fixed, and named in the output so a wrong read costs
