@@ -412,8 +412,11 @@ version (it is a register match, not a claim about who wrote it).
 
 **Error class**:
 One named, frozen category of mistake — `article`, `sv-agreement`, `preposition`,
-`plural`, `word-choice`, `verb-tense`, `copula`, `existential` — carrying an English
-label for the card and a Thai label for the explanation. The set is deliberately **open**:
+`plural`, `word-choice`, `verb-tense`, `copula`, `existential`, `capitalisation` —
+carrying an English label for the card and a Thai label for the explanation. Eight were
+recommended by the research; `capitalisation` was added as the ninth on the first rendered
+card, which is the open-set rule working as designed (ADR 0180). The set is deliberately
+**open**:
 `other` is reserved, and observed frequency overrides the published ranking, because the
 evidence is drawn from a register nobody has sampled. Slugs are frozen on first use since
 they key the mistake memory.
