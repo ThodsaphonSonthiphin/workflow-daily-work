@@ -42,3 +42,11 @@ requires. One Thai explanation per class is the confirmed level of detail.
 
 This makes ticket #24 (`long-input-behaviour`) sharper rather than easier: 30 lines for one
 sentence is the best case, and the card has no answer yet for a paragraph.
+
+**Amended 2026-09-07 by [ADR 0195](workflow-daily-work-0195-the-compact-card-drops-the-echo-diffs-the-fix-and-aggregates-labels.md).**
+This ADR calls the card a fixed format, and it now has **two** forms. The full card above is
+used while its predicted length stays under about forty lines; past that a **compact** form
+drops the echo of the original, shows the minimal fix as its changed lines only, and replaces
+per-instance labels with per-class counts — keeping both levels, the whole natural version,
+and the lesson-first ordering this ADR chose. Both forms are fixed; neither is free prose.
+The selection rule is [ADR 0194](workflow-daily-work-0194-the-compact-card-triggers-on-predicted-length-not-input-size.md).

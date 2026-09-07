@@ -459,6 +459,15 @@ rather than a parser, so the user can open and correct it (ADR 0183).
 _Avoid_: memory, history, log (it is an aggregate with a bounded sample, never a log —
 ADR 0182), stats.
 
+**Compact card**:
+The second of the card's two fixed forms, used when its predicted length would exceed about
+forty lines. It drops the echo of the original, shows the **Minimal fix** as its changed
+lines only, and replaces per-instance **Error class** labels with per-class counts — keeping
+both levels, the whole **Natural version** as the copy target, and the lesson-first ordering
+(ADRs 0194–0195). Selected by arithmetic on the card, never by **Register**.
+_Avoid_: short card (collides with **Short form**, which is a per-class state, not a card
+form), summary mode, truncated (nothing is truncated — redundancy is removed).
+
 **Short form**:
 The collapsed state of one **Error class** on the card — the fix and the class label, with
 the Thai mechanism explanation withheld. A class enters it after ten distinct days of
