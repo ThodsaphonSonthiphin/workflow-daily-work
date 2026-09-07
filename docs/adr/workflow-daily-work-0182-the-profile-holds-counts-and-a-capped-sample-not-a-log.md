@@ -36,3 +36,10 @@ makes the file editable.
 The profile also carries a **label-set version**, as #16 required, so that a future rename
 of a class slug can migrate the recorded history instead of orphaning it. The set is nine
 as of [ADR 0180](workflow-daily-work-0180-capitalisation-is-the-ninth-error-class.md).
+
+**Amended 2026-09-07 by [ADR 0185](workflow-daily-work-0185-the-collapse-trigger-counts-distinct-days-not-occurrences.md).**
+The per-class record above carries a `count` and a `lastSeen`, which cannot distinguish ten
+occurrences on one day from ten across ten days. Each class therefore also carries the
+number of **distinct days it has fired**, incremented at most once per calendar day. It is
+what the card's collapse trigger reads; the raw `count` is unchanged and is still what
+`progress-signal` (#21) and the frequency-overrides-the-literature rule from #16 depend on.

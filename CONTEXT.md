@@ -442,12 +442,28 @@ which is the point of the term).
 **Mistake profile**:
 The single store of the user's recurring errors — one file the skill owns at a fixed path
 outside every project, holding per **Error class** a count, a last-seen date, a breakdown
-by **Register**, and a capped FIFO sample of real before/after pairs. Deliberately *not*
+by **Register**, a tally of the distinct days it has fired, and a capped FIFO sample of
+real before/after pairs. Deliberately *not*
 in Claude's per-project memory directory: that store is scoped to one repo, and four
 partial histories measure nothing (ADR 0181). Markdown, because its reader is a model
 rather than a parser, so the user can open and correct it (ADR 0183).
 _Avoid_: memory, history, log (it is an aggregate with a bounded sample, never a log —
 ADR 0182), stats.
+
+**Short form**:
+The collapsed state of one **Error class** on the card — the fix and the class label, with
+the Thai mechanism explanation withheld. A class enters it after ten distinct days of
+exposure and leaves it on **relapse**, or for one message when the user asks (ADRs
+0184–0186). It is a judgement about what is needed by default, never about what may be
+seen.
+_Avoid_: collapsed, hidden, summary (the fix and label are still fully shown — only the
+mechanism text is withheld).
+
+**Relapse**:
+An **Error class** firing again after a quiet stretch — the signal that the rule did not
+hold, and the trigger that restores its full explanation. Distinct from asking, which
+expands one message without changing the class's **Short form** state (ADR 0186).
+_Avoid_: regression, backslide, repeat.
 
 **Register**:
 The kind of text a message is — commit subject, prompt, chat to a person, PR description
