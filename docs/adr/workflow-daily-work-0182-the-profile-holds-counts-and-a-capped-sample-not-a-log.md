@@ -43,3 +43,13 @@ occurrences on one day from ten across ten days. Each class therefore also carri
 number of **distinct days it has fired**, incremented at most once per calendar day. It is
 what the card's collapse trigger reads; the raw `count` is unchanged and is still what
 `progress-signal` (#21) and the frequency-overrides-the-literature rule from #16 depend on.
+
+**Amended 2026-09-07 by [ADR 0202](workflow-daily-work-0202-the-quiet-list-is-cross-checked-against-register-activity.md).**
+This ADR describes a per-class record and no profile-level state. The quiet list must be able
+to ask *"is the user still writing commits?"*, and `byRegister` holds cumulative counts
+rather than dates. The profile therefore also carries a top-level **`registers`** map: per
+register, the date a correction was last **run** in it, whether or not it found an error.
+Deriving this from the newest per-class `lastSeen` instead would be wrong in the worst
+direction — a user writing that register *perfectly* advances no `lastSeen`, so the register
+would look abandoned and their improvement would be hidden. It is deliberately **only a
+date**; a per-register count would be the denominator ADR 0201 declined to add.

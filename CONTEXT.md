@@ -459,6 +459,16 @@ rather than a parser, so the user can open and correct it (ADR 0183).
 _Avoid_: memory, history, log (it is an aggregate with a bounded sample, never a log —
 ADR 0182), stats.
 
+**Quiet list**:
+The progress signal — the **Error class**es that have not fired in a long time, read off
+`lastSeen`, shown beside the ones still firing, and only when asked. A class is listed only
+if the user is still active in the registers where it used to fire, so silence caused by
+having stopped writing that kind of text is not reported as progress (ADRs 0201–0202). It
+reports what the skill saw, never that the user's English improved — no score, no trend, no
+comparison (ADR 0203).
+_Avoid_: progress report, improvement, streak, score (each implies a denominator the
+**Mistake profile** does not have).
+
 **Drill item**:
 One unit of practice — a real sentence the user wrote wrong, shown back for them to correct,
 compared against the correction already made. Production, not recognition: a multiple choice
