@@ -38,3 +38,29 @@ card is too long to read". Predicted length is the thing itself.
 The forty-line threshold is a **stated value, not a derived one** — the same treatment
 ADR 0184 gave its ten days and fourteen days. It is written where it can be read and
 changed, and the skill says which value it used.
+
+**Amended 2026-09-07, during the build (ticket #22).** The formula above,
+`3N + 3C + 5`, **overcounts**. It charges three lines per *change*, but a Thai explanation
+is printed **once per error class, not once per instance** — a class that fires twice is
+explained once. Laying the card out by hand on this ADR's own worked example (N=3, C=10,
+five distinct classes explained) gave about **38** lines against a prediction of **44**,
+and the error grows with every repeated class.
+
+The corrected prediction is:
+
+```
+3N + C + 2F + 5
+```
+
+where `F` is the number of distinct error classes **currently in full form** — the classes
+that will actually print a two-line explanation. Every change still costs its own line
+(`C`); only the explanation is per class. On the same example this gives **34**.
+
+Nothing else in this ADR changes. Predicted length is still the trigger, the threshold is
+still about forty lines, and it is still self-adjusting — more so, in fact: as
+[ADR 0184](workflow-daily-work-0184-a-class-explanation-collapses-after-n-and-returns-on-relapse.md)
+collapses classes, `F` falls to zero while `C` stays, so the term that shrinks is exactly
+the one that should.
+
+Found by laying out a real card rather than by re-reading the arithmetic — the compile-gate
+failure mode the map warns about.

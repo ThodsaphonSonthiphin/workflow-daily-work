@@ -53,6 +53,7 @@ flowchart TD
     WORK -- auditing names/mappings --> NA["naming-audit /<br/>fit-gap-analysis"]
     WORK -- what is this? / too long, can't read --> FE["feynman-explain"]
     WORK -- I own this but do not understand it --> ATU["asking-to-understand<br/>(/ask)"]
+    WORK -- my own English is wrong --> PEW["practice-english-writing"]
     ATU -. want it explained instead .-> FE
     FE -. want it clickable .-> PD
     WORK -- explaining a problem --> PD["problem-description"]
@@ -89,6 +90,7 @@ flowchart TD
 | "what is this / how does it work?" — or an answer came back too long to read | `feynman-explain` (`/feynman`) — fixed short card: plain explanation, the fuzzy parts named, gaps filled from real evidence, 30-second line |
 | work you OWN but do not understand — a map/plan/pipeline an AI built for you, or "ถามให้คิดหน่อย" / "grill me" | `asking-to-understand` (`/ask`) — the Socratic side of `/feynman`: one evidence-grounded question per turn, symptom pushed to mechanism, stops when you state the rule |
 | the agent's *last message* lost you — "wait", "หา?", "งง", "say that again" | `wait-what` (`/wait-what`) — re-pitches that one message with a little context, in ASD-STE100 Simplified Technical English, using `CONTEXT.md`'s ubiquitous language. Vendored verbatim from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT); manual invocation only |
+| your own English is the problem — you are writing a message, commit or PR and the English is wrong or does not sound right ("แก้อังกฤษให้หน่อย", "is my English right", "make this sound natural") | `practice-english-writing` (`/practice-english-writing`) — Thai or broken English in; the smallest correction with every change labelled by error class and explained in Thai, then the natural version. Detects the register, so a subjectless commit subject is not "corrected" into prose. Writing only — for English you are trying to UNDERSTAND, use `/feynman` |
 | explaining a complex problem | `problem-description` |
 | "why does this code/ticket exist?" | `ticket-trace` |
 | a picture that has to be read - a screenshot, a ticket attachment, an exported image - and a specific question about it | `read-picture` — answers one named question per picture and records it in the project's `picture-record.jsonl`, so no later run and no other skill re-reads the same image for the same question. Called by `document-what-shipped` and `ticket-trace`; usable directly |
