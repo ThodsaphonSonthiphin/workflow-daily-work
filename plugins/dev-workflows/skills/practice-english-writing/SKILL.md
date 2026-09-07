@@ -1,6 +1,6 @@
 ---
 name: practice-english-writing
-description: Fix and teach the user's written English, on demand. Turns Thai or broken English into natural everyday English, shows the smallest correction with every change labelled by error class and explained in Thai, then the natural version. Use when the user invokes /practice-english-writing, or asks to check / fix / correct their English, "แก้อังกฤษให้หน่อย", "ประโยคนี้ถูกไหม", "เขียนอังกฤษยังไงดี", "is my English right", "make this sound natural", "help me write this in English" — or hands over a message, commit message, PR description or chat reply they are about to send. Writing only; for English the user is trying to UNDERSTAND, use feynman-explain instead.
+description: Fix and teach the user's written English, on demand. Turns Thai or broken English into natural everyday English, shows the smallest correction with every change labelled by error class and explained in Thai, then the natural version. Use when the user invokes /practice-english-writing, or asks to check / fix / correct their English, "แก้อังกฤษให้หน่อย", "ประโยคนี้ถูกไหม", "เขียนอังกฤษยังไงดี", "is my English right", "make this sound natural", "help me write this in English" — or hands over a message, commit message, PR description or chat reply they are about to send. Also carries a PRACTICE mode - use when the user asks to practise, drill or be quizzed on their own past mistakes ("ฝึกอังกฤษหน่อย", "practice my English", "drill me", "quiz me on my mistakes") - and a progress view, for "ดีขึ้นไหม", "am I getting better", "what have I stopped getting wrong". Writing only; for English the user is trying to UNDERSTAND, use feynman-explain instead.
 ---
 
 # Practice English Writing
@@ -123,6 +123,12 @@ has fired (at most one per calendar day), a breakdown **by register**, and a **c
 FIFO sample of a few real before/after pairs. It is an aggregate, never a log. Carry a
 **label-set version** so a future slug rename can migrate the history.
 
+Also keep a top-level **`registers`** map: per register, the date a correction was last
+**run** in it — **whether or not it found anything**. This is activity, not errors, and the
+distinction is the whole point: a user writing commits *perfectly* produces no errors, so
+deriving the date from error records would make the register look abandoned and would hide
+their improvement. Write it on **every** run.
+
 Rewrite the file rather than appending, so hand edits are absorbed. The user may edit it
 and their edits win — there is nowhere else it is written. Samples are the user's own
 sentences on disk; if they ask to clear them, clear them.
@@ -146,3 +152,95 @@ error labels under a corrected header. The user's stated register beats the dete
 **Replace what the first run wrote in the profile.** Counts that were never errors under
 the right register are **deleted**, not moved to another bucket. This works only while that
 write is still in the conversation; afterwards, tell the user the profile is theirs to edit.
+
+
+## Practice mode
+
+A second mode of this same skill, asked for explicitly. It **never runs on its own**.
+
+### A sitting is five items
+
+Each item shows **one real sentence the user wrote wrong**; they type the correction. Draw
+the **oldest** samples in the FIFO first — the most recently added is the one they are most
+likely to simply remember.
+
+Pick classes by their **collapse state**, not by how often they fire: drill the classes still
+in **full** form, and any that have **relapsed**. A class that has collapsed has landed —
+leave it alone. When every class has collapsed there is nothing to drill, and saying so is
+the right answer rather than manufacturing items.
+
+**When several classes are equally eligible — always on the first run, where none has any
+exposure yet — order them by the research ranking:** `article`, `sv-agreement`,
+`preposition`, `plural`, `word-choice`, `verb-tense`, `copula`, `existential`,
+`capitalisation`. That is the expected-frequency order from ticket #16, and on day one it is
+the only evidence available. It is a **tiebreak, never a weighting**: as soon as classes
+differ in collapse state, that difference decides and the ranking is not consulted.
+
+If a class in full form has no usable sample — the first run, or the user deleted theirs —
+take its **documented error** from
+`${CLAUDE_PLUGIN_ROOT}/references/english-error-explanations.md`, and **say plainly that it
+is not their own sentence**. `capitalisation` has no documented seed on purpose; it simply
+does not appear until they make one.
+
+### Hint levels — withhold more, not add more
+
+| level | what the item says |
+|---|---|
+| `named` | names **every** class in the item — "there is an `article` and a `copula` error here" |
+| `unnamed` | gives only the **count** — "there are two errors here; find them" |
+| `open` | the sentence alone. Not even how many |
+
+**`named` names them all, not just the one the item was selected for.** A sample often
+carries two classes, and every class in it is graded — so naming one and grading two would
+mark the user wrong on something the level promised to tell them.
+
+Every class starts a sitting at `named`. Raise it after a correct answer for that class,
+lower it after a wrong one. **Nothing persists** — the ramp lives in this sitting and dies
+with it.
+
+### Grading — per class, and matching is not the test
+
+The stored correction is **one** right answer, not **the** right answer. Judge each targeted
+class on whether the answer **repairs that class in correct English**. Give **one verdict per
+error class**, never a single pass or fail for the sentence — at `open` the user was never
+told what to look for, so *which* class they missed is the whole content of the feedback.
+
+- **Answer differs and is correct** → it **passes**. Then show **both** versions and what
+  separates them, in a line or two. This is the same gap the two-level card exists for, and
+  here the user produced it themselves. Nothing is marked wrong.
+- **A class was missed** → say so, with that class's explanation, under the same short-form
+  rules as the card.
+- **The answer introduces a new error** → name it with the same nine classes. It **changes no
+  verdict**: fixing what was asked is a pass even if the sentence gained a different flaw.
+
+**Write nothing.** No count, no register, no sample, no distinct day — a drill is not the
+user's real writing, and a drill deliberately over-samples what they have not learned, so
+recording it would distort the profile in exactly the direction that matters most.
+
+## The quiet list
+
+The progress signal. Show it **only when asked** — never on a card, never after a sitting
+unless requested.
+
+Read it off `lastSeen`: the classes that have **not fired for at least the relapse gap**
+(the same 14 days, so a class on the quiet list is exactly one whose return tomorrow would
+count as a relapse). Show the classes still firing beside them; a list of only successes is
+a different and worse artefact.
+
+**Cross-check every entry against the `registers` map.** A class only counts as quiet if the
+user is still writing in the registers where it used to fire. A class that has gone silent
+because they stopped writing commits is **not** progress and must not be listed as any.
+
+**What it must never do.** It reports what this skill saw, and stops there:
+
+- never claim the user's English improved — it observed corrections, and most writing never
+  passes through here;
+- no score, grade, level, streak or percentage — each implies a denominator that does not
+  exist;
+- no trend — the profile is an aggregate, not a history;
+- no use of drill results — they are not recorded, and that is not to be worked around by
+  reading the sitting instead;
+- no comparison to anyone;
+- no congratulation on a collapse — collapse counts exposure days, so it marks attendance.
+
+Say that limit out loud as part of the signal. It is not a disclaimer attached afterwards.

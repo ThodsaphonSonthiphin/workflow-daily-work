@@ -31,3 +31,18 @@ sentence with no one telling you anything is in it.
 Grading is unchanged across the three levels — the answer is compared against the correction
 already made. How to grade an answer that differs from that correction but is also correct
 English remains open, and is recorded as fog on the map.
+
+**Amended 2026-09-07, during the build (ticket #23).** The ladder above describes `named` as
+naming *the* class and `unnamed` as saying there is *one* error. Tracing a sitting by hand
+showed both are wrong whenever a sample carries **two** classes, which is common — *"when user
+not login yet"* holds an `article` and a `copula` error.
+
+An item selected for `article` grades **both** classes, because
+[ADR 0207](workflow-daily-work-0207-the-drill-verdict-is-per-error-class-not-per-item.md)
+grades every class in the stored pair. So naming one and grading two marks the user wrong on
+something the level explicitly promised to tell them.
+
+Corrected: **`named` names every class in the item**, and **`unnamed` gives the count** rather
+than asserting there is one. `open` is unchanged — it says nothing, which was already right.
+The ladder still only ever *removes* information; it now removes the right amount at each
+step.

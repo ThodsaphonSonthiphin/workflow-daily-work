@@ -106,6 +106,37 @@ Reserved, per the open-set rule (ADR 0180 and ticket #16). It has **no canonical
 explanation** — a correction filed under `other` carries a free-text note instead, and
 those notes are the evidence for what the tenth class should be.
 
+## Documented errors — the day-one seed
+
+Used as **Drill items** only when the **Mistake profile** has no sample of the user's own —
+on the first run, or for a class whose samples were deleted (ADR 0199). Every sentence below
+is a real error by a real Thai writer, taken from the sources at the foot of this file. **None
+is invented, and none may be**: a seed without a citation is indistinguishable from a
+fabricated one, which is what ticket #16 ruled out.
+
+The drill must say plainly that these are not the user's own sentences.
+
+| class | documented error | correct | source |
+|---|---|---|---|
+| `article` | *I was like a dogs.* | I was like a dog. | Suraprajit 2021 |
+| `plural` | *I was like a dogs.* | I was like a dog. | Suraprajit 2021 |
+| `sv-agreement` | *She like gardening.* | She likes gardening. | Suraprajit 2021 |
+| `verb-tense` | *I start over at KU last year.* | I started over at KU last year. | Suraprajit 2021 |
+| `copula` | *it hard to find a job* | it is hard to find a job | Suraprajit 2021 |
+| `preposition` | *I ask to my father.* | I asked my father. | Suraprajit 2021 |
+| `existential` | *Have many trees in the university.* | There are many trees in the university. | Kaweera 2013 |
+| `word-choice` | *the company decided to open the song again* | the company decided to play the song again | Takahashi & Thumawongsa 2024 |
+| `capitalisation` | **none** | | — |
+
+**`capitalisation` has no documented seed, and one must not be written for it.** The research
+on ticket #16 collected no cited example of a Thai-learner capitalisation error — the class
+was added from the user's own review of a real card (ADR 0180), not from the literature. So
+`capitalisation` simply does not appear in day-one drills. It appears as soon as the user
+makes one, which in practice is almost immediately, since Thai has no upper and lower case at
+all.
+
+Leaving the cell empty is the correct outcome, not a gap to fill.
+
 ## Sources
 
 Thai facts above are drawn from the research recorded on ticket #16 of Decision map #15 —
