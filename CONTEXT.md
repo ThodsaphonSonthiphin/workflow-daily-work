@@ -459,6 +459,22 @@ rather than a parser, so the user can open and correct it (ADR 0183).
 _Avoid_: memory, history, log (it is an aggregate with a bounded sample, never a log —
 ADR 0182), stats.
 
+**Drill item**:
+One unit of practice — a real sentence the user wrote wrong, shown back for them to correct,
+compared against the correction already made. Production, not recognition: a multiple choice
+tests picking the right answer, not writing it unprompted. Five to a sitting, oldest samples
+in the **Mistake profile** first so the user is less likely to recall rather than know
+(ADR 0197).
+_Avoid_: exercise, question, quiz item (all admit the invented items ticket #16 ruled out).
+
+**Documented error**:
+A real Thai-learner sentence from #16's cited research, used as a **Drill item** when the
+**Mistake profile** has no sample of the user's own — on day one, or for a class whose
+samples were deleted. Documented and attributed, never invented, and always labelled as not
+the user's own. Falls away on its own as real samples accumulate (ADR 0199).
+_Avoid_: sample sentence, example, seed data (none of them carry the citation, which is the
+whole point).
+
 **Compact card**:
 The second of the card's two fixed forms, used when its predicted length would exceed about
 forty lines. It drops the echo of the original, shows the **Minimal fix** as its changed
