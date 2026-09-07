@@ -439,6 +439,16 @@ instruction**, the skill asks instead of flagging (ADR 0177).
 _Avoid_: warning, assumption, note (none of them carry the contrast with an error label,
 which is the point of the term).
 
+**Mistake profile**:
+The single store of the user's recurring errors — one file the skill owns at a fixed path
+outside every project, holding per **Error class** a count, a last-seen date, a breakdown
+by **Register**, and a capped FIFO sample of real before/after pairs. Deliberately *not*
+in Claude's per-project memory directory: that store is scoped to one repo, and four
+partial histories measure nothing (ADR 0181). Markdown, because its reader is a model
+rather than a parser, so the user can open and correct it (ADR 0183).
+_Avoid_: memory, history, log (it is an aggregate with a bounded sample, never a log —
+ADR 0182), stats.
+
 **Register**:
 The kind of text a message is — commit subject, prompt, chat to a person, PR description
 — inferred per message rather than fixed, and named in the output so a wrong read costs
