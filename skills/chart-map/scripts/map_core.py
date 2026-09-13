@@ -138,8 +138,8 @@ EMPTY_LIST_LINE = "- (none)"
 # toward --force must carry this.
 #
 # The map-body half is named too, and is the half nothing else warns about: the
-# decisions index self-heals (the next resolve re-projects it), but the four
-# list regions do not. Measured: a map holding one milestone, force-charted from
+# decisions index is re-projected inside the same run (ADR 0211), but the four
+# list regions are not. Measured: a map holding one milestone, force-charted from
 # an input that omits `milestones`, comes back "- (none)" with divergence []
 # and detail null. Removing a milestone is a deliberate hand edit by design
 # (ADR 0098) -- --force is the one path that does it wholesale and in silence.
@@ -950,7 +950,10 @@ def decisions_region(entries, milestones=None):
     `(<closed>/<total> closed)`, then an "(unassigned)" tail. A milestone with
     nothing closed yet is rendered, not omitted: its heading is the
     information ("this increment exists, 0/N done"), with a
-    `_nothing closed yet_` line under it; an EMPTY milestone (no members)
+    `_nothing closed yet_` line under it (only when the count itself says
+    nothing closed -- a member a hand edit listed under two milestones renders
+    under the first, and the second heading keeps its count with no body);
+    an EMPTY milestone (no members)
     says `(0/0 closed — no tickets yet)` in the heading and has no body. The
     counts come from `milestone_progress`, the same function `frontier`
     reports through, with every entry here counted as closed -- so the file
@@ -1006,7 +1009,7 @@ def decisions_region(entries, milestones=None):
             if group:
                 render(group)
                 lines.append("\n")
-            elif row["total"]:
+            elif row["total"] and not row["closed"]:
                 lines.append("_nothing closed yet_\n\n")
         remaining = [e for e in entries if e[0] not in taken]
         if remaining:
@@ -1717,9 +1720,11 @@ def lint_findings(map_text, tickets, resolution_bodies=True):
                 f"milestone {slug!r} is declared more than once; frontier.json's "
                 "milestones list ends up with one row per declaration, all "
                 f"slugged {slug!r} (each counting only its own members), and "
-                "the decisions index renders every member under the FIRST "
-                "entry's heading -- so what actually goes missing is the label "
-                "of every entry after the first, not any member"))
+                "the decisions index renders the FIRST declaration only -- its "
+                "own count and members under its heading; a closed ticket listed "
+                "only by a later duplicate falls to the (unassigned) tail "
+                "(ADR 0213) -- so what goes missing is the label of every entry "
+                "after the first"))
         seen_slugs.add(slug)
         # Within ONE line as well as across lines. A key repeated inside a
         # single milestone is invisible to the cross-milestone check below
