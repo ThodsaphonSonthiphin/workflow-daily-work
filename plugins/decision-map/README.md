@@ -41,6 +41,7 @@ ordinary delivery practice can place it quickly:
 | fog | unknown-unknowns, the parking lot |
 | frontier | the ready queue — unblocked, unclaimed tickets |
 | Milestone | shippable increment, release slice |
+| Empty milestone | a placeholder increment — a "TBD phase" that is still on the plan |
 | claim | assignment, plus a WIP limit of one |
 | dry-run gate | `plan` before `apply` |
 | ADR | ADR — the same artifact |
@@ -90,7 +91,12 @@ flowchart TD
     L -->|"a milestone completed"| M["build that increment:<br/>sp-writing-plans → execute"]
     L -->|"frontier empty, fog remains"| N["graduate the sharpest fog<br/>into a new ticket"]
     N --> E
-    L -->|"empty and no fog left"| O["map done — hand off to<br/>sp-writing-plans → build"]
+    L -->|"frontier empty, no fog,<br/>a milestone has no tickets"| P{"still needs a decision?<br/>(asked once, HITL)"}
+    P -->|"yes"| R["name its first decision →<br/>a ticket in that milestone"]
+    R --> E
+    P -->|"no"| Q["the user removes the line<br/>by hand; lint"]
+    Q --> L
+    L -->|"empty, no fog, no empty milestone"| O["map done — hand off to<br/>sp-writing-plans → build"]
     M --> E
 ```
 
