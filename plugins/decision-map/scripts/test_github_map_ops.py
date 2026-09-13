@@ -606,6 +606,67 @@ class TestResolve(Base):
 class GitHubGroupedIndexTest(Base):
     """The same grouping as the local backend, against the tracker (ADR 0103)."""
 
+    def _decisions(self):
+        body = map_core.norm_eol(self.fake.body_of(self.map_number()))
+        return map_core.region_body(body, map_core.DECISIONS_START,
+                                    map_core.DECISIONS_END)
+
+    def test_charting_milestones_writes_their_headings_in_the_create_call(self):
+        # ADR 0211 on a tracker: the index rides in the POST that creates the
+        # map -- never a second write, which would show in the issue timeline
+        # and bump the call budget the contract writes down.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it", "members": ["auth-model"]},
+            {"slug": "later", "label": "retire the old provider", "members": []}]
+        self.chart(inp)
+        inner = self._decisions()
+        self.assertIn("#### mvp — demo it (0/1 closed)\n\n_nothing closed yet_\n", inner)
+        self.assertIn(
+            "#### later — retire the old provider (0/0 closed — no tickets yet)\n", inner)
+        n = self.map_number()
+        map_patches = [w for w in self.fake.writes
+                       if w[0] == "PATCH" and w[1].endswith(f"/issues/{n}")]
+        self.assertEqual(map_patches, [], self.fake.writes)
+
+    def test_an_additive_chart_that_adds_a_milestone_patches_the_map_once_with_its_heading(self):
+        self.chart()
+        self.fake.reset_counters()
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it", "members": ["auth-model"]}]
+        self.chart(inp)
+        patched = [w for w in self.fake.writes if w[0] == "PATCH"]
+        self.assertEqual(len(patched), 1, f"only the map body: {self.fake.writes}")
+        self.assertIn("#### mvp — demo it (0/1 closed)", patched[0][2]["body"])
+
+    def test_an_identical_re_chart_of_a_milestoned_map_writes_nothing(self):
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it", "members": ["auth-model"]}]
+        self.chart(inp)
+        self.fake.reset_counters()
+        self.chart(inp)
+        self.assertEqual(self.fake.write_count, 0, self.fake.writes)
+
+    def test_force_leaves_the_index_fully_re_projected(self):
+        # Mirror of the local test: a still-closed ticket the input does not
+        # name stays listed; the rewritten one is open again and drops out.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it",
+             "members": ["auth-model", "rollout-order"]}]
+        self.chart(inp)
+        gh.resolve(self.ops, "billing", "auth-model", "shared keys", None, None)
+        gh.resolve(self.ops, "billing", "rollout-order", "prod last", None, None)
+        narrow = copy.deepcopy(inp)
+        narrow["tickets"] = [t for t in inp["tickets"] if t["key"] == "rollout-order"]
+        self.chart(narrow, force=True)
+        inner = self._decisions()
+        self.assertIn("#### mvp — demo it (1/2 closed)", inner)
+        self.assertIn("shared keys", inner, "untouched and still closed: listed")
+        self.assertNotIn("prod last", inner, "rewritten, so open again: dropped")
+
     def test_resolving_writes_a_grouped_index(self):
         inp = copy.deepcopy(INPUT)
         inp["map"]["milestones"] = [
