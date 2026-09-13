@@ -386,8 +386,10 @@ def _chart_plan(root, inp, force):
       - "create"        the file doesn't exist yet
       - "skip (exists)" the file exists and will not be touched at all
       - "merge"         the file exists and is modified in place, additively:
-                        map.md gaining fog / out-of-scope lines, or a ticket
-                        gaining a blockedBy entry (ADR 0058)
+                        map.md gaining fog / out-of-scope / milestone lines
+                        (and, whenever map.md is written at all, its decisions
+                        index re-projected -- ADR 0211), or a ticket gaining a
+                        blockedBy entry (ADR 0058)
       - "OVERWRITE"     the file exists and force=True (explicit full rewrite)
     "refuse" is gone: ADR 0057 supersedes refuse-by-default. A "skip" must
     never write -- the surviving guard on round 1's Critical -- which is why
@@ -568,6 +570,15 @@ def chart(root, inp, real, force=False):
         fm, body = _load_ticket(root, slug, key)
         _save_ticket(root, slug, key, fm,
                      _set_graph_region(body, _graph_region_for(root, slug, key)))
+    # ADR 0211: the map body was written above (create / merge / OVERWRITE), so
+    # the decisions index it carries is re-projected in this same run -- every
+    # declared milestone with its closed/total, the ones this run declared
+    # included. Done after the passes so the tickets this run created (open)
+    # and the ones --force reopened are what the projection sees. A map
+    # labelled "skip (exists)" was not written and is not touched here either:
+    # a stale index is never the reason an identical re-chart writes.
+    if actions[base / "map.md"] != "skip (exists)":
+        _reindex_decisions(root, slug)
     for d in div:
         print(f"chart: divergence: {d}", file=sys.stderr)
     out = read_map(root, slug)

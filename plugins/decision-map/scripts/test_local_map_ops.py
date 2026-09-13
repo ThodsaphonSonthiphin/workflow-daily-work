@@ -3376,6 +3376,73 @@ class LocalGroupedIndexTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def _decisions(self):
+        text = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
+        return map_core.region_body(text, map_core.DECISIONS_START,
+                                    map_core.DECISIONS_END)
+
+    def test_charting_milestones_writes_their_headings_before_anything_closes(self):
+        # ADR 0211: the index is the map's status board from day one, so a
+        # freshly charted map already says which increments exist and 0/N.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it",
+             "members": ["auth-model", "rollout-order"]},
+            {"slug": "later", "label": "retire the old provider", "members": []}]
+        ops.chart(self.root, inp, real=True)
+        body = self._decisions()
+        self.assertIn("#### mvp — demo it (0/2 closed)\n\n_nothing closed yet_\n", body)
+        self.assertIn(
+            "#### later — retire the old provider (0/0 closed — no tickets yet)\n", body)
+
+    def test_an_additive_chart_that_adds_a_milestone_writes_its_heading_in_the_same_run(self):
+        ops.chart(self.root, copy.deepcopy(INPUT), real=True)
+        self.assertNotIn("####", self._decisions(), "unmilestoned: flat and empty")
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it", "members": ["auth-model"]}]
+        ops.chart(self.root, inp, real=True)
+        self.assertIn("#### mvp — demo it (0/1 closed)", self._decisions())
+
+    def test_an_identical_re_chart_never_rewrites_a_stale_index(self):
+        # The trigger is "the map body is being written anyway", never "the
+        # index is stale": a ticket closed by hand (no resolve) leaves the index
+        # behind, and an identical re-chart must still be a byte-identical no-op.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it", "members": ["auth-model"]}]
+        ops.chart(self.root, inp, real=True)
+        ticket = self.root / "example-effort" / "tickets" / "auth-model.md"
+        ticket.write_text(ticket.read_text(encoding="utf-8")
+                          .replace("status: open", "status: closed", 1),
+                          encoding="utf-8")
+        before = _snapshot(self.root / "example-effort")
+        ops.chart(self.root, copy.deepcopy(inp), real=True)
+        self.assertEqual(_snapshot(self.root / "example-effort"), before)
+        self.assertIn("(0/1 closed)", self._decisions(), "stale, and left so")
+
+    def test_force_leaves_the_index_fully_re_projected(self):
+        # The contract used to say --force empties the index until the next
+        # resolve. It now re-projects it from the state the rewrite leaves: a
+        # still-closed ticket the input does not name stays listed, and a
+        # rewritten (reopened) one drops out.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it",
+             "members": ["auth-model", "rollout-order"]}]
+        ops.chart(self.root, inp, real=True)
+        ops.resolve(self.root, "example-effort", "auth-model", "per-tenant keys",
+                    "docs/adr/x.md", _DIAGRAM_BODY)
+        ops.resolve(self.root, "example-effort", "rollout-order", "prod last",
+                    "docs/adr/y.md", _DIAGRAM_BODY)
+        narrow = copy.deepcopy(inp)
+        narrow["tickets"] = [t for t in inp["tickets"] if t["key"] == "rollout-order"]
+        ops.chart(self.root, narrow, real=True, force=True)
+        body = self._decisions()
+        self.assertIn("#### mvp — demo it (1/2 closed)", body)
+        self.assertIn("per-tenant keys", body, "untouched and still closed: listed")
+        self.assertNotIn("prod last", body, "rewritten, so open again: dropped")
+
     def test_resolving_writes_a_grouped_index(self):
         inp = copy.deepcopy(INPUT)
         inp["map"]["milestones"] = [
