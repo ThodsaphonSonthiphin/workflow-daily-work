@@ -1,10 +1,11 @@
 # decision-map — the map says which milestones remain
 
 - **Date:** 2026-09-13
-- **Status:** Draft for review
+- **Status:** Implemented 2026-09-13 on branch `decision-map-remaining-milestones`; ADR 0213 added during execution (duplicate-slug rendering)
 - **ADRs:** [0210](../../adr/workflow-daily-work-0210-chart-map-asks-for-the-later-milestones-too-one-skippable-question-at-a-time.md),
   [0211](../../adr/workflow-daily-work-0211-the-decisions-index-shows-every-declared-milestone-with-its-progress.md),
   [0212](../../adr/workflow-daily-work-0212-an-empty-milestone-holds-the-map-open-like-fog-does.md)
+  [0213](../../adr/workflow-daily-work-0213-a-duplicated-milestone-slug-renders-its-first-declaration-only.md),
   (refining ADRs 0100 and 0103, which carry banners)
 - **Plugin:** `decision-map` — `0.12.0 → 0.13.0` (plugin.json and marketplace.json together)
 - **Glossary:** `CONTEXT.md` gains **Empty milestone**; the user's word "phase" stays under *Avoid* for Milestone
@@ -269,8 +270,10 @@ flowchart TD
 | `CONTEXT.md` | Empty milestone (already added) |
 
 No PLAYBOOK row (no new skill). No Antigravity install exists for `decision-map`, so
-no installer change. Frontmatter `description`s do not change, so the generated
-skills tree is untouched — still run `python3 scripts/test_check_skills_tree.py`.
+no installer change. The generated skills tree carries copies of the skills' scripts and references,
+so it is regenerated after every code, contract or SKILL.md change
+(`python3 scripts/generate_skills_tree.py`) and gated with
+`python3 scripts/check_skills_tree.py --repo .`.
 
 ## 8. Tests
 
