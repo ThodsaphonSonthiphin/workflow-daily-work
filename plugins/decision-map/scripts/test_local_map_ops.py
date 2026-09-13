@@ -3145,18 +3145,26 @@ class MilestoneLintTest(unittest.TestCase):
         # of both entries to the shared slug, so nothing goes missing.
         self.assertEqual(map_core.membership_of(milestones),
                          {"a": "mvp", "b": "mvp", "c": "mvp", "d": "mvp"})
-        # (3) and every member renders under the FIRST entry's heading, so what
-        # actually goes missing is the SECOND entry's label -- not any member.
+        # (3) and the decisions index renders the FIRST declaration only: its
+        # own count and its own members under its heading, and a closed ticket
+        # listed only by a later duplicate in the "(unassigned)" tail -- so what
+        # actually goes missing is the SECOND entry's label, and the heading
+        # never contradicts the list beneath it (ADR 0213).
         labelled, _ = map_core.parse_milestones(
             self._map_text("- `mvp` first [a, b]", "- `mvp` second [c, d]"))
         region = map_core.decisions_region(
             [(k, k.upper() + "?", f"tickets/{k}.md", "g") for k in "abcd"],
             labelled)
         self.assertEqual(region.count("#### mvp"), 1)
-        self.assertIn("#### mvp — first", region)
+        self.assertIn("#### mvp — first (2/2 closed)\n", region)
         self.assertNotIn("second", region)
-        for key in "abcd":
-            self.assertIn(f"tickets/{key}.md", region)
+        under, _, tail = region.partition("#### (unassigned)")
+        for key in "ab":
+            self.assertIn(f"tickets/{key}.md", under)
+            self.assertNotIn(f"tickets/{key}.md", tail)
+        for key in "cd":
+            self.assertIn(f"tickets/{key}.md", tail)
+            self.assertNotIn(f"tickets/{key}.md", under)
 
     def test_a_ticket_in_two_milestones_is_an_error_naming_the_ticket(self):
         findings = map_core.lint_findings(
@@ -3271,16 +3279,20 @@ class DecisionsIndexGroupingTest(unittest.TestCase):
         got = map_core.decisions_region(self.ENTRIES, ms)
         # Milestone order comes from the REGION, not from the keys.
         self.assertLess(got.index("#### two"), got.index("#### one"))
-        self.assertIn("#### two — second\n", got)
+        self.assertIn("#### two — second (1/1 closed)\n", got)
+        self.assertIn("#### one (1/1 closed)\n", got)
         self.assertLess(got.index("#### one"), got.index("(unassigned)"))
         # Unassigned decisions are a tail group, never dropped.
         self.assertIn("- [Z?](tickets/z.md) — maybe", got.split("(unassigned)")[1])
 
-    def test_a_milestone_with_no_closed_decision_is_not_rendered(self):
+    def test_a_milestone_with_no_closed_decision_is_rendered_with_a_placeholder(self):
+        # ADR 0211 withdraws ADR 0103's omission: a reader of map.md must see
+        # that the increment exists and that nothing in it has closed yet.
         ms = [{"slug": "empty", "label": None, "members": ["nobody"]},
               {"slug": "one", "label": None, "members": ["a"]}]
         got = map_core.decisions_region(self.ENTRIES, ms)
-        self.assertNotIn("#### empty", got)
+        self.assertIn("#### empty (0/1 closed)\n\n_nothing closed yet_\n", got)
+        self.assertLess(got.index("#### empty"), got.index("#### one"))
 
     def test_entries_stay_key_ascending_inside_a_group(self):
         ms = [{"slug": "one", "label": None, "members": ["b", "a"]}]
@@ -3316,10 +3328,65 @@ class DecisionsIndexGroupingTest(unittest.TestCase):
         self.assertEqual(map_core.decisions_region([]),
                          f"{map_core.DECISIONS_START}\n{map_core.DECISIONS_END}\n")
 
-    def test_empty_entries_with_milestones_supplied_is_still_unchanged(self):
+    def test_an_empty_milestone_says_so_in_its_heading_and_has_no_body(self):
+        # The placeholder chart-map writes for an increment whose decisions are
+        # still fog (ADR 0210): the heading is the whole information.
+        ms = [{"slug": "later", "label": "retire the old provider", "members": []}]
+        got = map_core.decisions_region(self.ENTRIES, ms)
+        self.assertIn(
+            "#### later — retire the old provider (0/0 closed — no tickets yet)\n", got)
+        self.assertNotIn("_nothing closed yet_", got)
+        # every entry is unassigned here, so the tail carries all three
+        self.assertIn("#### (unassigned)", got)
+        self.assertEqual(got.count("- ["), 3)
+
+    def test_progress_in_the_heading_equals_milestone_progress(self):
+        # The heading is computed by the same function frontier.json reports
+        # through, so the file and the JSON cannot disagree -- including on a
+        # repeated member, which is counted once, and an open member (q).
+        ms = [{"slug": "one", "label": None, "members": ["a", "a", "b", "q"]}]
+        got = map_core.decisions_region(self.ENTRIES, ms)
+        row = map_core.milestone_progress(ms, {"a": "closed", "b": "closed"})[0]
+        self.assertEqual((row["closed"], row["total"]), (2, 3))
+        self.assertIn("#### one (2/3 closed)\n", got)
+
+    def test_a_duplicated_slug_renders_once_with_its_first_declarations_count(self):
+        # A lint error (milestone-duplicate-slug), but the region must still
+        # render deterministically: once, under the first entry -- the same
+        # first-wins rule frontier.json's rows and membership_of already use.
+        ms = [{"slug": "one", "label": "first", "members": ["a"]},
+              {"slug": "one", "label": "again", "members": ["b"]}]
+        got = map_core.decisions_region(self.ENTRIES, ms)
+        self.assertEqual(got.count("#### one"), 1)
+        self.assertIn("#### one — first (1/1 closed)\n", got)
+        _head, _, rest = got.partition("#### one — first (1/1 closed)\n")
+        under, _, tail = rest.partition("#### (unassigned)")
+        self.assertIn("- [A?](tickets/a.md) — yes", under)
+        self.assertNotIn("[B?]", under,
+                         "a later duplicate's member is not counted, so it is not listed here")
+        self.assertIn("- [B?](tickets/b.md) — no", tail)
+
+    def test_a_member_listed_in_two_milestones_gets_no_false_placeholder(self):
+        # A hand-edit-only lint-error state (milestone-duplicate-member): the
+        # ticket renders under the FIRST milestone (membership_of), the second
+        # heading still carries the count frontier.json reports for it, and it
+        # must not claim "nothing closed yet" under a heading that says 1/1.
+        ms = [{"slug": "one", "label": None, "members": ["a"]},
+              {"slug": "two", "label": None, "members": ["a"]}]
+        got = map_core.decisions_region(self.ENTRIES, ms)
+        self.assertIn("#### two (1/1 closed)\n", got)
+        two = got.split("#### two (1/1 closed)\n")[1].split("####")[0]
+        self.assertNotIn("_nothing closed yet_", two)
+        self.assertNotIn("tickets/a.md", two)
+
+    def test_empty_entries_with_milestones_render_their_headings(self):
+        # A milestoned map with nothing closed is no longer START/END: the
+        # headings ARE the information -- "these increments exist, 0/N done".
         ms = [{"slug": "one", "label": None, "members": ["a"]}]
-        self.assertEqual(map_core.decisions_region([], ms),
-                         f"{map_core.DECISIONS_START}\n{map_core.DECISIONS_END}\n")
+        self.assertEqual(
+            map_core.decisions_region([], ms),
+            f"{map_core.DECISIONS_START}\n#### one (0/1 closed)\n\n"
+            f"_nothing closed yet_\n{map_core.DECISIONS_END}\n")
 
 
 class LocalGroupedIndexTest(unittest.TestCase):
@@ -3329,6 +3396,73 @@ class LocalGroupedIndexTest(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def _decisions(self):
+        text = (self.root / "example-effort" / "map.md").read_text(encoding="utf-8")
+        return map_core.region_body(text, map_core.DECISIONS_START,
+                                    map_core.DECISIONS_END)
+
+    def test_charting_milestones_writes_their_headings_before_anything_closes(self):
+        # ADR 0211: the index is the map's status board from day one, so a
+        # freshly charted map already says which increments exist and 0/N.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it",
+             "members": ["auth-model", "rollout-order"]},
+            {"slug": "later", "label": "retire the old provider", "members": []}]
+        ops.chart(self.root, inp, real=True)
+        body = self._decisions()
+        self.assertIn("#### mvp — demo it (0/2 closed)\n\n_nothing closed yet_\n", body)
+        self.assertIn(
+            "#### later — retire the old provider (0/0 closed — no tickets yet)\n", body)
+
+    def test_an_additive_chart_that_adds_a_milestone_writes_its_heading_in_the_same_run(self):
+        ops.chart(self.root, copy.deepcopy(INPUT), real=True)
+        self.assertNotIn("####", self._decisions(), "unmilestoned: flat and empty")
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it", "members": ["auth-model"]}]
+        ops.chart(self.root, inp, real=True)
+        self.assertIn("#### mvp — demo it (0/1 closed)", self._decisions())
+
+    def test_an_identical_re_chart_never_rewrites_a_stale_index(self):
+        # The trigger is "the map body is being written anyway", never "the
+        # index is stale": a ticket closed by hand (no resolve) leaves the index
+        # behind, and an identical re-chart must still be a byte-identical no-op.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it", "members": ["auth-model"]}]
+        ops.chart(self.root, inp, real=True)
+        ticket = self.root / "example-effort" / "tickets" / "auth-model.md"
+        ticket.write_text(ticket.read_text(encoding="utf-8")
+                          .replace("status: open", "status: closed", 1),
+                          encoding="utf-8")
+        before = _snapshot(self.root / "example-effort")
+        ops.chart(self.root, copy.deepcopy(inp), real=True)
+        self.assertEqual(_snapshot(self.root / "example-effort"), before)
+        self.assertIn("(0/1 closed)", self._decisions(), "stale, and left so")
+
+    def test_force_leaves_the_index_fully_re_projected(self):
+        # The contract used to say --force empties the index until the next
+        # resolve. It now re-projects it from the state the rewrite leaves: a
+        # still-closed ticket the input does not name stays listed, and a
+        # rewritten (reopened) one drops out.
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["milestones"] = [
+            {"slug": "mvp", "label": "demo it",
+             "members": ["auth-model", "rollout-order"]}]
+        ops.chart(self.root, inp, real=True)
+        ops.resolve(self.root, "example-effort", "auth-model", "per-tenant keys",
+                    "docs/adr/x.md", _DIAGRAM_BODY)
+        ops.resolve(self.root, "example-effort", "rollout-order", "prod last",
+                    "docs/adr/y.md", _DIAGRAM_BODY)
+        narrow = copy.deepcopy(inp)
+        narrow["tickets"] = [t for t in inp["tickets"] if t["key"] == "rollout-order"]
+        ops.chart(self.root, narrow, real=True, force=True)
+        body = self._decisions()
+        self.assertIn("#### mvp — demo it (1/2 closed)", body)
+        self.assertIn("per-tenant keys", body, "untouched and still closed: listed")
+        self.assertNotIn("prod last", body, "rewritten, so open again: dropped")
 
     def test_resolving_writes_a_grouped_index(self):
         inp = copy.deepcopy(INPUT)
