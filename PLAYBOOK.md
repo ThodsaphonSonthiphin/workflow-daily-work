@@ -66,6 +66,8 @@ flowchart TD
     WORK -- planning my own growth --> CG["career-growth"]
 
     WORK -- 💥 something broke --> DM["debug-mantra<br/>(diagnose)"]
+    WORK -- hand-work in a console I cannot write to --> GAV["guide-and-verify"]
+    GAV -. after-check fails .-> DM
     DM --> Q{"fix involves a<br/>design choice?"}
     Q -- no, mechanical --> FIX["fix it"]
     Q -- yes --> GTP2["grill-then-plan<br/>(capture decision first)"]
@@ -100,7 +102,7 @@ flowchart TD
 | unfamiliar Dynamics 365 / Dataverse org | `crm-archaeology` |
 | need a full SA&D document (use cases, diagrams, data dictionary) | `sa-doc` |
 | a page outsiders will read is about to be written or corrected - a user manual, a process and flow page, a release note, a runbook, a rules page | `document-what-shipped` (`/dev-workflows:document-what-shipped`) - one page per run, every fact measured in three places (code, platform automation, live record), a numbered shot list before drafting, and it stops at the draft until you say publish. Publishes to an Azure DevOps wiki, a GitHub wiki, a repo `docs/` folder or a plain markdown folder. Manual invocation only |
-| a change only a human can make by hand, in a console you cannot write to (CRM, cloud portal, DNS, SaaS admin, CI settings, a database GUI) | `guide-and-verify` — measure the live baseline first, hand over Go to / Do / Do not / verify-yourself steps one at a time, then prove it landed read-only in a channel other than the one they edited in |
+| a change only a human can make by hand, in a console you cannot write to (CRM, cloud portal, DNS, SaaS admin, CI settings, a database GUI) | `guide-and-verify` — measure the live baseline first, hand over Go to / Do / Do not / verify-yourself steps one at a time, then prove it landed read-only in a channel other than the one they edited in — and when an after-check fails, it hands off to `debug-mantra` (Freeze line first, saved-is-not-applied as hypothesis #1) and returns with a Corrected step, never "try again" (ADRs 0214–0220) |
 | need a repeatable test-case suite (feature / change / fixed bug) | `generating-test-cases` |
 | planning my own growth / quarterly career review | `career-growth` |
 | "what did we learn?" — after a painful session or a debugging round | `reflect` — captures the DELTA (what went wrong, what was slow, what got corrected) and routes each lesson to where it will fire again: an owned skill, a project `CLAUDE.md`, a cross-project `GOTCHAS.md`, or memory. Not a what-was-done summary (that is `invoice-generator`), not one bug's root cause (that is `post-mortem`) |
