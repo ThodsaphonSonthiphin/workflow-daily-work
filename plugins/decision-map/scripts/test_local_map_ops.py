@@ -3271,16 +3271,20 @@ class DecisionsIndexGroupingTest(unittest.TestCase):
         got = map_core.decisions_region(self.ENTRIES, ms)
         # Milestone order comes from the REGION, not from the keys.
         self.assertLess(got.index("#### two"), got.index("#### one"))
-        self.assertIn("#### two — second\n", got)
+        self.assertIn("#### two — second (1/1 closed)\n", got)
+        self.assertIn("#### one (1/1 closed)\n", got)
         self.assertLess(got.index("#### one"), got.index("(unassigned)"))
         # Unassigned decisions are a tail group, never dropped.
         self.assertIn("- [Z?](tickets/z.md) — maybe", got.split("(unassigned)")[1])
 
-    def test_a_milestone_with_no_closed_decision_is_not_rendered(self):
+    def test_a_milestone_with_no_closed_decision_is_rendered_with_a_placeholder(self):
+        # ADR 0211 withdraws ADR 0103's omission: a reader of map.md must see
+        # that the increment exists and that nothing in it has closed yet.
         ms = [{"slug": "empty", "label": None, "members": ["nobody"]},
               {"slug": "one", "label": None, "members": ["a"]}]
         got = map_core.decisions_region(self.ENTRIES, ms)
-        self.assertNotIn("#### empty", got)
+        self.assertIn("#### empty (0/1 closed)\n\n_nothing closed yet_\n", got)
+        self.assertLess(got.index("#### empty"), got.index("#### one"))
 
     def test_entries_stay_key_ascending_inside_a_group(self):
         ms = [{"slug": "one", "label": None, "members": ["b", "a"]}]
@@ -3316,10 +3320,52 @@ class DecisionsIndexGroupingTest(unittest.TestCase):
         self.assertEqual(map_core.decisions_region([]),
                          f"{map_core.DECISIONS_START}\n{map_core.DECISIONS_END}\n")
 
-    def test_empty_entries_with_milestones_supplied_is_still_unchanged(self):
+    def test_an_empty_milestone_says_so_in_its_heading_and_has_no_body(self):
+        # The placeholder chart-map writes for an increment whose decisions are
+        # still fog (ADR 0210): the heading is the whole information.
+        ms = [{"slug": "later", "label": "retire the old provider", "members": []}]
+        got = map_core.decisions_region(self.ENTRIES, ms)
+        self.assertIn(
+            "#### later — retire the old provider (0/0 closed — no tickets yet)\n", got)
+        self.assertNotIn("_nothing closed yet_", got)
+        # every entry is unassigned here, so the tail carries all three
+        self.assertIn("#### (unassigned)", got)
+        self.assertEqual(got.count("- ["), 3)
+
+    def test_progress_in_the_heading_equals_milestone_progress(self):
+        # The heading is computed by the same function frontier.json reports
+        # through, so the file and the JSON cannot disagree -- including on a
+        # repeated member, which is counted once, and an open member (q).
+        ms = [{"slug": "one", "label": None, "members": ["a", "a", "b", "q"]}]
+        got = map_core.decisions_region(self.ENTRIES, ms)
+        row = map_core.milestone_progress(ms, {"a": "closed", "b": "closed"})[0]
+        self.assertEqual((row["closed"], row["total"]), (2, 3))
+        self.assertIn("#### one (2/3 closed)\n", got)
+
+    def test_a_duplicated_slug_renders_once_with_its_first_declarations_count(self):
+        # A lint error (milestone-duplicate-slug), but the region must still
+        # render deterministically: once, under the first entry -- the same
+        # first-wins rule frontier.json's rows and membership_of already use.
+        ms = [{"slug": "one", "label": "first", "members": ["a"]},
+              {"slug": "one", "label": "again", "members": ["b"]}]
+        got = map_core.decisions_region(self.ENTRIES, ms)
+        self.assertEqual(got.count("#### one"), 1)
+        self.assertIn("#### one — first (1/1 closed)\n", got)
+        _head, _, rest = got.partition("#### one — first (1/1 closed)\n")
+        under, _, tail = rest.partition("#### (unassigned)")
+        self.assertIn("- [A?](tickets/a.md) — yes", under)
+        self.assertNotIn("[B?]", under,
+                         "a later duplicate's member is not counted, so it is not listed here")
+        self.assertIn("- [B?](tickets/b.md) — no", tail)
+
+    def test_empty_entries_with_milestones_render_their_headings(self):
+        # A milestoned map with nothing closed is no longer START/END: the
+        # headings ARE the information -- "these increments exist, 0/N done".
         ms = [{"slug": "one", "label": None, "members": ["a"]}]
-        self.assertEqual(map_core.decisions_region([], ms),
-                         f"{map_core.DECISIONS_START}\n{map_core.DECISIONS_END}\n")
+        self.assertEqual(
+            map_core.decisions_region([], ms),
+            f"{map_core.DECISIONS_START}\n#### one (0/1 closed)\n\n"
+            f"_nothing closed yet_\n{map_core.DECISIONS_END}\n")
 
 
 class LocalGroupedIndexTest(unittest.TestCase):
