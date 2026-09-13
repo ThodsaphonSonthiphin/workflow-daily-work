@@ -17,6 +17,11 @@
 > `## Resolution` append, which five review rounds replaced with a
 > sentinel-delimited region, because appending without a delimiter destroyed
 > user content in three different ways. Never copy that snippet.
+>
+> **2026-09-13 (ADRs 0210–0212):** the map-done rule at the end of Task 7 is
+> narrower now — an **empty milestone** (declared, no tickets yet) also holds
+> the map open, and work-map asks about it before handing off. See
+> `docs/superpowers/specs/2026-09-13-decision-map-remaining-milestones-design.md`.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
