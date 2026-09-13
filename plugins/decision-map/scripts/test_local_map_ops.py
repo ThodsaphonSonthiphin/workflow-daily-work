@@ -3145,18 +3145,26 @@ class MilestoneLintTest(unittest.TestCase):
         # of both entries to the shared slug, so nothing goes missing.
         self.assertEqual(map_core.membership_of(milestones),
                          {"a": "mvp", "b": "mvp", "c": "mvp", "d": "mvp"})
-        # (3) and every member renders under the FIRST entry's heading, so what
-        # actually goes missing is the SECOND entry's label -- not any member.
+        # (3) and the decisions index renders the FIRST declaration only: its
+        # own count and its own members under its heading, and a closed ticket
+        # listed only by a later duplicate in the "(unassigned)" tail -- so what
+        # actually goes missing is the SECOND entry's label, and the heading
+        # never contradicts the list beneath it (ADR 0213).
         labelled, _ = map_core.parse_milestones(
             self._map_text("- `mvp` first [a, b]", "- `mvp` second [c, d]"))
         region = map_core.decisions_region(
             [(k, k.upper() + "?", f"tickets/{k}.md", "g") for k in "abcd"],
             labelled)
         self.assertEqual(region.count("#### mvp"), 1)
-        self.assertIn("#### mvp — first", region)
+        self.assertIn("#### mvp — first (2/2 closed)\n", region)
         self.assertNotIn("second", region)
-        for key in "abcd":
-            self.assertIn(f"tickets/{key}.md", region)
+        under, _, tail = region.partition("#### (unassigned)")
+        for key in "ab":
+            self.assertIn(f"tickets/{key}.md", under)
+            self.assertNotIn(f"tickets/{key}.md", tail)
+        for key in "cd":
+            self.assertIn(f"tickets/{key}.md", tail)
+            self.assertNotIn(f"tickets/{key}.md", under)
 
     def test_a_ticket_in_two_milestones_is_an_error_naming_the_ticket(self):
         findings = map_core.lint_findings(
@@ -3357,6 +3365,19 @@ class DecisionsIndexGroupingTest(unittest.TestCase):
         self.assertNotIn("[B?]", under,
                          "a later duplicate's member is not counted, so it is not listed here")
         self.assertIn("- [B?](tickets/b.md) — no", tail)
+
+    def test_a_member_listed_in_two_milestones_gets_no_false_placeholder(self):
+        # A hand-edit-only lint-error state (milestone-duplicate-member): the
+        # ticket renders under the FIRST milestone (membership_of), the second
+        # heading still carries the count frontier.json reports for it, and it
+        # must not claim "nothing closed yet" under a heading that says 1/1.
+        ms = [{"slug": "one", "label": None, "members": ["a"]},
+              {"slug": "two", "label": None, "members": ["a"]}]
+        got = map_core.decisions_region(self.ENTRIES, ms)
+        self.assertIn("#### two (1/1 closed)\n", got)
+        two = got.split("#### two (1/1 closed)\n")[1].split("####")[0]
+        self.assertNotIn("_nothing closed yet_", two)
+        self.assertNotIn("tickets/a.md", two)
 
     def test_empty_entries_with_milestones_render_their_headings(self):
         # A milestoned map with nothing closed is no longer START/END: the
