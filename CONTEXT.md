@@ -161,6 +161,13 @@ Distinct from GitHub's native milestone object and from an ADO iteration — tho
 are backend furniture, not this term.
 _Avoid_: sprint, iteration, phase, epic, release.
 
+**Empty milestone**:
+A Milestone declared with no member tickets yet — a placeholder for an increment
+whose decisions are not yet stated, i.e. fog at increment level. Legal and never
+complete; it holds the map open until it gains a ticket or is removed by hand
+(ADR 0210, ADR 0212).
+_Avoid_: placeholder milestone, stub milestone, TBD phase.
+
 **Map pointer**:
 The file `docs/decision-map/<slug>/map.md` that a **GitHub-backed** Decision map leaves
 in the repo: YAML frontmatter naming the backend, the repo and the map issue, plus one

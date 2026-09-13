@@ -1,5 +1,7 @@
 # The decisions index groups by milestone, matching the frontier
 
+- **Status:** Accepted — **refined by [ADR 0211](workflow-daily-work-0211-the-decisions-index-shows-every-declared-milestone-with-its-progress.md)**: a milestone with no closed decision is no longer omitted. Every declared milestone renders as a heading carrying its `closed/total`, an empty one as `0/0`, and the index is re-projected by any `chart` that writes the map body, not only by `resolve` — so the parenthetical below on `--force` no longer holds: a `--force` rewrite leaves the index fully re-projected, not empty. The grouping, the map order, the key-ascending entries, the `(unassigned)` tail and the flat rendering of an unmilestoned map all stand.
+
 ```mermaid
 flowchart TD
     Q{how does 'Decisions so far'<br/>read once milestones exist?} -->|chosen| A["grouped — one heading per milestone

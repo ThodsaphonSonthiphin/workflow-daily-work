@@ -1,5 +1,7 @@
 # Milestones are offered at chart time and once per session on a big unmilestoned map
 
+- **Status:** Accepted — **the chart-time question refined by [ADR 0210](workflow-daily-work-0210-chart-map-asks-for-the-later-milestones-too-one-skippable-question-at-a-time.md)**: it is no longer one closing question. After "which increment ships first", chart-map asks "and after that?" until the user says that is all, each answer one more ordered milestone, and an increment with no named ticket yet is written as an empty milestone so the map lists it. The two entry moments, the skippability of every question and work-map's once-per-session offer on a big unmilestoned map all stand unchanged.
+
 ```mermaid
 flowchart TD
     Q{when does the flow invite<br/>the user to declare milestones?} -->|chosen| A["chart-map asks after breadth grilling

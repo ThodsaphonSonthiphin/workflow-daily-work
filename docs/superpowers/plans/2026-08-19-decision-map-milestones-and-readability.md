@@ -21,6 +21,16 @@
 > ADR 0102 is also restated correctly in the contract: a new ticket renders
 > its Question **above** the position diagram, i.e. the diagram sits *below*
 > `## Question`.
+>
+> **Superseded further on 2026-09-13 by ADRs 0210–0212** (spec
+> `docs/superpowers/specs/2026-09-13-decision-map-remaining-milestones-design.md`).
+> Two more details below are no longer true: the decisions index no longer
+> *omits* a milestone with no closed decision — every declared milestone renders
+> as a heading with `closed/total`, and the index is re-projected by any `chart`
+> that writes the map body, not only by `resolve`; and chart-map's closing
+> question is no longer one question — after "what ships first" it asks "and
+> after that?" until the user stops, writing an increment with no ticket yet as
+> an empty milestone, which work-map then refuses to call the map done over.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use sp-subagent-driven-development (recommended) or sp-executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
