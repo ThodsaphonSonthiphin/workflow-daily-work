@@ -569,7 +569,8 @@ destination — into `docs/superpowers/handoffs/<date>-<slug>.md`, committed and
 pushed, because a Claude Code cloud session clones the branch from GitHub
 (ADRs 0227, 0228). Vendored from mattpocock/skills, MODIFIED.
 _Avoid_: summary, /compact (that compresses *this* session and stays here),
-save state (below).
+save state (below), the routing sense of "hand off" used inside `daily` (a
+station handing you to a skill).
 
 **Save state vs Handoff**:
 `/daily save` captures *your own* resume-point in *this* repo on *this* machine —

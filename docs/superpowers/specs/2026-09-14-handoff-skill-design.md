@@ -15,6 +15,11 @@
   the `LICENSE-mattpocock-skills` entry, the `generate_skills_tree.py` map + test, ADRs 0227–0229,
   CONTEXT.md. The plan verifies these against this spec rather than rewriting them.
 
+> **Amended 2026-09-14 by ADR 0230 (final whole-branch review):** §3 item 1 — `cloud`
+> selects the destination only as the FIRST token, not "anywhere in the arguments"; §4
+> rows 1–2 — on `main` the skill STOPS until a branch exists, and both the commit and
+> the push are OFFERED, never automatic.
+
 ```mermaid
 flowchart TD
     U["user, at ANY moment of any conversation"] -->|"/dev-workflows:handoff [cloud] <what next>"| H["handoff skill (ADR 0227)<br/>compact the live thread: in flight · why · next ·<br/>unrecorded decisions · suggested skills · refs not copies · redact"]
