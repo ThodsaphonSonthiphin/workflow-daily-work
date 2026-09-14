@@ -1,10 +1,11 @@
 # A failed after-check opens with a one-line freeze before the mantra recital
+> **Refined by ADR 0221 (2026-09-14):** the prohibition reads *change anything in the console*, not *touch the console* — a read-only look the agent asks for is not a redo.
 
 ```mermaid
 flowchart TD
     Q{the after-check fails and the person is still in the console:<br/>what do they read first?} -->|chosen| A["one line, in the runbook's own Do-not shape:
     the numbers (expected X, got Y), then
-    'do not redo the step or touch the console —
+    'do not redo the step or change anything in the console —
     I am finding out why first'; the mantra
     recital and step ① follow"]
     Q -->|rejected| B["the mantra recital itself, freeze implied by

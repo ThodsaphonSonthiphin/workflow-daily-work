@@ -1,4 +1,5 @@
 # guide-and-verify — a failed after-check hands off to debug-mantra
+> **Refined by ADR 0221 (2026-09-14, whole-branch review):** the Freeze line reads *"do not redo the step or change anything in the console"*, not *"touch the console"* — a read-only look the agent asks for is not a redo. §3 item 2's quoted line and the row-③ cell below are superseded by the shipped SKILL.md wording.
 
 - **Date:** 2026-09-14
 - **Status:** Approved for planning (pending owner sign-off on this spec)
@@ -18,7 +19,7 @@
 flowchart TD
     P4["guide-and-verify Phase 4<br/>after-check read in a second channel"] --> Q{"after == declared assertion?<br/>(success AND blast radius)"}
     Q -->|yes| P5["Phase 5 — self-check, record outcome"]
-    Q -->|"no (ADR 0214)"| FZ["FREEZE LINE (ADR 0215)<br/>numbers + 'do not redo / touch the console'"]
+    Q -->|"no (ADR 0214)"| FZ["FREEZE LINE (ADR 0215)<br/>numbers + 'do not redo / change anything in the console'"]
     FZ --> R{"first failure<br/>this runbook?"}
     R -->|yes| REC["debug-mantra recital + diagram<br/>(verbatim, untouched — ADR 0216)"]
     R -->|"no (ADR 0219)"| S1
@@ -81,7 +82,7 @@ should transcribe it, not paraphrase it:
    (ADR 0214; the mirror of ADR 0011).
 2. **The freeze line comes first** (ADR 0215). Before anything else the person reads one
    line in the runbook's own shape, with the numbers:
-   *"Check failed: expected `<assertion>`, got `<measured>`. Do not redo the step or touch the
+   *"Check failed: expected `<assertion>`, got `<measured>`. Do not redo the step or change anything in the
    console — a redo destroys the state that tells not-saved from not-applied from wrong-object.
    I am finding out why first."*
    Then load `debug-mantra` via the harness's mechanism (harness-neutral wording — never
@@ -92,7 +93,7 @@ should transcribe it, not paraphrase it:
    |---|---|
    | ① reproduce | the baseline and the after-measurement — the repro is the diff; the environment is the one the runbook names (no "local or deployed?" to ask) |
    | ② fail path | the step's own numbered actions — "which line did not land" |
-   | ③ falsify | **hypothesis #1 is always the saved-is-not-applied trap**: read the pending state first (the table under *The trap that catches nearly every system* says where) |
+   | ③ falsify | **hypothesis #1 is always the saved-is-not-applied trap**: read the pending state first (the table under *The trap that catches nearly every system* says where); rank the rest yourself |
    | ④ breadcrumbs | the per-check measurements you wrote on the ticket in Phase 1 — a half-applied step shows as a contradiction between two of them |
 
 4. **No second channel** (ADR 0218): the handoff still fires; step ① is met by borrowing the
@@ -142,7 +143,7 @@ done, pastes `SHOW log_min_duration_statement` returning `-1`, and asks what to 
 Assertions (each one a design decision):
 
 - The first line the user reads states expected vs measured **and** tells them not to redo
-  the step or touch the console, with the reason (ADR 0215).
+  the step or change anything in the console, with the reason (ADR 0215).
 - It does not tell the user to "try again" anywhere (ADR 0220).
 - It names the saved-is-not-applied gap (pending-reboot / apply) as the first thing to check,
   before any other hypothesis (ADR 0217).

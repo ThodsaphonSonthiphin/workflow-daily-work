@@ -560,10 +560,10 @@ just wording).
 
 **Freeze line**:
 The one line a person reads first when an after-check fails: the measured numbers
-(expected X, got Y) and *do not redo the step or touch the console — I am finding out why
+(expected X, got Y) and *do not redo the step or change anything in the console — I am finding out why
 first*, in the runbook's own `Do not … — because …` shape. It goes out before the mantra
 recital, because a redo destroys the half-applied state that tells *not saved* from *not
-applied* from *wrong object* (ADR 0215).
+applied* from *wrong object* (ADR 0215). A read-only look is not a redo (ADR 0221).
 _Avoid_: warning, stop message, banner.
 
 **Corrected step**:

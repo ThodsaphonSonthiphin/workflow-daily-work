@@ -1,4 +1,5 @@
 # guide-and-verify failed-check handoff — Implementation Plan
+> **Refined by ADR 0221 (2026-09-14, whole-branch review):** the Freeze line reads *"change anything in the console"*, not *"touch the console"*; Task 1's check literal and block were updated to match at the fix wave.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use sp-subagent-driven-development (recommended) or sp-executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -60,7 +61,7 @@ fail=0
 chk() { if ! grep -qF -- "$1" "$f"; then echo "MISSING: $1"; fail=1; fi; }
 chk '#### When the check fails: hand off to debug-mantra'
 chk 'Check failed: expected `<assertion>`, got `<measured>`'
-chk 'Do not redo the step or touch the console'
+chk 'Do not redo the step or change anything in the console'
 chk 'through your harness'
 chk 'hypothesis #1 is always the saved-is-not-applied trap'
 chk 'reported by the operator, not independently measured'
@@ -101,11 +102,12 @@ ADR 0011). Hand off to `debug-mantra`, in this order.
 person reads one line in the runbook's own shape, with the numbers:
 
 > Check failed: expected `<assertion>`, got `<measured>`.
-> Do not redo the step or touch the console — a redo destroys the state that tells not-saved
+> Do not redo the step or change anything in the console — a redo destroys the state that tells not-saved
 > from not-applied from wrong-object. I am finding out why first.
 
-Then load `debug-mantra` through your harness's mechanism and follow it as written. Nothing in
-it changes for this entry (ADR 0216); what changes is what you already hold when it opens.
+Then load `debug-mantra` through your harness's mechanism and follow it as written. The recital
+stays verbatim and complete; only the Freeze line precedes it (ADR 0216). What changes is what
+you already hold when it opens.
 
 **2. What you already hold, per step** (ADR 0217) — do not ask the person for any of it:
 
@@ -113,12 +115,13 @@ it changes for this entry (ADR 0216); what changes is what you already hold when
 |---|---|
 | ① reproduce | the baseline and the after-measurement — the repro is the diff. The environment is the one the runbook names; there is no "local or deployed?" to ask |
 | ② fail path | the step's own numbered lines — the question is which line did not land |
-| ③ falsify | **hypothesis #1 is always the saved-is-not-applied trap.** Read the pending state first; the table under *The trap that catches nearly every system* says where it lives for each kind of system |
+| ③ falsify | **hypothesis #1 is always the saved-is-not-applied trap.** Read the pending state first; the table under *The trap that catches nearly every system* says where it lives for each kind of system; rank the rest yourself |
 | ④ breadcrumbs | the per-check measurements you wrote on the ticket in Phase 1 — a half-applied step shows as a contradiction between two of them |
 
 **3. No second channel** (ADR 0218). The handoff fires anyway. Step ① is met the way Phase 1
 meets it when you cannot read the system: borrow the person's eyes — one read-only look, pasted
-back. That run, and every claim built on it, carries the label
+back. A read-only look is not a redo — the Freeze line forbids changes, not looks (ADR 0221). That
+run, and every claim built on it, carries the label
 *reported by the operator, not independently measured*.
 
 **4. A second failure in the same runbook** (ADR 0219). The runbook session is one debug
@@ -380,7 +383,7 @@ In `evals.json`, after the closing `}` of the `id: 2` object (currently line 53)
       "expected_output": "Does NOT say try again. Opens with a Freeze line carrying the numbers (expected 500, got -1) and the do-not-redo prohibition with its reason, then enters debug-mantra with the before/after readings as the repro, names the saved-but-not-applied gap (parameter group pending-reboot / apply) as the first hypothesis to disprove by reading the pending state, and - once the cause is confirmed - returns a corrected step in the fixed shape with the apply/reboot as its own numbered line, asserted against -1 as the new baseline, and records the cause and timestamps for the ticket.",
       "files": [],
       "assertions": [
-        "The first thing the user reads states expected 500 vs measured -1 AND tells them not to redo the step or touch the console, giving the reason (a redo destroys the state that distinguishes not-saved from not-applied from wrong-object)",
+        "The first thing the user reads states expected 500 vs measured -1 AND tells them not to redo the step or change anything in the console, giving the reason (a redo destroys the state that distinguishes not-saved from not-applied from wrong-object)",
         "Nowhere tells the user to try again or repeat the unchanged step",
         "Names the saved-but-not-applied gap (RDS parameter group pending-reboot / apply status) as the FIRST hypothesis to check, before any other cause such as wrong parameter group or wrong instance",
         "Does not ask the user for a reproduction or for what environment they are in; treats the earlier baseline and this -1 reading as the repro",
