@@ -112,7 +112,7 @@ yourself.
 
 | Skill | Command | What it does |
 |---|---|---|
-| chart-map | `/decision-map:chart` | Name the destination, grill breadth-first, create map + tickets (dry-run gated), fire research subagents, stop. |
+| chart-map | `/decision-map:chart` | Name the destination, grill breadth-first, sweep the ten areas the human did not raise (security, identity, data, deploy, operations, …), create map + tickets (dry-run gated), fire research subagents, stop. Re-run it on an existing map to sweep it — `lint` says `map-never-swept` until you do. |
 | work-map | `/decision-map:work` | Load the map, show the frontier, claim ONE ticket, resolve it via the matching arc skill, record + graduate fog, stop. |
 
 ## Backends
