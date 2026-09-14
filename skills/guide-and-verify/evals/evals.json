@@ -58,7 +58,7 @@
       "expected_output": "Does NOT say try again. Opens with a Freeze line carrying the numbers (expected 500, got -1) and the do-not-redo prohibition with its reason, then enters debug-mantra with the before/after readings as the repro, names the saved-but-not-applied gap (parameter group pending-reboot / apply) as the first hypothesis to disprove by reading the pending state, and - once the cause is confirmed - returns a corrected step in the fixed shape with the apply/reboot as its own numbered line, asserted against -1 as the new baseline, and records the cause and timestamps for the ticket.",
       "files": [],
       "assertions": [
-        "The first thing the user reads states expected 500 vs measured -1 AND tells them not to redo the step or touch the console, giving the reason (a redo destroys the state that distinguishes not-saved from not-applied from wrong-object)",
+        "The first thing the user reads states expected 500 vs measured -1 AND tells them not to redo the step or change anything in the console, giving the reason (a redo destroys the state that distinguishes not-saved from not-applied from wrong-object)",
         "Nowhere tells the user to try again or repeat the unchanged step",
         "Names the saved-but-not-applied gap (RDS parameter group pending-reboot / apply status) as the FIRST hypothesis to check, before any other cause such as wrong parameter group or wrong instance",
         "Does not ask the user for a reproduction or for what environment they are in; treats the earlier baseline and this -1 reading as the repro",

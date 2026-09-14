@@ -188,11 +188,12 @@ ADR 0011). Hand off to `debug-mantra`, in this order.
 person reads one line in the runbook's own shape, with the numbers:
 
 > Check failed: expected `<assertion>`, got `<measured>`.
-> Do not redo the step or touch the console — a redo destroys the state that tells not-saved
+> Do not redo the step or change anything in the console — a redo destroys the state that tells not-saved
 > from not-applied from wrong-object. I am finding out why first.
 
-Then load `debug-mantra` through your harness's mechanism and follow it as written. Nothing in
-it changes for this entry (ADR 0216); what changes is what you already hold when it opens.
+Then load `debug-mantra` through your harness's mechanism and follow it as written. The recital
+stays verbatim and complete; only the Freeze line precedes it (ADR 0216). What changes is what
+you already hold when it opens.
 
 **2. What you already hold, per step** (ADR 0217) — do not ask the person for any of it:
 
@@ -200,12 +201,13 @@ it changes for this entry (ADR 0216); what changes is what you already hold when
 |---|---|
 | ① reproduce | the baseline and the after-measurement — the repro is the diff. The environment is the one the runbook names; there is no "local or deployed?" to ask |
 | ② fail path | the step's own numbered lines — the question is which line did not land |
-| ③ falsify | **hypothesis #1 is always the saved-is-not-applied trap.** Read the pending state first; the table under *The trap that catches nearly every system* says where it lives for each kind of system |
+| ③ falsify | **hypothesis #1 is always the saved-is-not-applied trap.** Read the pending state first; the table under *The trap that catches nearly every system* says where it lives for each kind of system; rank the rest yourself |
 | ④ breadcrumbs | the per-check measurements you wrote on the ticket in Phase 1 — a half-applied step shows as a contradiction between two of them |
 
 **3. No second channel** (ADR 0218). The handoff fires anyway. Step ① is met the way Phase 1
 meets it when you cannot read the system: borrow the person's eyes — one read-only look, pasted
-back. That run, and every claim built on it, carries the label
+back. A read-only look is not a redo — the Freeze line forbids changes, not looks (ADR 0221). That
+run, and every claim built on it, carries the label
 *reported by the operator, not independently measured*.
 
 **4. A second failure in the same runbook** (ADR 0219). The runbook session is one debug session. Send the Freeze line again and re-enter at step ①; do not recite the mantra a second
