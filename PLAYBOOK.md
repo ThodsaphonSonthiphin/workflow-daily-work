@@ -156,7 +156,7 @@ invariant guards both entry points: **never plan a fix on an unverified cause.**
   next step into `daily-state.md` (one per repo, at the git root) and offers to
   commit. `/daily wrap` writes the same snapshot at end of day. The next session's
   `/daily start` reads it back. Helper: `scripts/daily-state.py` owns the YAML;
-  git stays in the skill, assisted and never automatic (ADR 0014). Its twin for when the work leaves this machine is `handoff` (`/dev-workflows:handoff`) (ADR 0229).
+  git stays in the skill, assisted and never automatic (ADR 0014). Its twin for when the work leaves this machine is `/dev-workflows:handoff` (ADR 0229).
 
 ## Maintenance rule
 
