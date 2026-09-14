@@ -83,7 +83,7 @@ flowchart TD
 |---|---|
 | designing something new | `grill-then-plan` |
 | designing something new, but you do NOT need a written plan afterward | `sp-grill-with-doc` — the same domain-aware grilling (terminology challenged, contradictions with the real code surfaced, `CONTEXT.md` and ADRs kept current as decisions land), stopping before the plan hand-off. Despite the prefix it is **not** a vendored superpowers copy |
-| an effort too big for one session (foggy, multi-session) | `chart-map` (`/decision-map:chart`) — chart the destination, the decision tickets and the fog; the map lands in `docs/decision-map/`, or on GitHub Issues as an issue + sub-issues |
+| an effort too big for one session (foggy, multi-session) | `chart-map` (`/decision-map:chart`) — chart the destination, the decision tickets and the fog, then sweep the ten areas you did not raise (security, identity, data, deploy, operations, …); the map lands in `docs/decision-map/`, or on GitHub Issues as an issue + sub-issues. Re-run it on an existing map to sweep it |
 | continuing a decision map already charted | `work-map` (`/decision-map:work`) — claim and resolve exactly one decision, then stop |
 | something broke | `debug-mantra`, then the debug chain below |
 | advising on how a system should work | `study-design-verify` |
