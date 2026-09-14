@@ -11,8 +11,9 @@ Write a handoff document summarising the current conversation so a fresh agent
 can continue the work.
 
 **Portability, not compression.** Reach for this only when the work has to
-*travel*. Staying in the same session, `/compact` and `/clear` cover the
-ordinary end-of-phase case. Five situations are the whole trigger:
+*travel*. Staying in the same session, your harness's own in-session
+compaction or reset (`/compact`, `/clear` in Claude Code) covers the ordinary
+end-of-phase case. Five situations are the whole trigger:
 
 | situation | why a file |
 |---|---|
@@ -23,8 +24,10 @@ ordinary end-of-phase case. Five situations are the whole trigger:
 | **a Claude Code cloud session** (`cloud`) | the cloud machine clones the branch from GitHub — it sees nothing on this machine, and no plugin installed here |
 
 If the user passed arguments, treat them as a description of what the next
-session will focus on and tailor the document to it. The word `cloud` anywhere
-in the arguments selects the cloud destination below.
+session will focus on and tailor the document to it. `cloud` selects the cloud
+destination only as the first word of the argument —
+`/dev-workflows:handoff cloud <what next>`; the same word later in the text is
+just text.
 
 ## What goes in
 
@@ -48,7 +51,7 @@ in the arguments selects the cloud destination below.
 
 | destination | where the file lands | why |
 |---|---|---|
-| default | the OS temporary directory — print the full path back, the user keeps it | a transit document, not an artifact to maintain; temp is cleared on some systems, so copy it somewhere durable if the next session is not within the hour |
+| default | the OS temporary directory, as `<YYYY-MM-DD>-<slug>.md` (same slug rule as `cloud`) — print the full path back, the user keeps it | a transit document, not an artifact to maintain; temp is cleared on some systems, so copy it somewhere durable if the next session is not within the hour |
 | `cloud` | `docs/superpowers/handoffs/<YYYY-MM-DD>-<slug>.md` in this repo, on the current working branch, **committed and pushed** | the cloud session clones the branch from GitHub; a file on this machine, in temp or not, does not exist there |
 
 How the next agent picks it up, either way: open the fresh session and point it
@@ -59,15 +62,21 @@ truncation, not an error.
 
 ## The cloud destination, step by step
 
-1. **Everything must be on the branch.** Run `git status`. Never push `main` —
-   if the work is on `main`, branch first. If the spec, plan or ADRs this
+1. **Everything must be on the branch.** Run `git status`. If the current
+   branch is `main`, **stop** — say "branch first" — and do nothing further
+   until a branch exists; never push `main`. If the spec, plan or ADRs this
    session produced are uncommitted, commit them before the handoff file (offer
    the commit — assisted git, never automatic).
-2. **Write the file** under `docs/superpowers/handoffs/`, commit it with an
-   explicit path list, and push the branch. Tell the user the branch name — it is
-   what the cloud session is created from. `<slug>` is a lowercase-kebab of the
-   argument's subject (≤ 5 words), or of the current branch name when no
-   argument is given.
+2. **Write the file.** Create `docs/superpowers/handoffs/` if it does not
+   already exist, and write
+   `docs/superpowers/handoffs/<YYYY-MM-DD>-<slug>.md`. `<slug>` is a
+   lowercase-kebab of the argument's subject (≤ 5 words), or of the current
+   branch name when no argument is given. Then **offer** the commit — an
+   explicit path list — and, on a yes, commit it; then **offer** the push
+   (`git push -u origin <branch>` on a first push) and, on a yes, push. Never
+   run the commit or the push without a yes — assisted git, never automatic.
+   Tell the user the branch name — it is what the cloud session is created
+   from.
 3. **The plugins are not there.** The cloud machine starts without this
    machine's marketplaces or user-scope plugins. The "Suggested skills" section
    therefore says so — *may be absent on cloud* — and the document has to stand
@@ -94,4 +103,6 @@ truncation, not an error.
 - the fresh agent starts working instead of asking the setup to be re-explained;
 - in the fork case, this session is still sitting here untouched when you return;
 - on `cloud`, the branch the document names is on GitHub and holds the file;
-- nothing in it is a key, a token or a password.
+- nothing in it is a key, a token or a password;
+- the *Suggested skills* section names the skills you would have reached for
+  yourself, and says which may be absent on cloud;
