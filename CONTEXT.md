@@ -555,3 +555,21 @@ one line. Natural everyday English is the **default**, not the only setting: a s
 imperative commit line is correct, and correcting it would teach a false rule (ADR 0178).
 _Avoid_: tone, style, formality (all narrower — register decides grammar norms here, not
 just wording).
+
+## guide-and-verify terms (dev-workflows plugin)
+
+**Freeze line**:
+The one line a person reads first when an after-check fails: the measured numbers
+(expected X, got Y) and *do not redo the step or change anything in the console — I am finding out why
+first*, in the runbook's own `Do not … — because …` shape. It goes out before the mantra
+recital, because a redo destroys the half-applied state that tells *not saved* from *not
+applied* from *wrong object* (ADR 0215). A read-only look is not a redo (ADR 0221).
+_Avoid_: warning, stop message, banner.
+
+**Corrected step**:
+The step `guide-and-verify` writes after `debug-mantra` has confirmed why a step failed —
+the same Go to / Do / Do not / verify shape, with the missing action (an apply, a publish)
+as its own numbered line, asserted against the failed step's after-measurement as its
+baseline. It is never a redo of the unchanged step; when the cause was the agent's — a
+wrong count, a wrong prediction — the corrected thing is the runbook (ADR 0220).
+_Avoid_: retry, redo, try again, fix (that is the ADR 0003 chain's word for a code defect).
