@@ -2153,7 +2153,7 @@ class PositionDiagramTests(unittest.TestCase):
 LINT_INPUT = {
     "target": {"slug": "lint-effort"},
     "map": {"title": "Decision map - lint", "destination": "a written spec",
-            "notes": "",
+            "notes": ["sweep 2026-09-14: none — security, deploy; ticket — alpha, beta; fog — data"],
             "notYetSpecified": ["how we shard the write path"],
             "outOfScope": []},
     "tickets": [
@@ -2402,6 +2402,80 @@ class LintTest(unittest.TestCase):
         """A check that cries wolf is worse than no check: the fog rule is the
         only heuristic one, so it must stay silent on an ordinary map."""
         self.assertNotIn("fog-line-graduated", self._rules())
+
+    # --- the sweep record (ADRs 0223, 0224, 0225) ---------------------------
+
+    def _set_notes(self, *bullets):
+        """Rewrite the Notes region by hand -- the hand edit ADR 0225 names as
+        a legitimate way to write (or lose) the record."""
+        mp = self.root / "lint-effort" / "map.md"
+        text = mp.read_text(encoding="utf-8")
+        body = ("\n" + "".join(f"- {b}\n" for b in bullets)) if bullets \
+            else "\n" + map_core.EMPTY_LIST_LINE + "\n"
+        mp.write_text(map_core.replace_region(
+            text, map_core.NOTES_START, map_core.NOTES_END, body), encoding="utf-8")
+
+    def test_a_map_with_no_sweep_bullet_warns_once_at_map_level(self):
+        """The gap the sweep exists to close: a map charted before it cannot
+        show the difference between 'swept and empty' and 'never asked'."""
+        self._set_notes("consult the pricing skill")
+        out = self._lint()
+        found = [f for f in out["findings"] if f["rule"] == "map-never-swept"]
+        self.assertEqual(len(found), 1, out["findings"])
+        self.assertEqual(found[0]["severity"], "warning")
+        self.assertIsNone(found[0]["ticket"], "the map, not a ticket, is unswept")
+        self.assertIn("/decision-map:chart", found[0]["message"])
+        self.assertIn("reviewed, accepted as-is", found[0]["message"])
+        self.assertNotIn("map-never-swept", out["notChecked"])
+        self.assertFalse(out["clean"])
+
+    def test_a_freshly_charted_map_carries_the_record_and_is_silent(self):
+        self.assertNotIn("map-never-swept", self._rules())
+        self.assertTrue(map_core.has_sweep_record(
+            (self.root / "lint-effort" / "map.md").read_text(encoding="utf-8")))
+
+    def test_the_hand_written_reviewed_form_counts_case_insensitively(self):
+        self._set_notes("Sweep 2026-09-14: reviewed, accepted as-is")
+        self.assertNotIn("map-never-swept", self._rules())
+
+    def test_a_bullet_that_merely_contains_sweep_does_not_count(self):
+        """Exact prefix, not a heuristic: a check that cries wolf is worse than
+        no check, and so is one that is satisfied by the wrong sentence."""
+        self._set_notes("the sweep is pending", "sweeping changes are out")
+        self.assertIn("map-never-swept", self._rules())
+
+    def test_a_legacy_paragraph_notes_map_fires(self):
+        """A map from before ADR 0101 has no notes region and so nowhere to
+        carry the record."""
+        mp = self.root / "lint-effort" / "map.md"
+        legacy = mp.read_text(encoding="utf-8")
+        for marker in (map_core.NOTES_START, map_core.NOTES_END):
+            legacy = legacy.replace(marker, "")
+        mp.write_text(legacy, encoding="utf-8")
+        self.assertFalse(map_core.has_sweep_record(legacy))
+        self.assertIn("map-never-swept", self._rules())
+
+    def test_an_additive_re_chart_that_adds_the_bullet_clears_the_finding(self):
+        """ADR 0223's migration path for an old map, end to end: the dry run
+        names the one notes line, --real writes it byte-for-byte, lint clears."""
+        self._set_notes("consult the pricing skill")
+        self.assertIn("map-never-swept", self._rules())
+        bullet = "sweep 2026-09-14: none — performance, operations; ticket — alpha"
+        inp = {
+            "target": {"slug": "lint-effort"},
+            "map": {"title": "Decision map - lint", "destination": "a written spec",
+                    "notes": [bullet], "notYetSpecified": [], "outOfScope": []},
+            "tickets": [],
+        }
+        dry = ops.chart(self.root, copy.deepcopy(inp), real=False)
+        entry = {Path(p["path"]).name: p for p in dry["planned"]}["map.md"]
+        self.assertEqual(entry["action"], "merge")
+        self.assertEqual(entry["detail"], "adds 1 notes line")
+        ops.chart(self.root, inp, real=True)
+        text = (self.root / "lint-effort" / "map.md").read_text(encoding="utf-8")
+        self.assertIn("- consult the pricing skill\n- " + bullet + "\n", text,
+                      "union appends; the earlier bullet is kept")
+        self.assertNotIn("map-never-swept", self._rules())
 
     # --- CLI contract -------------------------------------------------------
 
@@ -3064,7 +3138,9 @@ class MilestoneLintTest(unittest.TestCase):
     half."""
 
     def _map_text(self, *lines):
-        return ("## Milestones\n\n" + map_core.MILESTONES_START + "\n"
+        return ("## Notes\n\n" + map_core.NOTES_START + "\n"
+                + "- sweep 2026-09-14: none — security\n" + map_core.NOTES_END
+                + "\n\n## Milestones\n\n" + map_core.MILESTONES_START + "\n"
                 + "".join(ln + "\n" for ln in lines) + map_core.MILESTONES_END
                 + "\n\n" + map_core.FOG_START + "\n" + map_core.EMPTY_LIST_LINE
                 + "\n" + map_core.FOG_END + "\n")

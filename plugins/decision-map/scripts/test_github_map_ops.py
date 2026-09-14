@@ -33,7 +33,8 @@ INPUT = {
     "map": {
         "title": "Decision map — billing",
         "destination": "ship metered billing without breaking existing plans",
-        "notes": "consult the pricing skill",
+        "notes": ["consult the pricing skill",
+                  "sweep 2026-09-14: none — security, deploy; ticket — auth-model"],
         "notYetSpecified": ["how to migrate legacy plans"],
         "outOfScope": ["multi-currency"],
     },
@@ -1475,6 +1476,40 @@ class TestLint(Base):
         self.chart()
         with self.assertRaises(Exception):
             gh.lint(self.ops, "no-such-map")
+
+    def test_a_map_with_no_sweep_bullet_warns_at_map_level(self):
+        """Same rule, same name, from the one snapshot -- the record lives in
+        the issue body's notes region, which the snapshot already holds."""
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["notes"] = ["consult the pricing skill"]
+        self.chart(inp)
+        out = gh.lint(self.ops, "billing")
+        found = [f for f in out["findings"] if f["rule"] == "map-never-swept"]
+        self.assertEqual(len(found), 1, out["findings"])
+        self.assertEqual(found[0]["severity"], "warning")
+        self.assertIsNone(found[0]["ticket"])
+        self.assertNotIn("map-never-swept", out["notChecked"],
+                         "the rule needs only the body, which every backend has")
+
+    def test_a_sweep_bullet_in_the_issue_body_satisfies_the_rule(self):
+        self.chart()
+        rules = {f["rule"] for f in gh.lint(self.ops, "billing")["findings"]}
+        self.assertNotIn("map-never-swept", rules)
+
+    def test_an_additive_re_chart_writes_the_bullet_into_the_issue_body(self):
+        inp = copy.deepcopy(INPUT)
+        inp["map"]["notes"] = ["consult the pricing skill"]
+        self.chart(inp)
+        self.assertFalse(gh.lint(self.ops, "billing")["clean"])
+        bullet = "sweep 2026-09-14: none — performance; ticket — auth-model"
+        again = copy.deepcopy(INPUT)
+        again["map"]["notes"] = [bullet]
+        again["tickets"] = []
+        self.chart(again)
+        body = self.ops.snapshot("billing").map["body"]
+        self.assertIn("- consult the pricing skill\n- " + bullet + "\n", body)
+        rules = {f["rule"] for f in gh.lint(self.ops, "billing")["findings"]}
+        self.assertNotIn("map-never-swept", rules)
 
 
 class GitHubMapRegionsTest(unittest.TestCase):
