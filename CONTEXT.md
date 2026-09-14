@@ -161,6 +161,17 @@ Distinct from GitHub's native milestone object and from an ADO iteration — tho
 are backend furniture, not this term.
 _Avoid_: sprint, iteration, phase, epic, release.
 
+**Frontier sweep**:
+The coverage pass chart-map runs *after* the human-led breadth-first grill: a
+fixed reference list of software-engineering areas (functional gaps, performance,
+reliability and recovery, security, identity and authorization, data and privacy,
+deploy and change safety, operations, dependencies/cost/compliance) is walked once,
+and every area ends as a Decision ticket, a fog line, an out-of-scope line, or a
+recorded **none** on the map — so a later session can tell "swept and empty" from
+"never asked" (ADR 0222). A map charted before the sweep existed is swept by an
+additive re-chart, and `lint` flags it as `map-never-swept` until then (ADR 0223).
+_Avoid_: checklist, questionnaire, NFR review.
+
 **Empty milestone**:
 A Milestone declared with no member tickets yet — a placeholder for an increment
 whose decisions are not yet stated, i.e. fog at increment level. Legal and never
