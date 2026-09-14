@@ -374,6 +374,7 @@ def test_compiled_python_never_travels():
 
 def test_licence_mapping_covers_the_seven_vendored_skills():
     assert g.licence_for("wait-what") == "LICENSE-mattpocock-skills"
+    assert g.licence_for("handoff") == "LICENSE-mattpocock-skills"
     assert g.licence_for("sp-writing-plans") == "LICENSE-superpowers"
     assert g.licence_for("sp-grill-with-doc") is None
     assert g.licence_for("grill-then-plan") is None
