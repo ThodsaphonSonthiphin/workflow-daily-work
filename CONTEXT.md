@@ -556,6 +556,30 @@ imperative commit line is correct, and correcting it would teach a false rule (A
 _Avoid_: tone, style, formality (all narrower — register decides grammar norms here, not
 just wording).
 
+## handoff terms (dev-workflows plugin)
+
+**Handoff document**:
+One Markdown file that compacts the live thread of a conversation — what is in
+flight, why, what is next, decisions no artifact records yet, a *Suggested
+skills* section — so a fresh agent somewhere else can continue the work. It
+references specs, plans, ADRs, issues and diffs by path or URL and never copies
+them; secrets are redacted; unverified beliefs are marked *assumed*. Written to
+the OS temp directory by default (a transit document), or — for the `cloud`
+destination — into `docs/superpowers/handoffs/<date>-<slug>.md`, committed and
+pushed, because a Claude Code cloud session clones the branch from GitHub
+(ADRs 0227, 0228). Vendored from mattpocock/skills, MODIFIED.
+_Avoid_: summary, /compact (that compresses *this* session and stays here),
+save state (below), the routing sense of "hand off" used inside `daily` (a
+station handing you to a skill).
+
+**Save state vs Handoff**:
+`/daily save` captures *your own* resume-point in *this* repo on *this* machine —
+a footer accelerator, not a station (ADR 0004). `handoff` is its twin for when the
+*work* travels — another harness, machine, colleague, or a cloud session — and
+is reachable the same way, at any moment, from a second `/daily` footer line
+(ADR 0229). Same shape, opposite direction: save keeps you here; handoff sends
+the work away.
+
 ## guide-and-verify terms (dev-workflows plugin)
 
 **Freeze line**:

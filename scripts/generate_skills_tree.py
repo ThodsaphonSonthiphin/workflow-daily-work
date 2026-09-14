@@ -210,6 +210,7 @@ VENDORED = {
     "sp-subagent-driven-development": SUPERPOWERS_LICENCE,
     "sp-writing-plans": SUPERPOWERS_LICENCE,
     "wait-what": MATTPOCOCK_LICENCE,
+    "handoff": MATTPOCOCK_LICENCE,
 }
 
 
