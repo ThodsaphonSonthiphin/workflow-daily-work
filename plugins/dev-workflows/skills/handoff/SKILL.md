@@ -65,7 +65,9 @@ truncation, not an error.
    the commit — assisted git, never automatic).
 2. **Write the file** under `docs/superpowers/handoffs/`, commit it with an
    explicit path list, and push the branch. Tell the user the branch name — it is
-   what the cloud session is created from.
+   what the cloud session is created from. `<slug>` is a lowercase-kebab of the
+   argument's subject (≤ 5 words), or of the current branch name when no
+   argument is given.
 3. **The plugins are not there.** The cloud machine starts without this
    machine's marketplaces or user-scope plugins. The "Suggested skills" section
    therefore says so — *may be absent on cloud* — and the document has to stand
