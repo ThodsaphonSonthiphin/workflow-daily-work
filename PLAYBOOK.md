@@ -92,6 +92,7 @@ flowchart TD
 | "what is this / how does it work?" — or an answer came back too long to read | `feynman-explain` (`/feynman`) — fixed short card: plain explanation, the fuzzy parts named, gaps filled from real evidence, 30-second line |
 | work you OWN but do not understand — a map/plan/pipeline an AI built for you, or "ถามให้คิดหน่อย" / "grill me" | `asking-to-understand` (`/ask`) — the Socratic side of `/feynman`: one evidence-grounded question per turn, symptom pushed to mechanism, stops when you state the rule |
 | the agent's *last message* lost you — "wait", "หา?", "งง", "say that again" | `wait-what` (`/wait-what`) — re-pitches that one message with a little context, in ASD-STE100 Simplified Technical English, using `CONTEXT.md`'s ubiquitous language. Vendored verbatim from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT); manual invocation only |
+| the work has to TRAVEL — another harness, another machine or repo, a colleague, a forked side task, or a Claude Code cloud session | `handoff` (`/dev-workflows:handoff [cloud] "<what next>"`) — compacts the live thread into one handoff document (refs, not copies; secrets redacted; suggested skills named); default lands in temp, `cloud` commits and pushes it into `docs/superpowers/handoffs/` because a cloud session clones from GitHub. Usable at any moment; the 🚀 footer of `/daily` reminds you. Vendored from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT) and MODIFIED (ADRs 0227–0229); manual invocation only |
 | your own English is the problem — you are writing a message, commit or PR and the English is wrong or does not sound right ("แก้อังกฤษให้หน่อย", "is my English right", "make this sound natural") | `practice-english-writing` (`/practice-english-writing`) — Thai or broken English in; the smallest correction with every change labelled by error class and explained in Thai, then the natural version. Detects the register, so a subjectless commit subject is not "corrected" into prose. `practice` drills you on your own recorded mistakes, hardest on the classes you have not learned yet. Writing only — for English you are trying to UNDERSTAND, use `/feynman` |
 | explaining a complex problem | `problem-description` |
 | "why does this code/ticket exist?" | `ticket-trace` |
@@ -155,7 +156,7 @@ invariant guards both entry points: **never plan a fix on an unverified cause.**
   next step into `daily-state.md` (one per repo, at the git root) and offers to
   commit. `/daily wrap` writes the same snapshot at end of day. The next session's
   `/daily start` reads it back. Helper: `scripts/daily-state.py` owns the YAML;
-  git stays in the skill, assisted and never automatic (ADR 0014).
+  git stays in the skill, assisted and never automatic (ADR 0014). Its twin for when the work leaves this machine is `handoff` (`/dev-workflows:handoff`) (ADR 0229).
 
 ## Maintenance rule
 
