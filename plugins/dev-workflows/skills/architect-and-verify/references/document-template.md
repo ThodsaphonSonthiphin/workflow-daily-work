@@ -302,7 +302,7 @@ row.
 | To learn | Windows | Linux | It passes when |
 |---|---|---|---|
 | a port answers | `Test-NetConnection <host> -Port <port>` | `nc -vz <host> <port>` | Windows prints `TcpTestSucceeded : True`; `nc` exits with status 0 |
-| a name resolves | `nslookup <name>` | `getent hosts <name>` | an address is printed |
+| a name resolves | `Resolve-DnsName <name>` | `getent hosts <name>` | Windows prints an address for the name and no error; `getent` exits with status 0 |
 | TLS works on a port | `curl.exe -sI https://<host>:<port>/` | `curl -sI https://<host>:<port>/` | an HTTP status line is printed |
 | which .NET SDKs are installed | `dotnet --list-sdks` | `dotnet --list-sdks` | a line starts with the necessary version |
 | which Java is installed | `java -version` | `java -version` | the version line shows the necessary version |

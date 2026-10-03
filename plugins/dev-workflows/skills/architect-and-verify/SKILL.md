@@ -151,7 +151,7 @@ Save the document with the status to-be, and tell the user where it is.
 
 ### Phase 7 — Changes and tests
 
-Read `references/change-steps.md` before the first change.
+Read `references/change-steps.md` before the first change is guided or the first test fails.
 
 - **Guide each change** in the same eight steps, one change at a time. A change that belongs to
   another team gets the same steps, written so that team can follow them with only the document.
@@ -167,8 +167,8 @@ Read `references/change-steps.md` before the first change.
 | What you see | What it is | What you do |
 |---|---|---|
 | The test cannot run yet: one end does not exist — the new system is not installed, so nothing listens on its port | **Owed** | Record the test as owed, with the reason. Do not open a temporary listener to prove the path early. The document stays to-be. |
-| The test fails, and a change the row needs is not done — or a told fact turns out to be wrong | **A finding** | Write the measured value into the row. Add the change, or finish it. Carry on: an old document that is wrong is the normal case. |
-| The test fails, and every change the row needs is recorded as done | **A problem** | Stop. Send the Freeze line, then hand off to `debug-mantra`, as `references/change-steps.md` says. Never tell the person to try again. |
+| The test fails, and a change the row needs is not done yet — or it is the first measurement of a told fact, taken before any change for the row | **A finding** | Write the measured value into the row. Add the change, or finish it. Carry on: an old document that is wrong is the normal case. |
+| The test fails, and every change the row needs is recorded as done — even if the row is still marked told | **A problem** | Stop. Send the Freeze line, then hand off to `debug-mantra`, as `references/change-steps.md` says. Never tell the person to try again. |
 
 ## Measured or told
 

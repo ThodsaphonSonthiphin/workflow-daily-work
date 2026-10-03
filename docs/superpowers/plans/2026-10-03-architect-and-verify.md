@@ -1,5 +1,5 @@
 # architect-and-verify — Implementation Plan
-> **Amended during execution (2026-10-03):** Task 2's review found eval cases 0, 2 and 3 short of spec §9. Case 0 now checks that the three answers come first (ADR 0260), case 2's situation is a rule reported open, and case 3 asserts all eight steps. The evals block and `check.py` below carry the new text.
+> **Amended during execution (2026-10-03):** Task 2's review found eval cases 0, 2 and 3 short of spec §9. Case 0 now checks that the three answers come first (ADR 0260), case 2's situation is a rule reported open, and case 3 asserts all eight steps. Task 3's review then found that the name-resolution test could not fail (`nslookup` prints an address even for a name that does not resolve), and that the line between a finding and a problem was looser than ADR 0244: the template now uses `Resolve-DnsName`, a finding is limited to a told fact's first measurement before any change, and Phase 7 reads `change-steps.md` before the first change or the first failing test (spec §3). The blocks and `check.py` below carry the new text.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use sp-subagent-driven-development (recommended) or sp-executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -190,7 +190,7 @@ shasum -a 256 "$SCRATCH/check.py" "$SCRATCH/minted.py" "$SCRATCH/edit_manifests.
 Expected: four `wrote …` lines, then these four hashes:
 
 ```
-d48a42cfb3273e04f69de26804ae6ea398c90dce35f89d7b4f2d04959ea00fa2  check.py
+4806fca68c4f03f7c91ebf01d575c1cfe3d99d0b1a65dfc14e4593f7a6f19136  check.py
 ab8978152da35d5982869b3ca15fc4374586885ac628cf4fe8fcfda677ea1c7e  minted.py
 7cdecc6cc624c0885c70b51bdcea74f991988bdb1317d88ef079dc3a50513d68  edit_manifests.py
 389dbd6a984fe5ccab69d8404386c387b0b0cf37a1dedfc9804aa3e780f4dac4  parse_mermaid.mjs
@@ -222,8 +222,8 @@ import sys
 D = "plugins/dev-workflows/skills/architect-and-verify"
 SHA = {
     D + "/evals/evals.json": "df28a5976ae2fe9c71842651f4a8427ebb2de6bc4d20baf4dc990d8c4a19040f",
-    D + "/SKILL.md": "cb59004c6def69ce81aec304d7a0665db961a94f631502ba59ad76410133f5a0",
-    D + "/references/document-template.md": "1a23bc30c5938ccdc8627171faa34790cc4a2e1a8112ceeed0e7a4b6ef0b579e",
+    D + "/SKILL.md": "6ca8d726aea34a56077770723d3110e51a2c23ed01df5c82513cff591a72652c",
+    D + "/references/document-template.md": "27ea41756b67ab4f5e0bce7469c4ed719510be457ecc7d0872553b109c08a233",
     D + "/references/change-steps.md": "786ed95d286a41c01cc1cd95c36a4fd0bf04699414a79fc090d985107471af47",
     D + "/references/ways-to-meet-a-need.md": "34a3227c96df01eb00789d0a363a404eddb3da91b895334db754031b9a5f8599",
 }
@@ -1076,7 +1076,7 @@ Save the document with the status to-be, and tell the user where it is.
 
 ### Phase 7 — Changes and tests
 
-Read `references/change-steps.md` before the first change.
+Read `references/change-steps.md` before the first change is guided or the first test fails.
 
 - **Guide each change** in the same eight steps, one change at a time. A change that belongs to
   another team gets the same steps, written so that team can follow them with only the document.
@@ -1092,8 +1092,8 @@ Read `references/change-steps.md` before the first change.
 | What you see | What it is | What you do |
 |---|---|---|
 | The test cannot run yet: one end does not exist — the new system is not installed, so nothing listens on its port | **Owed** | Record the test as owed, with the reason. Do not open a temporary listener to prove the path early. The document stays to-be. |
-| The test fails, and a change the row needs is not done — or a told fact turns out to be wrong | **A finding** | Write the measured value into the row. Add the change, or finish it. Carry on: an old document that is wrong is the normal case. |
-| The test fails, and every change the row needs is recorded as done | **A problem** | Stop. Send the Freeze line, then hand off to `debug-mantra`, as `references/change-steps.md` says. Never tell the person to try again. |
+| The test fails, and a change the row needs is not done yet — or it is the first measurement of a told fact, taken before any change for the row | **A finding** | Write the measured value into the row. Add the change, or finish it. Carry on: an old document that is wrong is the normal case. |
+| The test fails, and every change the row needs is recorded as done — even if the row is still marked told | **A problem** | Stop. Send the Freeze line, then hand off to `debug-mantra`, as `references/change-steps.md` says. Never tell the person to try again. |
 
 ## Measured or told
 
@@ -1439,7 +1439,7 @@ row.
 | To learn | Windows | Linux | It passes when |
 |---|---|---|---|
 | a port answers | `Test-NetConnection <host> -Port <port>` | `nc -vz <host> <port>` | Windows prints `TcpTestSucceeded : True`; `nc` exits with status 0 |
-| a name resolves | `nslookup <name>` | `getent hosts <name>` | an address is printed |
+| a name resolves | `Resolve-DnsName <name>` | `getent hosts <name>` | Windows prints an address for the name and no error; `getent` exits with status 0 |
 | TLS works on a port | `curl.exe -sI https://<host>:<port>/` | `curl -sI https://<host>:<port>/` | an HTTP status line is printed |
 | which .NET SDKs are installed | `dotnet --list-sdks` | `dotnet --list-sdks` | a line starts with the necessary version |
 | which Java is installed | `java -version` | `java -version` | the version line shows the necessary version |
