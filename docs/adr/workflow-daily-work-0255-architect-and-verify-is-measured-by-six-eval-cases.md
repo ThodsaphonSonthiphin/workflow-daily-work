@@ -1,4 +1,5 @@
 # architect-and-verify is measured by six eval cases
+> **Refined by ADR 0260 (2026-10-03):** case 0 measures "the three questions first" as order — the three answers its message gives are written first and are not asked again; no one-turn case measures the question round itself.
 
 ```mermaid
 flowchart TD

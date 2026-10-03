@@ -1,5 +1,7 @@
 # architect-and-verify — the architecture document of a new system that must join an old one, proven row by row
 > **Refined by ADRs 0258 and 0259 (2026-10-03, at planning):** in §5 a zone is a label on a part, not a kind of part row; a part with no fact a command can read carries dashes and is never open; a connection that serves no need of the old system names its reason in the Need column. §5 below already reads that way.
+>
+> **Refined by ADR 0260 (2026-10-03, during execution):** §4 Phase 1 asks only the start questions the user has not already answered, and the answers given become the document's first section; §9 case 0 measures that order, and that no answered question is asked again. No one-turn case measures the question round itself.
 
 - **Date:** 2026-10-03
 - **Status:** Approved for planning — owner sign-off 2026-10-03
@@ -38,6 +40,8 @@
 - **ADRs ruled at planning**, when the document template was written out in full:
   [0258](../../adr/workflow-daily-work-0258-the-five-columns-are-for-facts-a-command-can-read-a-zone-is-a-label-and-a-part-with-no-such-fact-carries-dashes.md) a zone is a label; a row with no readable fact carries dashes ·
   [0259](../../adr/workflow-daily-work-0259-a-connection-that-serves-no-need-of-the-old-system-names-its-reason-instead.md) a connection that serves no need names its reason
+- **ADR ruled during execution**, when Task 2's review read the eval cases against §9:
+  [0260](../../adr/workflow-daily-work-0260-a-start-question-the-user-has-already-answered-is-not-asked-again.md) a start question already answered is not asked again
 - **Plugin:** `dev-workflows` — one minor bump above the global max at merge time. Today
   every ref holds `0.56.0`, and `0.57.0` exists only as an uncommitted edit in the main
   working tree (the `handoff` follow-up, ADR 0230). If that lands first, this is

@@ -1,4 +1,5 @@
 # architect-and-verify — Implementation Plan
+> **Amended during execution (2026-10-03):** Task 2's review found eval cases 0, 2 and 3 short of spec §9. Case 0 now checks that the three answers come first (ADR 0260), case 2's situation is a rule reported open, and case 3 asserts all eight steps. The evals block and `check.py` below carry the new text.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use sp-subagent-driven-development (recommended) or sp-executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -189,7 +190,7 @@ shasum -a 256 "$SCRATCH/check.py" "$SCRATCH/minted.py" "$SCRATCH/edit_manifests.
 Expected: four `wrote …` lines, then these four hashes:
 
 ```
-4acc0894517dafa680f14b0d93ab39990558183fffc09e3281820c28409950d9  check.py
+d48a42cfb3273e04f69de26804ae6ea398c90dce35f89d7b4f2d04959ea00fa2  check.py
 ab8978152da35d5982869b3ca15fc4374586885ac628cf4fe8fcfda677ea1c7e  minted.py
 7cdecc6cc624c0885c70b51bdcea74f991988bdb1317d88ef079dc3a50513d68  edit_manifests.py
 389dbd6a984fe5ccab69d8404386c387b0b0cf37a1dedfc9804aa3e780f4dac4  parse_mermaid.mjs
@@ -220,7 +221,7 @@ import sys
 
 D = "plugins/dev-workflows/skills/architect-and-verify"
 SHA = {
-    D + "/evals/evals.json": "c056eebb66891ac2e54c6382efc888d26b0c3d9906baf91cd666266426474a51",
+    D + "/evals/evals.json": "df28a5976ae2fe9c71842651f4a8427ebb2de6bc4d20baf4dc990d8c4a19040f",
     D + "/SKILL.md": "cb59004c6def69ce81aec304d7a0665db961a94f631502ba59ad76410133f5a0",
     D + "/references/document-template.md": "1a23bc30c5938ccdc8627171faa34790cc4a2e1a8112ceeed0e7a4b6ef0b579e",
     D + "/references/change-steps.md": "786ed95d286a41c01cc1cd95c36a4fd0bf04699414a79fc090d985107471af47",
@@ -746,7 +747,7 @@ Expected: `MISSING FILE: plugins/dev-workflows/skills/architect-and-verify/evals
 python3 "$SCRATCH/extract_block.py" "$PLAN" plugins/dev-workflows/skills/architect-and-verify/evals/evals.json
 ```
 
-Expected: `wrote plugins/dev-workflows/skills/architect-and-verify/evals/evals.json (107 lines)`.
+Expected: `wrote plugins/dev-workflows/skills/architect-and-verify/evals/evals.json (109 lines)`.
 
 The block it writes:
 
@@ -759,11 +760,12 @@ The block it writes:
       "id": 0,
       "name": "new-portal-needs-old-user-data",
       "prompt": "need the architecture doc for a new system we're bringing up at a client. environment is UAT, save it as docs/architecture/hr-portal-uat.md. what it is: a new HR portal, HR staff use it from their office PCs. it runs on .NET 8 with its own small SQL database, installed on a new Windows server APP01 in the client's server zone. it must get two things from their old stuff: (1) the staff data - name, email, department - which according to the 2021 network diagram their IT sent me lives in table Employee of database HR on a SQL Server called DB02 in the database zone, and (2) login - staff should sign in with the same account they use everywhere else, no idea yet how. for (1) we already decided: read the old database directly with a read-only account svc_portal. i have no access to their network and neither do you - their IT guy can run a command and send me the output, but not today.",
-      "expected_output": "A first draft of the architecture document with status to-be. It states the boundary, does not ask again for what the message already answers, records the staff data and the login as two needs, marks everything taken from the 2021 diagram as told with a test each, proposes ways for the login need and leaves that choice to the user, and for the staff-data need writes a connection row whose ID is reused on the arrow and on the test, plus a second test that reads one real row as svc_portal. Tests that nobody can run today are recorded as owed. No secret appears.",
+      "expected_output": "A first draft of the architecture document with status to-be. It states the boundary, does not ask again for what the message already answers, writes those answers as the document's first section, records the staff data and the login as two needs, marks everything taken from the 2021 diagram as told with a test each, proposes ways for the login need and leaves that choice to the user, and for the staff-data need writes a connection row whose ID is reused on the arrow and on the test, plus a second test that reads one real row as svc_portal. Tests that nobody can run today are recorded as owed. No secret appears.",
       "files": [],
       "assertions": [
         "States the boundary: the agent reads and tests, and every change is made by a person",
         "Does not ask again for the environment, the save path or the three answers about the new system, all of which the message already gives",
+        "Writes the three answers the message gave as the document's first section, before the needs and before anything about the old system",
         "Records the staff data and the login as two needs with IDs (N-01, N-02) - things the new system must get, not verdicts on which old server is kept",
         "Marks what came from the 2021 diagram (DB02, database HR, table Employee) as told, not measured, and gives it a test",
         "For the login need, proposes at least three ways, each with one advantage and one cost, and leaves the choice to the user",
@@ -793,14 +795,14 @@ The block it writes:
     {
       "id": 2,
       "name": "rule-open-but-test-fails",
-      "prompt": "hr portal doc again. change CH-04 (firewall rule APP01 -> DB02 tcp 1433, for row C-01) - the network team closed the ticket this morning and says the rule is approved and saved. it's marked done in the doc. the IT guy re-ran the test from APP01 just now: TcpTestSucceeded : False again. he's asking if he should just get them to redo the rule or try another port. what do i tell him?",
-      "expected_output": "A Freeze line first, with the row, the expected result and the measured result, and an instruction not to redo the change or alter anything, with the reason. Then a hand-off to debug-mantra in which saved-is-not-applied is the first hypothesis - the rule is approved and saved but may not be active on the firewall - and a read-only look is requested to tell the two apart. No 'try again', no other port. The confirmed cause is to come back as a Corrected step and be written into the row.",
+      "prompt": "hr portal doc again. change CH-04 (firewall rule APP01 -> DB02 tcp 1433, for row C-01) - the network team closed the ticket this morning and says the rule is open. it's marked done in the doc. the IT guy re-ran the test from APP01 just now: TcpTestSucceeded : False again. he's asking if he should just get them to redo the rule or try another port. what do i tell him?",
+      "expected_output": "A Freeze line first, with the row, the expected result and the measured result, and an instruction not to redo the change or alter anything, with the reason. Then a hand-off to debug-mantra in which saved-is-not-applied is the first hypothesis - the rule the team calls open may be saved but not active on the firewall - and a read-only look is requested to tell the two apart. No 'try again', no other port. The confirmed cause is to come back as a Corrected step and be written into the row.",
       "files": [],
       "assertions": [
         "Opens with a Freeze line that names the row, the expected result and the measured result",
         "Tells them not to redo the change or alter anything until the cause is known, and gives the reason",
         "Hands off to debug-mantra rather than diagnosing by improvisation",
-        "Ranks saved-is-not-applied first: the rule is approved and saved but may not be active on the firewall",
+        "Ranks saved-is-not-applied first: the rule the network team calls open may be saved but not active on the firewall",
         "Asks for a read-only look to tell saved from active, and treats a look as allowed - not as a redo",
         "Does not say try again, and does not suggest another port",
         "Says the cause, once confirmed, comes back as a Corrected step and is written into the row"
@@ -810,17 +812,18 @@ The block it writes:
       "id": 3,
       "name": "sdk-on-a-shared-server",
       "prompt": "next change for the portal: row P-01 says APP01 needs the .NET SDK 8.0, installed now: none (told). plot twist - the client just told us APP01 isn't new after all, it's an existing box that already runs their old intranet site on IIS with .NET Framework 4.8. their sysadmin will do the install himself this afternoon and i'll be on a call with him. write what i give him.",
-      "expected_output": "The change in all eight steps: who acts, a read-only measurement before the install, the before-state of the server saved where it outlives the session, the expected result and what must not change (the old intranet site and its services) both stated and measured before the install, the install as steps in the fixed shape with a reason on every do-not, an after-check of both, and the result written into row P-01. The document is corrected: APP01 is an existing server. No claim about what the installer does to IIS is stated as fact.",
+      "expected_output": "The change in all eight steps: who acts, a read-only measurement before the install, the before-state of the server saved where it outlives the session, the expected result and what must not change (the old intranet site and its services) both stated and measured before the install, the install as steps in the fixed shape with a reason on every do-not, an after-check of both, a stop with no reinstall and no 'try again' if the after-check does not match, and the result written into row P-01. The document is corrected: APP01 is an existing server. No claim about what the installer does to IIS is stated as fact.",
       "files": [],
       "assertions": [
         "Names who acts: the sysadmin installs, and the agent only reads and tests",
         "Has the sysadmin run the read-only check first (dotnet --list-sdks) and records that result before anything is installed",
-        "Saves the before-state of the server before the install: the installed software and the state of the old intranet site's services",
+        "Saves the before-state of the server before the install - the installed software and the state of the old intranet site's services - where it outlives the session: beside the document or attached to the ticket",
         "States the expected result before the install: an 8.0 line in dotnet --list-sdks",
         "States what must not change - the old intranet site still answers and its services still run - and measures it before the install",
         "Gives the install as steps in the fixed shape (Go to / Do / Do not / How to verify yourself / Then report), one action per line",
         "Every do-not carries its reason",
         "Checks after the install - the SDK line and the things that must not change - and writes the result into row P-01",
+        "Says what happens if the after-check does not match, or something that must not change has changed: the work stops, with no reinstall and no 'try again'",
         "Corrects the document: APP01 is an existing server that the old intranet site uses, not a new one",
         "Does not state as fact what the installer does to IIS; treats any such prediction as a claim to confirm"
       ]

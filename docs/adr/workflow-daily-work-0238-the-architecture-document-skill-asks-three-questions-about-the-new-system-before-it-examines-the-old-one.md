@@ -1,4 +1,5 @@
 # The architecture-document skill asks three questions about the new system before it examines the old one
+> **Refined by ADR 0260 (2026-10-03):** a start question the user has already answered is not asked again — the answers given become the document's first section. The order decided here is unchanged.
 
 ```mermaid
 flowchart TD
