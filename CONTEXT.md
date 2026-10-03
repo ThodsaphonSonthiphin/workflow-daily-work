@@ -619,7 +619,7 @@ _Avoid_: verified, confirmed.
 
 **Told fact**:
 A fact that comes from the user's own words or an old document; nobody ran a command for
-it. Every told fact gets a row in the test list, so it is tested before go-live (ADR 0233).
+it. Every told fact's row carries its test, so it is tested before go-live (ADR 0233).
 _Avoid_: assumed, unverified.
 
 **UML view**:

@@ -1,5 +1,5 @@
 # architect-and-verify — Implementation Plan
-> **Amended during execution (2026-10-03):** Task 2's review found eval cases 0, 2 and 3 short of spec §9. Case 0 now checks that the three answers come first (ADR 0260), case 2's situation is a rule reported open, and case 3 asserts all eight steps. Task 3's review then found that the name-resolution test could not fail (`nslookup` prints an address even for a name that does not resolve), and that the line between a finding and a problem was looser than ADR 0244: the template now uses `Resolve-DnsName`, a finding is limited to a told fact's first measurement before any change, and Phase 7 reads `change-steps.md` before the first change or the first failing test (spec §3). The blocks and `check.py` below carry the new text.
+> **Amended during execution (2026-10-03):** Task 2's review found eval cases 0, 2 and 3 short of spec §9. Case 0 now checks that the three answers come first (ADR 0260), case 2's situation is a rule reported open, and case 3 asserts all eight steps. Task 3's review then found that the name-resolution test could not fail (`nslookup` prints an address even for a name that does not resolve), and that the line between a finding and a problem was looser than ADR 0244: the template now uses `Resolve-DnsName`, a finding is limited to a told fact's first measurement before any change, and Phase 7 reads `change-steps.md` before the first change or the first failing test (spec §3). The final review then found case 0's order assertion could fail a correct run (the context view sits above section 1), so it now reads "section 1, ahead of the Needs and old-system sections"; the template's context-view user arrow carries C-03, a `—` mark is defined as open, the TLS test is "HTTPS answers on a port", and "owed" also covers a prerequisite row not yet passed. The blocks and `check.py` below carry the new text.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use sp-subagent-driven-development (recommended) or sp-executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -190,7 +190,7 @@ shasum -a 256 "$SCRATCH/check.py" "$SCRATCH/minted.py" "$SCRATCH/edit_manifests.
 Expected: four `wrote …` lines, then these four hashes:
 
 ```
-4806fca68c4f03f7c91ebf01d575c1cfe3d99d0b1a65dfc14e4593f7a6f19136  check.py
+739cf77d4d9064db6ffbf59b4d8a6282d7bbf000dbe7aebcd501ac4470581b09  check.py
 ab8978152da35d5982869b3ca15fc4374586885ac628cf4fe8fcfda677ea1c7e  minted.py
 7cdecc6cc624c0885c70b51bdcea74f991988bdb1317d88ef079dc3a50513d68  edit_manifests.py
 389dbd6a984fe5ccab69d8404386c387b0b0cf37a1dedfc9804aa3e780f4dac4  parse_mermaid.mjs
@@ -221,9 +221,9 @@ import sys
 
 D = "plugins/dev-workflows/skills/architect-and-verify"
 SHA = {
-    D + "/evals/evals.json": "df28a5976ae2fe9c71842651f4a8427ebb2de6bc4d20baf4dc990d8c4a19040f",
-    D + "/SKILL.md": "6ca8d726aea34a56077770723d3110e51a2c23ed01df5c82513cff591a72652c",
-    D + "/references/document-template.md": "27ea41756b67ab4f5e0bce7469c4ed719510be457ecc7d0872553b109c08a233",
+    D + "/evals/evals.json": "30f11503780a753c4f92391183aa730d4cc9610a8a1fbc43a1a553eb992bff84",
+    D + "/SKILL.md": "6d33ee95b65543c799c32e1c7ff6f36282dcc645add1c9c96f45356a85747c66",
+    D + "/references/document-template.md": "6436f2edac207a21a80721e7c8ace914245eb0e1fcc59dc0bf605ed5943a9ec5",
     D + "/references/change-steps.md": "786ed95d286a41c01cc1cd95c36a4fd0bf04699414a79fc090d985107471af47",
     D + "/references/ways-to-meet-a-need.md": "34a3227c96df01eb00789d0a363a404eddb3da91b895334db754031b9a5f8599",
 }
@@ -760,18 +760,18 @@ The block it writes:
       "id": 0,
       "name": "new-portal-needs-old-user-data",
       "prompt": "need the architecture doc for a new system we're bringing up at a client. environment is UAT, save it as docs/architecture/hr-portal-uat.md. what it is: a new HR portal, HR staff use it from their office PCs. it runs on .NET 8 with its own small SQL database, installed on a new Windows server APP01 in the client's server zone. it must get two things from their old stuff: (1) the staff data - name, email, department - which according to the 2021 network diagram their IT sent me lives in table Employee of database HR on a SQL Server called DB02 in the database zone, and (2) login - staff should sign in with the same account they use everywhere else, no idea yet how. for (1) we already decided: read the old database directly with a read-only account svc_portal. i have no access to their network and neither do you - their IT guy can run a command and send me the output, but not today.",
-      "expected_output": "A first draft of the architecture document with status to-be. It states the boundary, does not ask again for what the message already answers, writes those answers as the document's first section, records the staff data and the login as two needs, marks everything taken from the 2021 diagram as told with a test each, proposes ways for the login need and leaves that choice to the user, and for the staff-data need writes a connection row whose ID is reused on the arrow and on the test, plus a second test that reads one real row as svc_portal. Tests that nobody can run today are recorded as owed. No secret appears.",
+      "expected_output": "A first draft of the architecture document with status to-be. It states the boundary, does not ask again for what the message already answers, writes those answers as section 1 of the document, records the staff data and the login as two needs, marks everything taken from the 2021 diagram as told with a test each, proposes ways for the login need and leaves that choice to the user, and for the staff-data need writes a connection row whose ID is reused on the arrow and on the test, plus a second test that reads one real row as svc_portal. Tests that nobody can run today are recorded as owed. No secret appears.",
       "files": [],
       "assertions": [
         "States the boundary: the agent reads and tests, and every change is made by a person",
         "Does not ask again for the environment, the save path or the three answers about the new system, all of which the message already gives",
-        "Writes the three answers the message gave as the document's first section, before the needs and before anything about the old system",
+        "Writes the three answers the message gave as section 1 of the document, ahead of the Needs section and the old-system section",
         "Records the staff data and the login as two needs with IDs (N-01, N-02) - things the new system must get, not verdicts on which old server is kept",
         "Marks what came from the 2021 diagram (DB02, database HR, table Employee) as told, not measured, and gives it a test",
         "For the login need, proposes at least three ways, each with one advantage and one cost, and leaves the choice to the user",
         "For the staff-data need, writes a connection row from APP01 to DB02 with an ID, and uses that same ID on the arrow in the deployment view and on the test",
         "Gives the staff-data need a second test beyond the port: one real row of Employee read as svc_portal from APP01",
-        "Gives the client's IT person exact read-only commands to run, and records those tests as owed rather than passed",
+        "Gives the client's IT person exact read-only commands to run, and records those tests as not yet run - owed, or with no result yet - never as passed",
         "Contains no password, key or token"
       ]
     },
@@ -817,7 +817,7 @@ The block it writes:
       "assertions": [
         "Names who acts: the sysadmin installs, and the agent only reads and tests",
         "Has the sysadmin run the read-only check first (dotnet --list-sdks) and records that result before anything is installed",
-        "Saves the before-state of the server before the install - the installed software and the state of the old intranet site's services - where it outlives the session: beside the document or attached to the ticket",
+        "Saves the before-state of the server before the install - the installed software and the state of the old intranet site's services - where it outlives the session: beside the document, attached to the ticket, or in a directory the document names",
         "States the expected result before the install: an 8.0 line in dotnet --list-sdks",
         "States what must not change - the old intranet site still answers and its services still run - and measures it before the install",
         "Gives the install as steps in the fixed shape (Go to / Do / Do not / How to verify yourself / Then report), one action per line",
@@ -917,7 +917,7 @@ python3 "$SCRATCH/extract_block.py" "$PLAN" $D/references/change-steps.md
 python3 "$SCRATCH/extract_block.py" "$PLAN" $D/references/ways-to-meet-a-need.md
 ```
 
-Expected: four `wrote …` lines — 208, 318, 248 and 47 lines.
+Expected: four `wrote …` lines — 208, 320, 248 and 47 lines.
 
 The four blocks:
 
@@ -1091,7 +1091,7 @@ Read `references/change-steps.md` before the first change is guided or the first
 
 | What you see | What it is | What you do |
 |---|---|---|
-| The test cannot run yet: one end does not exist — the new system is not installed, so nothing listens on its port | **Owed** | Record the test as owed, with the reason. Do not open a temporary listener to prove the path early. The document stays to-be. |
+| The test cannot run yet: one end does not exist — the new system is not installed, so nothing listens on its port — or a prerequisite row it depends on has not passed | **Owed** | Record the test as owed, with the reason. Do not open a temporary listener to prove the path early. The document stays to-be. |
 | The test fails, and a change the row needs is not done yet — or it is the first measurement of a told fact, taken before any change for the row | **A finding** | Write the measured value into the row. Add the change, or finish it. Carry on: an old document that is wrong is the normal case. |
 | The test fails, and every change the row needs is recorded as done — even if the row is still marked told | **A problem** | Stop. Send the Freeze line, then hand off to `debug-mantra`, as `references/change-steps.md` says. Never tell the person to try again. |
 
@@ -1215,6 +1215,8 @@ Under the changes table, each change has its own record: the eight steps of
 
 - A row is **open** until its mark is `measured` and its result equals its expected result.
 - A told fact becomes measured when its test passes. The result and its date stay in the row.
+- A row whose fact is not known yet has `—` in Mark and a test in Test. It is open, and its mark
+  becomes `measured` when its test passes.
 - A part with no fact that a command can read — a firewall whose rules nobody here can show —
   has `—` in its five columns and is never counted as open. Its effect is tested by the
   connection rows that cross it.
@@ -1263,7 +1265,7 @@ Copy the shape, not the content. The example is small: one new portal, two needs
 
 ```mermaid
 graph TD
-    U["HR staff"] -->|"use"| NEW["New HR Portal (new)"]
+    U["HR staff"] -->|"C-03 · users open the portal"| NEW["New HR Portal (new)"]
     NEW -->|"N-01 · staff data"| HR["Old HR system"]
     NEW -->|"N-02 · login"| DIR["Company directory"]
 ```
@@ -1440,7 +1442,7 @@ row.
 |---|---|---|---|
 | a port answers | `Test-NetConnection <host> -Port <port>` | `nc -vz <host> <port>` | Windows prints `TcpTestSucceeded : True`; `nc` exits with status 0 |
 | a name resolves | `Resolve-DnsName <name>` | `getent hosts <name>` | Windows prints an address for the name and no error; `getent` exits with status 0 |
-| TLS works on a port | `curl.exe -sI https://<host>:<port>/` | `curl -sI https://<host>:<port>/` | an HTTP status line is printed |
+| HTTPS answers on a port | `curl.exe -sI https://<host>:<port>/` | `curl -sI https://<host>:<port>/` | an HTTP status line is printed |
 | which .NET SDKs are installed | `dotnet --list-sdks` | `dotnet --list-sdks` | a line starts with the necessary version |
 | which Java is installed | `java -version` | `java -version` | the version line shows the necessary version |
 | the operating system | `(Get-CimInstance Win32_OperatingSystem).Caption` | `cat /etc/os-release` | the name and version are printed |
@@ -1869,7 +1871,7 @@ The skill and its Playbook entry - one row and two router edges (ADR 0246) - in 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
-Expected: one commit, `5 files changed, 824 insertions(+)` — the four files of Task 3 (821 lines) and the three Playbook lines.
+Expected: one commit, `5 files changed, 826 insertions(+)` — the four files of Task 3 (823 lines) and the three Playbook lines.
 
 ---
 

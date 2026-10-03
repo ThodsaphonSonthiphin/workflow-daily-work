@@ -24,7 +24,7 @@ and the examination of the old system covers only what they point at.
 
 Eval case 0 (`new-portal-needs-old-user-data`, ADR 0255) measures this decision. Its
 message answers all five questions: the skill must not ask again, and must write the three
-answers as the document's first section, before the needs and before anything about the
-old system. No case measures the round itself, for a message that answers nothing: a
+answers as section 1 of the document, ahead of the Needs section and the old-system
+section. No case measures the round itself, for a message that answers nothing: a
 one-turn case that asks cannot also show the needs, the ways and the IDs that case 0
 exists to measure.

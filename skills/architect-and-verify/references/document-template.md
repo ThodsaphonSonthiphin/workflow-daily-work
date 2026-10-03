@@ -78,6 +78,8 @@ Under the changes table, each change has its own record: the eight steps of
 
 - A row is **open** until its mark is `measured` and its result equals its expected result.
 - A told fact becomes measured when its test passes. The result and its date stay in the row.
+- A row whose fact is not known yet has `—` in Mark and a test in Test. It is open, and its mark
+  becomes `measured` when its test passes.
 - A part with no fact that a command can read — a firewall whose rules nobody here can show —
   has `—` in its five columns and is never counted as open. Its effect is tested by the
   connection rows that cross it.
@@ -126,7 +128,7 @@ Copy the shape, not the content. The example is small: one new portal, two needs
 
 ```mermaid
 graph TD
-    U["HR staff"] -->|"use"| NEW["New HR Portal (new)"]
+    U["HR staff"] -->|"C-03 · users open the portal"| NEW["New HR Portal (new)"]
     NEW -->|"N-01 · staff data"| HR["Old HR system"]
     NEW -->|"N-02 · login"| DIR["Company directory"]
 ```
@@ -303,7 +305,7 @@ row.
 |---|---|---|---|
 | a port answers | `Test-NetConnection <host> -Port <port>` | `nc -vz <host> <port>` | Windows prints `TcpTestSucceeded : True`; `nc` exits with status 0 |
 | a name resolves | `Resolve-DnsName <name>` | `getent hosts <name>` | Windows prints an address for the name and no error; `getent` exits with status 0 |
-| TLS works on a port | `curl.exe -sI https://<host>:<port>/` | `curl -sI https://<host>:<port>/` | an HTTP status line is printed |
+| HTTPS answers on a port | `curl.exe -sI https://<host>:<port>/` | `curl -sI https://<host>:<port>/` | an HTTP status line is printed |
 | which .NET SDKs are installed | `dotnet --list-sdks` | `dotnet --list-sdks` | a line starts with the necessary version |
 | which Java is installed | `java -version` | `java -version` | the version line shows the necessary version |
 | the operating system | `(Get-CimInstance Win32_OperatingSystem).Caption` | `cat /etc/os-release` | the name and version are printed |
