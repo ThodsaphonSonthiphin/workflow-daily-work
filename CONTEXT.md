@@ -608,3 +608,72 @@ as its own numbered line, asserted against the failed step's after-measurement a
 baseline. It is never a redo of the unchanged step; when the cause was the agent's — a
 wrong count, a wrong prediction — the corrected thing is the runbook (ADR 0220).
 _Avoid_: retry, redo, try again, fix (that is the ADR 0003 chain's word for a code defect).
+
+## architect-and-verify terms (dev-workflows plugin)
+
+**Measured fact**:
+A fact in the architecture document that comes from the output of a command that was run
+against the live system — by the agent, or by the user when the agent cannot access the
+system (ADR 0233).
+_Avoid_: verified, confirmed.
+
+**Told fact**:
+A fact that comes from the user's own words or an old document; nobody ran a command for
+it. Every told fact's row carries its test, so it is tested before go-live (ADR 0233).
+_Avoid_: assumed, unverified.
+
+**UML view**:
+One of the five named views the architecture document carries — context view, deployment
+view as-is, deployment view to-be, component view, sequence diagram — drawn as a Mermaid
+diagram under the **Diagram convention**. The name is UML's; the notation is Mermaid's
+(ADRs 0235, 0236).
+_Avoid_: UML diagram (implies strict UML notation, which the document does not use).
+
+**Connection table**:
+The table in the architecture document with one row per connection between two parts — an
+ID (`C-01`), the two ends, the port, the **Need** it serves (or its reason, when it
+serves none — ADR 0259), and its mark. A row is the source: the arrow in the deployment
+view to-be and the test are made from it and carry its ID (ADR 0237).
+_Avoid_: connectivity table, port list, firewall matrix.
+
+**Parts table**:
+The table in the architecture document with one row per server, database, firewall, user
+device or external service the needs touch — an ID (`S-01`), its kind, old or new, its
+zone, its facts and their mark. Its rows are the boxes of the two deployment views. A
+zone is a label on a part, not a row; a part with no fact a command can read carries
+dashes and is never open (ADRs 0252, 0258).
+_Avoid_: inventory, asset list, server list.
+
+**Prerequisite table**:
+The table in the architecture document with one row per piece of software or setting a
+server must have before the new system can run — an ID (`P-01`), the server, what is
+necessary, what is installed now and its mark. A row is the source of its test and its
+change, as a **Connection table** row is (ADR 0247).
+_Avoid_: checklist, requirements list.
+
+**Need**:
+One thing the new system must get from the old system — data, a login, a function —
+recorded as a row of the needs table (`N-01`): what is needed, where it lives in the old
+system, its mark, the way it is obtained, and the connections that carry it. Proven at
+two levels: the connection answers, and one real item arrives with the real account
+(ADRs 0239, 0241).
+_Avoid_: reuse, dependency, requirement.
+
+**As-built**:
+The status of an architecture document once the test of every row has passed — it then
+describes a system that was measured, not one that was designed. Until then the status is
+**to-be**; results are written into the rows of the same document, never a second file
+(ADR 0242).
+_Avoid_: final, done, verified.
+
+**Change**:
+One thing a person must do before a row can pass — install software, open a firewall
+rule, create an account. The skill lists it, guides the person through it in the same
+eight steps every time, and checks it (ADRs 0234, 0243).
+_Avoid_: task, fix, action item.
+
+**Problem**:
+A test that fails when every change it needs is recorded as done — the one moment the
+skill hands off to `debug-mantra`. A told fact that its first measurement contradicts is
+not a problem: it becomes a measured fact and a change (ADRs 0232, 0244).
+_Avoid_: failure, error, issue (each also covers the wrong-told-fact case).
