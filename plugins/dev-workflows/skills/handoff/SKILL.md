@@ -83,10 +83,15 @@ truncation, not an error.
    on its own: when a plan exists, name its path and say the plan is
    self-contained (every task carries its own code, commands and checks). Do not
    promise a review loop that depends on a skill the cloud session cannot load.
-4. **Give the launch, both ways.** Web: claude.ai/code → *Create session* → this
-   repo → this branch. CLI: `claude --cloud "Read <path to the handoff file> and
-   continue from it."` If `claude` is not on the PATH, the web route is the one
-   that works.
+4. **Give the launch, both ways — and offer to run it.** Web: claude.ai/code →
+   *Create session* → this repo → this branch. CLI: `claude --cloud "Read <path
+   to the handoff file> and continue from it."` If `claude` is not on the PATH,
+   the web route is the one that works. Then **ask** — "start the cloud session
+   now?" — and on a yes run that command yourself and print the session id or
+   URL it answers with, so the user does not have to copy anything. Ask rather
+   than launch on sight: a cloud session costs, and the user may be handing the
+   document to a colleague or to a later day. Printing the command and stopping
+   there is the failure this step exists to prevent.
 5. **Say how the result comes back.** The cloud session works on its own
    `claude/…` branch and can open a pull request. Locally: `claude --teleport
    <session>` or `git fetch` and check the branch out. Name what must be re-run
