@@ -23,6 +23,8 @@ flowchart TD
     choice"]
 ```
 
+> **Amended 2026-10-30 (whole-plan review):** when the thing pointed at could go either way, the question decides - *why / where does it come from / is it right* runs backward, *where is it implemented / is it tested / coverage* runs forward, neither → the one direction question; the four status words stay in English beside the verdict words; a *source changed* line keeps `<new text> (was: <old text>)` in its statement cell.
+
 Chosen 2026-10-29. The backward run (ADR 0261–0277) can only start from code that exists;
 a requirement with no code behind it - spec §4 Workflow 3's "emails the PDF digest to
 `MG_AdminEmail`" on `Elevate` #151, say - has nothing to point at. The forward run is the

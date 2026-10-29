@@ -12,6 +12,22 @@
 - **Branch:** lands on `why-this-logic` (unmerged, manifests at `0.59.0`). No further version bump while the branch is unreleased; the plan recomputes the global max at merge time and bumps only if another branch has landed a higher version.
 - **Glossary:** `CONTEXT.md` *why-this-logic terms* gains **Requirement**, **Register**, **Forward trace**, **Coverage status** (already written).
 
+> **Amended 2026-10-30 at the whole-plan review (ADRs 0282–0287; 0278, 0279, 0281 amended):**
+> §5, §6 F2 — a statement is the registered one when its *text* matches; a known locator whose
+> text differs is *source changed* in either direction, mints nothing (0282); §6 F0 — the
+> register is created by the first minted ID, F0 only opens it (0283); §5, §7 — `(contradicts)`
+> is a mark on a locator in *implemented at* or *tested by*, not a fifth status (0284); §5 — a
+> ticket comment or attached image that states a requirement mints, locators `#151 comment 3`,
+> `#151 image <name>` (0285); §7 — the overview draws one node per open statement and one
+> count node for the implemented ones; the header carries a *Still to answer* line; IDs are
+> never renumbered *once merged*; a source's own ID is qualified by its ticket when not
+> project-unique, `#151/AC-2` (0286; 0278 amended); §4 — on an ambiguous thing the question
+> decides the direction (0279 amended); §6 F6 — one offer line per kind, naming every ID of
+> that kind; §6 F4 — a `generating-test-cases` case counts when its *Evidence* cell cites the
+> ID; §3 — the description is rewritten under the 1,536-character listing cap (0287);
+> "`wait-what`'s register" in §4.5 means its plain style. The committed skill files are the
+> current text where this spec and they differ.
+
 ```mermaid
 flowchart TD
     U["user: /why-this-logic &lt;thing&gt;"] --> D{"what is pointed at?"}

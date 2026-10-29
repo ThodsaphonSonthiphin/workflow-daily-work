@@ -33,7 +33,7 @@
 > the term and one row for both numbers, as §1 and `splitting-rules.md` show; §4's "eight
 > phases" are phases 0–8.
 
-> **Extended 2026-10-29 by [2026-10-29-why-this-logic-requirement-trace-design.md](2026-10-29-why-this-logic-requirement-trace-design.md) (ADRs 0278–0281):** §4.2 — a row cited against a document statement carries the statement's requirement ID on its Source line (`cited R-003 (spec:145)`), and the register `docs/why/requirements.md` records the row under that ID (ADR 0280); §7 — the Why file's neighbour in `docs/why/` is the register (ADR 0281); §4.0 — what the user points at picks the direction: a decision point runs these phases backward, a requirement statement runs the forward phases F0–F6 of the extension spec (ADR 0279).
+> **Extended 2026-10-29 by [2026-10-29-why-this-logic-requirement-trace-design.md](2026-10-29-why-this-logic-requirement-trace-design.md) (ADRs 0278–0281):** §4.2 — a row cited against a document statement carries the statement's requirement ID on its Source line (`cited R-003 (spec:145)`), and the register `docs/why/requirements.md` records the row under that ID (ADR 0280); §7 — the Why file's neighbour in `docs/why/` is the register (ADR 0281); §4.0 — what the user points at picks the direction: a decision point runs these phases backward, a requirement statement runs the forward phases F0–F6 of the extension spec (ADR 0279); §4.2 — a row cited against a document statement still runs search order 6, so its test reaches the register (ADR 0280, amended).
 
 ```mermaid
 flowchart TD

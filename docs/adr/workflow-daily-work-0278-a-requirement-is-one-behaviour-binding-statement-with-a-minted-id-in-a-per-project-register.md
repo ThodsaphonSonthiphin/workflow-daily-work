@@ -32,3 +32,5 @@ An ID is never reused for another statement and never renumbered once merged. Th
 global-max rule ADR 0056 sets for ADR numbers - re-checked before merge; a collision between
 two unmerged branches is resolved by the later branch re-minting its own new IDs and updating
 its own Why files, allowed only because those IDs were never shared.
+
+A source's own ID is used as is only when it is unique across the project (`FR-12`); an ID unique only inside its ticket or document is qualified by it - `#151/AC-2` - so two tickets' second criteria never share a line (amended 2026-10-30 at the whole-plan review).

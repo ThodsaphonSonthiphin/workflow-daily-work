@@ -10,6 +10,12 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-29-why-this-logic-requirement-trace-design.md` (extends `2026-10-29-why-this-logic-design.md`; ADRs 0278–0281 in `docs/adr/`, already written and uncommitted; glossary entries already in `CONTEXT.md`, uncommitted).
 
+> **Amended 2026-10-30 at the whole-plan review:** the committed files, not this plan's quoted
+> text, are current for Task 2 Steps 1–7 (the description, the direction line after the shape
+> line, the minting and reuse rule, F0/F2 register creation, the F5 sample, F6's offers), Task 3
+> (register rules, overview nodes, locator forms) and Task 4 (offer assertion; case 6 added).
+> Rulings: ADRs 0282–0287 and the amended 0278, 0279, 0281.
+
 ## Global Constraints
 
 - Branch `why-this-logic` (unmerged). Both manifests stay at `0.59.0` unless the merge-time global-max scan (Task 5 Step 1) shows a higher version on another ref — then bump to its max + 1 minor in both.
