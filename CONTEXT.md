@@ -677,3 +677,34 @@ A test that fails when every change it needs is recorded as done — the one mom
 skill hands off to `debug-mantra`. A told fact that its first measurement contradicts is
 not a problem: it becomes a measured fact and a change (ADRs 0232, 0244).
 _Avoid_: failure, error, issue (each also covers the wrong-told-fact case).
+
+## why-this-logic terms (dev-workflows plugin)
+
+**Decision point**:
+One place where logic chooses or a value is fixed — one comparison, one term of an
+`and`/`or`, one literal (`30`, `"Vehicles"`, `914120001`), one default. The unit the skill
+traces: each decision point is one row of the Why file, with its own source and its own
+verdict, whether it sits in code, in a ticket, in a document or in pasted text (ADR 0261).
+_Avoid_: function, rule, condition (too coarse — one condition can hold several points).
+
+**Proof mark**:
+The one word on a closed row that says what kind of proof closed it — **cited** (a file and
+line, or a commit), **told** (a person and a date), or **measured** (a read-only query run
+against the live system). The same three marks as the architecture document's
+**Measured fact** / **Told fact**; a row with no mark is not closed (ADRs 0263, 0266).
+_Avoid_: source type, confidence, evidence level.
+
+**Verdict**:
+What the row says once traced — *matches* (a source exists and the logic agrees with it),
+*contradicts* (a source exists and the logic disagrees), *no source* (nothing found and no
+one asked could say), or *cannot check from the document* (the source names the thing by a
+different handle — a label where the logic has a number — and only the live system maps
+them). The last two are the open rows a later run starts from (ADRs 0263, 0268).
+_Avoid_: status, result, pass/fail.
+
+**Why file**:
+`docs/why/<thing>.md` in the project being traced — one Mermaid overview, then one
+fixed-shape block per decision point, in the manner of a `guide-and-verify` runbook step.
+Written at the end of a run; opened first by the next run on the same thing, which asks only
+about the rows still open (ADR 0268).
+_Avoid_: trace report, provenance doc, notes.
