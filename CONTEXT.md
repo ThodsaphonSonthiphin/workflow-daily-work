@@ -706,3 +706,32 @@ _Avoid_: status, result, pass/fail.
 fixed-shape block per decision point, in the manner of a `guide-and-verify` runbook step.
 Its skeleton is written as soon as the rows are listed, filled as sources are found, completed when the rows are explained and updated by the close; the next run on the same thing opens it first and asks only about the rows still open (ADRs 0268, 0274).
 _Avoid_: trace report, provenance doc, notes.
+
+**Requirement**:
+One statement that binds behaviour — "older than 7 days", "not yet actioned", one
+acceptance-criteria bullet — carrying one ID: the source's own (`FR-12`) when it has one,
+otherwise `R-001`, `R-002` … minted by the skill. The unit of the forward trace, as the
+**Decision point** is the unit of the backward trace (ADR 0278).
+_Avoid_: ticket, story, spec section (each holds several).
+
+**Register**:
+`docs/why/requirements.md` in the project — one line per **Requirement**: ID, the statement,
+its source locator, the **Decision points** that implement it, the tests that cover it, and
+its **Coverage status**. It grows from every run in either direction: a row cited against a
+document mints or reuses the statement's ID (ADR 0280). The traceability matrix *is* this
+file read column-wise.
+_Avoid_: RTM (as a separate artefact), requirements doc, backlog.
+
+**Forward trace**:
+A run that starts from a **Requirement** — a spec section, a ticket's acceptance criteria, a
+typed sentence or an ID — and finds the **Decision points** that implement it and the tests
+that assert it (ADR 0279). The backward trace starts from a decision point and finds its
+source; the same skill runs both, and what the user points at picks the direction.
+_Avoid_: impact analysis, coverage report.
+
+**Coverage status**:
+What the **Register** says of one **Requirement**: *implemented* (decision points found and
+at least one test asserts the value), *untested* (decision points found, no test), *not
+found* (no decision point — a gap only the forward trace can see), or *source changed* (the
+statement at the locator no longer reads as recorded) (ADR 0279).
+_Avoid_: done, passed, verified.

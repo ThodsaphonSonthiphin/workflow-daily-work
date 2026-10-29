@@ -16,6 +16,8 @@ flowchart TD
 
 > **Superseded in part 2026-10-29 by ADR 0274:** the file is no longer written only at the close - its skeleton is written after the rows are listed, filled as found, completed when the rows are explained, and updated by the close. Path and block shape unchanged; ADR 0276 adds the *Still to answer* header line.
 
+> **Amended 2026-10-29 by ADR 0281:** `docs/why/` also holds `requirements.md`, the per-project register of requirement IDs that the Why files cite and that points back at their rows.
+
 Chosen 2026-10-29. The user asked for "an md file that notes steps, like guide-and-verify".
 That skill's runbook works because every step has the same shape, the baseline is written
 where it outlives the session, and the outcome line carries its measurement. `why-this-logic`
