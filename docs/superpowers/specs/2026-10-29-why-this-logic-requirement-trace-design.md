@@ -104,8 +104,11 @@ it, then ask you one question."*
   same text) reuses its ID — never two IDs for one sentence.
 - **Phase 2, tests.** A test found at search order 6 that asserts the row's value is written
   in the register's *tested by* cell for every requirement the row implements.
-- **Phase 5 / phase 7.** The register is updated whenever the Why file is (skeleton after the
-  split carries nothing; the register is touched only when a row closes as cited).
+- **Phase 5 / phase 7.** The register is refreshed when this run cited or minted any ID — its
+  cells, the header's counts and *Last run*; a run that cited no document statement does not
+  touch it (and never creates it). A row whose verdict is *contradicts* is listed in
+  *implemented at* with `(contradicts)` after its locator: the status words say whether code
+  and a test exist, the mark keeps the disagreement visible.
 - **Row 0** (origin) never mints — an origin is not a requirement (ADR 0270, 0280).
 - Nothing else in phases 0–8 changes.
 
@@ -120,13 +123,13 @@ sequenceDiagram
     U->>W: /why-this-logic spec §4 Workflow 3 — where is it, is it tested?
     W->>U: one line: the forward shape
     W->>R: open docs/why/requirements.md (create if absent)
-    W->>W: F1 split the text into statements; F2 find or mint IDs (R-001..R-004; R-003 reused)
+    W->>W: F1 split the text into statements; F2 find or mint IDs (R-001..R-008, eight statements)
     W->>C: F3 per statement: grep the value, the field, the flow name; read the hits as decision points
     W->>C: F4 per statement: grep tests asserting the value; read generating-test-cases suites citing the ID
-    C-->>W: R-001 flow trigger, no test · R-002 row · R-003 row + test · R-004 nothing
-    W->>R: write/refresh four lines, statuses
+    C-->>W: R-001 trigger, no test · R-002 row · R-003 row + test · R-006..R-008 nothing
+    W->>R: write/refresh eight lines, statuses
     W->>U: F5 matrix table, then EXPLAIN each statement in plain words; "/wait-what" line
-    W->>U: F6 ONE question on the row that matters most (not found first): in your words, why has R-004 no code?
+    W->>U: F6 ONE question on the row that matters most (not found first): in your words, why has R-008 no code?
     U-->>W: states the rule
     W->>R: F6 close: Still to answer / offer lines
 ```
@@ -165,7 +168,7 @@ sequenceDiagram
   re-explain-then-re-ask rule); when the user states the rule, update the register. End with
   at most two one-line offers and stop: for each *untested* statement, *"R-001 has code and
   no test — generate its case (`generating-test-cases`)?"*; for each *not found* statement,
-  *"R-004 has no code — design it (`grill-then-plan`), or file it as a finding?"*. The skill
+  *"R-008 has no code — design it (`grill-then-plan`), or file it as a finding?"*. The skill
   writes no test and no code.
 
 The forward run never opens a live system; a value that only the live system could confirm
@@ -184,7 +187,7 @@ user states it, with the same marks as the backward run (ADR 0266, 0272).
 flowchart LR
     S["<source>"] --> R1["R-001<br/>untested"]
     S --> R3["R-003<br/>implemented"]
-    S --> R4["R-004<br/>not found"]
+    S --> R8["R-008<br/>not found"]
 ```
 
 <One sentence: which statements are not found or untested.>
@@ -193,12 +196,12 @@ flowchart LR
 |---|---|---|---|---|---|
 | R-001 | runs Mon-Fri 08:00 AEST | spec:144 | `mgw_flow_overduereport` trigger | — | untested |
 | R-003 | call older than 7 days | spec:145 · spec:121 (`MG_ReminderAgeDays (7)`) | `docs/why/elevate-151-overdue-filter.md` row 2 · `src/billing/overdue.ts:14` | `tests/billing/overdue.test.ts:14-15` | implemented |
-| R-004 | PDF digest emailed to `MG_AdminEmail` | spec:147 | — | — | not found |
+| R-008 | emails to `MG_AdminEmail` / Liquidators | spec:147 | — | — | not found |
 ```
 
 Rules: one line per ID, IDs never reused or renumbered; *statement* is quoted as written; a
 cell with nothing carries `—`; *implemented at* and *tested by* hold one or more locators
-separated by ` · `; *status* is one of the four words of §6; the source's own ID, when it
+separated by ` · `; *status* is one of the four words of §6; a locator in *implemented at* whose row's verdict is *contradicts* carries `(contradicts)` after it; the source's own ID, when it
 has one, is the ID (`FR-12`), and the `R-` sequence is per register. The overview diagram
 follows the diagram convention (one lead-in sentence; no double quotes inside labels).
 
@@ -216,7 +219,7 @@ follows the diagram convention (one lead-in sentence; no double quotes inside la
 
 | id | name | the situation | what it must show |
 |---|---|---|---|
-| 4 | `forward-trace-finds-the-gap` | the user points at spec §4 Workflow 3 (four sentences, pasted in the prompt) of a repo whose code has the trigger (no test), the two filter terms (one tested), and nothing for the PDF digest; `docs/why/requirements.md` does not exist; the phase-6 answer is scripted | the forward shape line; four statements with IDs R-001..R-004 quoted as written with locators; R-003's test cited; R-004 *not found*; the register created with the §7 shape; the matrix printed before the explanation; the one question targets R-004; the two offer lines; no code or test written |
+| 4 | `forward-trace-finds-the-gap` | the user points at spec §4 Workflow 3 (four sentences, pasted in the prompt) of a repo whose code has the trigger (no test), the two filter terms (one tested), and nothing for the reminder emails, the counter, the table, the PDF or the digest e-mail; `docs/why/requirements.md` does not exist; the phase-6 answer is scripted | the forward shape line; eight statements R-001..R-008 quoted as written with locators (line 146 is two, line 147 is three); R-003's test cited; R-004..R-008 *not found*; the register created with the §7 shape; the matrix printed before the explanation; the one question targets a *not found* statement; the two offer lines; no code or test written |
 | 5 | `backward-run-mints-an-id-and-reuses-it` | a backward run on `if (days > 30)` closes the row against `spec.md:12 "an invoice is overdue after 30 days"`; `docs/why/requirements.md` already holds `R-007` for that locator | the row's Source line reads `cited R-007 (spec.md:12)` — no new ID minted; the register's *implemented at* for R-007 gains the Why file row; the test found at order 6 lands in *tested by*; status becomes *implemented* |
 
 Cases 0–3 are unchanged except case 0's Source lines, which now read `cited <ID> (…)` only

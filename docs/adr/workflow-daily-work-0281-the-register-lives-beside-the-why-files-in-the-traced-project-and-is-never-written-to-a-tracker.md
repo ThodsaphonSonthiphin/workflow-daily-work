@@ -12,6 +12,14 @@ flowchart TD
     Q -->|rejected| C["written back into the ticket tracker - the skill
     never writes to a live system (ADR 0263), and a
     tracker field cannot be diffed with the code"]
+    Q -->|rejected| D["write the IDs into the spec or the ticket - the skill
+    never edits a source (ADR 0263's read-only rule, extended to
+    documents), and an ID inside a sentence drifts with every
+    edit of that sentence"]
+    Q -->|rejected| E["no register - compute the matrix from the Why files
+    each time - a not-found requirement has no Why file, so the
+    gap the forward trace exists to find would have nowhere
+    to live"]
 ```
 
 Chosen 2026-10-29. The register is read column-wise as the traceability matrix: an empty

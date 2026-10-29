@@ -1,4 +1,4 @@
-# The forward trace starts from any requirement statement, and reports implemented, untested or not found
+# The forward trace starts from any requirement statement, and reports implemented, untested, not found or source changed
 
 ```mermaid
 flowchart TD
@@ -10,10 +10,17 @@ flowchart TD
     field, the flow name) and the tests that assert it,
     and gives every statement one status: implemented
     (which rows) · untested (code, no test) · not found
-    (no code - a gap the backward trace can never see)"]
+    (no code - a gap the backward trace can never see) ·
+    source changed (on a later run the text at the locator no
+    longer reads as registered; nothing is re-derived until
+    the user confirms the new wording)"]
     Q -->|rejected| B["only an ID already minted by an earlier backward run
     - a requirement nobody has traced backward from yet
     cannot be asked about, which is exactly the gap case"]
+    Q -->|rejected| C["a second skill or command for the forward direction -
+    two entry points for one register, and the user must know
+    which to type; direction by what is pointed at needs no
+    choice"]
 ```
 
 Chosen 2026-10-29. The backward run (ADR 0261–0277) can only start from code that exists;

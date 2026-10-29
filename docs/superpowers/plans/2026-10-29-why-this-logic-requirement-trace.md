@@ -17,7 +17,7 @@
 - `${CLAUDE_PLUGIN_ROOT}` stays exactly once in `SKILL.md` (`${CLAUDE_PLUGIN_ROOT}/references/diagram-convention.md`); the skill's own files are referenced skill-relative (`references/register-template.md`, …).
 - The four verdict words, the three proof marks, the six Why-file block lines and the line `Not clear? Type /wait-what on the sentence.` are unchanged.
 - The four coverage statuses are exactly `implemented`, `untested`, `not found`, `source changed`.
-- Requirement IDs: the source's own ID when it carries one (`FR-12`, `AC-2`), else `R-001`, `R-002` … per register; IDs are never reused or renumbered.
+- Requirement IDs: the source's own ID when it carries one (`FR-12`, `AC-2`), else `R-001`, `R-002` … per register; IDs are never reused for another statement and never renumbered once merged; the next `R-nnn` is the highest in the register across every branch (ADR 0278).
 - The skill never writes to a live system or into a source document/ticket (ADR 0263, 0281); the register is the only new file it writes, at `docs/why/requirements.md` in the traced project.
 - `skills/` is generated, never hand-edited; `python scripts/check_skills_tree.py` must exit 0 after Task 6.
 - Every commit ends with a `Co-Authored-By:` trailer (the committing model's own, or `Claude Fable 5.1 <noreply@anthropic.com>`).
@@ -204,9 +204,11 @@ Then **complete the Why file**: the plain-words text just shown goes into each b
 *In plain words* line, every Source and Verdict line is filled, and the overview's one-sentence
 lead-in names the open rows. From here the file is whole; phases 6 and 7 update it. A run the
 user walks out of still leaves the file (ADR 0274). **Refresh the register** at the same
-moment: every ID this run cited has its *implemented at*, *tested by* and *status* cells
-current (`implemented` when a test is in *tested by*, else `untested`), and the header's
-counts and *Last run* date are updated.
+moment - when this run cited or minted any ID: every such ID has its *implemented at*,
+*tested by* and *status* cells current (`implemented` when a test is in *tested by*, else
+`untested`), a locator whose row's verdict is *contradicts* carries `(contradicts)` after it,
+and the header's counts and *Last run* date are updated. A run that cited no document
+statement does not touch the register and never creates it.
 ```
 
 - [ ] **Step 5: Phase 7 — say both paths**
@@ -251,19 +253,23 @@ rationale or a heading is none. Quote each statement **as written**, with its lo
 (`spec:145`, `#151 AC-2`). Write the list before searching anything:
 
 ```
-id      statement (as written)                     locator
-R-001   runs Mon-Fri 08:00 AEST                    spec:144
-R-002   only enquiries not yet actioned            spec:145
-R-003   call older than 7 days                     spec:145
-R-004   PDF digest emailed to MG_AdminEmail        spec:147
+id      statement (as written)                          locator
+R-001   Runs Mon-Fri 08:00 AEST                         spec:144
+R-002   hasthecallbeenactioned eq false                 spec:145
+R-003   callDateTime < Now - 7 days                     spec:145
+R-004   Sends reminder emails to case staff             spec:146
+R-005   increments ReminderCount                        spec:146
+R-006   Compiles consolidated table                     spec:147
+R-007   converts to PDF                                 spec:147
+R-008   emails to MG_AdminEmail / Liquidators            spec:147
 ```
 
 ### F2. Find or mint IDs
 
 The source's own ID when the statement carries one; else the next `R-nnn` of this register.
-A statement already registered - same locator, or same text - reuses its ID (R-003 above
-came from an earlier backward run). IDs are never reused for another statement and never
-renumbered (ADR 0278). Write every new line into the register now, cells `—`, so the file
+A statement already registered - same locator, or same text - reuses its ID. The next
+`R-nnn` is the highest number in the register across every branch; an ID is never reused
+for another statement and never renumbered once merged (ADR 0278). Write every new line into the register now, cells `—`, so the file
 exists before the search.
 
 ### F3. Search the code for each statement
@@ -305,11 +311,12 @@ the user states it - the same marks as the backward run (ADR 0266, 0272).
 Print the register's lines for these statements in monospace:
 
 ```
-id      statement                          implemented at                tested by                  status
-R-001   runs Mon-Fri 08:00 AEST            mgw_flow_overduereport trig   —                          untested
-R-002   only enquiries not yet actioned    …/elevate-151-overdue-filter  —                          untested
-R-003   call older than 7 days             …filter.md row 2 · overdue.ts:14   overdue.test.ts:14-15 implemented
-R-004   PDF digest emailed to MG_AdminEmail —                             —                          NOT FOUND
+id      statement                               implemented at                     tested by               status
+R-001   Runs Mon-Fri 08:00 AEST                 mgw_flow_overduereport trigger     —                       untested
+R-002   hasthecallbeenactioned eq false         …/elevate-151-overdue-filter.md r1 —                       untested
+R-003   callDateTime < Now - 7 days             …filter.md row 2 · overdue.ts:14   overdue.test.ts:14-15   implemented
+…       (R-004..R-007 omitted here)
+R-008   emails to MG_AdminEmail / Liquidators   —                                  —                       NOT FOUND
 ```
 
 Then explain **every statement** in plain words - where it lives, what proves it, or that
@@ -318,8 +325,9 @@ the project's `CONTEXT.md` words. End the block with exactly this line:
 
 > Not clear? Type /wait-what on the sentence.
 
-Then refresh the register: cells, statuses, the header's counts and *Last run*, and the
-overview's one-sentence lead-in naming the *not found* and *untested* statements.
+Then refresh the register: cells, statuses (a locator whose row's verdict is *contradicts*
+carries `(contradicts)` after it), the header's counts and *Last run*, and the overview's
+one-sentence lead-in naming the *not found* and *untested* statements.
 
 ### F6. One question, then close
 
@@ -327,13 +335,13 @@ Pick the statement that matters most: *not found* first, then *untested*, then *
 changed*. Ask **one** question - phase 6's manner, phase 6's answer table, a re-ask always
 after a re-explanation:
 
-> In your own words - why has R-004 no code?
+> In your own words - why has R-008 no code?
 
 When the user states the rule, update the register (the *Still to answer* header line if a
 question stayed open). End with at most two one-line offers and stop:
 
 > R-001 has code and no test - generate its case (`generating-test-cases`)?
-> R-004 has no code - design it (`grill-then-plan`), or file it as a finding (`findings-to-ado-backlog`)?
+> R-008 has no code - design it (`grill-then-plan`), or file it as a finding (`findings-to-ado-backlog`)?
 
 The skill writes no test and no code. Say the register's path.
 
@@ -437,7 +445,11 @@ empty *implemented at* cell is a gap (ADR 0281).
 - **status** is one of four words: `implemented`, `untested`, `not found`, `source changed`.
 - **A fact only the live system could confirm** is written `told <who, date>` in
   *implemented at* when the user states it - the backward run's marks apply (ADR 0266, 0272).
-- The header's counts and *Last run* are refreshed on every run, in either direction.
+- The header's counts and *Last run* are refreshed by every run that cited or minted an
+  ID, in either direction; a run that cited no document statement leaves the file alone.
+- A locator in *implemented at* whose row's verdict is *contradicts* carries `(contradicts)`
+  after it - the status says whether code and a test exist, the mark keeps the disagreement
+  visible.
 - The overview is Mermaid; one lead-in sentence follows it; no double quotes inside labels.
 
 ## Template
@@ -453,7 +465,7 @@ empty *implemented at* cell is a gap (ADR 0281).
 flowchart LR
     S["<source>"] --> R1["R-001<br/>untested"]
     S --> R3["R-003<br/>implemented"]
-    S --> R4["R-004<br/>not found"]
+    S --> R8["R-008<br/>not found"]
 ```
 
 <One sentence: which statements are not found or untested.>
@@ -469,7 +481,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | R-001 | Runs Mon-Fri 08:00 AEST | spec:144 | `mgw_flow_overduereport` trigger | — | untested |
 | R-003 | callDateTime < Now - 7 days | spec:145 · spec:121 (`MG_ReminderAgeDays (7)`) | `docs/why/elevate-151-overdue-filter.md` row 2 · `src/billing/overdue.ts:14` | `tests/billing/overdue.test.ts:14-15` | implemented |
-| R-004 | emails to `MG_AdminEmail` / Liquidators | spec:147 | — | — | not found |
+| R-008 | emails to `MG_AdminEmail` / Liquidators | spec:147 | — | — | not found |
 ````
 
 - [ ] **Step 2: The Why-file template — the Source line carries the ID**
@@ -524,10 +536,11 @@ A statement that already has an ID in the register keeps it.
 Runs Mon-Fri 08:00 AEST.                                   -> R-001 (spec:144)
 Queries hasthecallbeenactioned eq false                    -> R-002 (spec:145)
    and callDateTime < Now - 7 days.                        -> R-003 (spec:145)
-Sends reminder emails to case staff, increments ReminderCount.
-                                                           -> two statements (spec:146)
-Compiles consolidated table, converts to PDF, and emails to MG_AdminEmail / Liquidators.
-                                                           -> three statements (spec:147)
+Sends reminder emails to case staff,                       -> R-004 (spec:146)
+   increments ReminderCount.                               -> R-005 (spec:146)
+Compiles consolidated table,                               -> R-006 (spec:147)
+   converts to PDF,                                        -> R-007 (spec:147)
+   and emails to MG_AdminEmail / Liquidators.              -> R-008 (spec:147)
 ```
 ```
 
@@ -591,11 +604,11 @@ Replace that tail with:
       "id": 4,
       "name": "forward-trace-finds-the-gap",
       "prompt": "Where is this implemented, and is it tested? Spec §4 Workflow 3 (docs/spec.md lines 144-147): \"Runs Mon-Fri 08:00 AEST. Queries mgw_hasthecallbeenactioned eq false and callDateTime < Now - 7 days. Sends reminder emails to case staff, increments ReminderCount. Compiles consolidated table, converts to PDF, and emails to MG_AdminEmail / Liquidators.\" Assume for this run: flows/mgw_flow_overduereport.json line 3 has a recurrence trigger `Mon-Fri 08:00` (no test anywhere mentions it); flows/mgw_flow_overduereport.json line 12 has the filter `mgw_hasthecallbeenactioned eq false and mgw_dateandtimeofcall lt addDays(utcNow(), -7)`; tests/flows/overdue.test.ts lines 14-15 assert that a call 8 days old is selected and a call 7 days old is not; a grep for `ReminderCount`, `PDF`, `MG_AdminEmail` and `Liquidator` finds nothing in the code; docs/why/requirements.md does not exist. When you ask me, in my own words, why the PDF digest has no code, my answer is: nobody built workflow 3's report step yet - the spec is ahead of the code.",
-      "expected_output": "The forward shape line. The text split into statements quoted as written with locators and IDs R-001.. (schedule; not-actioned; older than 7 days; reminder emails; increment ReminderCount; compile table; convert to PDF; email to MG_AdminEmail / Liquidators). The schedule statement implemented at the trigger, untested. The 7-days statement implemented at the filter and tested by overdue.test.ts:14-15, implemented. The PDF / email statements not found. docs/why/requirements.md created with the header lines, the overview, and the table. The matrix printed BEFORE the explanation; the one question targets a not-found statement; the two offer lines; no code and no test written.",
+      "expected_output": "The forward shape line. The text split into eight statements quoted as written with locators and IDs R-001..R-008 (schedule; not-actioned; older than 7 days; reminder emails; increment ReminderCount; compile table; convert to PDF; email to MG_AdminEmail / Liquidators). The schedule statement implemented at the trigger, untested. The 7-days statement implemented at the filter and tested by overdue.test.ts:14-15, implemented. The PDF / email statements not found. docs/why/requirements.md created with the header lines, the overview, and the table. The matrix printed BEFORE the explanation; the one question targets a not-found statement; the two offer lines; no code and no test written.",
       "files": [],
       "assertions": [
         "Opens with the forward shape line (split into requirement statements, find where each is implemented and which test proves it, explain, then one question)",
-        "Splits the text into separate statements quoted as written, each with a locator (docs/spec.md line), and gives each an ID of the form R-nnn",
+        "Splits the text into eight separate statements quoted as written (line 146 yields two, line 147 three), each with a locator (docs/spec.md line), and gives each an ID R-001..R-008",
         "Marks the schedule statement 'untested' with the trigger at flows/mgw_flow_overduereport.json:3 in 'implemented at'",
         "Marks the 7-days statement 'implemented' with the filter line in 'implemented at' and tests/flows/overdue.test.ts:14-15 in 'tested by'",
         "Marks the PDF and MG_AdminEmail / Liquidators statements 'not found' with '—' in both 'implemented at' and 'tested by'",

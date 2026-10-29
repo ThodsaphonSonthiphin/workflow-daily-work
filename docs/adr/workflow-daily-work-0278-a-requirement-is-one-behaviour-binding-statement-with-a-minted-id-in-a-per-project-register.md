@@ -26,3 +26,9 @@ sits on the row, the arrow and the test; the forward / backward rule follows
 
 The register is one file per project, beside the Why files, so a requirement that several
 functions implement is one row with several pointers, not one row per Why file.
+
+An ID is never reused for another statement and never renumbered once merged. The next
+`R-nnn` is the highest number in the register across every branch and worktree - the same
+global-max rule ADR 0056 sets for ADR numbers - re-checked before merge; a collision between
+two unmerged branches is resolved by the later branch re-minting its own new IDs and updating
+its own Why files, allowed only because those IDs were never shared.
