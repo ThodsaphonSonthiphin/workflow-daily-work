@@ -12,6 +12,8 @@ flowchart TD
     matrix as separate work"]
 ```
 
+> **Amended 2026-10-29 (Task 2 review):** a row closed against a document statement still runs search order 6, so that a test asserting its value lands in the register's *tested by*; without that, the backward run could never fill the column this ADR exists to fill.
+
 Chosen 2026-10-29. The cost is one register line per cited row; the gain is that the
 *tested by* column is visibly empty for every requirement the daily work has touched,
 without a separate traceability exercise. A row cited against a commit, a test or a person

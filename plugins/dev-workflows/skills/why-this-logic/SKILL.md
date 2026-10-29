@@ -34,8 +34,9 @@ answer hides that the rows have different origins, and that some have none.
 
 ## Two directions, one skill
 
-What the user points at picks the direction (ADR 0279). Say which you chose, in one line,
-before anything else:
+What the user points at picks the direction (ADR 0279). Say which you chose in one line,
+right after that direction's opening line (the quoted line that opens each run below); in
+the ambiguous case the one question comes before either line:
 
 | pointed at | direction |
 |---|---|
@@ -77,14 +78,17 @@ More than about twelve rows: say so, and ask which part to trace first.
 
 Phase 2 may split a row whose parts turn out to have different sources; it never merges rows.
 
-**Write the Why file's skeleton now** - `docs/why/<thing>.md` from
+**Write the Why file's skeleton now** - `docs/why/<thing>.md` (never `requirements.md`,
+which is the register; a thing so named gets `why-requirements.md`) from
 `references/why-file-template.md`, one block per row, every line carrying `—` - so every
 hit found from here on has a durable place (ADR 0274).
 
 ### 2. Search first - before asking anyone
 
-In this order, per row, stopping when the row closes - and the origin of the text never
-closes a row but row 0 (below). **Write each hit into its block in the Why file as it is
+In this order, per row, stopping when the row closes - except that a row closed against a
+document statement still runs order 6, so that a test asserting its value reaches the
+register's *tested by* (ADR 0280) - and the origin of the text never closes a row but row 0
+(below). **Write each hit into its block in the Why file as it is
 found, not in a batch at the end** - a crash or a compaction loses an unwritten search, and
 the hit that contradicts the document is the one nobody can reconstruct.
 
@@ -101,10 +105,11 @@ A row closed here is **cited**: `file:line`, a commit hash, or `ticket #n (comme
 name)`.
 
 **A document statement gets an ID (ADR 0280).** When the source is a document - a spec, an
-ADR, a wiki page, a ticket's description or one of its acceptance criteria; not a commit,
-not a test, not a person - find or mint the statement's ID in `docs/why/requirements.md`
+ADR, a wiki page, a ticket's description, one of its acceptance criteria, a comment or an
+attached image that states a requirement (locator `#151 comment 3`, `#151 image <name>`);
+not a commit, not a test, not a person - find or mint the statement's ID in `docs/why/requirements.md`
 (`references/register-template.md`; create the file if absent): the source's own ID if the
-statement carries one (`FR-12`, `AC-2`), else the next `R-nnn` of that register. A statement
+statement carries one (`FR-12`, `AC-2`), else a new `R-nnn` one above the highest across every branch and worktree (ADR 0278). A statement
 already registered - same locator, or same text - reuses its ID; never two IDs for one
 sentence. The row's Source line then reads `cited R-003 (spec:145)`, and the register's
 *implemented at* cell for R-003 gains `<Why file> row N`. Row 0 never mints - an origin is
@@ -171,7 +176,7 @@ row  decision point                       source                      mark      
 ```
 
 Then explain **every row** in plain words - what the row is, where it comes from, what
-the verdict means, and for *contradicts* what the source says instead. The register is
+the verdict means, and for *contradicts* what the source says instead. The style is
 `wait-what`'s: a little context, ASD-STE100 Simplified Technical English, the project's
 `CONTEXT.md` words. Short sentences. One idea per sentence. Present tense. Two or three
 sentences per row. End the block with exactly this line:
@@ -187,8 +192,9 @@ user walks out of still leaves the file (ADR 0274). **Refresh the register** at 
 moment - when this run cited or minted any ID: every such ID has its *implemented at*,
 *tested by* and *status* cells current (`implemented` when a test is in *tested by*, else
 `untested`), a locator whose row's verdict is *contradicts* carries `(contradicts)` after it,
-and the header's counts and *Last run* date are updated. A run that cited no document
-statement does not touch the register and never creates it.
+the header's counts and *Last run* date are updated, and the overview's status nodes and
+lead-in sentence are refreshed. A run that cited no document statement does not touch the
+register and never creates it.
 
 ### 6. One question, until the user states the rule
 
@@ -234,8 +240,8 @@ Say this one line before anything else, every forward run:
 
 ### F0. Open
 
-Open `docs/why/requirements.md`; create it from `references/register-template.md` if it
-is absent. Ask only for what the invocation did not give: the requirement text (or its
+Open `docs/why/requirements.md` if it exists; it is created in F2, by the first ID minted
+(`references/register-template.md`). Ask only for what the invocation did not give: the requirement text (or its
 locator - a spec section, a ticket, an ID) and, if the user has it, the code area it is
 expected to live in. The area is a head start, not a limit - F3 searches the whole project.
 
@@ -262,9 +268,10 @@ R-008   emails to MG_AdminEmail / Liquidators            spec:147
 ### F2. Find or mint IDs
 
 The source's own ID when the statement carries one; else the next `R-nnn` of this register.
-A statement already registered - same locator, or same text - reuses its ID. The next
-`R-nnn` is the highest number in the register across every branch; an ID is never reused
-for another statement and never renumbered once merged (ADR 0278). Write every new line into the register now, cells `—`, so the file
+A statement already registered - same locator, or same text - reuses its ID. A new
+`R-nnn` is one above the highest across every branch and worktree; an ID is never reused
+for another statement and never renumbered once merged (ADR 0278). Write every new line into the register now, cells `—` - creating the file from
+`references/register-template.md` on the first ID - so the file
 exists before the search.
 
 ### F3. Search the code for each statement
@@ -308,14 +315,14 @@ Print the register's lines for these statements in monospace:
 ```
 id      statement                               implemented at                     tested by               status
 R-001   Runs Mon-Fri 08:00 AEST                 mgw_flow_overduereport trigger     —                       untested
-R-002   hasthecallbeenactioned eq false         …/elevate-151-overdue-filter.md r1 —                       untested
+R-002   hasthecallbeenactioned eq false         …/elevate-151-overdue-filter.md row 1 —                    untested
 R-003   callDateTime < Now - 7 days             …filter.md row 2 · overdue.ts:14   overdue.test.ts:14-15   implemented
 …       (R-004..R-007 omitted here)
-R-008   emails to MG_AdminEmail / Liquidators   —                                  —                       NOT FOUND
+R-008   emails to MG_AdminEmail / Liquidators   —                                  —                       not found
 ```
 
 Then explain **every statement** in plain words - where it lives, what proves it, or that
-nothing does - in `wait-what`'s register: short sentences, two or three per statement,
+nothing does - in `wait-what`'s plain style: short sentences, two or three per statement,
 the project's `CONTEXT.md` words. End the block with exactly this line:
 
 > Not clear? Type /wait-what on the sentence.
@@ -332,8 +339,10 @@ after a re-explanation:
 
 > In your own words - why has R-008 no code?
 
-When the user states the rule, update the register (the *Still to answer* header line if a
-question stayed open). End with at most two one-line offers and stop:
+Read phase 6's table with two substitutions: "go to phase 7" means this close, and "the Why
+file's *Still to answer* header line" means the register's. When the user states the rule,
+update the register; when a question stayed open, write it on the register's *Still to
+answer* header line. End with at most two one-line offers and stop:
 
 > R-001 has code and no test - generate its case (`generating-test-cases`)?
 > R-008 has no code - design it (`grill-then-plan`), or file it as a finding (`findings-to-ado-backlog`)?
@@ -355,10 +364,13 @@ re-derived.
 - **One mark or `none`.** A row with a source and no mark is a row nobody can trust later.
 - **A person's word is a source, and is marked as one.** `told: Khun A, 2026-10-29` closes
   the row; it is never written as `cited`.
-- **Record as found.** Every hit goes into its block in the Why file before the next search.
+- **Record as found.** Every hit goes into its block in the Why file - or its line in the
+  register, on a forward run - before the next search.
 - **The origin never closes a row but row 0.** A commit or script that wrote the value is where the text came from, not why.
-- **One ID per statement, for ever.** A requirement ID is never reused or renumbered; a
-  statement already registered reuses its ID (ADR 0278).
+- **One ID per statement, for ever.** A new `R-nnn` is one above the highest across every
+  branch and worktree - never this checkout's copy alone; an ID is never reused for another
+  statement and never renumbered once merged; a statement already registered reuses its ID
+  (ADR 0278). This binds both directions.
 - **The register is written, never the source.** IDs go into `docs/why/requirements.md`; a
   spec, a ticket or a tracker is never edited (ADR 0281).
 - **Explain before you ask.** A question before the explanation tests memory, not
@@ -381,4 +393,5 @@ re-derived.
 ## Language
 
 Mirror the language the user asked in - Thai in, Thai out, including the explanations and
-the one question. Keep identifiers, file paths and the four verdict words in English.
+the one question. Keep identifiers, file paths, the four verdict words and the four status
+words in English.
