@@ -10,8 +10,9 @@ shape once. Fill the slots; keep every label.
 - **The Source line carries exactly one mark or `none`:** `cited <file:line | commit>`,
   `told <who, date>`, `measured <the query>`, or `none`. When the cited source is a document
   statement, the citation carries the statement's requirement ID first:
-  `cited R-003 (spec:145)` - the register `docs/why/requirements.md` points back at this row
-  (ADR 0280).
+  `cited R-003 (spec:145)`, `cited AC-2 (#151 AC-2)` - any locator form of the register; a
+  row that implements two statements writes both IDs, `cited R-003 · R-005 (spec:145)` -
+  and the register `docs/why/requirements.md` points back at this row (ADR 0280).
 - **The Verdict line is one of four words:** `matches`, `contradicts`, `no source`,
   `cannot check from the document`.
 - **To close it yourself** on an open row is a command, a document to find, or a person
@@ -49,7 +50,7 @@ flowchart LR
 
 **Where:** <file:line | ticket #n | document path>
 **Why it exists:** <one sentence, or "no document says">
-**Source:** <cited R-nnn (file:line) | cited file:line | told who, date | measured the query | none>
+**Source:** <cited R-nnn (locator) | cited file:line | told who, date | measured the query | none>
 **Verdict:** <matches | contradicts | no source | cannot check from the document>
 **To close it yourself:** <the read-only command | the document to find | whom to ask | —>
 **In plain words:** <two or three sentences>

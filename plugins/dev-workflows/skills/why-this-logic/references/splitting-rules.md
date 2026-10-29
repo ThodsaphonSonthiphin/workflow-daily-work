@@ -46,8 +46,11 @@ One statement is one clause that binds behaviour. Split:
 | an ordering - "first X, then Y" | each step |
 | "A and B" between two obligations | two statements |
 
-Do not split: an example, a rationale ("because…"), a heading, a sentence that restates
-another. Quote each statement **as written**, with its locator (`spec:145`, `#151 AC-2`).
+A clause that carries several of these at once - "older than 7 days" is a condition with a
+value - is still one statement: split between obligations, never inside one; a comma
+between two obligations splits like "and". Do not split: an example, a rationale
+("because…"), a heading, a sentence that restates another (it adds its locator to the
+registered statement instead). Quote each statement **as written**, with its locator (`spec:145`, `#151 AC-2`).
 A statement that already has an ID in the register keeps it.
 
 ### Worked split - spec §4 Workflow 3

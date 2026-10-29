@@ -6,9 +6,13 @@ empty *implemented at* cell is a gap (ADR 0281).
 
 ## Rules
 
-- **One line per ID; IDs are never reused or renumbered.** The source's own ID when the
-  statement carries one (`FR-12`, `AC-2`); else `R-001`, `R-002` … per register (ADR 0278).
-- **A statement already registered reuses its ID** - same locator, or same text.
+- **One line per ID.** The source's own ID when the statement carries one (`FR-12`, `AC-2`);
+  else `R-001`, `R-002` … where a new `R-nnn` is one above the highest across every branch
+  and worktree - never this checkout's copy alone; an ID is never reused for another
+  statement and never renumbered once merged (ADR 0278).
+- **A statement already registered reuses its ID** - same locator, or same text; a sentence
+  elsewhere that restates a registered statement adds its locator to that line's *source*
+  (joined by ` · `) and mints nothing.
 - **statement** is quoted as written in the source; **source** is its locator
   (`spec:145`, `#151 AC-2`, `spec:121 (MG_ReminderAgeDays (7))`).
 - **implemented at** and **tested by** hold one or more locators separated by ` · `:
@@ -16,12 +20,19 @@ empty *implemented at* cell is a gap (ADR 0281).
 - **status** is one of four words: `implemented`, `untested`, `not found`, `source changed`.
 - **A fact only the live system could confirm** is written `told <who, date>` in
   *implemented at* when the user states it - the backward run's marks apply (ADR 0266, 0272).
+- **source changed** keeps both texts in the *statement* cell: `<new text> (was: <old text>)`,
+  until the user confirms the new wording.
+- **Still to answer** is filled only when a forward run's one question stayed open (F6);
+  otherwise `—`.
+- **Sources** lists every spec, ticket and folder a statement in the table came from.
 - The header's counts and *Last run* are refreshed by every run that cited or minted an
   ID, in either direction; a run that cited no document statement leaves the file alone.
 - A locator in *implemented at* whose row's verdict is *contradicts* carries `(contradicts)`
   after it - the status says whether code and a test exist, the mark keeps the disagreement
   visible.
 - The overview is Mermaid; one lead-in sentence follows it; no double quotes inside labels.
+  It shows one node per *not found* and *untested* statement plus one node with the count
+  of *implemented* ones - never one node per ID, which outgrows a thumbnail.
 
 ## Template
 
@@ -50,6 +61,6 @@ flowchart LR
 
 | ID | statement (as written) | source | implemented at | tested by | status |
 |---|---|---|---|---|---|
-| R-001 | Runs Mon-Fri 08:00 AEST | spec:144 | `mgw_flow_overduereport` trigger | — | untested |
+| R-001 | Runs Mon-Fri 08:00 AEST | spec:144 | `flows/mgw_flow_overduereport.json:3` | — | untested |
 | R-003 | callDateTime < Now - 7 days | spec:145 · spec:121 (`MG_ReminderAgeDays (7)`) | `docs/why/elevate-151-overdue-filter.md` row 2 · `src/billing/overdue.ts:14` | `tests/billing/overdue.test.ts:14-15` | implemented |
 | R-008 | emails to `MG_AdminEmail` / Liquidators | spec:147 | — | — | not found |
