@@ -33,6 +33,39 @@ years, they are two rows.
 - Cap a run at the rows the user pointed at. More than about twelve: say so, and ask which
   part to trace first.
 
+## Splitting a requirement text (the forward run)
+
+One statement is one clause that binds behaviour. Split:
+
+| in the text | one statement each |
+|---|---|
+| a value - `7 days`, `08:00`, `500 ms` | the value and what it bounds |
+| a condition - "not yet actioned", "older than" | the condition |
+| a trigger - "Mon-Fri 08:00", "on save" | the trigger |
+| a recipient or destination - "to MG_AdminEmail", "into the Enquiry table" | the recipient |
+| an ordering - "first X, then Y" | each step |
+| "A and B" between two obligations | two statements |
+
+A clause that carries several of these at once - "older than 7 days" is a condition with a
+value - is still one statement: split between obligations, never inside one; a comma
+between two obligations splits like "and". Do not split: an example, a rationale
+("because…"), a heading, a sentence that restates another (it adds its locator to the
+registered statement instead). Quote each statement **as written**, with its locator (`spec:145`, `#151 AC-2`).
+A statement that already has an ID in the register keeps it.
+
+### Worked split - spec §4 Workflow 3
+
+```
+Runs Mon-Fri 08:00 AEST.                                   -> R-001 (spec:144)
+Queries hasthecallbeenactioned eq false                    -> R-002 (spec:145)
+   and callDateTime < Now - 7 days.                        -> R-003 (spec:145)
+Sends reminder emails to case staff,                       -> R-004 (spec:146)
+   increments ReminderCount.                               -> R-005 (spec:146)
+Compiles consolidated table,                               -> R-006 (spec:147)
+   converts to PDF,                                        -> R-007 (spec:147)
+   and emails to MG_AdminEmail / Liquidators.              -> R-008 (spec:147)
+```
+
 ## Worked split - `Elevate` #151
 
 ```
