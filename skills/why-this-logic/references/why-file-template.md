@@ -10,7 +10,7 @@ shape once. Fill the slots; keep every label.
 - **The Source line carries exactly one mark or `none`:** `cited <file:line | commit>`,
   `told <who, date>`, `measured <the query>`, or `none`. When the cited source is a document
   statement, the citation carries the statement's requirement ID first:
-  `cited R-003 (spec:145)`, `cited AC-2 (#151 AC-2)` - any locator form of the register; a
+  `cited R-003 (spec:145)`, `cited #151/AC-2 (#151 AC-2)` - any locator form of the register; a
   row that implements two statements writes both IDs, `cited R-003 · R-005 (spec:145)` -
   and the register `docs/why/requirements.md` points back at this row (ADR 0280).
 - **The Verdict line is one of four words:** `matches`, `contradicts`, `no source`,
