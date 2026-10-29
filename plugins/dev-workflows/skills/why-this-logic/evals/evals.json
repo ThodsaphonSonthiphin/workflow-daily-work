@@ -1,0 +1,71 @@
+{
+  "skill_name": "why-this-logic",
+  "evals": [
+    {
+      "id": 0,
+      "name": "ticket-filter-numbers-only-live-system-knows",
+      "prompt": "https://dev.azure.com/MackayGoodwin/Elevate/_boards/board/t/Elevate%20Team/Stories?workitem=151 — why does the OData filter say `and (mgw_loggingstatus eq 914120001 or mgw_loggingstatus eq 914120003)`? The source documents are in C:\\Repo\\MG-Elevate\\Documents\\2026-10-20_Teams_Calling_Agent_-_Side_Quest_p05UAAA= . Assume for this run: the folder's PROJECT_SPEC_AND_ANTIGRAVITY_PROMPT.md defines `mgw_loggingstatus (Choice): Creating, Created, Partial, Failed` and describes Workflow 3's query as `mgw_hasthecallbeenactioned eq false and callDateTime < Now - 7 days` with no mention of mgw_loggingstatus; the story's body is produced verbatim by scripts/populate_teams_agent_backlog.py line 388; no document in the repo contains the numbers 914120001 or 914120003. You have Dataverse credentials in the environment. If you ask whether to run a live query, my answer is no.",
+      "expected_output": "The one-line shape statement first. A row list with row 0 = origin of the text (the generating script, cited), one row for the `and (mgw_loggingstatus …)` term (no source — the spec lists two filter terms and never names the field), one row for the two numbers (cannot check from the document — the spec defines labels only). The exact read-only query that would close the numbers row written on it, an explicit ask whether to run it, and NO query run because the answer is no. Every row explained in plain words BEFORE a single question, the block ending with the /wait-what line; then exactly one question. Writes or describes docs/why/elevate-151-overdue-filter.md with the open rows carrying their query.",
+      "files": [],
+      "assertions": [
+        "Opens with the one-line statement that it will break the thing into rows, find each source, explain, then ask one question",
+        "Row 0 is the origin of the story text and cites scripts/populate_teams_agent_backlog.py line 388, stating the ticket is a copy of the script",
+        "Has a separate row for the `and (mgw_loggingstatus …)` term with verdict 'no source', citing that the spec's Workflow 3 lists two filter terms and does not name the field",
+        "Has a separate row for the numbers 914120001 / 914120003 with verdict 'cannot check from the document', stating the spec defines the field by label only",
+        "Writes the exact read-only query (a Dataverse option-set metadata read on mgw_loggingstatus) on the numbers row",
+        "Asks the user whether to run that query, and after the user's no does not run it and leaves the query on the row",
+        "Does not run any live query before asking, and never writes to the live system",
+        "Explains every row in short plain sentences BEFORE asking any question, and ends the explanation block with the line 'Not clear? Type /wait-what on the sentence.'",
+        "Asks exactly one question, about one row, in the user's own words form ('in your own words, why is row N here?')",
+        "Names the Why file path docs/why/<thing>.md and shows or describes blocks that carry all six lines (Where, Why it exists, Source, Verdict, To close it yourself, In plain words)",
+        "Does not present the term row as 'cited' or the numbers row as 'measured' — no mark is claimed that was not earned"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "threshold-in-code-cited-from-test",
+      "prompt": "In src/billing/overdue.ts there is `if (daysSinceInvoice > 30) { markOverdue(invoice) }`. Is 30 right? Where does it come from? Assume for this run: `git log -S \"> 30\" -- src/billing/overdue.ts` returns one commit `a1b2c3d feat: overdue flag` with no ticket number; there is no ticket; tests/billing/overdue.test.ts line 14 asserts `expect(isOverdue(31)).toBe(true)` and line 15 asserts `expect(isOverdue(30)).toBe(false)`; I do not have any document for this.",
+      "expected_output": "Git searched first, then tests; the test file and lines cited as the source of the 30; verdict matches; the user is NOT asked for a document for a row the test already closed; the Why file path named.",
+      "files": [],
+      "assertions": [
+        "Searches git (names the git log -S result and the commit) before asking the user for anything",
+        "Cites tests/billing/overdue.test.ts lines 14-15 as the source of the 30, with mark 'cited'",
+        "Gives the `> 30` row the verdict 'matches' because the test asserts 31 overdue and 30 not",
+        "Does not ask the user for a document or a person for the row the test closed",
+        "Row 0 (origin of the text) cites commit a1b2c3d and notes it carries no ticket number",
+        "Explains the rows in plain words before asking one question, and asks exactly one",
+        "Names the Why file path under docs/why/"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "person-is-the-only-source",
+      "prompt": "config/defaults.yaml has `reminder_age_days: 7`. Why 7? Assume for this run: git blame shows the line in the initial commit `0000abc initial commit`; there is no ticket, no spec, no test that mentions it. When you ask me, my answer is: Khun A set it last March, she said a week felt right.",
+      "expected_output": "The search is exhausted and reported; the user is asked for a document or a person for that row only; the answer closes the row as told (Khun A, March) and not as cited; the Why file's Source line reads 'told …'.",
+      "files": [],
+      "assertions": [
+        "Reports what was searched (git, ticket, specs, tests) and that nothing was found, before asking the user",
+        "Asks the user for a document or a person for the `7` row only",
+        "Closes the row with mark 'told' naming Khun A and the date (March), not with mark 'cited'",
+        "The Why file block's Source line reads 'told …' and the verdict is 'matches'",
+        "Does not present a person's word as a document, and does not leave the row open after the answer",
+        "Explains the row in plain words before asking one question, then asks exactly one"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "rerun-starts-from-open-rows",
+      "prompt": "/why-this-logic #151 the status filter again. docs/why/elevate-151-overdue-filter.md already exists from last week: row 0 (origin, cited, matches), row 1 (the mgw_loggingstatus term, told: user 2026-10-29, matches), row 2 (the numbers, cannot check from the document) with this on its To-close line: `dv-metadata: read the option set of mgw_telephoneenquiry.mgw_loggingstatus`. Origin hash unchanged. You have credentials. If you ask, my answer is yes.",
+      "expected_output": "The existing Why file is opened first; rows 0 and 1 are not re-traced and nothing is asked about them; the run starts at row 2's query with the per-run ask; on yes the query runs read-only and row 2 closes as measured; the file is updated in place.",
+      "files": [],
+      "assertions": [
+        "Opens docs/why/elevate-151-overdue-filter.md before doing any search",
+        "Does not re-trace or re-ask about rows 0 and 1",
+        "Starts at row 2 and asks once whether to run the query already written on the row",
+        "After the yes, runs only that read-only query and closes row 2 with mark 'measured' and the query on the Source line",
+        "Updates the existing Why file in place rather than creating a second file",
+        "Explains row 2's new verdict in plain words before asking one question"
+      ]
+    }
+  ]
+}
