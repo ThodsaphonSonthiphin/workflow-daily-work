@@ -8,7 +8,10 @@ shape once. Fill the slots; keep every label.
 
 - **Every block has all six lines.** A line with nothing to say carries `—`.
 - **The Source line carries exactly one mark or `none`:** `cited <file:line | commit>`,
-  `told <who, date>`, `measured <the query>`, or `none`.
+  `told <who, date>`, `measured <the query>`, or `none`. When the cited source is a document
+  statement, the citation carries the statement's requirement ID first:
+  `cited R-003 (spec:145)` - the register `docs/why/requirements.md` points back at this row
+  (ADR 0280).
 - **The Verdict line is one of four words:** `matches`, `contradicts`, `no source`,
   `cannot check from the document`.
 - **To close it yourself** on an open row is a command, a document to find, or a person
@@ -46,7 +49,7 @@ flowchart LR
 
 **Where:** <file:line | ticket #n | document path>
 **Why it exists:** <one sentence, or "no document says">
-**Source:** <cited file:line | told who, date | measured the query | none>
+**Source:** <cited R-nnn (file:line) | cited file:line | told who, date | measured the query | none>
 **Verdict:** <matches | contradicts | no source | cannot check from the document>
 **To close it yourself:** <the read-only command | the document to find | whom to ask | —>
 **In plain words:** <two or three sentences>
