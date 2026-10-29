@@ -336,6 +336,14 @@ run is monospace text (`references/diagram-convention.md`, two render targets).
 
 ## 10. Evals — `evals/evals.json`
 
+> **Amended 2026-10-29 by ADR 0269 (Task 2 review, during execution):** every prompt
+> scripts each answer the skill will ask for — case 0 the phase-3 "document or person?"
+> (no) and the phase-6 rule; cases 1–3 the phase-6 rule; case 3 also the query's result
+> (`914120001 = Created`, `914120003 = Failed`), so case 3 is the suite's `contradicts`
+> case and measures the "what the source says instead" explanation and the phase-7 offer
+> line. Case 0's "before any question" assertions mean the phase-6 question; the phase-3
+> asks precede the explanation by design (§4). The table below reads with that amendment.
+
 Same shape as `guide-and-verify`'s file: `skill_name`, and `evals` with `id`, `name`,
 `prompt`, `expected_output`, `files`, `assertions`. Four cases:
 
