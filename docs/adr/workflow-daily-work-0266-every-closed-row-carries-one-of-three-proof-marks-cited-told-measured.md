@@ -15,6 +15,8 @@ flowchart TD
     table would be useless"]
 ```
 
+> **Corrected 2026-10-29 by ADR 0272:** the marks are not identical to architect-and-verify's - there an old document is *told*; here a document or commit is *cited*. A pasted query output is *measured* in both.
+
 Chosen 2026-10-29. `why-this-logic` writes one row per decision point (ADR 0261). A row is
 closed by a document or git (*cited*: file and line, or commit), by a person (*told*: who
 and when), or by the live system (*measured*: the query, run read-only after the user

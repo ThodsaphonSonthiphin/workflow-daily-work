@@ -20,6 +20,19 @@
 - **Glossary:** `CONTEXT.md` gains a *why-this-logic terms* section — **Decision point**,
   **Proof mark**, **Verdict**, **Why file** (already written).
 
+> **Amended 2026-10-29 at the final whole-branch review (ADRs 0270–0277):** §4.2 — the
+> origin of the text never closes a row but row 0 (0270); §6 — a source silent on a point is
+> *no source*, not *contradicts* (0271); §4.3, §11 — a pasted query output is *measured*, and
+> the marks differ from architect-and-verify's in one place (0272); §4.3, §7 — the live read
+> is the explicit metadata GET, not `dataverse:dv-metadata` (0273); §4.1, §4.5, §4.7, §7 — the
+> Why file's skeleton is written after the split, completed after the explanation, updated by
+> the close (0274); §4.3 — the ask is per query (0275); §7 — a *Still to answer* header line
+> (0276); §4.3 — one phase-3 question naming every no-source row, with what was searched
+> (0277). Also: §8's `study-design-verify` row — it is not named in the §4.7 line, which names
+> `grill-then-plan`; §10 row 0's "one row per `or` term and per number" reads as one row for
+> the term and one row for both numbers, as §1 and `splitting-rules.md` show; §4's "eight
+> phases" are phases 0–8.
+
 ```mermaid
 flowchart TD
     U["user: /why-this-logic &lt;thing&gt; [source]<br/>thing = code · ticket URL · document · pasted text"] --> S0["say the shape in one line,<br/>ask only what is missing"]

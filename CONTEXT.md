@@ -690,8 +690,7 @@ _Avoid_: function, rule, condition (too coarse — one condition can hold severa
 **Proof mark**:
 The one word on a closed row that says what kind of proof closed it — **cited** (a file and
 line, or a commit), **told** (a person and a date), or **measured** (a read-only query run
-against the live system). The same three marks as the architecture document's
-**Measured fact** / **Told fact**; a row with no mark is not closed (ADRs 0263, 0266).
+against the live system). Two of the marks are the architecture document's **Measured fact** / **Told fact**, with one difference said out loud: there an old document is *told*; here a document or commit is *cited* and *told* is only a person's word. A query output the user ran and pasted is *measured* in both. A row with no mark is not closed (ADRs 0263, 0266, 0272).
 _Avoid_: source type, confidence, evidence level.
 
 **Verdict**:
@@ -705,6 +704,5 @@ _Avoid_: status, result, pass/fail.
 **Why file**:
 `docs/why/<thing>.md` in the project being traced — one Mermaid overview, then one
 fixed-shape block per decision point, in the manner of a `guide-and-verify` runbook step.
-Written at the end of a run; opened first by the next run on the same thing, which asks only
-about the rows still open (ADR 0268).
+Its skeleton is written as soon as the rows are listed, filled as sources are found, completed when the rows are explained and updated by the close; the next run on the same thing opens it first and asks only about the rows still open (ADRs 0268, 0274).
 _Avoid_: trace report, provenance doc, notes.

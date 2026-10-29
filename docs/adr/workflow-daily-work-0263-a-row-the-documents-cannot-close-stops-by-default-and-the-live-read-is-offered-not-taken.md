@@ -15,6 +15,8 @@ flowchart TD
     important row would stay open every run"]
 ```
 
+> **Amended 2026-10-29 by ADRs 0272 and 0275:** a query output the user runs and pastes is *measured* (run by who, date), not *told*; and "once per run" means once per query - a yes is never carried to another row or another run.
+
 Decided 2026-10-29 on the `Elevate` #151 example: the spec names the `mgw_loggingstatus`
 values (`Creating`, `Created`, `Partial`, `Failed`) and the story uses numbers
 (`914120001`, `914120003`); only the live Dataverse holds the map between them. The user
