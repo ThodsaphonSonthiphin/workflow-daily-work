@@ -6,13 +6,16 @@ empty *implemented at* cell is a gap (ADR 0281).
 
 ## Rules
 
-- **One line per ID.** The source's own ID when the statement carries one (`FR-12`, `AC-2`);
+- **One line per ID.** The source's own ID when it is unique across the project (`FR-12`), qualified by its ticket or document when it is not (`#151/AC-2`);
   else `R-001`, `R-002` … where a new `R-nnn` is one above the highest across every branch
   and worktree - never this checkout's copy alone; an ID is never reused for another
   statement and never renumbered once merged (ADR 0278).
-- **A statement already registered reuses its ID** - same locator, or same text; a sentence
-  elsewhere that restates a registered statement adds its locator to that line's *source*
-  (joined by ` · `) and mints nothing.
+- **A statement is the registered one when its text matches** - at the registered locator, or
+  at a new locator in the same section (add it to *source*, joined by ` · `). A matching
+  locator whose text differs is *source changed*: `<new text> (was: <old text>)` in the
+  statement cell, nothing minted, said before anything cites it. The same text in another
+  section is a new statement unless the user says it restates the first; a restatement adds
+  its locator and mints nothing (ADR 0282).
 - **statement** is quoted as written in the source; **source** is its locator
   (`spec:145`, `#151 AC-2`, `spec:121 (MG_ReminderAgeDays (7))`).
 - **implemented at** and **tested by** hold one or more locators separated by ` · `:
@@ -29,7 +32,7 @@ empty *implemented at* cell is a gap (ADR 0281).
   ID, in either direction; a run that cited no document statement leaves the file alone.
 - A locator in *implemented at* whose row's verdict is *contradicts* carries `(contradicts)`
   after it - the status says whether code and a test exist, the mark keeps the disagreement
-  visible.
+  visible. A test locator in *tested by* whose assertion disagrees with the statement carries it too (ADR 0284).
 - The overview is Mermaid; one lead-in sentence follows it; no double quotes inside labels.
   It shows one node per *not found* and *untested* statement plus one node with the count
   of *implemented* ones - never one node per ID, which outgrows a thumbnail.
@@ -46,7 +49,7 @@ empty *implemented at* cell is a gap (ADR 0281).
 ```mermaid
 flowchart LR
     S["<source>"] --> R1["R-001<br/>untested"]
-    S --> R3["R-003<br/>implemented"]
+    S --> I["implemented: 1"]
     S --> R8["R-008<br/>not found"]
 ```
 
@@ -62,5 +65,5 @@ flowchart LR
 | ID | statement (as written) | source | implemented at | tested by | status |
 |---|---|---|---|---|---|
 | R-001 | Runs Mon-Fri 08:00 AEST | spec:144 | `flows/mgw_flow_overduereport.json:3` | — | untested |
-| R-003 | callDateTime < Now - 7 days | spec:145 · spec:121 (`MG_ReminderAgeDays (7)`) | `docs/why/elevate-151-overdue-filter.md` row 2 · `src/billing/overdue.ts:14` | `tests/billing/overdue.test.ts:14-15` | implemented |
+| R-003 | callDateTime < Now - 7 days | spec:145 · spec:121 (`MG_ReminderAgeDays (7)`) | `flows/mgw_flow_overduereport.json:12` | `tests/flows/overdue.test.ts:14-15` | implemented |
 | R-008 | emails to `MG_AdminEmail` / Liquidators | spec:147 | — | — | not found |

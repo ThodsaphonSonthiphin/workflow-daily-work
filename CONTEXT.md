@@ -720,7 +720,7 @@ its source locator, the **Decision points** that implement it, the tests that co
 its **Coverage status**. It grows from every run in either direction: a row cited against a
 document mints or reuses the statement's ID (ADR 0280). The traceability matrix *is* this
 file read column-wise.
-_Avoid_: RTM (as a separate artefact), requirements doc, backlog.
+_Avoid_: RTM (as a separate artefact), requirements doc, backlog; not practice-english-writing's **Register** (the language level).
 
 **Forward trace**:
 A run that starts from a **Requirement** — a spec section, a ticket's acceptance criteria, a

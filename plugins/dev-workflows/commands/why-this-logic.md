@@ -1,8 +1,8 @@
 ---
-description: Is this condition / value right, and where does it come from? One row per decision point — source, one proof mark (cited / told / measured), one verdict — explained in plain words, then one question until you can state the rule. Writes docs/why/<thing>.md.
-argument-hint: "<function, ticket URL, file:line, or pasted text> [source folder or document]"
+description: Is this logic right, and where does it come from — or where is this requirement implemented and tested? Backward: one row per decision point with its source, proof mark and verdict, written to docs/why/<thing>.md. Forward: each requirement statement gets an ID and a status in docs/why/requirements.md, the traceability matrix. Explained in plain words, then one question until you can state the rule.
+argument-hint: "<function, file:line, ticket URL or pasted logic — or a spec section, acceptance criteria, requirement sentence or R-ID> [source folder or document]"
 ---
 
-Use the **`why-this-logic`** skill. Say the one-line shape first, split into rows, search before asking, explain before asking, one question until the rule.
+Use the **`why-this-logic`** skill. What the argument points at picks the direction; say that direction's one-line shape first, search before asking, explain before asking, one question until the rule.
 
 Argument: $ARGUMENTS

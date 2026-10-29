@@ -86,7 +86,7 @@
         "Creates docs/why/requirements.md with the header lines (Register of, Last run, Statements with counts, Sources, Still to answer), a Mermaid overview with a lead-in sentence whose nodes are one per not-found and untested statement plus one implemented-count node (not one node per ID), and the table with columns ID, statement (as written), source, implemented at, tested by, status",
         "Prints the matrix in monospace first, then explains every statement in short plain sentences, both BEFORE the one question, ending the block with 'Not clear? Type /wait-what on the sentence.'",
         "Asks exactly one 'in your own words' question, and it targets a 'not found' statement",
-        "Ends with at most two one-line offers (generating-test-cases for the untested statement; grill-then-plan or findings-to-ado-backlog for the not-found ones) and writes no code and no test",
+        "Ends with at most one offer line per kind - the untested statements (R-001, R-002) in one line naming generating-test-cases, the not-found statements in one line naming grill-then-plan or findings-to-ado-backlog - and writes no code and no test",
         "Does not edit docs/spec.md or any ticket, and does not open a live system"
       ]
     },
@@ -103,6 +103,21 @@
         "The register's R-007 line gains the Why file row in 'implemented at' and tests/billing/overdue.test.ts:14-15 in 'tested by', and its status changes from 'not found' to 'implemented'",
         "Does not add a second line for the same statement to the register",
         "Explains every row in plain words before asking exactly one question, and names both the Why file path and docs/why/requirements.md"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "backward-run-sees-a-changed-locator",
+      "prompt": "In src/billing/overdue.ts there is `if (daysSinceInvoice > 30) { markOverdue(invoice) }`. Why 30? Assume for this run: git log -S returns one commit a1b2c3d with no ticket number; docs/why/requirements.md already exists and holds the line `| R-007 | an invoice is overdue after 30 days | docs/spec.md:12 | — | — | not found |`; the spec was edited last week and docs/spec.md line 12 now reads \"an invoice is overdue after 45 days\" - no line of docs/spec.md says 30 days any more; tests/billing/overdue.test.ts lines 14-15 assert isOverdue(31) true and isOverdue(30) false, and isOverdue wraps that condition; no other branch or worktree has a register. If you ask for a source or a document, my answer is: none beyond docs/spec.md. When you ask me, in my own words, why the 30 is there, my answer is: the spec moved to 45 days and the code and its test still say 30 - the code is behind the spec.",
+      "expected_output": "A backward run. Row 0 cites a1b2c3d as origin. Before citing docs/spec.md:12 the skill says the text at that locator changed: R-007's statement cell becomes `an invoice is overdue after 45 days (was: an invoice is overdue after 30 days)` with status source changed, and no new ID is minted. The `> 30` row is cited against R-007 with verdict contradicts (the spec says 45, the code 30); the test at lines 14-15 lands in tested by marked (contradicts). Explanation before the one question; the question targets the contradicts row; the phase-7 offer line names findings-to-ado-backlog / grill-then-plan; both paths named.",
+      "files": [],
+      "assertions": [
+        "Says, before citing docs/spec.md:12, that the text at that locator no longer reads as the register records",
+        "Sets R-007's statement cell to the new text with the old text kept as `(was: …)` and its status to 'source changed', and mints no new ID for either text",
+        "Gives the `> 30` row the verdict 'contradicts' with Source 'cited R-007 (docs/spec.md:12)' - the spec says 45, the code 30",
+        "Writes tests/billing/overdue.test.ts:14-15 into R-007's 'tested by' marked '(contradicts)' because the test asserts the old value",
+        "Explains every row in plain words before asking exactly one question, and that question targets the contradicts row",
+        "Ends with the one-line offer to file the contradicts row as a finding (findings-to-ado-backlog) or take it to grill-then-plan, files nothing, and names both the Why file path and docs/why/requirements.md"
       ]
     }
   ]
