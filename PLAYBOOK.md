@@ -52,6 +52,7 @@ flowchart TD
     WORK -- advising on cert / market / vendor facts --> VTA["verify-then-advise"]
     WORK -- auditing names/mappings --> NA["naming-audit /<br/>fit-gap-analysis"]
     WORK -- what is this? / too long, can't read --> FE["feynman-explain"]
+    WORK -- what does this one condition mean? --> EC["explain-condition"]
     WORK -- I own this but do not understand it --> ATU["asking-to-understand<br/>(/ask)"]
     WORK -- my own English is wrong --> PEW["practice-english-writing"]
     ATU -. want it explained instead .-> FE
@@ -94,6 +95,7 @@ flowchart TD
 | advising on cert / market / vendor facts (outside the codebase) | `verify-then-advise` |
 | auditing names / labels / mappings | `naming-audit` / `fit-gap-analysis` |
 | "what is this / how does it work?" — or an answer came back too long to read | `feynman-explain` (`/feynman`) — fixed short card: plain explanation, the fuzzy parts named, gaps filled from real evidence, 30-second line |
+| "what does this condition / branch / node mean?" — one check in a flowchart, an if, a filter, an expression term ("X หมายความว่าไง", "คือยังไงนะ") | `explain-condition` (`/dev-workflows:explain-condition`) — the same five parts every time: the meaning in one bold line, how it works step by step on the real expression, a table of real test rows that pass and fail, the reasons with their source, the `file:line`. Not `feynman-explain` (a whole concept) or `why-this-logic` (is it right, with a verdict per row) (ADR 0289) |
 | work you OWN but do not understand — a map/plan/pipeline an AI built for you, or "ถามให้คิดหน่อย" / "grill me" | `asking-to-understand` (`/ask`) — the Socratic side of `/feynman`: one evidence-grounded question per turn, symptom pushed to mechanism, stops when you state the rule |
 | the agent's *last message* lost you — "wait", "หา?", "งง", "say that again" | `wait-what` (`/wait-what`) — re-pitches that one message with a little context, in ASD-STE100 Simplified Technical English, using `CONTEXT.md`'s ubiquitous language. Vendored verbatim from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT); manual invocation only |
 | the work has to TRAVEL — another harness, another machine or repo, a colleague, a forked side task, or a Claude Code cloud session | `handoff` (`/dev-workflows:handoff [cloud] "<what next>"`) — compacts the live thread into one handoff document (refs, not copies; secrets redacted; suggested skills named); default lands in temp, `cloud` commits and pushes it into `docs/superpowers/handoffs/` because a cloud session clones from GitHub. Usable at any moment; the 🚀 footer of `/daily` reminds you. Vendored from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT) and MODIFIED (ADRs 0227–0229); manual invocation only |
