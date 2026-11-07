@@ -1,0 +1,926 @@
+<title>Phone Log Flashcards</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<style>
+/* Layout: one index card on a desk, deck filter above, grading bar below; a list view for a full read-through. */
+:root {
+  --bg: #e9edf2;
+  --surface: #f7f9fb;
+  --card: #fffffe;
+  --ink: #18212c;
+  --muted: #586473;
+  --line: #cdd7e3;
+  --margin: #d2564f;
+  --accent: #1d5bb8;
+  --accent-soft: #e2ebf8;
+  --good: #2b7a4b;
+  --good-soft: #e1f1e7;
+  --again: #b04f25;
+  --again-soft: #f8e7de;
+  --code-bg: #eef2f7;
+  --chart-bg: #f3f6fa;
+  --node-bg: #ffffff;
+  --decision-bg: #fff6e0;
+  --decision-line: #b38415;
+  --d-ov: #8a6a12;
+  --d-wf1: #23806f;
+  --d-wf2: #1d5bb8;
+  --d-mail: #7b4bb3;
+  --d-terms: #b04f25;
+  --shadow: 0 1px 2px rgba(24,33,44,.06), 0 8px 24px rgba(24,33,44,.08);
+  --font-body: "IBM Plex Sans Thai", "Leelawadee UI", "Tahoma", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10151c; --surface: #161d26; --card: #1b2430; --ink: #e5eaf0; --muted: #9ba7b5;
+    --line: #2b3746; --margin: #c25a53; --accent: #7ea8f5; --accent-soft: #1f2d44;
+    --good: #6cc492; --good-soft: #193326; --again: #ec9468; --again-soft: #3a2419; --code-bg: #232e3c;
+    --chart-bg: #141b24; --node-bg: #1f2a37; --decision-bg: #33291a; --decision-line: #d8b75a;
+    --d-ov: #d8b75a; --d-wf1: #62c7b1; --d-wf2: #7ea8f5; --d-mail: #b797e6; --d-terms: #ec9468;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10151c; --surface: #161d26; --card: #1b2430; --ink: #e5eaf0; --muted: #9ba7b5;
+  --line: #2b3746; --margin: #c25a53; --accent: #7ea8f5; --accent-soft: #1f2d44;
+  --good: #6cc492; --good-soft: #193326; --again: #ec9468; --again-soft: #3a2419; --code-bg: #232e3c;
+  --chart-bg: #141b24; --node-bg: #1f2a37; --decision-bg: #33291a; --decision-line: #d8b75a;
+  --d-ov: #d8b75a; --d-wf1: #62c7b1; --d-wf2: #7ea8f5; --d-mail: #b797e6; --d-terms: #ec9468;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6; }
+.wrap {
+  max-width: 860px; margin: 0 auto;
+  padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 20px;
+}
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+h1 { margin: 0; font-size: 1.6rem; line-height: 1.2; font-weight: 700; text-wrap: balance; }
+.sub { margin: 4px 0 0; color: var(--muted); font-size: .9rem; max-width: 60ch; }
+.stat { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 180px; }
+.stat-num { font-variant-numeric: tabular-nums; font-size: .9rem; color: var(--muted); }
+.stat-num b { color: var(--ink); font-size: 1.1rem; }
+.bar { width: 180px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--good); transition: width .3s ease; }
+
+.toolbar { display: flex; flex-direction: column; gap: 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.label { font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.chip {
+  font: inherit; font-size: .85rem; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  padding: 4px 12px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px;
+}
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--muted)); }
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.chip .n { color: var(--muted); font-variant-numeric: tabular-nums; font-size: .8rem; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: .85rem; cursor: pointer; border: 0; background: var(--surface); color: var(--ink); padding: 5px 12px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--card); }
+.ghost { font: inherit; font-size: .85rem; cursor: pointer; background: none; border: 1px solid var(--line); color: var(--ink); padding: 5px 12px; border-radius: 8px; }
+button:focus-visible, .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.stage { display: flex; flex-direction: column; gap: 14px; }
+.meta { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.deck-tag { display: inline-flex; align-items: center; gap: 6px; }
+.deck-tag .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.boxes { display: inline-flex; gap: 3px; align-items: center; }
+.boxes i { width: 14px; height: 6px; border-radius: 2px; background: var(--line); }
+.boxes i.on { background: var(--good); }
+.card { perspective: 1800px; cursor: pointer; border-radius: 10px; }
+.card-inner { display: grid; grid-template-columns: minmax(0, 1fr); transition: transform .45s cubic-bezier(.3,.7,.2,1); transform-style: preserve-3d; }
+.card.flipped .card-inner { transform: rotateY(180deg); }
+.face {
+  grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
+  min-height: 300px; padding: 26px 26px 20px 44px; position: relative; min-width: 0;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.face::before { content: ""; position: absolute; top: 0; bottom: 0; left: 28px; width: 1.5px; background: var(--margin); opacity: .55; }
+.front { justify-content: center; }
+.kind {
+  align-self: flex-start; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; font-weight: 600;
+  padding: 2px 8px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted);
+}
+.kind.logic { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.front .q { font-size: 1.3rem; line-height: 1.5; font-weight: 600; text-wrap: balance; margin: 0; }
+.front .hint { color: var(--muted); font-size: .8rem; margin-top: auto; }
+.back { transform: rotateY(180deg); }
+.back .q-small { font-size: .85rem; color: var(--muted); margin: 0; }
+.ans { font-size: .97rem; line-height: 1.7; min-width: 0; overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 10px; }
+.ans p { margin: 0; }
+.ans ul, .ans ol { margin: 0; padding-left: 20px; }
+.ans li { margin: 1px 0; }
+.ans b { font-weight: 600; }
+code { font-family: var(--font-mono); font-size: .86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.flowchart {
+  background: var(--chart-bg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 12px; overflow-x: auto; min-height: 80px; display: flex; justify-content: center;
+}
+.flowchart svg { max-width: 100%; height: auto; }
+.flowchart.loading::after { content: "กำลังวาด flowchart…"; color: var(--muted); font-size: .85rem; align-self: center; }
+.flowchart pre { margin: 0; font-family: var(--font-mono); font-size: .75rem; white-space: pre; color: var(--ink); }
+.ex { background: var(--good-soft); border-radius: 6px; padding: 8px 12px; font-size: .9rem; }
+.ex::before { content: "ตัวอย่างจริงจาก Dev"; display: block; font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; font-weight: 600; color: var(--good); margin-bottom: 2px; }
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; font-size: .86rem; width: 100%; }
+th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); font-size: .78rem; }
+.src { margin-top: auto; font-size: .76rem; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 8px; }
+
+.grade { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.grade button { font: inherit; font-weight: 600; cursor: pointer; border-radius: 10px; padding: 12px 10px; border: 1.5px solid; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.grade button small { font-weight: 400; font-size: .75rem; opacity: .8; }
+.btn-again { background: var(--again-soft); color: var(--again); border-color: var(--again); }
+.btn-know { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+.btn-flip { grid-column: 1 / -1; background: var(--surface); color: var(--ink); border-color: var(--line) !important; }
+.keys { font-size: .78rem; color: var(--muted); text-align: center; }
+kbd { font-family: var(--font-mono); font-size: .75rem; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--surface); }
+
+.done { background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 32px 28px; display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+.done h2 { margin: 0; font-size: 1.3rem; }
+.done p { margin: 0; color: var(--muted); }
+
+.list { display: flex; flex-direction: column; gap: 28px; }
+.list h2 { font-size: 1.05rem; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+.list h2 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.list ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.list li { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.list .lq { font-weight: 600; margin: 0; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.list .src { border: 0; padding: 0; }
+
+@media (max-width: 520px) {
+  .face { padding: 20px 16px 16px 32px; min-height: 260px; }
+  .face::before { left: 20px; }
+  .front .q { font-size: 1.12rem; }
+  .stat { align-items: flex-start; }
+  .flowchart { padding: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-inner { transition: none; }
+  .bar > i { transition: none; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Phone Log Flashcards</h1>
+      <p class="sub">สิ่งที่โปรแกรมเมอร์ต้องรู้เรื่อง <code>mgw_flow_findmatter</code> และ <code>mgw_flow_logenquiry</code> ได้แก่ ชื่อ, input, output, ตาราง และ logic การ์ด Logic ทุกใบตอบด้วย Mermaid flowchart แล้วตามด้วยตัวอย่างจริงจาก Dev</p>
+    </div>
+    <div class="stat" aria-live="polite">
+      <span class="stat-num">แม่นแล้ว <b id="mastered">0</b> / <span id="total">0</span> ใบ</span>
+      <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="row" id="decks" role="group" aria-label="เลือกหมวด"></div>
+    <div class="row">
+      <div class="seg" role="group" aria-label="มุมมอง">
+        <button type="button" id="view-practice" aria-pressed="true">ฝึก</button>
+        <button type="button" id="view-list" aria-pressed="false">ดูทั้งหมด</button>
+      </div>
+      <div class="seg" role="group" aria-label="การ์ดที่จะฝึก" id="mode-seg">
+        <button type="button" id="mode-all" aria-pressed="true">ทุกใบ</button>
+        <button type="button" id="mode-weak" aria-pressed="false">เฉพาะที่ยังไม่แม่น</button>
+      </div>
+      <div class="seg" role="group" aria-label="ชนิดการ์ด">
+        <button type="button" id="kind-all" aria-pressed="true">ทุกชนิด</button>
+        <button type="button" id="kind-logic" aria-pressed="false">Logic</button>
+        <button type="button" id="kind-fact" aria-pressed="false">Fact</button>
+      </div>
+      <button type="button" class="ghost" id="shuffle">สลับลำดับ</button>
+      <button type="button" class="ghost" id="reset">ล้างผลการจำ</button>
+    </div>
+  </div>
+
+  <section class="stage" id="practice">
+    <div class="meta">
+      <span class="deck-tag" id="deck-tag"><span class="dot"></span><span></span></span>
+      <span><span class="boxes" id="boxes" title="ระดับการจำ"><i></i><i></i><i></i></span> &nbsp;<span id="pos"></span></span>
+    </div>
+    <div class="card" id="card" tabindex="0" role="button" aria-label="พลิกการ์ด">
+      <div class="card-inner">
+        <div class="face front">
+          <span class="kind" id="kind"></span>
+          <p class="q" id="q"></p>
+          <span class="hint" id="hint"></span>
+        </div>
+        <div class="face back" aria-live="polite">
+          <p class="q-small" id="q2"></p>
+          <div class="ans" id="a"></div>
+          <div class="src" id="src"></div>
+        </div>
+      </div>
+    </div>
+    <div class="grade">
+      <button type="button" class="btn-flip" id="btn-flip">ดูคำตอบ<small>Space</small></button>
+      <button type="button" class="btn-again" id="btn-again" hidden>ยังไม่แม่น<small>กด 1 · ใบนี้จะวนกลับมาในรอบนี้</small></button>
+      <button type="button" class="btn-know" id="btn-know" hidden>จำได้<small>กด 2 · ไปใบถัดไป</small></button>
+    </div>
+    <div class="keys"><kbd>Space</kbd> พลิก · <kbd>1</kbd> ยังไม่แม่น · <kbd>2</kbd> จำได้</div>
+  </section>
+
+  <section class="done" id="done" hidden>
+    <h2>จบรอบนี้แล้ว</h2>
+    <p id="done-text"></p>
+    <div class="row">
+      <button type="button" class="ghost" id="again-weak">ทวนเฉพาะที่ยังไม่แม่น</button>
+      <button type="button" class="ghost" id="again-all">เริ่มใหม่ทุกใบ</button>
+    </div>
+  </section>
+
+  <section class="list" id="list" hidden></section>
+</div>
+
+<script>
+const DECKS = [
+  { id: 'ov',    name: 'ภาพรวมระบบ' },
+  { id: 'wf1',   name: 'WF1 findmatter' },
+  { id: 'wf2',   name: 'WF2 logenquiry' },
+  { id: 'mail',  name: 'WF2 อีเมล (#150)' },
+  { id: 'terms', name: 'คำที่สับสนง่าย' }
+];
+
+// kind: 'logic' = answer leads with a Mermaid flowchart; 'fact' = names, inputs, outputs, values.
+const CARDS = [
+  // ---------- ภาพรวม ----------
+  { id: 'ov1', deck: 'ov', kind: 'logic', q: 'ระบบมีกี่ flow ชื่ออะไร ใครเรียก และเรียกตามลำดับไหน?',
+    chart: `flowchart TD
+  A([Caller]) --> B["Voice agent<br/>(ticket 153, not built yet)"]
+  B -- "MatterNameGiven, ACNABN" --> C["WF1 mgw_flow_findmatter<br/>find one active case, read only"]
+  C -- "MatchStatus, CaseCode, ClientName ..." --> D["Agent asks the caller:<br/>is it ClientName?"]
+  D -- "MatchConfidence + 13 other inputs" --> E["WF2 mgw_flow_logenquiry<br/>ticket 149: write row + due date<br/>ticket 150: send one staff email"]
+  E -- "RecordStatus, DateResponseRequired ..." --> F([Agent closes the call])`,
+    ex: 'ผู้โทรบอก <code>TEST Harbour Bakery Pty Ltd</code> → WF1 ได้ <code>Candidate</code> <code>MG-TEST-0004</code> → ผู้โทรยืนยัน → WF2 ได้รับ <code>Confirmed</code> → เขียนแถว 1 แถวและส่งเมล 1 ฉบับ (T8)',
+    src: 'ADO #148, #149, #150 · #153 = agent (ยังไม่สร้าง)' },
+  { id: 'ov2', deck: 'ov', kind: 'fact', q: 'ทั้งสอง flow เป็น flow ชนิดไหน ใช้ trigger และ response อะไร?',
+    a: `<ul>
+      <li><b>Cloud flow</b> (Power Automate) อยู่<b>ใน solution</b> <code>MackayGoodwinCreditorEnquiry</code> เพื่อให้ agent เรียกได้</li>
+      <li>Trigger: <b>When an agent calls the flow</b> (kind <code>Skills</code>)</li>
+      <li>จบด้วย <b>Respond to the agent</b> และตั้ง Asynchronous response = <b>Off</b> (agent รอคำตอบ)</li>
+      <li>Input และ output เป็น <b>Text</b> ทั้งหมด (date ส่งเป็นข้อความ <code>yyyy-MM-dd</code>)</li>
+      <li>Input ถูกเก็บเป็น key <code>text</code>, <code>text_1</code>, <code>text_2</code> … ตามลำดับที่สร้าง ห้าม rename หลัง save</li></ul>`,
+    src: '#148 decision 1 · #149 decision 1, B1' },
+  { id: 'ov3', deck: 'ov', kind: 'fact', q: 'แต่ละ flow ใช้ connection reference และ environment variable อะไรบ้าง?',
+    a: `<div class="tbl-wrap"><table><tr><th>Flow</th><th>Connection reference</th><th>Environment variable</th></tr>
+      <tr><td>WF1</td><td><code>mgw_MGDataverse</code></td><td>ไม่มี (time zone พิมพ์ตรงในนิพจน์ <code>AppointmentDate</code>)</td></tr>
+      <tr><td>WF2</td><td><code>mgw_MGDataverse</code>, <code>mgw_MGOutlook</code></td><td><code>MG_OperationsOwnerTeamId</code>, <code>MG_TimeZone</code>, <code>MG_ProductionEmailEnabled</code>, <code>MG_EmailRecipientOverride</code>, <code>MG_AdminEmail</code>, <code>MG_DataverseEnvironmentUrl</code></td></tr></table></div>
+      <p>ทุก connection reference ต้องเป็น <b>Embedded</b> ไม่ใช่ "Provided by run-only user" ไม่งั้น agent เรียกแล้ว fail</p>`,
+    src: '#148 B4 · #150 F2–F4 · GOTCHAS (Power Automate)' },
+  { id: 'ov4', deck: 'ov', kind: 'fact', q: 'กับดักของ "Respond to the agent" ที่โปรแกรมเมอร์ต้องรู้มีอะไร?',
+    a: `<ul>
+      <li>Respond card ทุกใบที่มี status เดียวกันต้องมี <b>output ชุดเดียวกัน</b> ถ้าจะเพิ่ม output ต้องเพิ่มทุกใบใน save เดียว ไม่งั้น save fail ด้วย <code>ActionSchemaInvalid</code></li>
+      <li>ค่าว่างต้องใช้นิพจน์ <code>string('')</code> ถ้าพิมพ์ <code>''</code> เป็นข้อความ จะได้เครื่องหมาย quote สองตัวจริง ๆ</li>
+      <li>WF1 มี Respond 2 ใบ (ปกติ / <code>RespondFailed</code>) · WF2 มี 4 ใบ (<code>ResponseCreate</code>, <code>RespondExisting</code>, <code>RespondRace</code>, <code>RespondFailed</code>)</li></ul>`,
+    src: '#150 F4 (วัดเมื่อ 09:20Z) · #149 B1 · #148 B6' },
+
+  // ---------- WF1 ----------
+  { id: 'w1a', deck: 'wf1', kind: 'fact', q: 'Flow แรกชื่ออะไร ทำหน้าที่อะไร อ่านหรือเขียนตารางไหน?',
+    a: `<ul>
+      <li>ชื่อ <code>mgw_flow_findmatter</code> (Workflow 1, ADO #148)</li>
+      <li>หน้าที่: หา<b>เคส active หนึ่งเคส</b>จากชื่อบริษัทหรือ ACN/ABN ที่ผู้โทรบอก โดยไม่บอกชื่อเคสอื่นให้ผู้โทรรู้ (zero candidate leakage)</li>
+      <li><b>อ่านอย่างเดียว</b> จาก <code>mgw_caseregistry</code> ด้วย List rows ครั้งเดียว (top 10, เรียง <code>mgw_appointedon desc</code>) และไม่เขียนอะไรเลย</li>
+      <li>เป้าหมายเวลา: ตอบภายใน <b>2.5 วินาที</b></li></ul>`,
+    src: '#148 decisions 1, 12, 14' },
+  { id: 'w1b', deck: 'wf1', kind: 'fact', q: 'Flow แรกรับ input อะไรบ้าง (พร้อม key)?',
+    a: `<div class="tbl-wrap"><table><tr><th>Key</th><th>Input</th><th>Required</th><th>ใช้ทำอะไร</th></tr>
+      <tr><td><code>text</code></td><td><code>MatterNameGiven</code></td><td>Yes</td><td>ชื่อบริษัทหรือบุคคลตามที่ผู้โทรพูด แล้ว normalise</td></tr>
+      <tr><td><code>text_1</code></td><td><code>ACNABN</code></td><td>No</td><td>เก็บเฉพาะตัวเลข: 9 หลัก = ACN, 11 หลัก = ABN</td></tr>
+      <tr><td><code>text_2</code></td><td><code>AppointmentType</code></td><td>No</td><td>รับค่าไว้ แต่<b>ยังไม่ใช้</b> match (ยังไม่มี rule ที่อนุมัติ)</td></tr></table></div>`,
+    src: '#148 decision 4 · input keys วัดจาก Peek code' },
+  { id: 'w1c', deck: 'wf1', kind: 'fact', q: 'Flow แรก return ค่าอะไรบ้าง?',
+    a: `<p><b>12 outputs เป็น Text ทั้งหมด</b> ช่องที่ต้นทางเป็น choice จะส่ง <b>label</b> กลับไป</p>
+      <div class="tbl-wrap"><table><tr><th>Output</th><th>มาจาก</th></tr>
+      <tr><td><code>MatchStatus</code></td><td>Candidate / Ambiguous / None / Failed</td></tr>
+      <tr><td><code>CaseCode</code></td><td><code>mgw_casecode</code> หรือ <code>UNMATCHED</code></td></tr>
+      <tr><td><code>ClientName</code></td><td><code>mgw_name</code></td></tr>
+      <tr><td><code>Office</code></td><td><code>mgw_office</code> label</td></tr>
+      <tr><td><code>CaseManager</code> · <code>ManagerEmail</code></td><td><code>mgw_leadmanager</code> · <code>mgw_manageremail</code></td></tr>
+      <tr><td><code>CaseStaffMember</code> · <code>CaseStaffEmail</code></td><td><code>mgw_leadadmin</code> · <code>mgw_caseemail</code></td></tr>
+      <tr><td><code>CaseType</code></td><td><code>mgw_casetype</code> label</td></tr>
+      <tr><td><code>AppointmentDate</code></td><td><code>mgw_appointedon</code> เป็น <code>yyyy-MM-dd</code> เวลาซิดนีย์</td></tr>
+      <tr><td><code>LeadAppointee</code></td><td><code>mgw_leadappointee</code></td></tr>
+      <tr><td><code>ErrorCode</code></td><td><code>''</code> / <code>EMPTY_NAME</code> / <code>DATAVERSE_ERROR</code> / <code>FLOW_ERROR</code></td></tr></table></div>`,
+    src: '#148 B5 step 4 · Tech Spec p12 §8.1' },
+  { id: 'w1d', deck: 'wf1', kind: 'logic', q: 'Logic ทั้งหมดของ flow แรก ทำงานอย่างไร?',
+    chart: `flowchart TD
+  I["Inputs<br/>text = MatterNameGiven<br/>text_1 = ACNABN"] --> N["Name = normalise(MatterNameGiven)<br/>ACN / ABN = digits of ACNABN"]
+  N --> L["ListCases: mgw_caseregistry<br/>activematter eq true AND<br/>(acn eq ACN OR abn eq ABN OR normalisedname eq Name)<br/>order appointedon desc, top 10"]
+  L --> Q1{"Any row matches<br/>ACN or ABN?"}
+  Q1 -- Yes --> H1["Hits = ID rows only"]
+  Q1 -- No --> H2["Hits = all rows (name)"]
+  H1 --> S["Status = rule on Hits<br/>0 / 1 / 2+ rows"]
+  H2 --> S
+  S --> Q2{"Status =<br/>Candidate?"}
+  Q2 -- Yes --> F1["10 case fields<br/>from the top row"]
+  Q2 -- No --> F2["CaseCode = UNMATCHED<br/>9 case fields = empty"]
+  F1 --> R(["Respond to the agent<br/>12 Text outputs"])
+  F2 --> R`,
+    ex: '<code>TEST Wattle Pty Ltd</code> + ACN <code>666 777 888</code>: แถวที่ชื่อตรงมี 2 แถว แต่มีแถวที่ ACN ตรง 1 แถว จึงนับแถวนั้นแถวเดียว → <code>Candidate</code> <code>MG-TEST-0006</code> (B5-T5)',
+    src: '#148 B4, B5 · decisions 5, 8, 10, 12' },
+  { id: 'w1e', deck: 'wf1', kind: 'logic', q: 'Flow แรก normalise ชื่อบริษัทอย่างไร?',
+    chart: `flowchart TD
+  A["MatterNameGiven"] --> S1["Step 1: UPPER + trim"]
+  S1 --> S2["Step 2: replace the ampersand with AND"]
+  S2 --> S3["Step 3: remove prefix at START only<br/>BANKRUPT ESTATE OF / B/E OF"]
+  S3 --> S4["Step 4: delete apostrophe and full stop"]
+  S4 --> S5["Step 5: any char not A-Z, 0-9, space becomes a space"]
+  S5 --> S6["Step 6: collapse spaces + trim"]
+  S6 --> S7["Step 7: remove ONE suffix at END, whole word, longest first<br/>PTY LIMITED, PTY LTD, LIMITED, LTD<br/>then HOLDINGS at END"]
+  S7 --> S8["Step 8: trim"]
+  S8 --> Q{"Name empty AND<br/>no ACN/ABN hit?"}
+  Q -- Yes --> X["MatchStatus = None<br/>ErrorCode = EMPTY_NAME"]
+  Q -- No --> Y["Name is used in ListCases"]`,
+    ex: '<code>B/E of John O\'Brien</code> → <code>JOHN OBRIEN</code> · <code>Smith &amp; Jones Holdings Pty Ltd</code> → <code>SMITH AND JONES</code> · <code>Coltd Services Ltd</code> → <code>COLTD SERVICES</code> (ไม่โดนตัด LTD กลางคำ)',
+    src: '#148 decision 6 (เอา prefix ออกก่อนลบเครื่องหมาย ไม่งั้น "B/E" จะกลายเป็น "BE") · decision 7' },
+  { id: 'w1f', deck: 'wf1', kind: 'logic', q: 'Flow แรกแปลง ACNABN เป็น ACN หรือ ABN อย่างไร?',
+    chart: `flowchart TD
+  A["ACNABN (text_1)<br/>e.g. 666 777 888"] --> B["Keep digits only<br/>666777888"]
+  B --> Q{"How many<br/>digits?"}
+  Q -- "9" --> C["ACN<br/>query: acn eq ACN"]
+  Q -- "11" --> D["ABN<br/>query: abn eq ABN"]
+  Q -- "other" --> E["Ignored<br/>name search only"]`,
+    ex: '<code>666 777 888</code> → 9 หลัก → ACN <code>666777888</code> → เจอ <code>MG-TEST-0006</code> · ใน test data ใช้ ABN = ตัวเลข 2 หลัก + ACN',
+    src: '#148 decision 4 · B3 (AcnAbnText → ACN, ABN)' },
+  { id: 'w1g', deck: 'wf1', kind: 'logic', q: 'Flow แรกตัดสิน MatchStatus อย่างไร?',
+    chart: `flowchart TD
+  A["Hits, sorted appointedon desc"] --> Q1{"How many<br/>rows?"}
+  Q1 -- "0" --> N["None"]
+  Q1 -- "1" --> C1["Candidate"]
+  Q1 -- "2+" --> Q2{"All rows same ACN,<br/>not blank?"}
+  Q2 -- No --> A1["Ambiguous"]
+  Q2 -- Yes --> Q3{"Top 2 both dated<br/>AND top is newer?"}
+  Q3 -- No --> A2["Ambiguous"]
+  Q3 -- Yes --> C2["Candidate (top row)"]`,
+    ex: '<code>TEST Harbour Bakery Pty Ltd</code>: 2 แถว ACN เดียวกัน, 0004 = 2026-09-01 ใหม่กว่า 0002 = 2026-03-02 → <code>Candidate</code> 0004 · <code>TEST Wattle Pty Ltd</code>: 2 บริษัท → <code>Ambiguous</code> · <code>TEST Ironbark Cafe</code>: แถวบนไม่มีวันที่ → <code>Ambiguous</code>',
+    src: '#148 decision 8 · Dev runs B5-T1, T2, T3' },
+  { id: 'w1h', deck: 'wf1', kind: 'logic', q: 'Flow แรกเลือก ErrorCode อย่างไร และถ้า flow ล้มจะเกิดอะไร?',
+    chart: `flowchart TD
+  Q1{"Try failed<br/>or timed out?"}
+  Q1 -- No --> Q2{"Name empty AND<br/>status None?"}
+  Q2 -- Yes --> E1["ErrorCode = EMPTY_NAME"]
+  Q2 -- No --> E2["ErrorCode = empty"]
+  Q1 -- Yes --> C["Catch"]
+  C --> Q3{"ListCases Failed<br/>or TimedOut?"}
+  Q3 -- Yes --> D["DATAVERSE_ERROR"]
+  Q3 -- No --> F["FLOW_ERROR"]
+  D --> R["RespondFailed<br/>MatchStatus = Failed<br/>CaseCode = UNMATCHED<br/>9 fields = empty"]
+  F --> R`,
+    ex: 'B6: ตั้ง static result <code>InternalServerError</code> บน <code>ListCases</code> → ได้ <code>Failed</code> + <code>DATAVERSE_ERROR</code> และไม่ส่ง error ดิบให้ agent',
+    src: '#148 decision 3, B6 · Tech Spec p17 §13, NFR-06' },
+  { id: 'w1i', deck: 'wf1', kind: 'fact', q: 'Office และ CaseType ที่ flow แรกส่งกลับ มีค่าอะไรบ้าง?',
+    a: `<p>ส่งเป็น <b>label</b> (Text) ไม่ใช่เลข option set</p>
+      <div class="tbl-wrap"><table><tr><th><code>mgw_office</code> (global)</th><th><code>mgw_casetype</code> (local)</th></tr>
+      <tr><td>914120000 Sydney</td><td>914120000 VA</td></tr>
+      <tr><td>914120001 Melbourne</td><td>914120001 CVL</td></tr>
+      <tr><td>914120002 Brisbane</td><td>914120002 MVL</td></tr>
+      <tr><td>914120003 Perth</td><td>914120003 Court Liquidation</td></tr>
+      <tr><td>914120004 Adelaide</td><td>914120004 Receivership</td></tr>
+      <tr><td></td><td>914120005 Small Business Restructuring</td></tr></table></div>
+      <p>ถ้าจะเก็บลง choice column ต้องแปลง label กลับเป็นเลขเอง</p>`,
+    src: '#144 step 4 (วัดเมื่อ 2026-10-29)' },
+
+  // ---------- WF2 ----------
+  { id: 'w2a', deck: 'wf2', kind: 'fact', q: 'Flow ที่สองชื่ออะไร ทำหน้าที่อะไร อ่านและเขียนตารางไหน?',
+    a: `<ul>
+      <li>ชื่อ <code>mgw_flow_logenquiry</code> (Workflow 2: #149 บันทึกสาย + วันครบกำหนด, #150 อีเมลหา staff)</li>
+      <li><b>อ่าน:</b> <code>mgw_telephoneenquiry</code> (หา idempotency key), <code>mgw_caseregistry</code> (เคส), <code>mgw_businesscalendar</code> (วันหยุด)</li>
+      <li><b>เขียน:</b> <code>mgw_telephoneenquiry</code> 1 แถวต่อ 1 สาย โดยมี owner = team ใน <code>MG_OperationsOwnerTeamId</code></li>
+      <li><b>ส่ง:</b> อีเมล 1 ฉบับผ่าน <code>mgw_MGOutlook</code></li></ul>`,
+    src: '#149 decisions 6, 8, 10, 11 · #150' },
+  { id: 'w2b', deck: 'wf2', kind: 'fact', q: 'Flow ที่สองรับ input อะไรบ้าง (พร้อม key)?',
+    a: `<div class="tbl-wrap"><table><tr><th>Key</th><th>Input</th><th>Req.</th></tr>
+      <tr><td><code>text</code></td><td><code>CallerName</code></td><td>Yes</td></tr>
+      <tr><td><code>text_1</code></td><td><code>CreditorName</code></td><td>No</td></tr>
+      <tr><td><code>text_2</code></td><td><code>CallerEmail</code></td><td>No</td></tr>
+      <tr><td><code>text_3</code></td><td><code>CallerPhone</code></td><td>No</td></tr>
+      <tr><td><code>text_4</code></td><td><code>CallerType</code> (Director, Creditor, Employee, Media, Secured Creditor, Supplier, Potential Purchaser, Landlord, Complaint)</td><td>Yes</td></tr>
+      <tr><td><code>text_5</code></td><td><code>Urgent</code> (Yes / No)</td><td>Yes</td></tr>
+      <tr><td><code>text_6</code></td><td><code>ResolvedByAgent</code> (Yes / No)</td><td>Yes</td></tr>
+      <tr><td><code>text_7</code></td><td><code>KeyActionItems</code></td><td>Yes</td></tr>
+      <tr><td><code>text_8</code></td><td><code>CallSummary</code></td><td>Yes</td></tr>
+      <tr><td><code>text_9</code></td><td><code>CaseCode</code> (หรือ <code>UNMATCHED</code>)</td><td>Yes</td></tr>
+      <tr><td><code>text_10</code></td><td><code>ClientName</code></td><td>No</td></tr>
+      <tr><td><code>text_11</code></td><td><code>MatchConfidence</code> (Confirmed / Unconfirmed / None)</td><td>Yes</td></tr>
+      <tr><td><code>text_12</code></td><td><code>IdempotencyKey</code></td><td>Yes</td></tr>
+      <tr><td><code>text_13</code></td><td><code>AgentSessionID</code></td><td>No</td></tr></table></div>`,
+    src: '#149 B1 (input keys วัดเมื่อ 2026-11-04 08:01Z)' },
+  { id: 'w2c', deck: 'wf2', kind: 'fact', q: 'Flow ที่สอง return ค่าอะไรบ้าง?',
+    a: `<p><b>7 outputs เป็น Text ทั้งหมด</b> มีครบใน Respond card ทั้ง 4 ใบ</p>
+      <div class="tbl-wrap"><table><tr><th>Output</th><th>ค่า</th></tr>
+      <tr><td><code>RecordStatus</code></td><td>Created / Partial / Failed</td></tr>
+      <tr><td><code>CallLogRowID</code></td><td>ID ของแถว <code>mgw_telephoneenquiry</code> หรือ <code>''</code></td></tr>
+      <tr><td><code>DateResponseRequired</code></td><td><code>yyyy-MM-dd</code> (2 วันทำการ)</td></tr>
+      <tr><td><code>ErrorCode</code></td><td><code>''</code> / <code>DATAVERSE_ERROR</code> / <code>FLOW_ERROR</code></td></tr>
+      <tr><td><code>CallerSafeMessageCode</code></td><td><code>CREATED</code> / <code>CREATED_EMAIL_FAILED</code> / <code>MANUAL_FOLLOWUP</code></td></tr>
+      <tr><td><code>EmailStatus</code></td><td>Sent / Test Mode - Not Sent / Failed (หรือค่าที่เก็บไว้ในแถว)</td></tr>
+      <tr><td><code>CallLogURL</code></td><td><code>{MG_DataverseEnvironmentUrl}/main.aspx?pagetype=entityrecord&amp;etn=mgw_telephoneenquiry&amp;id={row}</code></td></tr></table></div>`,
+    src: '#149 decision 15 · #150 F4 (+ EmailStatus, CallLogURL)' },
+  { id: 'w2d', deck: 'wf2', kind: 'logic', q: 'Logic ทั้งหมดของ flow ที่สอง ทำงานอย่างไร?',
+    chart: `flowchart TD
+  T(["When an agent calls the flow<br/>14 inputs"]) --> A
+  subgraph TRY ["Try"]
+    A["CallTimeUtc = utcNow()<br/>Key = trim(text_12) or NOKEY-guid"] --> B["FindExisting<br/>mgw_idempotencykey eq Key"]
+    B --> Q1{"Row found?"}
+    Q1 -- Yes --> RE["RespondExisting<br/>stored row, no new row, no email"]
+    Q1 -- No --> C["CallDateMel (MG_TimeZone)<br/>CaseRow (FindCase)<br/>DueDate (holidays)<br/>OwnerTeam, Title"]
+    C --> D["Route + Subject (ticket 150)"]
+    D --> E["AddEnquiry: row written"]
+    E --> F["CallLogUrl, BodyHtml<br/>Notify: SendEmail"]
+    F --> G["SaveNotified or SaveFailed"]
+    G --> RC["ResponseCreate"]
+  end
+  TRY -. "failed / timed out" .-> X["Catch: FindAgain by Key"]
+  X --> Q2{"Row found?"}
+  Q2 -- Yes --> RR["RespondRace<br/>stored row"]
+  Q2 -- No --> RF["RespondFailed<br/>Failed / MANUAL_FOLLOWUP"]`,
+    ex: 'T8 (2026-11-06 10:53Z): key ใหม่ → If no → เขียนแถว <code>28a3d840-…</code> → ส่งเมล → <code>ResponseCreate</code> ตอบ Created / CREATED / DateResponseRequired 2026-11-10 · <code>Catch</code> ถูก skip',
+    src: '#149 flow shape · #150 flow shape' },
+  { id: 'w2e', deck: 'wf2', kind: 'logic', q: 'Flow ที่สองกันการบันทึกซ้ำ (idempotency และ race) อย่างไร?',
+    chart: `flowchart TD
+  A["Call with IdempotencyKey K"] --> B["FindExisting<br/>key eq K"]
+  B --> Q1{"Found?"}
+  Q1 -- Yes --> R1["RespondExisting<br/>same CallLogRowID<br/>no row, no email"]
+  Q1 -- No --> C["AddEnquiry: insert row"]
+  C --> Q2{"Alternate key refuses?<br/>(2 calls at once)"}
+  Q2 -- No --> D["Created + email"]
+  Q2 -- Yes --> E["Try fails, Catch runs<br/>FindAgain: key eq K"]
+  E --> F["RespondRace<br/>stored row, no second email"]`,
+    ex: '#149 B6-T11 (2026-11-05 07:51Z, ผ่าน): <code>AddEnquiry</code> ถูก alternate key ปฏิเสธจริง → Catch → <code>RespondRace</code> ตอบด้วยแถวเดิม · ด้าน retry ของ #150 (T9: ไม่ส่งเมลซ้ำ) ยังไม่ได้รัน · <code>\'</code> ใน key จะถูก double ก่อนใส่ filter',
+    src: '#149 decision 6 · Tech Spec p14 §9.3 step 12, p17 §13' },
+  { id: 'w2f', deck: 'wf2', kind: 'logic', q: 'Flow ที่สองหา CaseRow อย่างไร และเมื่อไหร่ถึงผูกเคสกับแถว?',
+    chart: `flowchart TD
+  A["CaseCode (text_9)<br/>MatchConfidence (text_11)"] --> B["FindCase: mgw_caseregistry, top 1<br/>mgw_casecode eq code (apostrophe doubled)<br/>NO activematter filter, unlike WF1"]
+  B --> Q{"MatchConfidence = confirmed<br/>AND 1 row found?"}
+  Q -- Yes --> Y["CaseRow = that row<br/>row gets mgw_caseid +<br/>office, manager, staff copies"]
+  Q -- No --> N["CaseRow = null<br/>lookup + 5 copies blank<br/>casecode, clientname stored as given"]`,
+    ex: 'B4-T1 <code>MG-TEST-0001</code> Confirmed → CaseRow = แถวเคส · B4-T2 เคสเดียวกันแต่ Unconfirmed → null · B4-T3 <code>O\'Brien-TEST</code> Confirmed แต่ไม่มีในตาราง → null (filter <code>\'O\'\'Brien-TEST\'</code> ไม่ error)',
+    src: '#149 decision 10 · Dev runs B4-T1, T2, T3' },
+  { id: 'w2g', deck: 'wf2', kind: 'logic', q: 'Flow ที่สองคำนวณ DateResponseRequired (2 วันทำการ) อย่างไร?',
+    chart: `flowchart TD
+  A["CallTimeUtc"] --> B["Call date in Melbourne<br/>convert with MG_TimeZone"]
+  B --> Q{"CaseRow has<br/>an office?"}
+  Q -- Yes --> O1["That office + its state"]
+  Q -- "No (unmatched / unconfirmed)" --> O2["Sydney + NSW<br/>head office"]
+  O1 --> L["ListHolidays: mgw_businesscalendar, next 13 days<br/>National OR (state AND (no office OR that office))"]
+  O2 --> L
+  L --> N["NextDays: 13 dates after the call date"]
+  N --> D["Drop Saturday, Sunday, holiday dates"]
+  D --> R(["DueDate = 2nd date left<br/>no loop"])`,
+    ex: 'โทร 2027-03-04 (พฤหัส): เคส Melbourne <code>MG-TEST-0001</code> Confirmed → ศุกร์ 5, จันทร์ 8 เป็น VIC Labour Day → <b>2027-03-09</b> (B4-T1) · เคสเดียวกันแต่ Unconfirmed ใช้วันหยุดซิดนีย์ → <b>2027-03-08</b> (B4-T2)',
+    src: '#149 decisions 8 (Bradley), 9, 13 · docs/design/149-due-date-logic.md' },
+  { id: 'w2h', deck: 'wf2', kind: 'logic', q: 'ถ้า input ผิดหรือขาด flow ที่สองทำอย่างไร?',
+    chart: `flowchart TD
+  S["Inputs arrive"]
+  Q1{"CallerName blank?"}
+  F1["use Not Provided"]
+  Q2{"CallerType or MatchConfidence<br/>not a known value?"}
+  F2["column = null"]
+  Q3{"Text longer<br/>than the column?"}
+  F3["cut to 100 / 2000"]
+  Q4{"IdempotencyKey blank?"}
+  F4["Key = NOKEY-guid"]
+  Q5{"Urgent / ResolvedByAgent<br/>= yes (trim, any case)?"}
+  T5["true"]
+  N5["false"]
+  W(["Row is ALWAYS written<br/>never refuse to log"])
+  S --> Q1
+  Q1 -- Yes --> F1 --> Q2
+  Q1 -- No --> Q2
+  Q2 -- Yes --> F2 --> Q3
+  Q2 -- No --> Q3
+  Q3 -- Yes --> F3 --> Q4
+  Q3 -- No --> Q4
+  Q4 -- Yes --> F4 --> Q5
+  Q4 -- No --> Q5
+  Q5 -- Yes --> T5 --> W
+  Q5 -- No --> N5 --> W`,
+    ex: 'B5-T3: CallerName เป็นช่องว่าง → <code>Not Provided</code>, CallerType <code>Plumber</code> → ว่าง · F2d-T2: <code>Complain</code> (สะกดผิด) → ว่าง → route Normal (เป็น open item)',
+    src: '#149 decisions 5, 17 · Tech Spec p3 §1.3 "Mandatory logging"' },
+  { id: 'w2i', deck: 'wf2', kind: 'logic', q: 'Respond card ใบไหนตอบ และ agent ได้ RecordStatus อะไร?',
+    chart: `flowchart TD
+  Q1{"Try failed?"}
+  Q1 -- No --> Q2{"Key already<br/>had a row?"}
+  Q2 -- Yes --> RE["RespondExisting"]
+  Q2 -- No --> RC["ResponseCreate"]
+  Q1 -- Yes --> Q3{"FindAgain<br/>finds the row?"}
+  Q3 -- Yes --> RR["RespondRace"]
+  Q3 -- No --> RF["RespondFailed"]`,
+    a: `<div class="tbl-wrap"><table><tr><th>Card</th><th>RecordStatus</th><th>CallerSafeMessageCode</th></tr>
+      <tr><td><code>ResponseCreate</code></td><td>Created, หรือ Partial ถ้าเมล fail</td><td>CREATED / CREATED_EMAIL_FAILED</td></tr>
+      <tr><td><code>RespondExisting</code>, <code>RespondRace</code></td><td>จากแถวเดิม: Partial ถ้า logging status = Partial, ไม่งั้น Created</td><td>ใช้กฎเดียวกัน</td></tr>
+      <tr><td><code>RespondFailed</code></td><td>Failed</td><td>MANUAL_FOLLOWUP + ErrorCode</td></tr></table></div>`,
+    ex: 'T8: Try ไม่ล้ม และ key ใหม่ → <code>ResponseCreate</code> → Created / CREATED, EmailStatus <code>Test Mode - Not Sent</code> · #149 B6 (static result Failed บน <code>AddEnquiry</code>) → <code>RespondFailed</code> → Failed / MANUAL_FOLLOWUP / <code>DATAVERSE_ERROR</code>',
+    src: '#149 decision 16 · #150 F4 lines 10–13' },
+  { id: 'w2j', deck: 'wf2', kind: 'fact', q: 'Choice column ที่ flow ที่สองเขียนลง mgw_telephoneenquiry มีค่าอะไรบ้าง?',
+    a: `<div class="tbl-wrap"><table><tr><th>Column</th><th>ค่าที่ flow ใช้</th></tr>
+      <tr><td><code>mgw_loggingstatus</code></td><td>914120001 Created · 914120003 Partial (เมล fail)</td></tr>
+      <tr><td><code>mgw_mailnotificationstatus</code></td><td>914120000 Not Required · 914120001 Test Mode - Not Sent · 914120002 Prepared · 914120003 Sent · 914120004 Failed</td></tr>
+      <tr><td><code>mgw_matchconfidence</code></td><td>914120000 Confirmed · 914120001 Unconfirmed · 914120002 None</td></tr></table></div>
+      <p>ค่าที่ flow คำนวณเอง: Title = <code>Telephone Enquiry - {CaseCode or UNMATCHED} - {CallerName}</code> · <code>mgw_dateandtimeofcall</code> = <code>utcNow()</code> (เก็บเป็น UTC) · <code>mgw_emailpayload</code> = To, CC, subject, HTML (สูงสุด 20,000 ตัวอักษร)</p>`,
+    src: '#149 decisions 7, 12, 13 · #150 baseline F2, decision 2' },
+
+  // ---------- Email ----------
+  { id: 'm1', deck: 'mail', kind: 'logic', q: 'แต่ละเคสส่งอีเมลหาใคร (To / CC)?',
+    chart: `flowchart TD
+  Q1{"CaseRow empty?"}
+  Q1 -- Yes --> U["Unmatched<br/>To Admin, CC none"]
+  Q1 -- No --> Q2{"CallerType =<br/>Complaint?"}
+  Q2 -- Yes --> C["Complaint<br/>To Manager, CC Case staff"]
+  Q2 -- No --> Q3{"CallerType =<br/>Media?"}
+  Q3 -- Yes --> M["Media<br/>To Manager, CC Admin"]
+  Q3 -- No --> Q4{"ResolvedByAgent<br/>= yes?"}
+  Q4 -- Yes --> R["Resolved<br/>To Case staff, CC none"]
+  Q4 -- No --> Q5{"Urgent = yes?"}
+  Q5 -- Yes --> NU["Normal, urgent<br/>To Case staff, CC Manager"]
+  Q5 -- No --> N["Normal<br/>To Case staff, CC none"]
+  U & C & M & R & NU & N --> Q6{"To address blank?"}
+  Q6 -- Yes --> FB["Missing staff email<br/>To Admin, CC Manager if set"]
+  Q6 -- No --> K["Keep To / CC"]`,
+    a: '<p>Case staff = <code>mgw_caseemail</code> · Manager = <code>mgw_manageremail</code> · Admin = <code>MG_AdminEmail</code></p>',
+    ex: 'T2b Complaint → To <code>manager.test@</code>, CC <code>case.test@</code> · T3 Media → To manager, CC admin · T5 (None) และ T6 (Unconfirmed) → To admin',
+    src: '#150 decisions 1, 6 · runbook F2, card RouteRule / MailTo / MailCc' },
+  { id: 'm2', deck: 'mail', kind: 'logic', q: 'Subject ของอีเมลสร้างอย่างไร?',
+    chart: `flowchart TD
+  Q1{"ResolvedByAgent<br/>= yes?"}
+  Q1 -- Yes --> P1["Telephone Enquiry NFA:"]
+  Q1 -- No --> P2["Telephone Enquiry Action Required:"]
+  P1 & P2 --> B["+ ClientName (blank: CaseCode, blank: UNMATCHED)<br/>+ ' - ' + CallerName + ' ' + CreditorName"]
+  B --> Q2{"Urgent = yes AND<br/>not resolved?"}
+  Q2 -- Yes --> U["+ ' - URGENT'"]
+  Q2 -- No --> Z(["Collapse double spaces, trim,<br/>take 250 chars"])
+  U --> Z`,
+    ex: 'T4 (resolved): <code>Telephone Enquiry NFA: TEST Client 0004 - TEST Caller F2-T4 TEST Creditor Pty Ltd</code> · T5: <code>Telephone Enquiry Action Required: UNMATCHED - TEST Caller F2-T5</code>',
+    src: '#150 decision 7 · runbook F2, card Subject' },
+  { id: 'm3', deck: 'mail', kind: 'logic', q: 'SendMode เลือกอย่างไร?',
+    chart: `flowchart TD
+  Q1{"MG_ProductionEmailEnabled<br/>= yes / true?"}
+  Q1 -- Yes --> P["Production"]
+  Q1 -- No --> Q2{"MG_EmailRecipientOverride<br/>blank?"}
+  Q2 -- No --> O["Override"]
+  Q2 -- Yes --> F["Off"]
+  P & O --> S1["AddEnquiry: mail status = Prepared"]
+  F --> S2["AddEnquiry: mail status =<br/>Test Mode - Not Sent"]`,
+    ex: 'Dev ตอนนี้: production email = no, override = mailbox ของ Pon → <b>Override</b> ทุกสาย',
+    src: '#150 decision 3 · runbook F2, card SendMode' },
+  { id: 'm4', deck: 'mail', kind: 'logic', q: 'ในแต่ละ SendMode อีเมลถูกส่งไปที่ไหน และหน้าตาเป็นอย่างไร?',
+    chart: `flowchart TD
+  A["SendMode"] --> Q1{"Off?"}
+  Q1 -- Yes --> X["No email<br/>IfSend = false"]
+  Q1 -- No --> Q2{"Production?"}
+  Q2 -- Yes --> P["To = MailTo<br/>CC = MailCc<br/>Subject = Subject<br/>Body = BodyHtml"]
+  Q2 -- "No (Override)" --> O["To = override mailbox<br/>CC = empty<br/>Subject = [TEST] + Subject<br/>Body = red banner + BodyHtml"]
+  P & O --> S(["SendEmail, Outlook V2<br/>mgw_MGOutlook, inside scope Notify"])`,
+    ex: 'T8: To = mailbox ของ Pon, CC ว่าง, subject <code>[TEST] Telephone Enquiry Action Required: … - URGENT</code>, แถบแดงบอก Intended To <code>case.test@</code> / CC <code>manager.test@</code> / Route Normal',
+    src: '#150 F4 lines 1–6 · AC 1' },
+  { id: 'm5', deck: 'mail', kind: 'logic', q: 'หลังส่งเมลแล้ว flow บันทึกสถานะและตอบ agent อย่างไร?',
+    chart: `flowchart TD
+  Q1{"Notify scope<br/>succeeded?"}
+  Q1 -- Yes --> SN["SaveNotified<br/>mail = Sent (Production)<br/>or Test Mode - Not Sent<br/>payload saved"]
+  Q1 -- "No (Failed / TimedOut)" --> SF["SaveFailed<br/>mail = Failed<br/>logging = Partial<br/>payload saved"]
+  SN & SF --> E["EmailResult"]
+  E --> Q2{"EmailResult<br/>= Failed?"}
+  Q2 -- Yes --> P(["Partial / CREATED_EMAIL_FAILED"])
+  Q2 -- No --> C(["Created / CREATED"])`,
+    ex: 'T8: SaveNotified → <code>914120001</code> Test Mode - Not Sent, payload ขึ้นต้น <code>Mode: Override</code> · SaveFailed skipped · ตอบ Created / CREATED',
+    src: '#150 decision 6 · F4 lines 7–10 · T10 (เมล fail) ยังไม่ได้รัน' },
+  { id: 'm6', deck: 'mail', kind: 'logic', q: 'ไล่ T8 ผ่าน flowchart: ใครได้เมล?',
+    chart: `flowchart TD
+  A["T8: Supplier, Urgent Yes, Resolved No<br/>MG-TEST-0004, Confirmed"] --> Q1{"Key new?"}
+  Q1 -- Yes --> Q2{"CaseRow found?"}
+  Q2 -- "Yes (Confirmed)" --> Q3{"Complaint<br/>or Media?"}
+  Q3 -- No --> Q4{"Resolved?"}
+  Q4 -- No --> Q5{"Urgent?"}
+  Q5 -- Yes --> R["Normal, urgent<br/>intended To case.test@example.com<br/>intended CC manager.test@example.com"]
+  R --> Q6{"ProductionEmail<br/>Enabled?"}
+  Q6 -- No --> Q7{"Override set?"}
+  Q7 -- Yes --> S["Override<br/>sent to Pon's mailbox only, CC empty"]
+  S --> Q8{"Notify ok?"}
+  Q8 -- Yes --> Z(["Mail status: Test Mode - Not Sent<br/>Answer: Created / CREATED"])`,
+    ex: 'Run 2026-11-06 10:53:08Z ใช้ 3.2 วินาที, DateResponseRequired 2026-11-10 ถ้าเป็น Production จะส่งถึง <code>case.test@</code> โดยมี CC <code>manager.test@</code> และ status เป็น Sent',
+    src: 'Outcome log T8 (AC 1)' },
+
+  // ---------- Terms ----------
+  { id: 't1', deck: 'terms', kind: 'logic', q: 'Unmatched แปลว่า "หาเคสไม่เจอ" ใช่ไหม?',
+    chart: `flowchart TD
+  A["CaseCode + MatchConfidence from the agent"] --> Q1{"MatchConfidence<br/>= Confirmed?"}
+  Q1 -- "No (None / Unconfirmed)" --> N["CaseRow = null"]
+  Q1 -- Yes --> F["FindCase by mgw_casecode"]
+  F --> Q2{"1 row found?"}
+  Q2 -- No --> N
+  Q2 -- Yes --> Y["CaseRow = row"]
+  N --> U["Unmatched<br/>To Admin, CC none"]
+  Y --> O["Complaint / Media /<br/>Resolved / Normal"]`,
+    a: '<p><b>ไม่ใช่แค่นั้น</b> Unmatched = ไม่มีเคสที่<b>ยืนยันแล้ว</b> เกิดได้ 3 แบบ: None, Unconfirmed (แม้เคสมีจริง), หรือ Confirmed แต่ไม่มีรหัสนี้ในตาราง</p>',
+    ex: 'F2d-T5 <code>UNMATCHED</code> + None → admin · F2d-T6 <code>MG-TEST-0004</code> + Unconfirmed → admin (เคสมีจริง) · B4-T3 <code>O\'Brien-TEST</code> + Confirmed → CaseRow null',
+    src: '#149 decision 10 · #150 decision 1 (open item รอ Bradley)' },
+  { id: 't2', deck: 'terms', kind: 'logic', q: 'MatchStatus (WF1) กับ MatchConfidence (WF2) ต่อกันอย่างไร?',
+    chart: `flowchart TD
+  A["WF1 output MatchStatus"] --> Q1{"Candidate?"}
+  Q1 -- "No (Ambiguous / None / Failed)" --> N["MatchConfidence = None<br/>CaseCode = UNMATCHED"]
+  Q1 -- Yes --> B["Agent asks:<br/>is it ClientName?"]
+  B --> Q2{"Caller says yes?"}
+  Q2 -- Yes --> C["Confirmed"]
+  Q2 -- "Unsure / no" --> U["Unconfirmed"]
+  C & U & N --> W(["WF2 input MatchConfidence (text_11)"])`,
+    a: '<p>MatchStatus = <b>ผลการค้น</b> · MatchConfidence = <b>คำตอบของผู้โทร</b> ถ้า flow บอก "Confirmed" เอง agent อาจข้ามคำถามยืนยันไป</p>',
+    ex: 'Harbour Bakery → Candidate MG-TEST-0004 → ผู้โทรตอบ "ใช่" → Confirmed → เมลถึง case staff ส่วนนี้เป็นเจตนาตาม Tech Spec p10 §6 <code># MATTER</code> และ agent (#153) ยังไม่ได้สร้าง',
+    src: '#148 decision 2 · Tech Spec p10 §6' },
+  { id: 't3', deck: 'terms', kind: 'logic', q: 'WF2 แปลงข้อความ MatchConfidence เป็นค่า choice อย่างไร?',
+    chart: `flowchart TD
+  A["text_11 MatchConfidence (Text)"] --> B["lower(trim(value))"]
+  B --> Q{"confirmed / unconfirmed<br/>/ none?"}
+  Q -- Yes --> V["914120000 / 914120001 / 914120002"]
+  Q -- "No (typo, Ambiguous ...)" --> N["null<br/>row still written<br/>routes as Unmatched"]`,
+    ex: 'ถ้า agent ส่ง <code>Ambiguous</code> (ตามคำใน ticket #148) จะได้ <code>null</code> → ส่งหา admin · รายชื่อค่าที่ไม่ตรงกันเป็น open item',
+    src: '#149 card MatchValue · #145 open item "Match Confidence values"' },
+  { id: 't4', deck: 'terms', kind: 'fact', q: 'MatchStatus กับ MatchConfidence อยู่ที่ไหน มีค่าอะไร และถูกเก็บไหม?',
+    a: `<div class="tbl-wrap"><table><tr><th></th><th>MatchStatus</th><th>MatchConfidence</th></tr>
+      <tr><td>อยู่ที่</td><td>output ของ WF1</td><td>input ของ WF2 (<code>text_11</code>)</td></tr>
+      <tr><td>ค่า</td><td>Candidate / Ambiguous / None / Failed</td><td>Confirmed / Unconfirmed / None</td></tr>
+      <tr><td>ชนิด</td><td>Text</td><td>Text → choice <code>mgw_matchconfidence</code></td></tr>
+      <tr><td>เก็บลงตาราง</td><td>ไม่เก็บ</td><td>เก็บใน <code>mgw_telephoneenquiry</code></td></tr>
+      <tr><td>ใครเป็นคนบอก</td><td>ผลการค้นของ flow</td><td>คำตอบของผู้โทร ผ่าน agent</td></tr></table></div>`,
+    src: 'Tech Spec p12 §8.1, p10 §6 · #145 · #148 decision 2' }
+];
+
+// ---------- Mermaid rendering ----------
+const svgCache = new Map();
+let mmSeq = 0, mmTheme = '';
+
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+function setupMermaid() {
+  if (!window.mermaid) return false;
+  const key = cssVar('--card') + cssVar('--ink');
+  if (key === mmTheme) return true;
+  mmTheme = key;
+  svgCache.clear();
+  window.mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: 'strict',
+    theme: 'base',
+    fontFamily: 'IBM Plex Sans Thai, Leelawadee UI, Tahoma, sans-serif',
+    flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis', padding: 10, nodeSpacing: 30, rankSpacing: 36 },
+    themeVariables: {
+      background: cssVar('--chart-bg'),
+      primaryColor: cssVar('--node-bg'),
+      primaryBorderColor: cssVar('--accent'),
+      primaryTextColor: cssVar('--ink'),
+      secondaryColor: cssVar('--decision-bg'),
+      tertiaryColor: cssVar('--chart-bg'),
+      lineColor: cssVar('--muted'),
+      textColor: cssVar('--ink'),
+      edgeLabelBackground: cssVar('--chart-bg'),
+      clusterBkg: cssVar('--accent-soft'),
+      clusterBorder: cssVar('--line'),
+      fontSize: '14px'
+    }
+  });
+  return true;
+}
+
+function decorate(code) {
+  // Decisions (diamonds) get their own colour so a reader finds the branch points at a glance.
+  const ids = [...code.matchAll(/(\w+)\{"/g)].map(m => m[1]);
+  if (!ids.length) return code;
+  return code + `\n  classDef decision fill:${cssVar('--decision-bg')},stroke:${cssVar('--decision-line')},color:${cssVar('--ink')}\n  class ${[...new Set(ids)].join(',')} decision`;
+}
+
+async function drawChart(el, code) {
+  el.dataset.code = code;
+  if (!setupMermaid()) {
+    el.classList.remove('loading');
+    el.innerHTML = '';
+    const pre = document.createElement('pre');
+    pre.textContent = code;
+    el.appendChild(pre);
+    return;
+  }
+  const full = decorate(code);
+  if (svgCache.has(full)) { el.classList.remove('loading'); el.innerHTML = svgCache.get(full); return; }
+  el.classList.add('loading');
+  try {
+    const { svg } = await window.mermaid.render('mm' + (++mmSeq), full);
+    svgCache.set(full, svg);
+    if (el.dataset.code === code) { el.innerHTML = svg; }
+  } catch (e) {
+    if (el.dataset.code === code) {
+      el.innerHTML = '';
+      const pre = document.createElement('pre');
+      pre.textContent = code;
+      el.appendChild(pre);
+    }
+  } finally {
+    el.classList.remove('loading');
+  }
+}
+
+function redrawAll() {
+  mmTheme = '';
+  document.querySelectorAll('.flowchart[data-code]').forEach(el => drawChart(el, el.dataset.code));
+}
+try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redrawAll); } catch (e) {}
+new MutationObserver(redrawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+// ---------- Flashcard logic ----------
+const STORE_KEY = 'phone-log-flashcards-v2';
+function loadBoxes() { try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { return {}; } }
+function saveBoxes() { try { localStorage.setItem(STORE_KEY, JSON.stringify(boxes)); } catch (e) { /* storage blocked: progress lives in this tab only */ } }
+
+let boxes = loadBoxes();
+let activeDecks = new Set(DECKS.map(d => d.id));
+let mode = 'all';
+let kindFilter = 'all';
+let view = 'practice';
+let shuffled = false;
+let queue = [], pos = 0, flipped = false, sessionKnow = 0, sessionAgain = 0;
+
+const $ = id => document.getElementById(id);
+const deckName = id => DECKS.find(d => d.id === id).name;
+const deckColor = id => `var(--d-${id})`;
+const level = id => boxes[id] || 0;
+const inScope = c => activeDecks.has(c.deck) && (kindFilter === 'all' || c.kind === kindFilter);
+
+function fillAnswer(el, c) {
+  el.innerHTML = '';
+  if (c.chart) {
+    const box = document.createElement('div');
+    box.className = 'flowchart loading';
+    box.setAttribute('role', 'img');
+    box.setAttribute('aria-label', 'Flowchart: ' + c.q);
+    el.appendChild(box);
+    drawChart(box, c.chart);
+  }
+  if (c.a) { const d = document.createElement('div'); d.innerHTML = c.a; while (d.firstChild) el.appendChild(d.firstChild); }
+  if (c.ex) { const d = document.createElement('div'); d.className = 'ex'; d.innerHTML = c.ex; el.appendChild(d); }
+}
+
+function kindLabel(c) { return c.kind === 'logic' ? 'Logic · flowchart' : 'Fact'; }
+
+function renderDecks() {
+  const el = $('decks');
+  el.innerHTML = '<span class="label">หมวด</span>';
+  const all = document.createElement('button');
+  all.type = 'button'; all.className = 'chip';
+  all.setAttribute('aria-pressed', String(activeDecks.size === DECKS.length));
+  all.innerHTML = `ทั้งหมด <span class="n">${CARDS.length}</span>`;
+  all.onclick = () => { activeDecks = new Set(DECKS.map(d => d.id)); restart(); };
+  el.appendChild(all);
+  DECKS.forEach(d => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip';
+    b.style.setProperty('--c', deckColor(d.id));
+    b.setAttribute('aria-pressed', String(activeDecks.size === 1 && activeDecks.has(d.id)));
+    b.innerHTML = `<span class="dot"></span>${d.name} <span class="n">${CARDS.filter(c => c.deck === d.id).length}</span>`;
+    b.onclick = () => { activeDecks = new Set([d.id]); restart(); };
+    el.appendChild(b);
+  });
+}
+
+function renderStats() {
+  const m = CARDS.filter(c => level(c.id) >= 2).length;
+  $('mastered').textContent = m;
+  $('total').textContent = CARDS.length;
+  $('bar').style.width = (m / CARDS.length * 100) + '%';
+}
+
+function buildQueue() {
+  let list = CARDS.filter(inScope);
+  if (mode === 'weak') list = list.filter(c => level(c.id) < 2);
+  if (shuffled) {
+    list = list.slice();
+    for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+  }
+  return list;
+}
+
+function restart() { queue = buildQueue(); pos = 0; flipped = false; sessionKnow = 0; sessionAgain = 0; renderDecks(); render(); }
+
+function setFlip(v) {
+  flipped = v;
+  $('card').classList.toggle('flipped', v);
+  $('btn-flip').hidden = v;
+  $('btn-again').hidden = !v;
+  $('btn-know').hidden = !v;
+  $('card').setAttribute('aria-label', v ? 'ด้านคำตอบ แตะเพื่อพลิกกลับ' : 'พลิกการ์ด');
+}
+
+function render() {
+  renderStats();
+  const practice = view === 'practice';
+  $('list').hidden = practice;
+  $('mode-seg').style.visibility = practice ? 'visible' : 'hidden';
+  $('shuffle').hidden = !practice;
+  if (!practice) { $('practice').hidden = true; $('done').hidden = true; renderList(); return; }
+
+  if (pos >= queue.length) {
+    $('practice').hidden = true; $('done').hidden = false;
+    const weak = CARDS.filter(c => inScope(c) && level(c.id) < 2).length;
+    $('done-text').textContent = queue.length === 0
+      ? 'ไม่มีการ์ดที่ยังไม่แม่นในตัวกรองนี้แล้ว เลือก "เริ่มใหม่ทุกใบ" เพื่อทวนอีกรอบ'
+      : `รอบนี้กด "จำได้" ${sessionKnow} ครั้ง และ "ยังไม่แม่น" ${sessionAgain} ครั้ง · ในตัวกรองนี้ยังเหลือการ์ดที่ยังไม่แม่น ${weak} ใบ`;
+    return;
+  }
+  $('practice').hidden = false; $('done').hidden = true;
+  const c = queue[pos];
+  const tag = $('deck-tag');
+  tag.style.setProperty('--c', deckColor(c.deck));
+  tag.lastElementChild.textContent = deckName(c.deck);
+  [...$('boxes').children].forEach((i, k) => i.classList.toggle('on', k < level(c.id)));
+  $('pos').textContent = `${pos + 1} / ${queue.length}`;
+  const k = $('kind');
+  k.textContent = kindLabel(c);
+  k.className = 'kind' + (c.kind === 'logic' ? ' logic' : '');
+  $('hint').textContent = c.kind === 'logic'
+    ? 'ลองวาด flowchart ในหัวก่อน แล้วแตะการ์ดหรือกด Space เพื่อเทียบ'
+    : 'ลองตอบให้ครบก่อน แล้วแตะการ์ดหรือกด Space';
+  $('q').textContent = c.q;
+  $('q2').textContent = c.q;
+  fillAnswer($('a'), c);
+  $('src').textContent = 'ที่มา: ' + c.src;
+  setFlip(false);
+}
+
+function grade(know) {
+  if (!flipped || pos >= queue.length) return;
+  const c = queue[pos];
+  if (know) { boxes[c.id] = Math.min(3, level(c.id) + 1); sessionKnow++; }
+  else { boxes[c.id] = 1; sessionAgain++; queue.splice(Math.min(queue.length, pos + 4), 0, c); }
+  saveBoxes();
+  pos++;
+  render();
+  $('card').focus({ preventScroll: true });
+}
+
+function renderList() {
+  const el = $('list');
+  el.innerHTML = '';
+  DECKS.filter(d => activeDecks.has(d.id)).forEach(d => {
+    const cards = CARDS.filter(c => c.deck === d.id && inScope(c));
+    if (!cards.length) return;
+    const sec = document.createElement('div');
+    sec.innerHTML = `<h2 style="--c:${deckColor(d.id)}"><span class="dot"></span>${d.name}</h2>`;
+    const ol = document.createElement('ol');
+    cards.forEach(c => {
+      const li = document.createElement('li');
+      li.innerHTML = `<p class="lq"><span class="kind${c.kind === 'logic' ? ' logic' : ''}"></span><span class="t"></span></p><div class="ans"></div><div class="src"></div>`;
+      li.querySelector('.kind').textContent = kindLabel(c);
+      li.querySelector('.t').textContent = c.q;
+      fillAnswer(li.querySelector('.ans'), c);
+      li.querySelector('.src').textContent = 'ที่มา: ' + c.src;
+      ol.appendChild(li);
+    });
+    sec.appendChild(ol);
+    el.appendChild(sec);
+  });
+}
+
+function press(group, onId) { group.forEach(id => $(id).setAttribute('aria-pressed', String(id === onId))); }
+
+$('card').addEventListener('click', () => { if (pos < queue.length) setFlip(!flipped); });
+$('btn-flip').onclick = () => setFlip(true);
+$('btn-again').onclick = () => grade(false);
+$('btn-know').onclick = () => grade(true);
+$('view-practice').onclick = () => { view = 'practice'; press(['view-practice', 'view-list'], 'view-practice'); render(); };
+$('view-list').onclick = () => { view = 'list'; press(['view-practice', 'view-list'], 'view-list'); render(); };
+$('mode-all').onclick = () => { mode = 'all'; press(['mode-all', 'mode-weak'], 'mode-all'); restart(); };
+$('mode-weak').onclick = () => { mode = 'weak'; press(['mode-all', 'mode-weak'], 'mode-weak'); restart(); };
+['all', 'logic', 'fact'].forEach(k => {
+  $('kind-' + k).onclick = () => { kindFilter = k; press(['kind-all', 'kind-logic', 'kind-fact'], 'kind-' + k); restart(); };
+});
+$('shuffle').onclick = () => { shuffled = true; restart(); };
+$('again-all').onclick = () => { mode = 'all'; press(['mode-all', 'mode-weak'], 'mode-all'); restart(); };
+$('again-weak').onclick = () => { mode = 'weak'; press(['mode-all', 'mode-weak'], 'mode-weak'); restart(); };
+$('reset').onclick = () => {
+  const btn = $('reset');
+  if (btn.dataset.confirm !== '1') {
+    btn.dataset.confirm = '1'; btn.textContent = 'กดอีกครั้งเพื่อยืนยัน';
+    setTimeout(() => { btn.dataset.confirm = ''; btn.textContent = 'ล้างผลการจำ'; }, 3000);
+    return;
+  }
+  boxes = {}; saveBoxes(); btn.dataset.confirm = ''; btn.textContent = 'ล้างผลการจำ'; restart();
+};
+
+document.addEventListener('keydown', e => {
+  if (view !== 'practice' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const onControl = e.target && e.target.tagName === 'BUTTON';
+  if ((e.key === ' ' || e.key === 'Enter') && !onControl) { e.preventDefault(); if (pos < queue.length) setFlip(!flipped); }
+  else if (e.key === '1' || e.key === 'ArrowLeft') grade(false);
+  else if (e.key === '2' || e.key === 'ArrowRight') grade(true);
+});
+
+restart();
+</script>
