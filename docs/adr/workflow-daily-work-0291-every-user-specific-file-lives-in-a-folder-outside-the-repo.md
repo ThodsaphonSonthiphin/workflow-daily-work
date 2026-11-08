@@ -1,5 +1,9 @@
 # Every user-specific file lives in a folder outside the repo
 
+> **Amended by
+> [ADR 0314](workflow-daily-work-0314-cut-vlog-keeps-its-files-in-the-video-editing-folder.md)
+> (2026-11-08):** the "same folder" clause no longer holds: records and exports live in per-project folders under `~/Movies/`, the style file in `~/Movies/cut-vlog/`. Still outside the repo.
+
 ```mermaid
 flowchart TD
     Q{where do the user's own rules for cutting<br/>their videos live - who may be shown, how,<br/>which music, which shape?} -->|chosen| A["a style file in one folder in the user's home

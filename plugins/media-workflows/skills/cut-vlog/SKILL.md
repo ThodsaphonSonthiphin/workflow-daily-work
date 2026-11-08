@@ -60,16 +60,29 @@ anywhere else. The scripts never call Edits: you call the tools and hand the scr
    none, list the projects and ask. If it has no media, ask for a folder and import it.
 3. Look for the project's edit record folder, `~/Movies/<project>/` with a `plan.json` or a
    `record.md` in it — first for the opened project's name, then for its copy
-   `<project> – cut-vlog` if that folder exists (open the copy if the folder is there). If the
-   user renamed the project in Edits, find the old folder by its stored project id: scan
-   `~/Movies/*/plan.json` for `"project_id"`. If a folder exists but its stored `project_id`
-   differs from the opened project's id, ask the user before reusing it. An old
-   `~/.claude/cut-vlog/projects/<id>/` folder is moved to `~/Movies/<project>/` when you find
-   it (a one-time migration; tell the user). If the folder exists, read `record.md` and
-   `plan.json` (whichever are there) and resume at the first phase they have not finished; a
-   correction goes to Phase 8. Do not ask for a new project or duplicate one that has a
-   record folder. When you create a folder, write the Edits project id into `plan.json`
-   (`"project_id"`) and into `record.md`'s Project section.
+   `<project> – cut-vlog` if that folder exists (open the copy if the folder is there). The
+   folder name contains spaces and an en dash, so every shell command must quote it
+   (`"$HOME/Movies/<project>/..."`).
+   - Compare the folder's stored `project_id` with the id of the project you will actually
+     work in — after opening the `<project> – cut-vlog` copy when that is the folder found.
+     If they differ, ask the user before reusing the folder.
+   - If the user renamed the project in Edits, find the old folder by its stored project id:
+     scan `~/Movies/*/plan.json` for `"project_id"`. Use the folder found as the project
+     folder for the rest of the run, whatever its name, and offer to rename it to the
+     current project name.
+   - If the project name would give `~/Movies/Edits/` or `~/Movies/cut-vlog/`, or contains
+     `/`, ask the user for a different folder name.
+   - An old `~/.claude/cut-vlog/projects/<id>/` folder is moved to the project folder when
+     you find it (a one-time migration; tell the user): write `<id>` (the old folder's name)
+     into `plan.json` as `"project_id"` and into `record.md`'s Project section, and if
+     `~/Movies/<project>/` already exists, merge the old folder's contents into it rather
+     than nesting it. Old exports sit at `~/Movies/<project>-v<N>.mp4`; mention them and
+     continue N after the highest of them.
+   If the folder exists, read `record.md` and `plan.json` (whichever are there) and resume
+   at the first phase they have not finished; a correction goes to Phase 8. Do not ask for a
+   new project or duplicate one that has a record folder. When you create a folder, write
+   the Edits project id into `plan.json` (`"project_id"`) and into `record.md`'s Project
+   section.
 4. Only when there is no record folder: if the timeline already has elements, ask the user
    to make a **new, empty** Edits project named `<project> – cut-vlog` and add the same
    footage to it by hand, then open that project and work there. Never empty a timeline
@@ -87,7 +100,7 @@ anywhere else. The scripts never call Edits: you call the tools and hand the scr
    the clip files*.
 2. Run `review_footage.py` over those paths, passed null-separated as that section shows
    (never as one shell variable):
-   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/review_footage.py <files...> --out ~/Movies/<project>/review`
+   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/review_footage.py <files...> --out "$HOME/Movies/<project>/review"`
 3. Look at every row image and every part sheet. For each clip write a candidate into
    `plan.json` under `candidates`: `clip`, `alias_id` (the library query's `m.id`),
    `full_duration` (review.json's `duration` for that clip; Phase 5 replaces it with the
@@ -133,7 +146,7 @@ anywhere else. The scripts never call Edits: you call the tools and hand the scr
    Mark each shot `"part": "slow"` or `"fast"`; the first `fast` shot is the drop shot.
 2. Set `song_in` so the drop lands on that shot: `song_in = drop − (beats before it) × 60 / bpm`,
    rounded to a frame. `plan_cuts.py` prints this value when the drop misses.
-3. Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/plan_cuts.py ~/Movies/<project>/plan.json`.
+3. Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/plan_cuts.py "$HOME/Movies/<project>/plan.json"`.
    It snaps each `source_in` to a frame and writes it back. A shot that runs past its clip
    is fixed by an earlier `source_in` or fewer beats. Only a drop more than one frame off is
    printed with a `song_in` that would land it — or, when that `song_in` would be negative,
@@ -150,7 +163,7 @@ timeline must look like after it, do it, read the timeline back (`tracks`, then
 `elements` with the fields `id, trackId, content, aliasId, startTime, endTime, duration,
 sourceInPoint, sourceOutPoint`), save `{"tracks": [...], "elements": [...]}` as
 `~/Movies/<project>/checks/<stage>.json`, named by the stage, and run
-`python3 ${CLAUDE_PLUGIN_ROOT}/scripts/compare_timeline.py ~/Movies/<project>/plan.json ~/Movies/<project>/checks/<stage>.json --stage <stage>`.
+`python3 ${CLAUDE_PLUGIN_ROOT}/scripts/compare_timeline.py "$HOME/Movies/<project>/plan.json" "$HOME/Movies/<project>/checks/<stage>.json" --stage <stage>`.
 Fix any mismatch before the next step.
 
 1. **Clips** (`--stage added`): never delete every clip — the timeline holds only what
@@ -189,7 +202,7 @@ Write each step and its result into `record.md` as you go.
    as in Phase 3), restore the volumes, and save
    `{"pieces": [{"start": <timeline s>, "duration": <s>, "onsets": [...]}]}` as
    `~/Movies/<project>/checks/onsets.json`. Run
-   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/compare_timeline.py ~/Movies/<project>/plan.json ~/Movies/<project>/checks/final.json --onsets ~/Movies/<project>/checks/onsets.json`.
+   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/compare_timeline.py "$HOME/Movies/<project>/plan.json" "$HOME/Movies/<project>/checks/final.json" --onsets "$HOME/Movies/<project>/checks/onsets.json"`.
    The drop's hit must be within one frame of its cut and every other fast cut within two
    frames of an onset; a cut with no onset within 0.3 s is reported, not failed.
 3. A failed shot goes back to Phase 5 for that shot only. Save the sheet and the result

@@ -55,7 +55,7 @@ to `$L/Media/` (for example `Original/<uuid>.mov`); external media has an absolu
 L=$(ls -d ~/Movies/Edits/Libraries/*.bsledits | head -1)
 sqlite3 "file:$L/Library.db?mode=ro" "select id, name from project_refs;"
 P="$L/Projects/<project id from the line above>"
-OUT=~/Movies/<project>/review
+OUT="$HOME/Movies/<project>/review"
 mkdir -p "$OUT"
 # alias id | storage mode | full path, one clip per line, oldest first
 sqlite3 "file:$L/Media.db?mode=ro" \

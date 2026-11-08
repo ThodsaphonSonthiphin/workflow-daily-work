@@ -22,8 +22,8 @@ flowchart TD
   [ADR 0308](workflow-daily-work-0308-the-edit-record-is-a-folder-per-project.md)
   (the folder is named by the project's name, not its id) and
   [ADR 0299](workflow-daily-work-0299-the-plugin-is-media-workflows-the-skill-is-cut-vlog.md)
-  (the user folder is no longer `~/.claude/cut-vlog/`). ADR 0291 stands: `~/Movies/` is
-  still outside the repo.
+  (the user folder is no longer `~/.claude/cut-vlog/`), and amends ADR 0291's "same folder"
+  clause (records now live in per-project folders; `~/Movies/` is still outside the repo).
 - **Date:** 2026-11-08
 
 The skill used to keep the style file and every record under `~/.claude/cut-vlog/`, a
