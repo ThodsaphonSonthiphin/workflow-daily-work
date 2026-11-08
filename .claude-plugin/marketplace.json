@@ -6,7 +6,7 @@
     "email": "thodsaphon.sonthipin@cartagena.no"
   },
   "description": "Daily-work automation toolkit: the /daily arc (dev-workflows), plus findings-to-backlog pipelines for Azure DevOps and GitHub Issues. Mapped in PLAYBOOK.md.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "plugins": [
     {
       "name": "ado-backlog",
@@ -169,6 +169,29 @@
         "local-markdown",
         "github-issues",
         "daily-work"
+      ]
+    },
+    {
+      "name": "media-workflows",
+      "source": "./plugins/media-workflows",
+      "description": "Cut a day of phone footage into a vlog in Meta's Edits app on a Mac, on the beat of a song you pick. Ships cut-vlog (/media-workflows:cut-vlog): your style rules first, the song second, a shot plan sheet approved before the cut, every edit read back and compared with the plan by tested scripts, numbered exports checked with ffprobe. Your rules and records stay in ~/.claude/cut-vlog/, never in a repo. Opt-in — install it only on a Mac that edits video with Edits.",
+      "version": "0.1.0",
+      "author": {
+        "name": "ThodsaphonSonthiphin",
+        "url": "https://github.com/ThodsaphonSonthiphin"
+      },
+      "homepage": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+      "repository": "https://github.com/ThodsaphonSonthiphin/workflow-daily-work",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": [
+        "video",
+        "vlog",
+        "edits",
+        "mac",
+        "beat-sync",
+        "music",
+        "ffmpeg"
       ]
     }
   ]

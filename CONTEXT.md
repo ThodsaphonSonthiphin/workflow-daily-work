@@ -735,3 +735,38 @@ at least one test asserts the value), *untested* (decision points found, no test
 found* (no decision point — a gap only the forward trace can see), or *source changed* (the
 statement at the locator no longer reads as recorded) (ADR 0279).
 _Avoid_: done, passed, verified.
+
+## Video-editing terms (media-workflows plugin)
+
+`cut-vlog` cuts a day's footage into a vlog in Meta's Edits app on a Mac, through the
+app's own MCP server. It ships in its own opt-in plugin, `media-workflows` (ADRs 0290,
+0299).
+
+**Style file**:
+The user's own rules for cutting their videos — the frame shape, whether text appears,
+the kind of music, who may be shown and how — kept at `~/.claude/cut-vlog/style.md`,
+never in this repo. The skill reads it at the start, writes it on a first run,
+and adds each correction the user makes. Every other file the skill keeps about the user
+lives in the same folder (ADR 0291).
+_Avoid_: profile (that is practice-english-writing's **Mistake profile**), preferences,
+settings, config.
+
+**Shot plan sheet**:
+One image the user approves before the cut: one frame per planned shot, in order, each
+with its length and its place in the song — the slow part, the drop, or the fast part.
+It is the second and last stop before export; the first is the song pick (ADRs 0294,
+0295).
+_Avoid_: storyboard, contact sheet (that is the per-clip footage review), preview.
+
+**Edit record**:
+One folder per Edits project, beside the **Style file** (`~/.claude/cut-vlog/projects/<id>/`): the footage review,
+the song with its BPM and drop, the **Shot plan sheet**'s plan, the check of every edit
+step, every export and every correction the user made. A correction re-reads it and
+re-cuts only what moved (ADRs 0297, 0308).
+_Avoid_: log, history, state file.
+
+**Second-channel check**:
+The check after every edit step: read the timeline back and compare it with the value the
+plan set before the step, and before export render frames and audio and look at them. An
+Edits tool's own "ok" is never the check (ADR 0296).
+_Avoid_: verification (too broad), confirmation.

@@ -7,12 +7,13 @@ install/use, see [README.md](README.md). For deeper internals, see
 
 ## What this is
 
-A Claude Code **plugin marketplace** (`workflow-daily-work`). It ships five
+A Claude Code **plugin marketplace** (`workflow-daily-work`). It ships six
 **plugins**: `ado-backlog` (findings → Azure DevOps backlog, plus the assigned-work
 view), `github-backlog` (the same pipeline against GitHub Issues), `dev-workflows`
 (the daily-work arc: the `/daily` router plus design, debugging, review, study, and
-communication skills), `react-workflows` (opt-in React conventions), and
-`decision-map` (multi-session decision-ticket planning). [PLAYBOOK.md](PLAYBOOK.md)
+communication skills), `react-workflows` (opt-in React conventions),
+`decision-map` (multi-session decision-ticket planning), and `media-workflows`
+(opt-in: `cut-vlog`, a vlog cut in Meta's Edits app on a Mac). [PLAYBOOK.md](PLAYBOOK.md)
 maps the whole arc — when to reach for what.
 
 ## Repo layout
@@ -47,6 +48,10 @@ plugins/decision-map/             multi-session planning: chart-map + work-map s
   scripts/fake_github.py            in-memory GitHub API, for the tests
   scripts/smoke_github_live.py      one live run — the byte-identical no-op check
   references/data-contracts.md      the ops contract both backends answer to
+plugins/media-workflows/          opt-in: cut-vlog (Edits on a Mac)
+  scripts/review_footage.py         row images, loudness, capture-time parts (ffmpeg)
+  scripts/plan_cuts.py              shot plan in beats -> frame-exact cuts and trims
+  scripts/compare_timeline.py       timeline read-back + render onsets vs the plan
 ```
 
 ## Mental model

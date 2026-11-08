@@ -1,0 +1,68 @@
+{
+  "skill_name": "cut-vlog",
+  "evals": [
+    {
+      "id": 0,
+      "name": "tools-do-not-load",
+      "prompt": "cut yesterday's clips from my Edits project 'Saturday at the lake' into a vlog. (The Edits MCP tools are not available in this session: calling appState fails with 'tool not found'.)",
+      "expected_output": "The skill tries to load the Edits tools first, finds them missing, names the failure and the fixes (open Edits and an editor window, update Edits and the agent, restart), and stops. It reviews no footage, lists no song, and does not work around the tools.",
+      "files": [],
+      "assertions": [
+        "Says the Edits tools did not load and quotes or names the error",
+        "Gives at least two concrete fixes, including opening Edits and updating or restarting the app or the agent",
+        "Stops the run: says it will not continue until the tools load",
+        "Runs no footage review, lists no songs, and plans no shots",
+        "Does not suggest calling the Edits server over HTTP or curl as a workaround"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "first-run-asks-only-what-is-open",
+      "prompt": "make a vlog from my Edits project 'Beach day'. landscape please, and no text on screen. (There is no file at ~/.claude/cut-vlog/style.md yet. The Edits tools load and work.)",
+      "expected_output": "Because no style file exists, the skill asks one round of questions — only the ones still open: the kind of music, the rules for who is shown and how, and the target length. It does not ask again about the shape or about text, which the user already answered, and it says the answers will be written to ~/.claude/cut-vlog/style.md.",
+      "files": [],
+      "assertions": [
+        "Asks about the kind of music",
+        "Asks about rules for who is shown on screen and how",
+        "Asks about the target length",
+        "Does not ask whether the video should be landscape or portrait",
+        "Does not ask whether there should be text on screen",
+        "Puts all its questions in one message rather than one per turn",
+        "Says the answers will be saved to ~/.claude/cut-vlog/style.md",
+        "Places no clip on the timeline and lists no song before the answers come back"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "song-list-before-any-cut",
+      "prompt": "ok the review is done, carry on with the 'Beach day' vlog. (~/.claude/cut-vlog/style.md exists and says: Shape 16:9; Text none; Music a well-known song that starts slow and builds to a drop; Length about 40 seconds. The record at ~/.claude/cut-vlog/projects/BEACH-1/ shows Phase 2 finished. The timeline is empty.)",
+      "expected_output": "The skill lists 5-7 songs that start slow and build to a drop, each with its title, artist, its shape (where it builds and drops) and a warning when the lyrics are explicit, then waits for the user to pick one. It places no clip and measures no song before the pick.",
+      "files": [],
+      "assertions": [
+        "Lists between 5 and 7 songs",
+        "Gives each song's title and artist",
+        "Describes each song's shape: where it builds and where it drops",
+        "Flags any song with explicit lyrics, or says none of them have explicit lyrics",
+        "Asks the user to pick one and waits",
+        "Adds no clip to the timeline and starts no cut before the pick"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "correction-reads-the-record",
+      "prompt": "make the beach shot longer. (Project 'Beach day', id BEACH-1. ~/.claude/cut-vlog/projects/BEACH-1/record.md shows export v1 done; plan.json has 18 shots, shot 9 is clip-09.mov 'a wave breaks on the beach', 2 beats, part fast; bpm 120.)",
+      "expected_output": "The skill reads record.md and plan.json, changes shot 9's beats (for example 2 to 4 or more), recomputes the cuts with plan_cuts.py, shows only the changed shots before and after for an OK, and says the change is recorded in record.md as a change to this video, not in style.md. It does not review the footage or measure the song again.",
+      "files": [],
+      "assertions": [
+        "Reads the existing record and plan.json rather than starting from the footage",
+        "Identifies shot 9 as the beach shot",
+        "Proposes a longer length for shot 9 in beats",
+        "Shows only the shots that change, before and after, and asks for an OK",
+        "Does not run a new footage review or measure the song again",
+        "Says the change goes to record.md, not style.md",
+        "Says the next export will be a new numbered file (v2), not an overwrite of v1",
+        "Does not duplicate the project"
+      ]
+    }
+  ]
+}
