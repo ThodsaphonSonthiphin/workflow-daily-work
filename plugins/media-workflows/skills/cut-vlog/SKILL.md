@@ -25,11 +25,11 @@ them on the next live run.
 
 | What | Where |
 |---|---|
-| the user's style file | `~/.claude/cut-vlog/style.md` — template in `references/style-file.md` |
-| one project's edit record | `~/.claude/cut-vlog/projects/<edits-project-id>/` — `record.md`, `plan.json`, `review/`, `checks/`; layout in `references/edit-record.md` |
+| the user's style file | `~/Movies/cut-vlog/style.md` — template in `references/style-file.md` |
+| one project's edit record | `~/Movies/<project>/` (`<project>` = the Edits project's name as worked in) — `record.md`, `plan.json`, `review/`, `checks/`; layout in `references/edit-record.md` |
 | what each Edits tool really does | `references/edits-tools.md` — read it before Phase 1 and again before Phase 5 |
 | the scripts | `${CLAUDE_PLUGIN_ROOT}/scripts/review_footage.py`, `${CLAUDE_PLUGIN_ROOT}/scripts/plan_cuts.py`, `${CLAUDE_PLUGIN_ROOT}/scripts/compare_timeline.py` |
-| exports | `~/Movies/<project>-v<N>.mp4` |
+| exports | `~/Movies/<project>/<project>-v<N>.mp4`, beside the record |
 
 Nothing about the user — their rules, their footage, their family — is ever written
 anywhere else. The scripts never call Edits: you call the tools and hand the scripts JSON.
@@ -49,19 +49,27 @@ anywhere else. The scripts never call Edits: you call the tools and hand the scr
 
 ## Phase 1 — Style file and project
 
-1. Read `~/.claude/cut-vlog/style.md`. If it is missing, ask **one** round of questions,
+1. Create `~/Movies/cut-vlog/` if it is missing. Read `~/Movies/cut-vlog/style.md`. If an old
+   `~/.claude/cut-vlog/style.md` exists and the new one does not, move it to the new place
+   and tell the user (a one-time migration). If it is still missing, ask **one** round of questions,
    leaving out every one the user has already answered in this conversation:
    frame shape (16:9 or 9:16) · text on screen or none · kind of music · rules for who is
    shown and how · target length. Write the answers into a new `style.md` using the template
    in `references/style-file.md`, each rule dated, and say where you wrote it.
 2. Open the Edits project the user named (`projects`, then `openProject`). If the user named
    none, list the projects and ask. If it has no media, ask for a folder and import it.
-3. Look for the project's edit record folder, `~/.claude/cut-vlog/projects/<id>/` with a
-   `plan.json` or a `record.md` in it — first for the opened project, then for its copy
-   `<project> – cut-vlog` if one exists (open the copy if the folder is there). If the folder
-   exists, read `record.md` and `plan.json` (whichever are there) and resume at the first
-   phase they have not finished; a correction goes to Phase 8. Do not ask for a new project
-   or duplicate one that has a record folder.
+3. Look for the project's edit record folder, `~/Movies/<project>/` with a `plan.json` or a
+   `record.md` in it — first for the opened project's name, then for its copy
+   `<project> – cut-vlog` if that folder exists (open the copy if the folder is there). If the
+   user renamed the project in Edits, find the old folder by its stored project id: scan
+   `~/Movies/*/plan.json` for `"project_id"`. If a folder exists but its stored `project_id`
+   differs from the opened project's id, ask the user before reusing it. An old
+   `~/.claude/cut-vlog/projects/<id>/` folder is moved to `~/Movies/<project>/` when you find
+   it (a one-time migration; tell the user). If the folder exists, read `record.md` and
+   `plan.json` (whichever are there) and resume at the first phase they have not finished; a
+   correction goes to Phase 8. Do not ask for a new project or duplicate one that has a
+   record folder. When you create a folder, write the Edits project id into `plan.json`
+   (`"project_id"`) and into `record.md`'s Project section.
 4. Only when there is no record folder: if the timeline already has elements, ask the user
    to make a **new, empty** Edits project named `<project> – cut-vlog` and add the same
    footage to it by hand, then open that project and work there. Never empty a timeline
@@ -79,7 +87,7 @@ anywhere else. The scripts never call Edits: you call the tools and hand the scr
    the clip files*.
 2. Run `review_footage.py` over those paths, passed null-separated as that section shows
    (never as one shell variable):
-   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/review_footage.py <files...> --out ~/.claude/cut-vlog/projects/<id>/review`
+   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/review_footage.py <files...> --out ~/Movies/<project>/review`
 3. Look at every row image and every part sheet. For each clip write a candidate into
    `plan.json` under `candidates`: `clip`, `alias_id` (the library query's `m.id`),
    `full_duration` (review.json's `duration` for that clip; Phase 5 replaces it with the
@@ -125,7 +133,7 @@ anywhere else. The scripts never call Edits: you call the tools and hand the scr
    Mark each shot `"part": "slow"` or `"fast"`; the first `fast` shot is the drop shot.
 2. Set `song_in` so the drop lands on that shot: `song_in = drop − (beats before it) × 60 / bpm`,
    rounded to a frame. `plan_cuts.py` prints this value when the drop misses.
-3. Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/plan_cuts.py ~/.claude/cut-vlog/projects/<id>/plan.json`.
+3. Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/plan_cuts.py ~/Movies/<project>/plan.json`.
    It snaps each `source_in` to a frame and writes it back. A shot that runs past its clip
    is fixed by an earlier `source_in` or fewer beats. Only a drop more than one frame off is
    printed with a `song_in` that would land it — or, when that `song_in` would be negative,
@@ -141,8 +149,8 @@ Read `references/edits-tools.md` first. Then, for every step below: write down w
 timeline must look like after it, do it, read the timeline back (`tracks`, then
 `elements` with the fields `id, trackId, content, aliasId, startTime, endTime, duration,
 sourceInPoint, sourceOutPoint`), save `{"tracks": [...], "elements": [...]}` as
-`~/.claude/cut-vlog/projects/<id>/checks/<stage>.json`, named by the stage, and run
-`python3 ${CLAUDE_PLUGIN_ROOT}/scripts/compare_timeline.py ~/.claude/cut-vlog/projects/<id>/plan.json ~/.claude/cut-vlog/projects/<id>/checks/<stage>.json --stage <stage>`.
+`~/Movies/<project>/checks/<stage>.json`, named by the stage, and run
+`python3 ${CLAUDE_PLUGIN_ROOT}/scripts/compare_timeline.py ~/Movies/<project>/plan.json ~/Movies/<project>/checks/<stage>.json --stage <stage>`.
 Fix any mismatch before the next step.
 
 1. **Clips** (`--stage added`): never delete every clip — the timeline holds only what
@@ -180,8 +188,8 @@ Write each step and its result into `record.md` as you go.
    `previewVideo`, run `audioOnsets` on each (a render with no audio track stops the run,
    as in Phase 3), restore the volumes, and save
    `{"pieces": [{"start": <timeline s>, "duration": <s>, "onsets": [...]}]}` as
-   `~/.claude/cut-vlog/projects/<id>/checks/onsets.json`. Run
-   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/compare_timeline.py ~/.claude/cut-vlog/projects/<id>/plan.json ~/.claude/cut-vlog/projects/<id>/checks/final.json --onsets ~/.claude/cut-vlog/projects/<id>/checks/onsets.json`.
+   `~/Movies/<project>/checks/onsets.json`. Run
+   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/compare_timeline.py ~/Movies/<project>/plan.json ~/Movies/<project>/checks/final.json --onsets ~/Movies/<project>/checks/onsets.json`.
    The drop's hit must be within one frame of its cut and every other fast cut within two
    frames of an onset; a cut with no onset within 0.3 s is reported, not failed.
 3. A failed shot goes back to Phase 5 for that shot only. Save the sheet and the result
@@ -193,8 +201,8 @@ Write each step and its result into `record.md` as you go.
 2. `setExportSettings` with every field: `resolution` (`1920x1080` for 16:9,
    `1080x1920` for 9:16), `resolutionType` `HD`, `aspectRatio` (`sixteenByNine` or
    `nineBySixteen`), `quality` `high`, `dynamicRange` `SDR`, `frameRate` 30.
-3. `export` to `~/Movies/<project>-v<N>.mp4`, N one more than the highest existing — never
-   over an earlier file. Poll `exportStatus` until it is done.
+3. `export` to `~/Movies/<project>/<project>-v<N>.mp4`, N one more than the highest existing
+   in that folder — never over an earlier file. Poll `exportStatus` until it is done.
 4. `ffprobe` the file: the planned shape, the planned length within 0.1 s, one video stream
    and one audio stream. A file on disk is not proof the export worked. With no audio
    stream the export failed (known issue): tell the user, and do not deliver it as done.
@@ -220,7 +228,7 @@ Write each step and its result into `record.md` as you go.
 
 - Place a clip before the user has picked the song, or cut before they OK the plan sheet.
 - Trust an Edits tool's `ok: true` — the read-back is the proof.
-- Write the user's rules, footage names or people into anything outside `~/.claude/cut-vlog/`.
+- Write the user's rules, footage names or people into anything outside `~/Movies/<project>/` and `~/Movies/cut-vlog/`.
 - Overwrite an export.
 - Empty a timeline with select-all + delete, or add the song through the tools — the user
   adds it by hand (known issue).

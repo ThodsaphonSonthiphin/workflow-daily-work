@@ -1,5 +1,12 @@
 # cut-vlog — a day's footage cut into a vlog in Edits, on the beat, checked against the plan
 
+> **Amended by
+> [ADR 0314](../../adr/workflow-daily-work-0314-cut-vlog-keeps-its-files-in-the-video-editing-folder.md)
+> (2026-11-08):** the user's files are in `~/Movies/cut-vlog/style.md` and
+> `~/Movies/<project>/` (record, `plan.json`, `review/`, `checks/` and the exports), named by the
+> project's name, not in `~/.claude/cut-vlog/`. This changes the paths in §3, §4 and §8;
+> `SKILL.md` wins over this document.
+
 > **Superseded in part (2026-11-08) by
 > [ADR 0313](../../adr/workflow-daily-work-0313-the-user-adds-the-song-by-hand-and-no-timeline-is-ever-emptied.md).**
 > The live run found that a project emptied once, and media added through the MCP tools,

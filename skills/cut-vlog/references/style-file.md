@@ -1,7 +1,7 @@
 # The style file
 
-`~/.claude/cut-vlog/style.md` holds the user's own rules for every video this skill cuts
-for them. It lives in the user's home folder and never in a repository. The skill reads it
+`~/Movies/cut-vlog/style.md` holds the user's own rules for every video this skill cuts
+for them. It lives in the user's video-editing folder and never in a repository. The skill reads it
 at the start of every run, writes it on the first run, and adds to it when the user makes a
 correction that is a rule for every video.
 

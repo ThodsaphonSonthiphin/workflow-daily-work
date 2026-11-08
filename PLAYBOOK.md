@@ -158,7 +158,7 @@ and are reached by name, never through `/daily` (ADR 0307).
 
 | When… | Reach for |
 |---|---|
-| a day of phone footage in Meta's Edits app should become a vlog cut on the beat of a song — or a vlog it cut needs a correction ("make the beach shot longer") | `cut-vlog` (`/media-workflows:cut-vlog <edits project name>`) — your style rules first (`~/.claude/cut-vlog/style.md`), then a song list to pick from, a shot plan sheet to approve, every edit read back and compared with the plan by tested scripts, and every export a new numbered file checked with ffprobe. Mac + Edits only; stops if the Edits tools do not load (ADRs 0290–0312) |
+| a day of phone footage in Meta's Edits app should become a vlog cut on the beat of a song — or a vlog it cut needs a correction ("make the beach shot longer") | `cut-vlog` (`/media-workflows:cut-vlog <edits project name>`) — your style rules first (`~/Movies/cut-vlog/style.md`), then a song list to pick from, a shot plan sheet to approve, every edit read back and compared with the plan by tested scripts, and every export a new numbered file checked with ffprobe. Mac + Edits only; stops if the Edits tools do not load (ADRs 0290–0314) |
 
 ## /daily usage
 

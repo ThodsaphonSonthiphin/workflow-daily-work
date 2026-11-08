@@ -1,5 +1,9 @@
 # The edit record is a folder per project
 
+> **Amended by
+> [ADR 0314](workflow-daily-work-0314-cut-vlog-keeps-its-files-in-the-video-editing-folder.md)
+> (2026-11-08):** the folder is `~/Movies/<project>/`, named by the project's name; the Edits project id is stored inside `plan.json` and `record.md` instead of naming the folder.
+
 ```mermaid
 flowchart TD
     Q{what shape does one project's edit record take?} -->|chosen| A["a folder per Edits project: record.md for the

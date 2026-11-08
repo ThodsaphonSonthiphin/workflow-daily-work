@@ -1,13 +1,17 @@
 # The edit record
 
-One folder per Edits project, in the user's folder, named by the Edits project id:
+One folder per Edits project, in the user's video-editing folder, named by the project's
+name as worked in (the `<name> – cut-vlog` copy's name when one was made). The Edits project
+id is stored inside `plan.json` and in `record.md`, so a renamed project's folder is still
+found:
 
 ```
-~/.claude/cut-vlog/projects/<edits-project-id>/
+~/Movies/<project>/
   record.md      what a person reads: the run, step by step
   plan.json      the song, the candidates and the shots: the only file the scripts read
   review/        review.json, one row image per clip, one sheet per part (review_footage.py)
   checks/        each stage's timeline read-back, the frame sheets, onsets.json
+  <project>-v1.mp4, <project>-v2.mp4 ...   the exports, never overwritten
 ```
 
 ## record.md
@@ -23,7 +27,7 @@ flowchart LR
 ```
 
 ## Project
-Edits project `<name>` (`<id>`); working project `<name> – cut-vlog` if the named one was busy (new, or a duplicate).
+Edits project `<name>` (id `<id>`, also in `plan.json`); working project `<name> – cut-vlog` if the named one was busy (new, or a duplicate).
 Style file read: dated <the newest date in style.md>.
 
 ## Review
@@ -43,7 +47,7 @@ Approved <date>. Shots and cuts: plan.json.
 ## Exports
 | Version | Path | Checked |
 |---|---|---|
-| 1 | ~/Movies/<project>-v1.mp4 | 1920x1080, 37.1 s, video + audio |
+| 1 | ~/Movies/<project>/<project>-v1.mp4 | 1920x1080, 37.1 s, video + audio |
 
 ## Corrections
 | Date | What the user said | Changed | Written to |
@@ -56,6 +60,7 @@ Approved <date>. Shots and cuts: plan.json.
 
 ```json
 {
+  "project_id": "PROJECT-1",
   "fps": 30,
   "bpm": 126,
   "song_in": 18.1,
@@ -75,6 +80,7 @@ Approved <date>. Shots and cuts: plan.json.
 
 | Field | Written by | Meaning |
 |---|---|---|
+| `project_id` | the agent, Phase 1 | the Edits project id of the project worked in; tells a resume whether the folder is this project's |
 | `fps`, `bpm` | the agent, Phase 3 | the project's frame rate; the measured tempo |
 | `drop` | the agent, Phase 3 | the drop's time in the song, seconds |
 | `song_in` | the agent, Phase 4 | the song time at timeline 0 |

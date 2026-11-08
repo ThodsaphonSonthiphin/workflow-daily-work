@@ -744,10 +744,10 @@ app's own MCP server. It ships in its own opt-in plugin, `media-workflows` (ADRs
 
 **Style file**:
 The user's own rules for cutting their videos — the frame shape, whether text appears,
-the kind of music, who may be shown and how — kept at `~/.claude/cut-vlog/style.md`,
+the kind of music, who may be shown and how — kept at `~/Movies/cut-vlog/style.md`,
 never in this repo. The skill reads it at the start, writes it on a first run,
 and adds each correction the user makes. Every other file the skill keeps about the user
-lives in the same folder (ADR 0291).
+lives in the per-project **Edit record** folders, also in `~/Movies/` (ADRs 0291, 0314).
 _Avoid_: profile (that is practice-english-writing's **Mistake profile**), preferences,
 settings, config.
 
@@ -759,10 +759,10 @@ It is the second and last stop before export; the first is the song pick (ADRs 0
 _Avoid_: storyboard, contact sheet (that is the per-clip footage review), preview.
 
 **Edit record**:
-One folder per Edits project, beside the **Style file** (`~/.claude/cut-vlog/projects/<id>/`): the footage review,
+One folder per Edits project, named by the project's name (`~/Movies/<project>/`; the Edits project id is stored inside `plan.json`): the footage review,
 the song with its BPM and drop, the **Shot plan sheet**'s plan, the check of every edit
-step, every export and every correction the user made. A correction re-reads it and
-re-cuts only what moved (ADRs 0297, 0308).
+step, every export (`<project>-v<N>.mp4`, in the same folder) and every correction the user made.
+A correction re-reads it and re-cuts only what moved (ADRs 0297, 0308, 0314).
 _Avoid_: log, history, state file.
 
 **Second-channel check**:

@@ -1,5 +1,9 @@
 # Every export is a new numbered file
 
+> **Amended by
+> [ADR 0314](workflow-daily-work-0314-cut-vlog-keeps-its-files-in-the-video-editing-folder.md)
+> (2026-11-08):** exports now go to `~/Movies/<project>/<project>-v<N>.mp4`, beside the edit record; still never over an earlier file.
+
 ```mermaid
 flowchart TD
     Q{where does an export go?} -->|chosen| A["~/Movies/<project>-v1.mp4, -v2.mp4, ...: never

@@ -7,7 +7,7 @@ flowchart LR
     U(["/media-workflows:cut-vlog"]) --> SK["cut-vlog"]
     SK --> E["Edits app (MCP)"]
     SK --> SC["scripts: review_footage · plan_cuts · compare_timeline"]
-    SK --> F[("~/.claude/cut-vlog/")]
+    SK --> F[("~/Movies/")]
 ```
 
 | Skill | What it does | Start with |
@@ -28,9 +28,10 @@ skill asks you to add the song by hand and never empties a timeline.
 
 ## Your files
 
-Everything about you stays on your machine, in `~/.claude/cut-vlog/`: your style file
-(`style.md`) and one folder per project with the edit record. Nothing is written into this
-repository.
+Everything about you stays on your machine, in your video-editing folder: your style file
+at `~/Movies/cut-vlog/style.md`, and one folder per project, `~/Movies/<project>/`, holding
+the edit record and the exports (`<project>-v1.mp4`, `-v2.mp4`, ...) beside it. Nothing is
+written into this repository.
 
 ## Tests
 

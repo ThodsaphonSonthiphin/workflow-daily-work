@@ -1,5 +1,9 @@
 # One edit record per project, in the user's folder
 
+> **Amended by
+> [ADR 0314](workflow-daily-work-0314-cut-vlog-keeps-its-files-in-the-video-editing-folder.md)
+> (2026-11-08):** the record is kept in `~/Movies/<project>/`, named by the project's name, not beside the style file in `~/.claude/cut-vlog/`; the style file moved to `~/Movies/cut-vlog/style.md`.
+
 ```mermaid
 flowchart TD
     Q{what does the skill keep of a run?} -->|chosen| A["one edit record per Edits project in the user's

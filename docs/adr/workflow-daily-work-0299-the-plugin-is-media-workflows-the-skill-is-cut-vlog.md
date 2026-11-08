@@ -1,5 +1,9 @@
 # The plugin is media-workflows, the skill is cut-vlog
 
+> **Amended by
+> [ADR 0314](workflow-daily-work-0314-cut-vlog-keeps-its-files-in-the-video-editing-folder.md)
+> (2026-11-08):** the user's files are in `~/Movies/cut-vlog/style.md` and `~/Movies/<project>/`, not in `~/.claude/cut-vlog/`.
+
 ```mermaid
 flowchart TD
     Q{what are the plugin, the skill and the<br/>user's folder called?} -->|chosen| A["plugin media-workflows, skill cut-vlog, command
