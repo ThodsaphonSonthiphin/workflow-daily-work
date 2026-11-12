@@ -751,11 +751,18 @@ lives in the per-project **Edit record** folders, also in `~/Movies/` (ADRs 0291
 _Avoid_: profile (that is practice-english-writing's **Mistake profile**), preferences,
 settings, config.
 
+**Short plan**:
+What `cut-vlog` shows at the start of every run, before it writes, imports or changes
+anything: what it found, the phases it will run and where it waits for the user, the
+guesses it made from the request, and the style questions still open. Ten lines or fewer;
+the run waits for the user's OK (ADR 0315).
+_Avoid_: plan (that is the **Shot plan sheet**), summary, overview.
+
 **Shot plan sheet**:
 One image the user approves before the cut: one frame per planned shot, in order, each
 with its length and its place in the song — the slow part, the drop, or the fast part.
-It is the second and last stop before export; the first is the song pick (ADRs 0294,
-0295).
+It is the last stop before export; the first is the **Short plan**, the second the song pick
+(ADRs 0294, 0295, 0315).
 _Avoid_: storyboard, contact sheet (that is the per-clip footage review), preview.
 
 **Edit record**:

@@ -63,6 +63,20 @@
         "Says the next export will be a new numbered file (v2), not an overwrite of v1",
         "Does not duplicate the project"
       ]
+    },
+    {
+      "name": "short-plan-before-any-change",
+      "prompt": "cut my Edits project 'Hill trip' into a vlog. the clips are in a separate folder. make it exciting. (The Edits tools load and work. ~/Movies/cut-vlog/style.md exists. The Edits project 'Hill trip' has no media yet and no record folder exists.)",
+      "expected_output": "Before writing, importing or changing anything, the skill shows a short plan of ten lines or fewer: what it found (the project, the footage folder it guessed and the clip count, the style file's date, no record folder yet), the phases it will run with the points where it waits for the user (song pick, adding the song by hand, the plan sheet), and its assumptions to correct. It waits for the user's OK.",
+      "files": [],
+      "assertions": [
+        "Shows a short plan before any import, file write or project setting",
+        "The short plan names what was found: the project, the footage and the style file",
+        "Lists the phases it will run and where it waits for the user",
+        "States its guess about which folder holds the footage as an assumption the user can correct",
+        "Waits for the user's OK and imports nothing in the same turn"
+      ],
+      "id": 4
     }
   ]
 }

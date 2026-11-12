@@ -12,7 +12,7 @@ flowchart LR
 
 | Skill | What it does | Start with |
 |---|---|---|
-| `cut-vlog` | A day's footage in an Edits project becomes a vlog cut on the beat of a song you pick. Your style rules come first, a shot plan sheet is approved before the cut, every edit is read back and compared with the plan, and every export is a new numbered file. | `/media-workflows:cut-vlog <edits project name>` |
+| `cut-vlog` | A day's footage in an Edits project becomes a vlog cut on the beat of a song you pick. A short plan is shown for your OK before anything changes, your style rules come first, a shot plan sheet is approved before the cut, every edit is read back and compared with the plan, and every export is a new numbered file. | `/media-workflows:cut-vlog <edits project name>` |
 
 ## Known issue (2026-11-08)
 

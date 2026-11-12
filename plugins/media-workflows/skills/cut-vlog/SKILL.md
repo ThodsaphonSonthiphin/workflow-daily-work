@@ -17,7 +17,7 @@ Phase 5 step 1 add-then-delete order are workarounds not yet run live (2026-11-0
 them on the next live run.
 
 ```
-0 pre-flight → 1 style file + project → 2 footage review → 3 song (user picks) → 4 shot plan (user OKs)
+0 pre-flight → short plan (user OKs) → 1 style file + project → 2 footage review → 3 song (user picks) → 4 shot plan (user OKs)
 → 5 cut, each step checked → 6 render check → 7 export vN → 8 corrections
 ```
 
@@ -47,11 +47,29 @@ anywhere else. The scripts never call Edits: you call the tools and hand the scr
 2. Check `ffmpeg -version`, `ffprobe -version` and `python3 --version` (3.10 or newer). If
    ffmpeg is missing, offer `brew install ffmpeg` and run it only on a yes.
 
+## Short plan — every run
+
+Phase 0 and the reads of Phase 1 come first, and change nothing: read `style.md`, find the
+project (`projects`), find its record folder and the phase it would resume at, and look at
+the footage the user pointed to. Then show the user a **short plan** — ten lines or fewer:
+
+- **found:** the Edits project, the footage (where, how many clips, shape, log or not), the
+  style file's date or "none yet", and the record folder with the phase to resume at;
+- **will do:** each phase this run takes, one line each, naming the points where it waits
+  for the user — the song pick, adding the song by hand, the plan sheet;
+- **assumed:** every guess read from the request (which folder is the footage, who a person
+  named in a rule is), so the user can correct it;
+- **asks:** Phase 1's style questions still open, as this run's one round of questions.
+
+Wait for the user's OK. A correction to the short plan changes it and shows it again. Every
+write, import, project setting and clip comes after the OK. A correction run (Phase 8)
+shows a short plan too: the rows it will change and the version it will export.
+
 ## Phase 1 — Style file and project
 
 1. Create `~/Movies/cut-vlog/` if it is missing. Read `~/Movies/cut-vlog/style.md`. If an old
    `~/.claude/cut-vlog/style.md` exists and the new one does not, move it to the new place
-   and tell the user (a one-time migration). If it is still missing, ask **one** round of questions,
+   and tell the user (a one-time migration). If it is still missing, the short plan asked **one** round of questions,
    leaving out every one the user has already answered in this conversation:
    frame shape (16:9 or 9:16) · text on screen or none · kind of music · rules for who is
    shown and how · target length. Write the answers into a new `style.md` using the template
@@ -239,6 +257,7 @@ Write each step and its result into `record.md` as you go.
 
 ## Never
 
+- Write, import or change anything before the user OKs the short plan.
 - Place a clip before the user has picked the song, or cut before they OK the plan sheet.
 - Trust an Edits tool's `ok: true` — the read-back is the proof.
 - Write the user's rules, footage names or people into anything outside `~/Movies/<project>/` and `~/Movies/cut-vlog/`.

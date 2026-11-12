@@ -1,7 +1,7 @@
 {
   "name": "media-workflows",
   "displayName": "Media Workflows",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Cut a day of phone footage into a vlog in Meta's Edits app on a Mac, on the beat of a song you pick. Ships cut-vlog: your style rules first, the song second, a shot plan sheet approved before the cut, every edit read back and compared with the plan by tested scripts, numbered exports checked with ffprobe. Opt-in: install it only on a Mac that edits video with Edits.",
   "author": {
     "name": "ThodsaphonSonthiphin",

@@ -1,5 +1,8 @@
 # cut-vlog is measured by script tests, four evals and one live run
 
+> **Amended by [ADR 0315](workflow-daily-work-0315-cut-vlog-shows-a-short-plan-at-the-start-of-every-run.md) (2026-11-12):**
+> a fifth eval, `short-plan-before-any-change`, measures the short plan every run now opens with.
+
 ```mermaid
 flowchart TD
     Q{what must pass before cut-vlog is merged?} -->|chosen| A["unit tests of the three scripts, four one-turn eval
