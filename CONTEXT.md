@@ -735,3 +735,34 @@ at least one test asserts the value), *untested* (decision points found, no test
 found* (no decision point — a gap only the forward trace can see), or *source changed* (the
 statement at the locator no longer reads as recorded) (ADR 0279).
 _Avoid_: done, passed, verified.
+
+## resolve-the-ticket terms (dev-workflows plugin)
+
+**Ticket**:
+One item on a tracker - an Azure DevOps work item or a GitHub issue - named by its URL.
+Not a **Decision ticket**, which is a question on a Decision map (ADRs 0294, 0305).
+_Avoid_: task, story, card (each is one type of ticket).
+
+**Briefing**:
+The first of the skill's two moments, before the work starts: what the ticket asks, its
+parent and children, its linked tickets, the runbook and the files to open. Read-only
+(ADR 0293).
+_Avoid_: summary, kickoff, plan.
+
+**Resolve check**:
+The second moment, before a person sets the ticket to its done State: one row per AC line,
+logic rule and child, each with its test, its result and its **Proof mark**, then a
+**Ready verdict**. Appended to the ticket's runbook as a dated block (ADRs 0293, 0302).
+_Avoid_: review, sign-off, verification (the skill signs nothing off).
+
+**Ready verdict**:
+The one line that ends a Resolve check: READY or NOT READY, with the count of rows that
+rest on a person's word. The skill never acts on it - the State change is a person's
+click (ADRs 0295, 0296).
+_Avoid_: approval, pass, done.
+
+**Stale pass**:
+A test result older than the last change to the thing it tested. It counts as no pass
+until the test is run again or the user says the change does not touch that row
+(ADR 0297).
+_Avoid_: old result, outdated test.
