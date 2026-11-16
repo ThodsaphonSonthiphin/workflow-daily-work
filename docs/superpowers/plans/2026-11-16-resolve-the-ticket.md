@@ -1,5 +1,13 @@
 # resolve-the-ticket Implementation Plan
 
+> **Superseded in part (2026-11-16, during execution).** Task 1's reference template says a
+> child is done only at State category Resolved or Completed; ADR 0307 adds the State named
+> Resolved, because the measured Agile process files Resolved under InProgress. Task 1's
+> GitHub reads are `gh issue view … --json number,title,state,body,comments` and
+> `gh api --paginate …/sub_issues`, with `@tsv` jq filters (Windows PowerShell 5.1). The
+> committed `plugins/dev-workflows/skills/resolve-the-ticket/references/ticket-family.md`
+> is authoritative over the template in Task 1 Step 5.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use sp-subagent-driven-development (recommended) or sp-executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship the `resolve-the-ticket` skill in the `dev-workflows` plugin: a briefing before work starts and a read-only check before a person sets a ticket to Resolved.

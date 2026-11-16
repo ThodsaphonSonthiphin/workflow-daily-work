@@ -61,14 +61,16 @@ the name `Resolved` counts as done on its own (ADR 0307). Done here: `Resolved`,
 ## GitHub Issues - parent, children, links
 
 ```powershell
-gh issue view {n} --repo {owner}/{repo} --comments
-gh api "repos/{owner}/{repo}/issues/{n}/sub_issues" --jq '.[] | [.number,.state,.title] | @tsv'
+gh issue view {n} --repo {owner}/{repo} --json number,title,state,body,comments
+gh api --paginate "repos/{owner}/{repo}/issues/{n}/sub_issues" --jq '.[] | [.number,.state,.title] | @tsv'
 gh api "repos/{owner}/{repo}/issues/{n}/parent" --jq '[.number,.state,.title] | @tsv'
 ```
 
 Keep the `--jq` filter free of double quotes (use `@tsv`): Windows PowerShell 5.1 splits a
 filter with a quoted string inside it into two arguments and `gh` fails with
 `accepts 1 arg(s), received 2`.
+
+`--paginate` is required on the sub-issues read: the API returns 30 rows a page, and a child on page two would be missed.
 
 The parent call answers HTTP 404 when the issue has no parent - that is "no parent", not a
 failure. Other links are the `#<number>` mentions in the body and the comments: read each
@@ -79,9 +81,9 @@ that reads "Acceptance criteria" in the body. Neither found: say "no AC section 
 issue" - never invent the lines from the title.
 
 Measured: 2026-11-16, ThodsaphonSonthiphin/workflow-daily-work #15 (label
-`decision-map:map`) - `gh issue view` answered number 15, state OPEN; `sub_issues`
-answered 16 rows, #16, #17 and #18 among them, each `closed`, states overall `closed` and
-`open`; `parent` on #15 answered HTTP 404 `No parent issue found` (exit code 1); `parent`
+`decision-map:map`) - `gh issue view --json` answered number 15, state OPEN, 0 comments,
+a body of 9951 characters; `gh api --paginate .../sub_issues` answered 16 rows, #16, #17
+and #18 among them, each `closed`, states overall `closed` and `open`; `parent` on #15 answered HTTP 404 `No parent issue found` (exit code 1); `parent`
 on #16 answered #15 `open`.
 
 ## GitHub Issues - done State
