@@ -155,6 +155,9 @@ One row per:
   two obligations is two rows; a heading, an example or a rationale is none. The full rules
   are `why-this-logic`'s:
   `${CLAUDE_PLUGIN_ROOT}/skills/why-this-logic/references/splitting-rules.md`.
+  Use its *Split* and *Do not split* tables for logic rules and its *Splitting a requirement
+  text* section for AC lines. Its row 0 (the origin of the text) and its twelve-row cap
+  belong to why-this-logic's own run and do not apply here.
 - **logic rule** - each decision point in the ticket's details: a filter, a threshold, a
   mapping, a default. Same splitting rules: a filter `f eq A or f eq B` is two rows - the
   term (why filter on `f` at all) and the codes `A` / `B` together.
@@ -203,6 +206,9 @@ runbook, the comments or the repo. Was either tested?"
 
 A told pass counts. It is never shown as anything else.
 
+A test run in this session is **measured**, even when the test lives in a file; **cited** is
+for a result someone wrote down earlier.
+
 **Stale.** Compare the pass's date with the last change you can see: a git commit on the
 file (`git log -1 --format=%cI -- <file>`), a modified date written in the runbook or a
 snapshot, the ticket's revision date. A pass older than the change is **stale**: show both
@@ -218,14 +224,16 @@ holds needs one read-only query - write the exact query and ask once per query, 
 Never write to a live system. A yes is for that one query.
 
 **Differs.** Compare what the ticket says with what was built (the code, the flow
-definition, a snapshot, the runbook's design). When they differ, look for a **written,
+definition, a snapshot, the runbook's design). Something built that the ticket does not state - an extra
+recipient, an extra condition - is a difference too. When they differ, look for a **written,
 approved decision** that covers the difference - a runbook decision, an ADR, a ticket
 comment, with who approved it. Found: `pass - differs by decision <id>`, with its locator,
 when the test passes. Not found: **differs** - a passing test of the wrong rule is not a
 pass. The user approving it now, in this session, closes the row as `told`.
 
 **Child rows.** A child whose State is a done State (see `references/ticket-family.md`) is
-`done`. Any other State is **open**, unless the user says it stays open on purpose - then
+`done`. A child in State `Removed` is shown `removed` and left out of the verdict - it is
+neither done nor open (`references/ticket-family.md`, ADR 0307). Any other State is **open**, unless the user says it stays open on purpose - then
 `open on purpose - told: <who>, <date>`. Do not check the child's own AC here.
 
 ### 4.3 The table and the verdict
@@ -248,6 +256,7 @@ READY TO RESOLVE: NO
 | pass (cited / measured / told) | yes |
 | pass - differs by decision | yes |
 | child done, or open on purpose (told) | yes |
+| removed (child) | not counted - left out of the verdict |
 | no test, fail, stale, differs, open | no |
 
 READY needs every row to count. When told rows or undated passes exist, the verdict reads
@@ -280,8 +289,8 @@ Details in the runbook: <path>
 
 Leave out a `###` section that has no line. Then say:
 
-> Paste this on the ticket, tick the acceptance criteria, and set the State yourself. I have
-> changed nothing on the board.
+> Paste this on the ticket, tick the acceptance criteria, and set the State yourself (on
+> GitHub: close the issue). I have changed nothing on the board.
 
 ### 4.5 On NOT READY - name the next skill, and stop
 
@@ -340,5 +349,5 @@ One block per check, newest last. Say the runbook's path.
 ## Language
 
 Mirror the language the user asked in - Thai in, Thai out. Keep identifiers, file paths,
-the result words (`pass`, `no test`, `fail`, `stale`, `differs`, `open`), the three marks
+the result words (`pass`, `no test`, `fail`, `stale`, `differs`, `open`, `removed`), the three marks
 and the verdict line in English.
