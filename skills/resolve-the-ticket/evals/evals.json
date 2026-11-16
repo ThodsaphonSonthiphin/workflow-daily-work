@@ -1,0 +1,117 @@
+{
+  "skill_name": "resolve-the-ticket",
+  "evals": [
+    {
+      "id": 0,
+      "name": "check-not-ready-no-test-and-open-child",
+      "prompt": "resolve the ticket - check - https://dev.azure.com/Contoso/Ops/_workitems/edit/151 . You cannot reach the board from here, so here is what it holds. #151 User Story, State Active, rev 8, parent #147 Feature (New), child #297 Task (New, 'Add the case code to the reminder subject'). Acceptance Criteria: 'Runs Mon-Fri 08:00 AEST.' Description logic: 'filter: loggingstatus eq 914120001 or loggingstatus eq 914120003'. The runbook is documents/runbook-ado-151-overduereport-flow.md and its Outcome log has one line: 'S3c passed 2026-11-09 06:58Z - trigger fires Mon-Fri 08:00 AEST'. Nothing in the repo changed after 2026-11-09. If you ask whether the filter was tested: no. If you ask about #297: it is not done.",
+      "expected_output": "A check table with four rows, the verdict READY TO RESOLVE: NO, one gap line per kind naming the next skill, no closing comment, and a Resolve check block for the runbook.",
+      "files": [],
+      "assertions": [
+        "The table has four rows: one for the AC line, two for the filter (the or term, and the codes 914120001 / 914120003 together, per why-this-logic's splitting rules) and one for child #297",
+        "The AC row is a pass marked cited, with the runbook as its locator and the date 2026-11-09",
+        "Both filter rows' result is no test",
+        "The #297 row is open and keeps the ticket not ready",
+        "The verdict line reads READY TO RESOLVE: NO",
+        "One gap line names generating-test-cases for both filter rows",
+        "A gap line names resolve-the-ticket on #297 for the open child",
+        "No closing comment is drafted",
+        "Nothing is written or offered to be written to Azure DevOps - no comment post, no State change",
+        "The skill does not check #297's own acceptance criteria in this run",
+        "A '## Resolve check' block dated in UTC is appended to the runbook, after its last section"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "check-ready-with-a-told-row",
+      "prompt": "resolve the ticket, check, https://github.com/acme/billing/issues/42 . The issue (open) has no parent and no sub-issues. Its body has: '## Acceptance criteria\\n- [ ] Invoices over 10,000 need a second approver\\n- [ ] The approver gets an email'. tests/approval.test.ts:14 asserts the 10,000 threshold and the suite passes when you run it (assume `npm test` printed 12 passed, 0 failed just now). There is no test for the email. When you ask me: I tested the email by hand today, it arrived. The runbook is docs/runbook-42-approval.md. No commit touched src/approval.ts after the test file's last change.",
+      "expected_output": "Two rows, both pass - one measured, one told - the verdict READY with the count of rows resting on the user's word, a drafted closing comment carrying the told mark, and the State left to the person.",
+      "files": [],
+      "assertions": [
+        "The threshold row is a pass marked measured, citing the test run of this session",
+        "The email row is a pass marked told, with who and the date",
+        "The verdict reads READY TO RESOLVE: YES and says one row rests on the user's word",
+        "A closing comment is drafted as raw Markdown in one code block",
+        "The drafted comment shows the told mark on the email row",
+        "The skill tells the person to paste the comment and close the issue themselves",
+        "The skill does not close the issue, post the comment or tick the task list",
+        "A '## Resolve check' block is appended to docs/runbook-42-approval.md"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "stale-pass",
+      "prompt": "check before resolve: https://dev.azure.com/Contoso/Ops/_workitems/edit/88 . #88 Bug, Active, rev 5, parent #80, no children. Acceptance Criteria: 'The export keeps leading zeros in the account number.' The runbook documents/runbook-ado-88-export.md says 'T2 passed 2026-11-10 02:01Z - account 00123 exported as 00123'. `git log -1 --format=%cI -- src/export.cs` gives 2026-11-12T09:30:00+00:00 (commit 'fix 88: also trim spaces').",
+      "expected_output": "One row shown as STALE with both dates, verdict NOT READY, and a gap line that names the test step to run again.",
+      "files": [],
+      "assertions": [
+        "The row's result is stale, not pass",
+        "The row shows both dates: the pass on 2026-11-10 and the change on 2026-11-12",
+        "The verdict line reads READY TO RESOLVE: NO",
+        "The gap line names test step T2 as the step to run again",
+        "The skill says the row can also be closed by the user stating the change does not touch it, marked told",
+        "No closing comment is drafted"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "differs-by-decision-and-differs-without",
+      "prompt": "resolve the ticket check https://dev.azure.com/Contoso/Ops/_workitems/edit/151 . #151 User Story, Active, rev 8, parent #147, no children. The description has two rules: (a) 'cut-off = startOfDay(addDays(utcNow(), -7))' and (b) 'send the reminder to CaseStaffEmail'. The runbook documents/runbook-ado-151.md says: 'D2 - approved by Pon 2026-11-09: the cut-off uses the Melbourne date, following Tech Spec p15 section 10.1, not the UTC day' and 'S3c passed 2026-11-09 07:06Z - cut-off computed from the Melbourne date' and 'S4c passed 2026-11-09 08:13Z - reminder sent to CaseStaffEmail with the admin in CC'. No decision in the runbook, the ticket comments or docs/adr mentions the CC. Nothing changed after 2026-11-09.",
+      "expected_output": "Rule (a) passes as 'differs by decision D2'; rule (b) is DIFFERS with no written decision; verdict NOT READY; the gap line names grill-then-plan.",
+      "files": [],
+      "assertions": [
+        "Rule (a) reads pass - differs by decision D2, with the runbook as the decision's locator",
+        "Rule (b) reads differs, because the build adds a CC the ticket does not state and no written decision covers it",
+        "The verdict line reads READY TO RESOLVE: NO",
+        "The gap line for rule (b) names grill-then-plan",
+        "The skill does not treat the passing test S4c as enough for rule (b)",
+        "The skill does not edit the ticket or propose to edit it itself"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "briefing-before-the-work",
+      "prompt": "brief me on this ticket before I start: https://dev.azure.com/Contoso/Ops/_workitems/edit/155 . #155 User Story, New, rev 3, parent #152 Feature (New), no children, related #153 (Active). Acceptance Criteria: 'The agent answers only from the approved FAQ.' and 'The agent never predicts a dividend.' The repo has documents/runbook-ado-155-faq.md (baseline only, no steps yet) and docs/why/155-faq-source.md.",
+      "expected_output": "A briefing in chat: the ticket line, the family table, both AC lines quoted with locators, the file list with which to open first, open points. No check table, no verdict, no file written.",
+      "files": [],
+      "assertions": [
+        "States the ticket's type, title or id, State and revision in one line",
+        "Shows a family table with parent #152 and the related #153 with its State",
+        "Quotes both AC lines as written, each with a locator such as #155 AC-1",
+        "Lists the runbook and the why file, and says which to open first",
+        "Points out that the related ticket #153 is still open",
+        "Prints no check table and no READY verdict",
+        "Writes no file and appends nothing to the runbook",
+        "Builds nothing and proposes no implementation"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "no-runbook-hands-off",
+      "prompt": "resolve the ticket, check, https://dev.azure.com/Contoso/Ops/_workitems/edit/297 . #297 Task, Active, rev 2, parent #151, no children. Acceptance Criteria: 'The reminder subject contains the case code.' You searched the project for 297: no file name and no file content carries it, and no commit message does.",
+      "expected_output": "States that no runbook was found for #297 and hands off to guide-and-verify to create it; does not write a runbook itself and does not continue as if the check were complete.",
+      "files": [],
+      "assertions": [
+        "Says plainly that no runbook was found for #297",
+        "Names guide-and-verify as the skill that creates the runbook and hands off to it",
+        "Passes what it already read (the ticket, its parent, the search result) as the head start",
+        "Does not author a runbook file itself",
+        "Does not use the parent's runbook as the place for the check",
+        "Does not print READY TO RESOLVE: YES"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "opening-asks-and-refuses-unknown-tracker",
+      "prompt": "resolve the ticket 151",
+      "expected_output": "One question asking for the moment (briefing or check) and the ticket URL; nothing is read first. A follow-up with a Jira URL gets a plain refusal.",
+      "files": [],
+      "assertions": [
+        "Asks, in one question, whether this is the briefing or the check and for the ticket's URL",
+        "Does not guess the organization or project from the bare number or from an environment variable",
+        "Reads no ticket and searches no file before the URL is given",
+        "Given https://acme.atlassian.net/browse/OPS-151 as the answer, says it cannot read that tracker and stops"
+      ]
+    }
+  ]
+}
