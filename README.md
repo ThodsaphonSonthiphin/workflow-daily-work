@@ -19,6 +19,7 @@ flowchart LR
     DW -->|"findings to file"| GHB["<b>github-backlog</b>"]
     DW -->|"too big for one session"| DM["<b>decision-map</b>"]
     DAY -.->|"React repos only"| RW["<b>react-workflows</b>"]
+    DAY -.->|"Mac + Edits only"| MW["<b>media-workflows</b><br/>/media-workflows:cut-vlog"]
 
     ADO --> BOARD[("Azure DevOps<br/>work items")]
     GHB --> ISSUES[("GitHub Issues")]
@@ -36,6 +37,7 @@ Each one installs on its own. Start with `dev-workflows`.
 | **github-backlog** | The same pipeline against **GitHub Issues** — labels, a milestone, a tracking issue, write-back. | `/github-backlog:run <file>` | `gh` CLI, Python 3 + `openpyxl` |
 | **decision-map** | Plan an effort too big for one agent session as a map of decision tickets, and resolve exactly one per session. Markdown in your repo, or GitHub Issues. | `/decision-map:chart` | Python 3 (`gh` for the GitHub backend) |
 | **react-workflows** | Opt-in React/TSX structure conventions. Install it only on React repos so it stays quiet during backend work. | no command — it triggers on React/TSX work | nothing |
+| **media-workflows** | Opt-in. A day's footage in Meta's Edits app becomes a vlog cut on the beat of a song you pick — your style rules first, a shot plan to approve, every edit checked. Install it only on a Mac that edits video with Edits. | `/media-workflows:cut-vlog <edits project name>` | a Mac with Edits and its MCP server, `ffmpeg`, Python 3.10+ |
 
 **[PLAYBOOK.md](PLAYBOOK.md) is the map of when to reach for what.** It is the page to
 read second. The only command worth memorising is `/dev-workflows:daily` — typing
@@ -70,6 +72,7 @@ Then add whichever backlog or planning plugin you need:
 /plugin install github-backlog@workflow-daily-work
 /plugin install decision-map@workflow-daily-work
 /plugin install react-workflows@workflow-daily-work    # React repos only
+/plugin install media-workflows@workflow-daily-work    # a Mac that edits video with Edits
 ```
 
 **Per-plugin setup**, once per machine:

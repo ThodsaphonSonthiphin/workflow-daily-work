@@ -7,11 +7,14 @@ install/use, see [README.md](README.md). For deeper internals, see
 
 ## What this is
 
-A Codex **plugin marketplace** (`workflow-daily-work`). It ships three
+A Codex **plugin marketplace** (`workflow-daily-work`). It ships six
 **plugins**: `ado-backlog` (findings → Azure DevOps backlog, plus the assigned-work
-view), `github-backlog` (the same pipeline against GitHub Issues), and
+view), `github-backlog` (the same pipeline against GitHub Issues),
 `dev-workflows` (the daily-work arc: the `/daily` router plus design, debugging,
-review, study, and communication skills). [PLAYBOOK.md](PLAYBOOK.md) maps the whole
+review, study, and communication skills), `react-workflows` (opt-in React
+conventions), `decision-map` (multi-session decision-ticket planning), and
+`media-workflows` (opt-in: `cut-vlog`, a vlog cut in Meta's Edits app on a Mac).
+[PLAYBOOK.md](PLAYBOOK.md) maps the whole
 arc — when to reach for what.
 
 ## Repo layout

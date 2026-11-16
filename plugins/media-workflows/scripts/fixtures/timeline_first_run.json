@@ -1,0 +1,30 @@
+{
+  "tracks": [
+    {"id": "TRACK-MAIN", "behavior": "magnetic", "elementCount": 21, "type": "video"},
+    {"id": "TRACK-MUSIC", "behavior": "free", "elementCount": 1, "type": "audio"}
+  ],
+  "elements": [
+    {"id": "EL-01", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-01", "startTime": 0.0, "endTime": 3.8, "duration": 3.8, "sourceInPoint": 0.5, "sourceOutPoint": 4.3},
+    {"id": "EL-02", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-02", "startTime": 3.8, "endTime": 7.633333333333334, "duration": 3.8333333333333335, "sourceInPoint": 0.5, "sourceOutPoint": 4.333333333333334},
+    {"id": "EL-03", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-03", "startTime": 7.633333333333334, "endTime": 9.533333333333333, "duration": 1.9, "sourceInPoint": 0.5, "sourceOutPoint": 2.4},
+    {"id": "EL-04", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-04", "startTime": 9.533333333333333, "endTime": 12.366666666666667, "duration": 2.8333333333333335, "sourceInPoint": 0.5, "sourceOutPoint": 3.3333333333333335},
+    {"id": "EL-05", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-05", "startTime": 12.366666666666667, "endTime": 15.233333333333333, "duration": 2.8666666666666667, "sourceInPoint": 0.5, "sourceOutPoint": 3.3666666666666667},
+    {"id": "EL-06", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-06", "startTime": 15.233333333333333, "endTime": 17.133333333333333, "duration": 1.9, "sourceInPoint": 0.5, "sourceOutPoint": 2.4},
+    {"id": "EL-07", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-07", "startTime": 17.133333333333333, "endTime": 18.1, "duration": 0.9666666666666667, "sourceInPoint": 0.5, "sourceOutPoint": 1.4666666666666668},
+    {"id": "EL-08", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-08", "startTime": 18.1, "endTime": 19.033333333333335, "duration": 0.9333333333333333, "sourceInPoint": 0.5, "sourceOutPoint": 1.4333333333333333},
+    {"id": "EL-09", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-09", "startTime": 19.033333333333335, "endTime": 20.0, "duration": 0.9666666666666667, "sourceInPoint": 0.5, "sourceOutPoint": 1.4666666666666668},
+    {"id": "EL-10", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-10", "startTime": 20.0, "endTime": 20.966666666666665, "duration": 0.9666666666666667, "sourceInPoint": 0.5, "sourceOutPoint": 1.4666666666666668},
+    {"id": "EL-11", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-11", "startTime": 20.966666666666665, "endTime": 22.866666666666667, "duration": 1.9, "sourceInPoint": 0.5, "sourceOutPoint": 2.4},
+    {"id": "EL-12", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-12", "startTime": 22.866666666666667, "endTime": 23.8, "duration": 0.9333333333333333, "sourceInPoint": 0.5, "sourceOutPoint": 1.4333333333333333},
+    {"id": "EL-13", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-13", "startTime": 23.8, "endTime": 24.766666666666666, "duration": 0.9666666666666667, "sourceInPoint": 0.5, "sourceOutPoint": 1.4666666666666668},
+    {"id": "EL-14", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-14", "startTime": 24.766666666666666, "endTime": 25.7, "duration": 0.9333333333333333, "sourceInPoint": 0.5, "sourceOutPoint": 1.4333333333333333},
+    {"id": "EL-15", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-15", "startTime": 25.7, "endTime": 31.433333333333334, "duration": 5.733333333333333, "sourceInPoint": 0.5, "sourceOutPoint": 6.233333333333333},
+    {"id": "EL-16", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-16", "startTime": 31.433333333333334, "endTime": 32.36666666666667, "duration": 0.9333333333333333, "sourceInPoint": 0.5, "sourceOutPoint": 1.4333333333333333},
+    {"id": "EL-17", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-17", "startTime": 32.36666666666667, "endTime": 33.333333333333336, "duration": 0.9666666666666667, "sourceInPoint": 0.5, "sourceOutPoint": 1.4666666666666668},
+    {"id": "EL-18", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-18", "startTime": 33.333333333333336, "endTime": 34.3, "duration": 0.9666666666666667, "sourceInPoint": 0.5, "sourceOutPoint": 1.4666666666666668},
+    {"id": "EL-19", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-19", "startTime": 34.3, "endTime": 35.233333333333334, "duration": 0.9333333333333333, "sourceInPoint": 0.5, "sourceOutPoint": 1.4333333333333333},
+    {"id": "EL-20", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-20", "startTime": 35.233333333333334, "endTime": 36.2, "duration": 0.9666666666666667, "sourceInPoint": 0.5, "sourceOutPoint": 1.4666666666666668},
+    {"id": "EL-21", "trackId": "TRACK-MAIN", "aliasId": "ALIAS-21", "startTime": 36.2, "endTime": 37.13333333333333, "duration": 0.9333333333333333, "sourceInPoint": 0.5, "sourceOutPoint": 1.4333333333333333},
+    {"id": "EL-MUSIC", "trackId": "TRACK-MUSIC", "startTime": 0, "endTime": 37.13333333333333, "duration": 37.13333333333333, "sourceInPoint": 18.1, "sourceOutPoint": 55.233333333333334}
+  ]
+}

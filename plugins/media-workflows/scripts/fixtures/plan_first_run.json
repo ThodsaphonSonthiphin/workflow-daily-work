@@ -1,0 +1,27 @@
+{
+  "fps": 30, "bpm": 126, "song_in": 18.1, "drop": 33.35,
+  "song": {"title": "Example Song", "audio_asset_id": "SONG-1"},
+  "shots": [
+    {"clip": "clip-01.mov", "alias_id": "ALIAS-01", "full_duration": 8.8, "source_in": 0.5, "beats": 8, "part": "slow"},
+    {"clip": "clip-02.mov", "alias_id": "ALIAS-02", "full_duration": 8.8, "source_in": 0.5, "beats": 8, "part": "slow"},
+    {"clip": "clip-03.mov", "alias_id": "ALIAS-03", "full_duration": 6.4, "source_in": 0.5, "beats": 4, "part": "slow"},
+    {"clip": "clip-04.mov", "alias_id": "ALIAS-04", "full_duration": 7.6, "source_in": 0.5, "beats": 6, "part": "slow"},
+    {"clip": "clip-05.mov", "alias_id": "ALIAS-05", "full_duration": 7.6, "source_in": 0.5, "beats": 6, "part": "slow"},
+    {"clip": "clip-06.mov", "alias_id": "ALIAS-06", "full_duration": 6.4, "source_in": 0.5, "beats": 4, "part": "fast"},
+    {"clip": "clip-07.mov", "alias_id": "ALIAS-07", "full_duration": 5.2, "source_in": 0.5, "beats": 2, "part": "fast"},
+    {"clip": "clip-08.mov", "alias_id": "ALIAS-08", "full_duration": 5.2, "source_in": 0.5, "beats": 2, "part": "fast"},
+    {"clip": "clip-09.mov", "alias_id": "ALIAS-09", "full_duration": 5.2, "source_in": 0.5, "beats": 2, "part": "fast"},
+    {"clip": "clip-10.mov", "alias_id": "ALIAS-10", "full_duration": 5.2, "source_in": 0.5, "beats": 2, "part": "fast"},
+    {"clip": "clip-11.mov", "alias_id": "ALIAS-11", "full_duration": 6.4, "source_in": 0.5, "beats": 4, "part": "fast"},
+    {"clip": "clip-12.mov", "alias_id": "ALIAS-12", "full_duration": 5.2, "source_in": 0.5, "beats": 2, "part": "fast"},
+    {"clip": "clip-13.mov", "alias_id": "ALIAS-13", "full_duration": 5.2, "source_in": 0.5, "beats": 2, "part": "fast"},
+    {"clip": "clip-14.mov", "alias_id": "ALIAS-14", "full_duration": 5.2, "source_in": 0.5, "beats": 2, "part": "fast"},
+    {"clip": "clip-15.mov", "alias_id": "ALIAS-15", "full_duration": 11.2, "source_in": 0.5, "beats": 12, "part": "fast"},
+    {"clip": "clip-16.mov", "alias_id": "ALIAS-16", "full_duration": 5.2, "source_in": 0.5, "beats": 2, "part": "fast"},
+    {"clip": "clip-17.mov", "alias_id": "ALIAS-17", "full_duration": 5.2, "source_in": 0.5, "beats": 2, "part": "fast"},
+    {"clip": "clip-18.mov", "alias_id": "ALIAS-18", "full_duration": 5.2, "source_in": 0.5, "beats": 2, "part": "fast"},
+    {"clip": "clip-19.mov", "alias_id": "ALIAS-19", "full_duration": 5.2, "source_in": 0.5, "beats": 2, "part": "fast"},
+    {"clip": "clip-20.mov", "alias_id": "ALIAS-20", "full_duration": 5.2, "source_in": 0.5, "beats": 2, "part": "fast"},
+    {"clip": "clip-21.mov", "alias_id": "ALIAS-21", "full_duration": 5.2, "source_in": 0.5, "beats": 2, "part": "fast"}
+  ]
+}
