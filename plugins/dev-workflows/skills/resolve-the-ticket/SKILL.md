@@ -81,7 +81,7 @@ Then say one line: which moment this is, and for which ticket.
 | predecessor, successor, related tickets | type, title and State only |
 | the grandparent and above | not read |
 
-**In full** means: type, title, State, revision, description (for an Azure DevOps Bug also
+**In full** means: type, title, State, revision (on GitHub: `updatedAt`), description (for an Azure DevOps Bug also
 the repro steps), Acceptance Criteria, every comment, and **every attached image**. Fetch
 one ticket the way `ticket-trace` does it - load that skill through your harness's
 mechanism and follow its Operation B steps 4 and 5; images go through `read-picture`
@@ -121,17 +121,20 @@ Then read the documents. A snapshot folder is listed with its file count, not re
 file.
 
 **No runbook found.** Say so in one line, then hand off to `guide-and-verify` (load it
-through your harness's mechanism) to create the runbook, giving it what you have already
-read - the ticket, its parent and children, the file list - as its head start. It writes
-the file in its own shape and the project's own naming. Do not write a runbook yourself, do
-not use the parent's runbook, and do not go on as if there were none. Continue when the
+through your harness's mechanism) and ask it for the runbook **file** only - in its own
+shape and the project's own naming, holding the title, the ticket link, the file list and
+the boundary line - with no baseline measurement and nothing written to the ticket. Give it
+what you have already read - the ticket, its parent and children, the file list - as its
+head start; at the check, your block is then appended to the file it creates (4.6). Do not write a runbook yourself,
+do not use the parent's runbook, and do not go on as if there were none. Continue when the
 runbook exists.
 
 ## 3. Moment one - the briefing
 
 Chat only, in this order, then stop:
 
-1. **The ticket** - one line: type, id, title, State, revision, URL.
+1. **The ticket** - one line: type, id, title, State, revision, URL. On GitHub the revision
+   is `updated <timestamp>`, from `updatedAt`.
 2. **The family** - a table: parent, children, linked tickets, each with type, title, State.
 3. **What it asks** - every AC line and every logic rule, quoted **as written**, each with
    a locator (`#151 AC-2`, `#151 description`, `#151 image <name>`).
@@ -169,10 +172,12 @@ in the order the ticket has them; a child row is named by its id. When the proje
 Write the row list before you look for any test.
 
 **A later check on the same ticket:** read the last `## Resolve check` block in the runbook
-first. If the ticket's revision is the same, keep the rows; a row that was a pass is kept
-only when its proof is still where the block says and it is not stale now - re-check every
-other row. If the revision changed, split the rows again. An earlier block is never the
-proof of a pass; the test result it points at is.
+first. If the ticket's revision is the same (on GitHub: `updated <timestamp>` from
+`updatedAt` is the same), keep the rows; a row that was a pass is kept only when its proof
+is still where the block says and it is not stale now - re-check every other row. A
+**told** row is asked again: its only proof was the earlier block. If the revision changed,
+split the rows again. An earlier block is never the proof of a pass; the test result it
+points at is.
 
 ### 4.2 The result of one row
 
@@ -211,7 +216,9 @@ for a result someone wrote down earlier.
 
 **Stale.** Compare the pass's date with the last change you can see: a git commit on the
 file (`git log -1 --format=%cI -- <file>`), a modified date written in the runbook or a
-snapshot, the ticket's revision date. A pass older than the change is **stale**: show both
+snapshot, the last edit to the ticket's requirement text - its description, acceptance
+criteria or repro steps (see `references/ticket-family.md`); a comment, a tag or an
+assignment is not a change. A pass older than the change is **stale**: show both
 dates (`passed 2026-11-10; changed 2026-11-12`). It stops being stale when the test is run
 again, or when the user says the change does not touch this row (then `told`). A pass with
 no date cannot be compared: show `pass (no date)`. A change date that only the live system
@@ -255,12 +262,15 @@ READY TO RESOLVE: NO
 |---|---|
 | pass (cited / measured / told) | yes |
 | pass - differs by decision | yes |
+| pass (no date) | yes - counted with the told rows |
+| change date not checked | yes - counted with the told rows |
 | child done, or open on purpose (told) | yes |
 | removed (child) | not counted - left out of the verdict |
 | no test, fail, stale, differs, open | no |
 
-READY needs every row to count. When told rows or undated passes exist, the verdict reads
-`READY TO RESOLVE: YES (N rows rest on your word)`. A linked ticket that is an open Bug is
+READY needs every row that is not `removed` to count. When told rows, `pass (no date)` rows
+or `change date not checked` rows exist, the verdict reads
+`READY TO RESOLVE: YES (N rows rest on your word)`, N counting all three. A linked ticket that is an open Bug is
 pointed out in one line under the verdict; it does not change it.
 
 ### 4.4 On READY - draft the closing comment
@@ -292,6 +302,8 @@ Leave out a `###` section that has no line. Then say:
 > Paste this on the ticket, tick the acceptance criteria, and set the State yourself (on
 > GitHub: close the issue). I have changed nothing on the board.
 
+Then record the check (4.6).
+
 ### 4.5 On NOT READY - name the next skill, and stop
 
 Draft no comment. Print at most one line per kind of gap, naming every row of that kind:
@@ -307,7 +319,7 @@ Draft no comment. Print at most one line per kind of gap, naming every row of th
 > L-4 has no test - write its case (`generating-test-cases`)?
 > #297 is still New - run `resolve-the-ticket` on it, or say it stays open on purpose?
 
-Then stop. Do not start any of them.
+Then record the check (4.6) and stop. Do not start any of them.
 
 ### 4.6 Record the check in the runbook
 
@@ -316,7 +328,7 @@ Append to the runbook, after its last section. Never edit a line above your own 
 ```
 ## Resolve check - <date> <time UTC> - READY | NOT READY
 
-Ticket #<id> rev <n>. Checked by resolve-the-ticket (read-only).
+Ticket #<id> rev <n> (GitHub: updated <timestamp>). Checked by resolve-the-ticket (read-only).
 
 <the table of 4.3, as a Markdown table>
 
