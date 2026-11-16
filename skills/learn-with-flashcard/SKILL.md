@@ -8,7 +8,7 @@ argument-hint: "[the topic, ticket, runbook or document to make cards from - def
 
 Make a flashcard page that the user flips, grades ("ยังไม่แม่น" / "จำได้") and revisits until each card is known. The page is one self-contained HTML file built from `assets/flashcards-template.html`.
 
-## What the user wants from the cards (ADR 0292)
+## What the user wants from the cards (ADR 0334)
 
 1. **Programmer-level questions.** For every flow, API, table or component in scope, ask what a programmer needs to work on it:
    - its name, what it does, and which tables it reads or writes;
