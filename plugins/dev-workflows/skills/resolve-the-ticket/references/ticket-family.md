@@ -2,7 +2,7 @@
 
 Read-only commands for the part of a ticket read that `ticket-trace` does not carry. The
 token, one work item's fields, its comments and its attached images are in
-`${CLAUDE_PLUGIN_ROOT}/skills/ticket-trace/references/ado.md` - use those as written.
+the `ticket-trace` skill's `references/ado.md` (load that skill through your harness's mechanism) - use those as written.
 
 Take `{org}`, `{project}` and `{id}` (or `{owner}`, `{repo}`, `{n}`) from the ticket URL the
 user gave. Never take them from an environment variable or from another ticket.
@@ -50,13 +50,13 @@ A State name differs by process (Resolved, Closed, Done). Read the category, not
 
 URL-encode a type with a space (`User%20Story`). A child is **done** when its State's
 category is `Resolved` or `Completed`, **or** its State is named `Resolved` whatever its
-category (ADR 0307). `Removed` is not done and not open: show it as `removed` and leave it
+category (ADR 0330). `Removed` is not done and not open: show it as `removed` and leave it
 out of the verdict.
 
 Measured: 2026-11-16, MackayGoodwin/Elevate, type User Story - New -> Proposed, Active ->
 InProgress, Resolved -> InProgress, Closed -> Completed, Removed -> Removed. In this
 process the State named `Resolved` has category `InProgress`, not `Resolved` - which is why
-the name `Resolved` counts as done on its own (ADR 0307). Done here: `Resolved`, `Closed`.
+the name `Resolved` counts as done on its own (ADR 0330). Done here: `Resolved`, `Closed`.
 
 ## GitHub Issues - parent, children, links
 

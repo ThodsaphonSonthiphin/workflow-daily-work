@@ -7,7 +7,7 @@ flowchart TD
     (#151, AB#151, ado-151), in commit messages - and adds
     every file the ticket or the runbook names. It prints
     the list, then reads. No runbook found: it says so and
-    hands off to guide-and-verify (ADR 0303)"]
+    hands off to guide-and-verify (ADR 0326)"]
     Q -->|rejected| B["the user names the paths every run - the number is
     already in the file names; asking costs a turn and
     misses the files the user forgot"]
@@ -21,5 +21,5 @@ a whole number with its usual prefixes, so `151` does not match `1510` or a date
 only shares the digits is dropped. Folders such as a snapshot directory are listed with a
 file count and are not read file by file. "No runbook" is never a silent pass, because the
 runbook is where most written test results live: the skill says so and hands off to
-`guide-and-verify` to create it (ADR 0303, which replaced the first reading of this
+`guide-and-verify` to create it (ADR 0326, which replaced the first reading of this
 decision - ask for a path).

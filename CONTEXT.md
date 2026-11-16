@@ -740,29 +740,29 @@ _Avoid_: done, passed, verified.
 
 **Ticket**:
 One item on a tracker - an Azure DevOps work item or a GitHub issue - named by its URL.
-Not a **Decision ticket**, which is a question on a Decision map (ADRs 0294, 0305).
+Not a **Decision ticket**, which is a question on a Decision map (ADRs 0317, 0328).
 _Avoid_: task, story, card (each is one type of ticket).
 
 **Briefing**:
 The first of the skill's two moments, before the work starts: what the ticket asks, its
 parent and children, its linked tickets, the runbook and the files to open. Read-only
-(ADR 0293).
+(ADR 0316).
 _Avoid_: summary, kickoff, plan.
 
 **Resolve check**:
 The second moment, before a person sets the ticket to its done State: one row per AC line,
 logic rule and child, each with its test, its result and its **Proof mark**, then a
-**Ready verdict**. Appended to the ticket's runbook as a dated block (ADRs 0293, 0302).
+**Ready verdict**. Appended to the ticket's runbook as a dated block (ADRs 0316, 0325).
 _Avoid_: review, sign-off, verification (the skill signs nothing off).
 
 **Ready verdict**:
 The one line that ends a Resolve check: READY or NOT READY, with the count of rows that
 rest on a person's word. The skill never acts on it - the State change is a person's
-click (ADRs 0295, 0296).
+click (ADRs 0318, 0319).
 _Avoid_: approval, pass, done.
 
 **Stale pass**:
 A test result older than the last change to the thing it tested. It counts as no pass
 until the test is run again or the user says the change does not touch that row
-(ADR 0297).
+(ADR 0320).
 _Avoid_: old result, outdated test.

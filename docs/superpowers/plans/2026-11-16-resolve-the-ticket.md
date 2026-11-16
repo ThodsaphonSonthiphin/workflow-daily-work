@@ -1,12 +1,13 @@
 # resolve-the-ticket Implementation Plan
 
 > **Superseded in part (2026-11-16, during execution).** Task 1's reference template says a
-> child is done only at State category Resolved or Completed; ADR 0307 adds the State named
+> child is done only at State category Resolved or Completed; ADR 0330 adds the State named
 > Resolved, because the measured Agile process files Resolved under InProgress. Task 1's
 > GitHub reads are `gh issue view … --json number,title,state,body,comments` and
 > `gh api --paginate …/sub_issues`, with `@tsv` jq filters (Windows PowerShell 5.1). The
 > committed `plugins/dev-workflows/skills/resolve-the-ticket/references/ticket-family.md`
 > is authoritative over the template in Task 1 Step 5.
+> ADRs renumbered 2026-11-16 from 0293-0307 to 0316-0330 (old + 23): origin/main had minted 0290-0315 for cut-vlog. Commit subjects before the renumber keep the old numbers.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use sp-subagent-driven-development (recommended) or sp-executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -16,15 +17,15 @@
 
 **Tech Stack:** Markdown, YAML frontmatter, JSON; PowerShell + `az` and `gh` for the measured commands; Python 3.10+ for `scripts/generate_skills_tree.py` and `scripts/check_skills_tree.py`.
 
-**Spec:** `docs/superpowers/specs/2026-11-16-resolve-the-ticket-design.md` (approved 2026-11-16). Decisions: `docs/adr/workflow-daily-work-0293-…` to `…-0306-…`. Glossary: `CONTEXT.md`, section *resolve-the-ticket terms*.
+**Spec:** `docs/superpowers/specs/2026-11-16-resolve-the-ticket-design.md` (approved 2026-11-16). Decisions: `docs/adr/workflow-daily-work-0316-…` to `…-0329-…`. Glossary: `CONTEXT.md`, section *resolve-the-ticket terms*.
 
 ## Global Constraints
 
-- The skill never writes to a tracker: no comment, no State change, no ticked box (ADR 0295).
-- The skill builds nothing, fixes nothing, never authors a runbook, never invokes a skill it names for a gap (ADRs 0293, 0303, 0304).
-- Its only write is a dated `## Resolve check` block appended to the ticket's runbook; it never edits a line above that block (ADR 0302).
-- Trackers: Azure DevOps and GitHub Issues only; any other URL stops the run (ADR 0305).
-- Skill name `resolve-the-ticket`; command `/dev-workflows:resolve-the-ticket`; plugin `dev-workflows` (ADR 0306).
+- The skill never writes to a tracker: no comment, no State change, no ticked box (ADR 0318).
+- The skill builds nothing, fixes nothing, never authors a runbook, never invokes a skill it names for a gap (ADRs 0316, 0326, 0327).
+- Its only write is a dated `## Resolve check` block appended to the ticket's runbook; it never edits a line above that block (ADR 0325).
+- Trackers: Azure DevOps and GitHub Issues only; any other URL stops the run (ADR 0328).
+- Skill name `resolve-the-ticket`; command `/dev-workflows:resolve-the-ticket`; plugin `dev-workflows` (ADR 0329).
 - Harness-neutral wording: say "load the skill through your harness's mechanism", never name one harness's tool. `${CLAUDE_PLUGIN_ROOT}` only in the shapes `/references/…`, `/scripts/…`, `/skills/…`; the skill's own files use skill-relative paths (`references/ticket-family.md`).
 - Version: `dev-workflows` `0.62.0` -> `0.63.0` in BOTH `plugins/dev-workflows/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`. Re-check the global max across every ref immediately before the version commit; if another ref already holds `0.63.0` or higher, take that max + 1.
 - `skills/` is generated: never hand-edit it; run `python scripts/generate_skills_tree.py`.
@@ -50,7 +51,7 @@
 ### Task 0: Branch and commit the design record
 
 **Files:**
-- Commit (already on disk): `docs/adr/workflow-daily-work-0293-…md` to `…-0306-…md` (14 files), `docs/superpowers/specs/2026-11-16-resolve-the-ticket-design.md`, `docs/superpowers/plans/2026-11-16-resolve-the-ticket.md`, `CONTEXT.md`
+- Commit (already on disk): `docs/adr/workflow-daily-work-0316-…md` to `…-0329-…md` (14 files), `docs/superpowers/specs/2026-11-16-resolve-the-ticket-design.md`, `docs/superpowers/plans/2026-11-16-resolve-the-ticket.md`, `CONTEXT.md`
 
 **Interfaces:**
 - Produces: branch `feat/resolve-the-ticket` with the design record committed.
@@ -67,7 +68,7 @@ git switch -c feat/resolve-the-ticket
 git for-each-ref --format='%(refname:short)' refs/heads refs/remotes | ForEach-Object { git ls-tree -r --name-only --full-tree $_ -- docs/adr } | Select-String -Pattern '-(029[3-9]|030[0-6])-' | Sort-Object -Unique
 ```
 
-Expected: no output (no other ref holds 0293-0306). If a line prints, stop and report the clash - do not renumber on your own.
+Expected: no output (no other ref holds 0316-0329). If a line prints, stop and report the clash - do not renumber on your own.
 
 - [ ] **Step 3: Stage exactly the design files and commit**
 
@@ -80,7 +81,7 @@ git status --short
 Expected: 17 files staged (`A` or `M` in the first column); the five files of the other session still show ` M` / `??` and are NOT staged.
 
 ```powershell
-git commit -m "docs(resolve-the-ticket): ADRs 0293-0306, spec and plan - a briefing before the work and a read-only check before the resolve" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "docs(resolve-the-ticket): ADRs 0316-0329, spec and plan - a briefing before the work and a read-only check before the resolve" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -244,7 +245,7 @@ Expected: the five headings (`## Azure DevOps - parent, children, links`, `## Az
 
 ```powershell
 git add plugins/dev-workflows/skills/resolve-the-ticket/references/ticket-family.md
-git commit -m "feat(resolve-the-ticket): the ticket-family reference - parent, children, links and done State, measured on both trackers (ADRs 0299, 0305)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat(resolve-the-ticket): the ticket-family reference - parent, children, links and done State, measured on both trackers (ADRs 0322, 0328)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -795,7 +796,7 @@ Argument: $ARGUMENTS
 
 ```powershell
 git add plugins/dev-workflows/skills/resolve-the-ticket/SKILL.md plugins/dev-workflows/skills/resolve-the-ticket/evals/evals.json plugins/dev-workflows/commands/resolve-the-ticket.md
-git commit -m "feat(dev-workflows): resolve-the-ticket - a briefing before the work and a read-only check before the resolve (ADRs 0293-0306)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat(dev-workflows): resolve-the-ticket - a briefing before the work and a read-only check before the resolve (ADRs 0316-0329)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -826,7 +827,7 @@ In the `flowchart TD` under `## WORKING — the situational router`, add this li
 In the `| When… | Reach for |` table, add this row directly after the row that begins `| "is this condition / value right, and where does it come from?"`:
 
 ```markdown
-| starting a ticket, or about to set it to Resolved - "resolve the ticket", "is this ticket ready to resolve", "ticket นี้ resolve ได้ยัง", "brief me on this ticket" | `resolve-the-ticket` (`/dev-workflows:resolve-the-ticket`) - asks briefing or check and waits for the ticket URL (Azure DevOps or GitHub Issues). Briefing: the ticket, its parent and children, linked tickets, the runbook and the files to open. Check: one row per AC line, logic rule and child - pass (cited / measured / told), no test, fail, stale, differs, open - then READY or NOT READY; on READY a closing comment to paste, on NOT READY the next skill per gap. Never changes the ticket, builds nothing; the check is appended to the ticket's runbook. Not `work-map` (Decision tickets) or `dual-verifier` (one diff) (ADRs 0293-0306) |
+| starting a ticket, or about to set it to Resolved - "resolve the ticket", "is this ticket ready to resolve", "ticket นี้ resolve ได้ยัง", "brief me on this ticket" | `resolve-the-ticket` (`/dev-workflows:resolve-the-ticket`) - asks briefing or check and waits for the ticket URL (Azure DevOps or GitHub Issues). Briefing: the ticket, its parent and children, linked tickets, the runbook and the files to open. Check: one row per AC line, logic rule and child - pass (cited / measured / told), no test, fail, stale, differs, open - then READY or NOT READY; on READY a closing comment to paste, on NOT READY the next skill per gap. Never changes the ticket, builds nothing; the check is appended to the ticket's runbook. Not `work-map` (Decision tickets) or `dual-verifier` (one diff) (ADRs 0316-0329) |
 ```
 
 - [ ] **Step 3: Add the skill to the `/daily` router**
@@ -851,7 +852,7 @@ Expected: the highest value printed is `0.62.0`. Use that max + 1 minor (`0.63.0
 
 In `plugins/dev-workflows/.claude-plugin/plugin.json`:
 - `"version": "0.62.0"` -> `"version": "0.63.0"`
-- the `description` value ends with `ADRs 0175-0208).` - replace that ending with: `ADRs 0175-0208). Plus RESOLVE-THE-TICKET (/dev-workflows:resolve-the-ticket: a briefing before the work on a ticket and a read-only check before a person sets it to Resolved - every Acceptance Criteria line, logic rule and child ticket against a test, marked cited / measured / told, a stale pass and an undecided difference kept NOT READY, the closing comment drafted for the person to paste; Azure DevOps and GitHub Issues; never writes to the tracker. ADRs 0293-0306).`
+- the `description` value ends with `ADRs 0175-0208).` - replace that ending with: `ADRs 0175-0208). Plus RESOLVE-THE-TICKET (/dev-workflows:resolve-the-ticket: a briefing before the work on a ticket and a read-only check before a person sets it to Resolved - every Acceptance Criteria line, logic rule and child ticket against a test, marked cited / measured / told, a stale pass and an undecided difference kept NOT READY, the closing comment drafted for the person to paste; Azure DevOps and GitHub Issues; never writes to the tracker. ADRs 0316-0329).`
 - in `keywords`, after `"flowchart-node"` add `"resolve-the-ticket"`, `"ready-to-resolve"`, `"acceptance-criteria"`, `"ticket-briefing"` (add a comma after `"flowchart-node"`).
 
 In `.claude-plugin/marketplace.json`, in the `dev-workflows` entry (the object with `"source": "./plugins/dev-workflows"`):
@@ -902,7 +903,7 @@ git status --short
 Expected: only those paths staged; the other session's five files unstaged.
 
 ```powershell
-git commit -m "chore(dev-workflows): 0.62.0 -> 0.63.0 - resolve-the-ticket in the playbook, the /daily router, both manifests and the skills tree (ADR 0306)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "chore(dev-workflows): 0.62.0 -> 0.63.0 - resolve-the-ticket in the playbook, the /daily router, both manifests and the skills tree (ADR 0329)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 - [ ] **Step 8: Final re-check of the minted numbers before any merge or push**

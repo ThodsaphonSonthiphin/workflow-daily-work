@@ -234,7 +234,7 @@ pass. The user approving it now, in this session, closes the row as `told`.
 
 **Child rows.** A child whose State is a done State (see `references/ticket-family.md`) is
 `done`. A child in State `Removed` is shown `removed` and left out of the verdict - it is
-neither done nor open (`references/ticket-family.md`, ADR 0307). Any other State is **open**, unless the user says it stays open on purpose - then
+neither done nor open (`references/ticket-family.md`, ADR 0330). Any other State is **open**, unless the user says it stays open on purpose - then
 `open on purpose - told: <who>, <date>`. Do not check the child's own AC here.
 
 ### 4.3 The table and the verdict

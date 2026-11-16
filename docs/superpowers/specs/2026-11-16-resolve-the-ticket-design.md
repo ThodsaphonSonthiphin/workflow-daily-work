@@ -22,7 +22,8 @@ The diagram shows one run: the skill asks which moment and waits for the URL, re
 ticket and its files, and ends either as a briefing or as a check with a verdict.
 
 - **Date:** 2026-11-16 · **Status:** approved 2026-11-16
-- **Decisions:** ADRs 0293-0306 (repo-root `docs/adr/`, prefix `workflow-daily-work-`)
+- **Decisions:** ADRs 0316-0329 (repo-root `docs/adr/`, prefix `workflow-daily-work-`)
+- **Renumbered:** 2026-11-16, from 0293-0307 (old + 23) - origin/main had minted 0290-0315.
 - **Glossary:** `CONTEXT.md`, section *resolve-the-ticket terms* - Ticket, Briefing,
   Resolve check, Ready verdict, Stale pass
 
@@ -37,17 +38,17 @@ A skill named `resolve-the-ticket` that a person runs at two moments of one tick
 The failure it prevents: a ticket set to Resolved on "I think it is done", then reopened
 because one rule had no passing test at that moment.
 
-## 2. What it never does (ADRs 0293, 0295)
+## 2. What it never does (ADRs 0316, 0318)
 
 - It builds nothing and fixes nothing.
 - It never writes to a tracker: no comment, no State change, no ticked box.
-- It never authors a runbook (ADR 0303).
-- It never invokes the skill it names for a gap (ADR 0304).
-- It never reads its own earlier check blocks as proof of a pass (ADR 0302).
+- It never authors a runbook (ADR 0326).
+- It never invokes the skill it names for a gap (ADR 0327).
+- It never reads its own earlier check blocks as proof of a pass (ADR 0325).
 
 Its only write is the dated *Resolve check* block appended to the ticket's runbook.
 
-## 3. Opening (ADR 0294)
+## 3. Opening (ADR 0317)
 
 Two things are needed: the **moment** (briefing or check) and the **ticket URL**. The skill
 asks only for what the invocation did not give, in one question, and reads nothing until it
@@ -57,9 +58,9 @@ has the URL. A bare number is not enough - it asks for the URL.
 |---|---|---|
 | `dev.azure.com/<org>/<project>/_workitems/edit/<id>` | Azure DevOps | `ticket-trace` Operation B steps 4-5 + this skill's `references/ticket-family.md` |
 | `github.com/<owner>/<repo>/issues/<n>` | GitHub Issues | `gh issue view` + `references/ticket-family.md` |
-| anything else | - | "I cannot read this tracker." Stop (ADR 0305) |
+| anything else | - | "I cannot read this tracker." Stop (ADR 0328) |
 
-## 4. Step 1 - read the ticket family (ADRs 0299, 0305)
+## 4. Step 1 - read the ticket family (ADRs 0322, 0328)
 
 ```mermaid
 graph TD
@@ -82,13 +83,13 @@ the repro steps), Acceptance Criteria, every comment, and every attached image t
 | children | relation `System.LinkTypes.Hierarchy-Forward` | `repos/<o>/<r>/issues/<n>/sub_issues` |
 | other links | Related, Predecessor, Successor relations | issues linked or mentioned in the body |
 | AC | the Acceptance Criteria field | a task list, or an "Acceptance criteria" section of the body |
-| done State | the State's category is Resolved or Completed, or the State is named Resolved (ADR 0307) | `closed` |
+| done State | the State's category is Resolved or Completed, or the State is named Resolved (ADR 0330) | `closed` |
 
 The worked commands live in `references/ticket-family.md`. Each command is run against a
-real ticket before it is written into that file (ADR 0305); a command not yet measured is
+real ticket before it is written into that file (ADR 0328); a command not yet measured is
 marked so in the file.
 
-## 5. Step 2 - find and read the files (ADR 0300)
+## 5. Step 2 - find and read the files (ADR 0323)
 
 Search the project the skill runs in for the ticket's number and each child's number:
 
@@ -102,7 +103,7 @@ grouped by kind (runbook, why file, register, post-mortem, walkthrough, snapshot
 with a file count, commits), then read the documents. A snapshot folder is listed, not read
 file by file.
 
-**No runbook found (ADR 0303):** say so, and hand off to `guide-and-verify` (loaded through
+**No runbook found (ADR 0326):** say so, and hand off to `guide-and-verify` (loaded through
 the harness's mechanism) with what has been read as its head start. It creates the runbook
 file in its own shape and the project's own naming. Then continue.
 
@@ -135,7 +136,7 @@ One row per:
 Rows are quoted as written, with a locator. When the project has a register
 (`docs/why/requirements.md`), a row whose statement is registered carries its ID.
 
-### 7.2 What makes a row pass (ADRs 0296, 0297, 0301)
+### 7.2 What makes a row pass (ADRs 0319, 0320, 0324)
 
 ```mermaid
 flowchart TD
@@ -170,7 +171,7 @@ read-only query, asked per query and per run in `why-this-logic`'s shape; on no,
 shows `change date not checked`.
 
 A child's own AC are not checked here; the gap line names this skill on the child
-(ADR 0298).
+(ADR 0321).
 
 ### 7.3 The table and the verdict
 
@@ -189,7 +190,7 @@ READY TO RESOLVE: NO
 The verdict is READY only when every row counts for READY. It reads
 `READY (N rows rest on your word)` when told rows or undated passes exist.
 
-### 7.4 On READY (ADR 0295)
+### 7.4 On READY (ADR 0318)
 
 Draft the closing comment as raw Markdown in one code block. Use the project's own comment
 format when its `CLAUDE.md` or `AGENTS.md` defines one; otherwise: a result heading with
@@ -198,7 +199,7 @@ check row and its mark, the *differs by decision* rows, the children left open o
 and a pointer to the runbook. Then say: paste it, tick the AC, set the State. The skill
 changes nothing on the board.
 
-### 7.5 On NOT READY (ADR 0304)
+### 7.5 On NOT READY (ADR 0327)
 
 No comment is drafted. One line per kind of gap, naming every row of that kind:
 
@@ -212,7 +213,7 @@ No comment is drafted. One line per kind of gap, naming every row of that kind:
 
 Then stop.
 
-### 7.6 The record (ADR 0302)
+### 7.6 The record (ADR 0325)
 
 Append to the runbook, after its last section, never editing a line above:
 
@@ -240,7 +241,7 @@ rows are split again.
 Not this skill: `work-map` resolves a **Decision ticket**; `dual-verifier` verifies one
 finished task from its diff; `why-this-logic` traces and teaches row by row.
 
-## 9. Files to ship (ADR 0306)
+## 9. Files to ship (ADR 0329)
 
 | file | content |
 |---|---|

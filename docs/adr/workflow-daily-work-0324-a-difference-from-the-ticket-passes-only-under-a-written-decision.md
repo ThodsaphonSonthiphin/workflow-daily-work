@@ -21,4 +21,4 @@ ticket gives the 7-day cut-off as a UTC day; runbook decision D2, approved 2026-
 it on the Melbourne date following the Tech Spec. The comparison itself uses
 `why-this-logic`'s verdict words - a row that *contradicts* its source with no decision is
 this ADR's DIFFERS. A decision counts only when it is written and says who approved it; the
-user's word given during the check closes the row as told, the same as ADR 0296.
+user's word given during the check closes the row as told, the same as ADR 0319.
