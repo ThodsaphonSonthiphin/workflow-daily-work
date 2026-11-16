@@ -21,7 +21,7 @@ flowchart TD
 The diagram shows one run: the skill asks which moment and waits for the URL, reads the
 ticket and its files, and ends either as a briefing or as a check with a verdict.
 
-- **Date:** 2026-11-16 · **Status:** approved decisions, spec awaiting review
+- **Date:** 2026-11-16 · **Status:** approved 2026-11-16
 - **Decisions:** ADRs 0293-0306 (repo-root `docs/adr/`, prefix `workflow-daily-work-`)
 - **Glossary:** `CONTEXT.md`, section *resolve-the-ticket terms* - Ticket, Briefing,
   Resolve check, Ready verdict, Stale pass
@@ -257,9 +257,9 @@ No script ships: the reads are a handful of worked commands.
 
 ## 10. Eval cases
 
-1. **Check, not ready** - a ticket with one AC with a cited pass, one logic rule with no
-   test, one open child: NOT READY, three rows, two gap lines, no comment drafted, nothing
-   written to the tracker.
+1. **Check, not ready** - a ticket with one AC with a cited pass, one filter rule that
+   splits into two rows with no test, one open child: NOT READY, four rows, two gap lines,
+   no comment drafted, nothing written to the tracker.
 2. **Check, ready with a told row** - all rows pass, one on the user's word: verdict
    `READY (1 row rests on your word)`, comment drafted with the mark, the State left to
    the person.
