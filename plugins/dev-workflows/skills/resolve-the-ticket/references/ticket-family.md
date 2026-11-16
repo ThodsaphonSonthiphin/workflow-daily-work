@@ -49,13 +49,14 @@ A State name differs by process (Resolved, Closed, Done). Read the category, not
 ```
 
 URL-encode a type with a space (`User%20Story`). A child is **done** when its State's
-category is `Resolved` or `Completed`. `Removed` is not done and not open: show it as
-`removed` and leave it out of the verdict.
+category is `Resolved` or `Completed`, **or** its State is named `Resolved` whatever its
+category (ADR 0307). `Removed` is not done and not open: show it as `removed` and leave it
+out of the verdict.
 
 Measured: 2026-11-16, MackayGoodwin/Elevate, type User Story - New -> Proposed, Active ->
 InProgress, Resolved -> InProgress, Closed -> Completed, Removed -> Removed. In this
-process the State named `Resolved` has category `InProgress`, not `Resolved`: by the
-category rule only `Closed` counts as done here, and a `Resolved` child is not done.
+process the State named `Resolved` has category `InProgress`, not `Resolved` - which is why
+the name `Resolved` counts as done on its own (ADR 0307). Done here: `Resolved`, `Closed`.
 
 ## GitHub Issues - parent, children, links
 

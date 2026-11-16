@@ -82,7 +82,7 @@ the repro steps), Acceptance Criteria, every comment, and every attached image t
 | children | relation `System.LinkTypes.Hierarchy-Forward` | `repos/<o>/<r>/issues/<n>/sub_issues` |
 | other links | Related, Predecessor, Successor relations | issues linked or mentioned in the body |
 | AC | the Acceptance Criteria field | a task list, or an "Acceptance criteria" section of the body |
-| done State | the State's category is Resolved or Completed | `closed` |
+| done State | the State's category is Resolved or Completed, or the State is named Resolved (ADR 0307) | `closed` |
 
 The worked commands live in `references/ticket-family.md`. Each command is run against a
 real ticket before it is written into that file (ADR 0305); a command not yet measured is
