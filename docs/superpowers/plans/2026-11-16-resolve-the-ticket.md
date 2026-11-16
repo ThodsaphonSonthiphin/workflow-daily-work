@@ -8,6 +8,7 @@
 > committed `plugins/dev-workflows/skills/resolve-the-ticket/references/ticket-family.md`
 > is authoritative over the template in Task 1 Step 5.
 > ADRs renumbered 2026-11-16 from 0293-0307 to 0316-0330 (old + 23): origin/main had minted 0290-0315 for cut-vlog. Commit subjects before the renumber keep the old numbers.
+> The committed SKILL.md, evals.json and ticket-family.md are authoritative over Task 2's text: the final review added a Removed carve-out, the split-table-only rule (ADR 0332), measured over cited, additions differ, the GitHub closing line, the record step on NOT READY, eval 7, requirement-text staleness (ADR 0331) and the file-only hand-off (ADR 0333).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use sp-subagent-driven-development (recommended) or sp-executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -65,7 +66,7 @@ git switch -c feat/resolve-the-ticket
 - [ ] **Step 2: Confirm the ADR numbers are still free on every ref**
 
 ```powershell
-git for-each-ref --format='%(refname:short)' refs/heads refs/remotes | ForEach-Object { git ls-tree -r --name-only --full-tree $_ -- docs/adr } | Select-String -Pattern '-(029[3-9]|030[0-6])-' | Sort-Object -Unique
+git for-each-ref --format='%(refname:short)' refs/heads refs/remotes | ForEach-Object { git ls-tree -r --name-only --full-tree $_ -- docs/adr } | Select-String -Pattern '-(031[6-9]|032[0-9]|033[0-3])-' | Sort-Object -Unique
 ```
 
 Expected: no output (no other ref holds 0316-0329). If a line prints, stop and report the clash - do not renumber on your own.
@@ -74,7 +75,7 @@ Expected: no output (no other ref holds 0316-0329). If a line prints, stop and r
 
 ```powershell
 git add CONTEXT.md docs/superpowers/specs/2026-11-16-resolve-the-ticket-design.md docs/superpowers/plans/2026-11-16-resolve-the-ticket.md
-Get-ChildItem docs/adr -Name | Where-Object { $_ -match '^workflow-daily-work-(029[3-9]|030[0-6])-' } | ForEach-Object { git add "docs/adr/$_" }
+Get-ChildItem docs/adr -Name | Where-Object { $_ -match '^workflow-daily-work-(031[6-9]|032[0-9]|033[0-3])-' } | ForEach-Object { git add "docs/adr/$_" }
 git status --short
 ```
 
@@ -385,13 +386,13 @@ The evals are this skill's tests: write them first, confirm they parse, then wri
 }
 ```
 
-- [ ] **Step 2: Confirm the evals file parses and has seven cases**
+- [ ] **Step 2: Confirm the evals file parses and has eight cases**
 
 ```powershell
 python -c "import json; d=json.load(open('plugins/dev-workflows/skills/resolve-the-ticket/evals/evals.json', encoding='utf-8')); print(d['skill_name'], len(d['evals']), [e['id'] for e in d['evals']])"
 ```
 
-Expected: `resolve-the-ticket 7 [0, 1, 2, 3, 4, 5, 6]`
+Expected: `resolve-the-ticket 8 [0, 1, 2, 3, 4, 5, 6, 7]`
 
 - [ ] **Step 3: Confirm the skill does not exist yet (the failing state)**
 
@@ -910,7 +911,7 @@ git commit -m "chore(dev-workflows): 0.62.0 -> 0.63.0 - resolve-the-ticket in th
 
 ```powershell
 git fetch --all --quiet
-git for-each-ref --format='%(refname:short)' refs/remotes | ForEach-Object { git ls-tree -r --name-only --full-tree $_ -- docs/adr } | Select-String -Pattern '-(029[3-9]|030[0-6])-' | Sort-Object -Unique
+git for-each-ref --format='%(refname:short)' refs/remotes | ForEach-Object { git ls-tree -r --name-only --full-tree $_ -- docs/adr } | Select-String -Pattern '-(031[6-9]|032[0-9]|033[0-3])-' | Sort-Object -Unique
 git for-each-ref --format='%(refname:short)' refs/remotes | ForEach-Object { (git show "${_}:plugins/dev-workflows/.claude-plugin/plugin.json" 2>$null | Select-String '"version"').Line } | Sort-Object -Unique | Select-Object -Last 1
 ```
 

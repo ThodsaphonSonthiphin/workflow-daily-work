@@ -6,7 +6,8 @@ flowchart TD
     result written in the runbook, a ticket comment or a
     test file, with its locator and date; MEASURED - a
     test the skill ran in this session; TOLD - the user
-    says it was tested (who, date). The verdict line
+    says it was tested (who, date). The verdict line,
+    READY TO RESOLVE: YES (N rows rest on your word),
     counts the rows that rest on a person's word"]
     Q -->|rejected| B["a written result or a run only; a told row keeps the
     ticket NOT READY - recommended; the user ruled that
@@ -23,4 +24,4 @@ Ruled 2026-11-16 by the user (Pon): "Your word counts too". The three marks are
 `why-this-logic`'s **Proof mark** words with the same meanings (ADRs 0263, 0266, 0272), so
 no new vocabulary is added. What keeps a told pass honest is that it is never shown as
 anything else: the row carries `told: <who>, <date>`, the verdict reads
-`READY (N rows rest on your word)`, and the drafted closing comment carries the same mark.
+`READY TO RESOLVE: YES (N rows rest on your word)`, and the drafted closing comment carries the same mark.

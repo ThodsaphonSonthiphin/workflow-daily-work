@@ -22,3 +22,5 @@ told rows. The skill compares against what the documents and git already show; a
 that only the live system holds is read by one read-only query, asked for per query and per
 run, in `why-this-logic`'s shape (ADR 0275) - that part is the agent's reading of "the last
 change it can see", not the user's words.
+
+Amended by ADR 0331: the ticket counts as a change only through an edit to its requirement text.

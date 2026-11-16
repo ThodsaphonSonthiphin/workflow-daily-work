@@ -22,7 +22,7 @@ The diagram shows one run: the skill asks which moment and waits for the URL, re
 ticket and its files, and ends either as a briefing or as a check with a verdict.
 
 - **Date:** 2026-11-16 · **Status:** approved 2026-11-16
-- **Decisions:** ADRs 0316-0329 (repo-root `docs/adr/`, prefix `workflow-daily-work-`)
+- **Decisions:** ADRs 0316-0333 (repo-root `docs/adr/`, prefix `workflow-daily-work-`)
 - **Renumbered:** 2026-11-16, from 0293-0307 (old + 23) - origin/main had minted 0290-0315.
 - **Glossary:** `CONTEXT.md`, section *resolve-the-ticket terms* - Ticket, Briefing,
   Resolve check, Ready verdict, Stale pass
@@ -105,7 +105,9 @@ file by file.
 
 **No runbook found (ADR 0326):** say so, and hand off to `guide-and-verify` (loaded through
 the harness's mechanism) with what has been read as its head start. It creates the runbook
-file in its own shape and the project's own naming. Then continue.
+file in its own shape and the project's own naming. The hand-off asks for the file only -
+title, ticket link, file list and boundary line, with no baseline measurement and nothing
+written to the ticket - and this skill appends its block to it (ADR 0333). Then continue.
 
 ## 6. Moment 1 - the Briefing
 
@@ -132,6 +134,10 @@ One row per:
 - **logic rule** - each decision point in the ticket's details (a filter, a threshold, a
   mapping, a default), split with `why-this-logic`'s splitting rules
 - **child** - each direct child ticket, with its State
+
+Only `why-this-logic`'s *Split* and *Do not split* tables (logic rules) and its *Splitting a
+requirement text* section (AC lines) apply; its row 0 (the origin of the text) and its
+twelve-row cap belong to its own run and do not apply here (ADR 0332).
 
 Rows are quoted as written, with a locator. When the project has a register
 (`docs/why/requirements.md`), a row whose statement is registered carries its ID.
@@ -161,9 +167,12 @@ towards READY.
 | **pass - differs by decision** | built differently from the ticket, a written and approved decision covers it, and its test passes | yes; listed in the closing comment |
 | **no test** | nothing found and the user names none | no |
 | **fail** | the test's result is a failure | no |
-| **stale** | the pass is older than the last change the skill can see (git commit on the file, a modified date in the runbook or a snapshot, the ticket's revision). Both dates are shown | no - until tested again, or the user says the change does not touch the row (told) |
+| **stale** | the pass is older than the last change the skill can see (git commit on the file, a modified date in the runbook or a snapshot, an edit to the ticket's requirement text (ADR 0331)). Both dates are shown | no - until tested again, or the user says the change does not touch the row (told) |
 | **differs** | built differently from the ticket, no written decision | no |
 | **open** (child rows) | the child's State is not a done State | no - unless the user says it stays open on purpose (told; written into the closing comment) |
+| **pass (no date)** | a pass whose date cannot be compared with the last change | yes - counted with the told rows |
+| **change date not checked** | a pass whose change date only the live system holds, and the user said no to the query | yes - counted with the told rows |
+| **removed** (child rows) | the child's State is `Removed` (ADR 0330) | not counted - left out of the verdict |
 
 A pass with no date cannot be compared: it shows `pass (no date)` and is counted in the
 verdict line with the told rows. A change date only the live system holds is read by one
@@ -187,8 +196,10 @@ AC-3   PDF digest to admin         S6c     STALE  passed 2026-11-10; changed 202
 READY TO RESOLVE: NO
 ```
 
-The verdict is READY only when every row counts for READY. It reads
-`READY (N rows rest on your word)` when told rows or undated passes exist.
+The verdict line is `READY TO RESOLVE: YES` or `READY TO RESOLVE: NO`. It is YES only when
+every row that is not `removed` counts for READY (the table in 7.2). It reads
+`READY TO RESOLVE: YES (N rows rest on your word)` when told rows, `pass (no date)` rows or
+`change date not checked` rows exist, N counting all three.
 
 ### 7.4 On READY (ADR 0318)
 
@@ -220,13 +231,19 @@ Append to the runbook, after its last section, never editing a line above:
 ```
 ## Resolve check - <date> <time UTC> - READY | NOT READY
 
-Ticket <id> rev <n>. <the table of 7.3>
+Ticket #<id> rev <n> (GitHub: updated <timestamp>). Checked by resolve-the-ticket (read-only).
+
+<the table of 7.3>
+
 Gaps: <the lines of 7.5, or "none">
 ```
 
-A later check on the same ticket reads the last block first, keeps every row that was a
-pass and is not stale now, and re-checks the rest. If the ticket's revision changed, the
-rows are split again.
+A later check on the same ticket reads the last block first. If the ticket's revision is
+the same (on GitHub: the same `updatedAt`), the rows are kept; a row that was a pass is
+kept only when its proof is still where the block says and it is not stale now, and every
+other row is re-checked. A **told** row is asked again: its only proof was the earlier
+block. If the revision changed, the rows are split again. An earlier block is never the
+proof of a pass; the test result it points at is.
 
 ## 8. Skills it uses
 
@@ -262,7 +279,7 @@ No script ships: the reads are a handful of worked commands.
    splits into two rows with no test, one open child: NOT READY, four rows, two gap lines,
    no comment drafted, nothing written to the tracker.
 2. **Check, ready with a told row** - all rows pass, one on the user's word: verdict
-   `READY (1 row rests on your word)`, comment drafted with the mark, the State left to
+   `READY TO RESOLVE: YES (1 row rests on your word)`, comment drafted with the mark, the State left to
    the person.
 3. **Stale pass** - a pass dated before a later commit: STALE with both dates, NOT READY.
 4. **Differs by decision** - built unlike the ticket under a written decision: passes and
@@ -271,7 +288,9 @@ No script ships: the reads are a handful of worked commands.
    table, no file written.
 6. **No runbook** - says so and hands off to `guide-and-verify`; does not write a runbook.
 7. **Opening** - invoked with a bare number: asks for the URL and the moment and reads
-   nothing first; an unknown tracker URL stops.
+   nothing first.
+8. **Unknown tracker** - invoked with a Jira URL: says it cannot read that tracker and
+   stops; reads nothing, searches no file, and does not ask for another URL.
 
 Each prompt scripts the answers the skill will ask for (ADR 0269).
 

@@ -5,7 +5,7 @@ flowchart TD
     Q{"what was built differs from what the ticket says.<br/>How is that row judged at the check?"} -->|chosen| A["a written, approved decision that covers the
     difference - a runbook decision, an ADR, a ticket
     comment - makes the row read 'differs by decision
-    <id>' and it passes when its test passes. Every such
+    #lt;id#gt;' and it passes when its test passes. Every such
     row is listed in the drafted closing comment. A
     difference with no written decision is DIFFERS and
     keeps the ticket NOT READY"]

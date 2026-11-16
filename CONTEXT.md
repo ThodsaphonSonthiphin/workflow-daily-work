@@ -740,7 +740,7 @@ _Avoid_: done, passed, verified.
 
 **Ticket**:
 One item on a tracker - an Azure DevOps work item or a GitHub issue - named by its URL.
-Not a **Decision ticket**, which is a question on a Decision map (ADRs 0317, 0328).
+Not a **Decision ticket**, which is a question on a Decision map (ADRs 0317, 0328, 0329).
 _Avoid_: task, story, card (each is one type of ticket).
 
 **Briefing**:

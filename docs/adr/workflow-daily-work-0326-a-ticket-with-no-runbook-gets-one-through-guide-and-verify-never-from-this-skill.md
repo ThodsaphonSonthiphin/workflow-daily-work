@@ -23,3 +23,5 @@ skill has already read (the ticket, its parent and children, the file list) pass
 head start, so nothing is fetched twice. Applying the hand-off at both moments - at the
 briefing, where the runbook is about to be needed, and at the check - is the agent's reading;
 the user's words name the skill and the file, not the moment.
+
+Amended by ADR 0333: the hand-off asks for the runbook file only.

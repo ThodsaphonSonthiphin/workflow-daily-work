@@ -7,7 +7,7 @@ flowchart TD
     check, newest last. A later run reads the last block
     first and re-checks only rows that were not PASS or
     that became stale"]
-    Q -->|rejected| B["one file per ticket, docs/resolve/<id>.md -
+    Q -->|rejected| B["one file per ticket, docs/resolve/#lt;id#gt;.md -
     recommended; the user chose the runbook: one document
     per ticket already holds the baseline, the steps and
     the results, and a second file would split them"]
