@@ -187,6 +187,9 @@ Ask these in order and stop at the first that decides:
 ```
  a test for this row?  ── none ───────────────▶ NO TEST
         │ yes
+ does it prove the row?
+ (Given / When / Then) ── a part differs ─────▶ NO TEST (names the part)
+        │ all three match
  its result?           ── fail ───────────────▶ FAIL
         │ pass
  older than the last
@@ -201,6 +204,30 @@ Ask these in order and stop at the first that decides:
 file in the repo, a case in a test-case suite, the register's *tested by* cell. Nothing
 found: ask the user once, naming every such row - "Rows L-1 and AC-3 - no test found in the
 runbook, the comments or the repo. Was either tested?"
+
+**Does the test prove the row? Given / When / Then (ADR 0335).** A test that is only
+*about* the same thing proves nothing. Break the row into three parts, break the test into
+the same three, and compare part by part:
+
+| part | the question | example row: "a caller who does not agree is disconnected" |
+|---|---|---|
+| **Given** | the state before | the caller was asked for consent |
+| **When** | the event | the caller says "I don't agree" |
+| **Then** | the result that must be seen | the call ends |
+
+All three match: the test proves the row - go on to its result. One part differs: the row
+is **no test**, and the row says which part - `no test - When differs: test says "no", row
+says "I don't agree"`. A part the test does not state is a part that differs. Do not stretch
+a test to fit: "close enough" is how a rule with no test gets resolved. A **told** row gets
+the same three questions - ask the user what state, what event and what result they tested.
+
+Write one reasoning line per AC and logic row under the table (4.3), so the person can see
+why each test was paired with its row.
+
+**Boundary values - a note, never a verdict.** When a row holds a threshold or a range
+("older than 7 days"), look at which values the test used. If no value sits on the edge (6,
+7, 8 days), add one line under the verdict: `AC-2: tested at 30 days only - the edge (7) is
+not tested`. It does not change the result of the row.
 
 **The mark on a pass - exactly one:**
 
@@ -256,8 +283,17 @@ AC-3   PDF digest to admin         S6c    STALE  passed 2026-11-10; changed 2026
 L-4    status Created or Partial   -      NO TEST
 #297   child Task                  -      OPEN   State = New
 
+Why each test proves its row:
+AC-1  Given the flow is on / When it is Monday 08:00 / Then it runs
+      S3c: flow on / pinned Monday 08:00 / run recorded - all three match
+L-4   Given a row with status Partial / When the flow lists rows / Then it is selected
+      S4c: only status Created rows - Given differs -> no test
+
 READY TO RESOLVE: NO
 ```
+
+The *Why* block has one entry per AC and logic row: the row's Given / When / Then, then the
+test's, then which parts match. Child rows need none.
 
 | result | counts for READY |
 |---|---|
@@ -342,6 +378,8 @@ One block per check, newest last. Say the runbook's path.
 
 - **Read-only on the board, always.** No comment, no State, no tick.
 - **One mark on every pass.** A pass with no mark is a row nobody can trust later.
+- **A test about the same thing is not a test of the row.** Given, When and Then all match,
+  or the row has no test.
 - **A person's word is shown as a person's word.** `told` is never written as `cited`.
 - **Stale is not a warning.** A warning beside READY is read as READY.
 - **Quote, do not paraphrase.** A row is the ticket's own words with a locator.

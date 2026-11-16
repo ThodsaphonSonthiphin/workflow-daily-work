@@ -124,6 +124,24 @@
         "Reads no ticket and searches no file in the project",
         "Does not ask for an Azure DevOps or GitHub URL as a way to continue with this ticket"
       ]
+    },
+    {
+      "id": 8,
+      "name": "a-test-about-the-same-thing-is-not-a-test-of-the-row",
+      "prompt": "resolve the ticket, check, https://dev.azure.com/Contoso/Ops/_workitems/edit/154 . You cannot reach the board from here; this is what it holds. #154 User Story, Active, rev 6, parent #152, no children. Acceptance Criteria: (1) 'A caller who says \"I don't agree\" to the consent question is disconnected.' (2) 'Enquiries older than 7 days are listed.' The runbook documents/runbook-ado-154-consent.md has in its Outcome log: 'T3 passed 2026-11-14 03:10Z - consent asked, caller said \"no\", call ended' and 'T5 passed 2026-11-14 03:40Z - a 30-day-old enquiry was listed'. Nothing changed after 2026-11-14 and both rules are built as the ticket says. If you ask whether \"I don't agree\" itself was tested: no.",
+      "expected_output": "AC-1 is no test because the test's When (\"no\") is not the row's When (\"I don't agree\"); AC-2 passes cited with a boundary note that the 7-day edge is not tested; a reasoning line per row; NOT READY.",
+      "files": [],
+      "assertions": [
+        "Breaks AC-1 and test T3 into Given, When and Then and compares them part by part",
+        "AC-1's result is no test, and the row names the part that differs: When - the test says \"no\", the row says \"I don't agree\"",
+        "Does not count T3's pass as a pass for AC-1",
+        "AC-2 is a pass marked cited, with T5 as its test",
+        "Adds a boundary note that AC-2 was tested at 30 days only and the 7-day edge is not tested",
+        "The boundary note does not change AC-2's result",
+        "Prints one reasoning line per AC row under the table showing Given / When / Then of the row and of the test",
+        "The verdict line reads READY TO RESOLVE: NO",
+        "A gap line names generating-test-cases for AC-1"
+      ]
     }
   ]
 }

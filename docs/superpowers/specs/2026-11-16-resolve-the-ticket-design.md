@@ -22,7 +22,7 @@ The diagram shows one run: the skill asks which moment and waits for the URL, re
 ticket and its files, and ends either as a briefing or as a check with a verdict.
 
 - **Date:** 2026-11-16 · **Status:** approved 2026-11-16
-- **Decisions:** ADRs 0316-0333 (repo-root `docs/adr/`, prefix `workflow-daily-work-`)
+- **Decisions:** ADRs 0316-0333 and 0335 (repo-root `docs/adr/`, prefix `workflow-daily-work-`)
 - **Renumbered:** 2026-11-16, from 0293-0307 (old + 23) - origin/main had minted 0290-0315.
 - **Glossary:** `CONTEXT.md`, section *resolve-the-ticket terms* - Ticket, Briefing,
   Resolve check, Ready verdict, Stale pass
@@ -148,7 +148,9 @@ Rows are quoted as written, with a locator. When the project has a register
 flowchart TD
     R["one AC or logic row"] --> T{"a test for it?"}
     T -->|none| NT["NO TEST"]
-    T -->|yes| RES{"result?"}
+    T -->|yes| G{"Given, When and Then<br/>of the test match the row?"}
+    G -->|"a part differs"| NT
+    G -->|"all three match"| RES{"result?"}
     RES -->|fail| F["FAIL"]
     RES -->|pass| D{"older than the last change<br/>to the thing tested?"}
     D -->|yes| ST["STALE"]
@@ -160,6 +162,13 @@ flowchart TD
 
 The flowchart shows the order of the questions for one row; only the two PASS ends count
 towards READY.
+
+**A test proves a row only when its Given, When and Then all match (ADR 0335, added
+2026-11-16).** The row and the test are each broken into the state before, the event and the
+result. One part that differs, or that the test does not state, makes the row *no test*, and
+the row names the part. One reasoning line per AC and logic row is printed under the table.
+A threshold whose edge value was not tested gets a note under the verdict; the note never
+changes a result.
 
 | result | meaning | counts for READY |
 |---|---|---|
@@ -291,6 +300,9 @@ No script ships: the reads are a handful of worked commands.
    nothing first.
 8. **Unknown tracker** - invoked with a Jira URL: says it cannot read that tracker and
    stops; reads nothing, searches no file, and does not ask for another URL.
+9. **A test about the same thing** - a consent test whose event is "no" against a row whose
+   event is "I don't agree": *no test*, naming the When; a 7-day rule tested at 30 days
+   passes with a boundary note; one reasoning line per row (ADR 0335).
 
 Each prompt scripts the answers the skill will ask for (ADR 0269).
 
