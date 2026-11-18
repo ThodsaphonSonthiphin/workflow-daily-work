@@ -142,7 +142,53 @@ Chat only, in this order, then stop:
 4. **The files** - the list from step 2, and which to open first (the runbook, when it has
    steps).
 5. **Open points** - an AC line that names something no file mentions; a linked ticket that
-   is still open; a place where the ticket and its parent disagree.
+   is still open; a place where the ticket and its parent disagree; a count, a name or a
+   rule in the ticket that its own attachments or an approved decision contradict. Print
+   them in the shape below, never as one flat list.
+
+#### The open points - sorted by what they do to the work (ADR 0336)
+
+A flat list makes the person work out for themselves which point stops which task. Sort
+every point into exactly one of four groups, in this order, and give each point a letter
+(`A`, `B` …) so the map and the order can name it:
+
+| group | a point goes here when | columns |
+|---|---|---|
+| **1. Fix before the work starts** | a task or an AC cannot be done until someone answers | point · touches (ticket / AC) · who must answer · if it is not fixed |
+| **2. Decide while designing** | the work can start, but a design choice is open | point · touches · what must be decided |
+| **3. Rules to keep** | it is a thing not to do, not a thing to resolve | the rule and its reason, one line each |
+| **4. Touches no task** | it blocks no build - it matters at the check, or it is housekeeping | the point, and "touches no task" or "matters at the check before resolve" in words |
+
+Rules for the table:
+
+- **Touches** names the tickets and AC lines the point affects - of the ticket itself, its
+  children and its linked tickets. A point that touches nothing says so in group 4; it is
+  never dropped.
+- **Who must answer** is a name or a role the ticket, the runbook or the project's files
+  give. None found: write `not named`. Never guess a person.
+- **If it is not fixed** is one concrete consequence ("AC-1 cannot pass as written"), not
+  "may cause problems".
+- A point the person can settle alone, under a written decision, goes in group 2 and says
+  so ("no one to wait for - follow decision D6").
+- An empty group is printed with `none`.
+
+Then **what depends on what** - one small monospace map, points and tickets as nodes, an
+arrow meaning "must be done before". Only arrows a file supports, or that follow from the
+table (a point that touches a ticket comes before it); mark a dependency you inferred from
+a ticket's wording with `(inferred)`:
+
+```
+ A sandbox or production ─┐
+ B fixed outbound IP ─────┼─▶ #195 ─┐
+ C password ──────────────┘         ├─▶ #196
+ D shared table ────────────────────┘
+ D + E ticket counts ───────────────▶ #197
+```
+
+Then **a suggested order** - a short numbered list read off the map: first send every
+question of group 1 in one round (name who gets which letters), then the task nothing
+waits on, then each task as its points close, last the task that waits on the most. It is a
+suggestion: say so in one line, and build nothing.
 
 Show a rule with logic the way the project asks for it (some projects fix a flowchart
 shape in their `CLAUDE.md` / `AGENTS.md` - follow it). Write no file. Print no check table

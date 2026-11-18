@@ -22,7 +22,7 @@ The diagram shows one run: the skill asks which moment and waits for the URL, re
 ticket and its files, and ends either as a briefing or as a check with a verdict.
 
 - **Date:** 2026-11-16 · **Status:** approved 2026-11-16
-- **Decisions:** ADRs 0316-0333 and 0335 (repo-root `docs/adr/`, prefix `workflow-daily-work-`)
+- **Decisions:** ADRs 0316-0333, 0335 and 0336 (repo-root `docs/adr/`, prefix `workflow-daily-work-`)
 - **Renumbered:** 2026-11-16, from 0293-0307 (old + 23) - origin/main had minted 0290-0315.
 - **Glossary:** `CONTEXT.md`, section *resolve-the-ticket terms* - Ticket, Briefing,
   Resolve check, Ready verdict, Stale pass
@@ -119,7 +119,14 @@ Chat output, read-only, in this order:
    (`#151 AC-2`, `#151 description`, `#151 image <name>`)
 4. the file list from step 2, and which to open first
 5. open points: an AC line that names something no file mentions; a linked ticket that is
-   open; a difference between the ticket and the parent
+   open; a difference between the ticket and the parent; a count, a name or a rule the
+   ticket's own attachments or an approved decision contradict
+
+The open points are never a flat list (ADR 0336, added 2026-11-18). They are sorted into four
+groups in a fixed order - fix before the work starts; decide while designing; rules to keep;
+touches no task - each point lettered, with what it touches, who must answer (`not named`
+when no file says) and what happens if it is not fixed. A monospace map of what depends on
+what follows, then a suggested order read off the map.
 
 It ends there. It is not written to a file.
 
@@ -303,6 +310,8 @@ No script ships: the reads are a handful of worked commands.
 9. **A test about the same thing** - a consent test whose event is "no" against a row whose
    event is "I don't agree": *no test*, naming the When; a 7-day rule tested at 30 days
    passes with a boundary note; one reasoning line per row (ADR 0335).
+10. **Open points sorted** - a briefing on a feature with four children and seven open
+    points: four groups, lettered points, a dependency map, a suggested order (ADR 0336).
 
 Each prompt scripts the answers the skill will ask for (ADR 0269).
 
