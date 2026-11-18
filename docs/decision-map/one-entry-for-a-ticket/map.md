@@ -29,11 +29,12 @@ Calling resolve-the-ticket with a ticket URL carries the ticket through its whol
 ## Decisions so far
 
 <!-- decision-map:decisions:start -->
-#### do-and-verify — one ticket walks briefing -> do and verify -> check in one call (4/6 closed)
+#### do-and-verify — one ticket walks briefing -> do and verify -> check in one call (5/6 closed)
 
 - [Acting - what replaces 'builds nothing'?](tickets/acting-rule.md) — It does not act itself: every act happens in the skill it loads, under that skill's rules, and it loads a skill only on the person's yes - also for a gap after NOT READY.
 - [Code-only work - what does the do stage load when no one has to click?](tickets/code-work-stage.md) — Code work loads sp-writing-plans with the ticket's AC lines as requirements, then its executing skill; the tests it leaves are the proof the check reads.
 - [guide-and-verify - what must it write so the check can read it?](tickets/gav-contract.md) — guide-and-verify writes nothing new: the check reads its own step fields; the entry hands it the row list, and the runbook is made when the do stage starts.
+- [Reliability - the session dies in the middle of a stage: what then?](tickets/resume-after-break.md) — The entry reads the loaded skill's own record - runbook outcome lines, or plan, ledger and git log - and a step with no result is measured before it is done again.
 - [Stages - which stages does a ticket have, and how does a run know where it is?](tickets/stage-model.md) — Four stages - briefing, plan, do and verify, check; on each call the skill reads the runbook, proposes the next stage with one line of evidence, and asks once.
 
 #### plan-with-map — the planning stage runs on a decision map (1/7 closed)
