@@ -16,6 +16,7 @@ Calling resolve-the-ticket with a ticket URL carries the ticket through its whol
 - Another session has uncommitted edits to guide-and-verify; read its SKILL.md fresh before deciding anything about it.
 - resolve-the-ticket's current rules are ADRs 0316-0333, 0335, 0336; ADR 0316 (builds nothing) and ADR 0317 (asks briefing or check) are the two this map will most likely amend.
 - sweep 2026-11-18: none - performance, operations; ticket - stage-model, cross-plugin-loading, plugin-missing, resume-after-break, acting-rule, who-did-what, repo-data-rules; fog - functional; out of scope - scope
+- Only resolve-the-ticket may be edited; guide-and-verify, chart-map, work-map and every other skill are loaded as they are (user, 2026-11-18, ADR 0338).
 <!-- decision-map:notes:end -->
 
 ## Milestones
@@ -28,9 +29,9 @@ Calling resolve-the-ticket with a ticket URL carries the ticket through its whol
 ## Decisions so far
 
 <!-- decision-map:decisions:start -->
-#### do-and-verify — one ticket walks briefing -> do and verify -> check in one call (0/6 closed)
+#### do-and-verify — one ticket walks briefing -> do and verify -> check in one call (1/6 closed)
 
-_nothing closed yet_
+- [Stages - which stages does a ticket have, and how does a run know where it is?](tickets/stage-model.md) — Four stages - briefing, plan, do and verify, check; on each call the skill reads the runbook, proposes the next stage with one line of evidence, and asks once.
 
 #### plan-with-map — the planning stage runs on a decision map (1/7 closed)
 
@@ -49,4 +50,5 @@ _nothing closed yet_
 - A new skill that orchestrates the three - the user ruled it out: more places to maintain.
 - Copying another skill's method text into resolve-the-ticket.
 - The skill writing to the tracker itself (comment, State, ticked AC) - ADR 0318 stands.
+- Editing any skill other than resolve-the-ticket - no new mode for guide-and-verify, chart-map or work-map (ADR 0338).
 <!-- decision-map:scope:end -->
