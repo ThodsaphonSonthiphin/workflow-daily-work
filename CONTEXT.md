@@ -743,14 +743,32 @@ One item on a tracker - an Azure DevOps work item or a GitHub issue - named by i
 Not a **Decision ticket**, which is a question on a Decision map (ADRs 0317, 0328, 0329).
 _Avoid_: task, story, card (each is one type of ticket).
 
+**Stage**:
+One of the four parts of a ticket's line, in order: **briefing**, **plan**, **do and
+verify**, **check**. The skill reads the files, proposes the next stage with one line of
+evidence and asks once; the person may name another (ADR 0337).
+_Avoid_: moment, phase, step (a step is one unit inside do and verify).
+
+**Stage block**:
+The dated `## Stage - … - briefing done` block the skill appends to a runbook after a
+briefing, with the ticket's revision and the open-point counts. Written only when the
+runbook exists (ADRs 0337, 0341).
+_Avoid_: progress file, status line.
+
+**Family walk**:
+How the stages run when the URL is a Feature or Epic with children: briefing and plan
+once for the family, then do and verify and the check per child, one at a time
+(ADRs 0351, 0352).
+_Avoid_: batch run, parent run.
+
 **Briefing**:
-The first of the skill's two moments, before the work starts: what the ticket asks, its
-parent and children, its linked tickets, the runbook and the files to open. Read-only
-(ADR 0316).
-_Avoid_: summary, kickoff, plan.
+The first stage, before the work starts: what the ticket asks, its parent and children,
+its linked tickets, the runbook and the files to open, and the open points in four groups.
+Read-only (ADRs 0316, 0336).
+_Avoid_: summary, kickoff.
 
 **Resolve check**:
-The second moment, before a person sets the ticket to its done State: one row per AC line,
+The last stage, before a person sets the ticket to its done State: one row per AC line,
 logic rule and child, each with its test, its result and its **Proof mark**, then a
 **Ready verdict**. Appended to the ticket's runbook as a dated block (ADRs 0316, 0325).
 _Avoid_: review, sign-off, verification (the skill signs nothing off).

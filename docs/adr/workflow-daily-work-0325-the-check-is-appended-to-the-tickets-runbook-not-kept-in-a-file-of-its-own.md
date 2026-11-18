@@ -1,5 +1,7 @@
 # The check is appended to the ticket's runbook, not kept in a file of its own
 
+> **Amended 2026-11-18 by ADRs 0337 and 0341.** The check block is no longer the skill's only write: after a briefing it also appends one dated Stage block, when the runbook exists.
+
 ```mermaid
 flowchart TD
     Q{"where does the skill keep the check table and<br/>its verdict?"} -->|chosen| A["in the ticket's own runbook: a 'Resolve check'

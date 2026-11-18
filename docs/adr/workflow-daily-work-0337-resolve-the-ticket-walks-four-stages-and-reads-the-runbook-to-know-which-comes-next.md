@@ -40,5 +40,4 @@ proposes the stage and asks for a yes. For the proposal to work, each stage must
 trace in the runbook; the briefing leaves none today, so it gains one line there. Only
 resolve-the-ticket's own text changes for this ([ADR 0338](workflow-daily-work-0338-the-one-entry-is-built-by-changing-resolve-the-ticket-only.md)).
 
-**Not yet in the skill.** `resolve-the-ticket/SKILL.md` still follows ADR 0317 as written.
-It changes when the map's `do-and-verify` milestone is built.
+**In the skill since dev-workflows 0.66.0** (`plugins/dev-workflows/skills/resolve-the-ticket/SKILL.md`).

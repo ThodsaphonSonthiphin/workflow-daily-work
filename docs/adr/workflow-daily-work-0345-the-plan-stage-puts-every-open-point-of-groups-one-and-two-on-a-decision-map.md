@@ -35,4 +35,4 @@ work fits one session, and points at `grill-then-plan`. It may not be edited (AD
 on a small ticket the person will see that stop. The entry loads `chart-map` only on the
 person's yes (ADR 0339).
 
-**Not yet in the skill.** It lands when the map's `plan-with-map` milestone is built.
+**In the skill since dev-workflows 0.66.0** (`plugins/dev-workflows/skills/resolve-the-ticket/SKILL.md`).

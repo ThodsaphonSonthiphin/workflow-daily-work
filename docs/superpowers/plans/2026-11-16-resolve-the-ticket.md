@@ -1,5 +1,7 @@
 # resolve-the-ticket Implementation Plan
 
+> **Superseded in part (2026-11-18).** The skill is now the one entry for a ticket with four stages - briefing, plan, do and verify, check - and loads the skill of each stage (ADRs 0337-0352, map docs/decision-map/one-entry-for-a-ticket/). This document still holds for the check's rows, marks and verdict. The committed SKILL.md is authoritative.
+
 > **Superseded in part (2026-11-16, during execution).** Task 1's reference template says a
 > child is done only at State category Resolved or Completed; ADR 0330 adds the State named
 > Resolved, because the measured Agile process files Resolved under InProgress. Task 1's

@@ -34,4 +34,4 @@ A step that carries no tag is paired the old way, by Given / When / Then alone
 ([ADR 0335](workflow-daily-work-0335-a-test-proves-a-row-only-when-its-given-when-and-then-all-match.md));
 a tag never replaces that comparison.
 
-**Not yet in the skill.** It lands when the map's `do-and-verify` milestone is built.
+**In the skill since dev-workflows 0.66.0** (`plugins/dev-workflows/skills/resolve-the-ticket/SKILL.md`).

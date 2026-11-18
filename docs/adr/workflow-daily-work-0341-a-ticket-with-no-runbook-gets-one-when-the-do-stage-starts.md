@@ -30,4 +30,4 @@ One thing to know, not decided here: `guide-and-verify` records its readings on 
 as it goes. That is its own rule and stays (ADR 0338, ADR 0339); resolve-the-ticket itself
 still writes nothing to the tracker (ADR 0318).
 
-**Not yet in the skill.** It lands when the map's `do-and-verify` milestone is built.
+**In the skill since dev-workflows 0.66.0** (`plugins/dev-workflows/skills/resolve-the-ticket/SKILL.md`).

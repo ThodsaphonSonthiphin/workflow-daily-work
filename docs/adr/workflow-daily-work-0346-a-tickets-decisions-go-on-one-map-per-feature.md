@@ -36,4 +36,4 @@ This answers half of the map's open fog line ("a Feature with several child tick
 decisions of a family are kept together. How the *stages* walk a family - one run per
 child or one for all - is still not specified.
 
-**Not yet in the skill.** It lands when the map's `plan-with-map` milestone is built.
+**In the skill since dev-workflows 0.66.0** (`plugins/dev-workflows/skills/resolve-the-ticket/SKILL.md`).

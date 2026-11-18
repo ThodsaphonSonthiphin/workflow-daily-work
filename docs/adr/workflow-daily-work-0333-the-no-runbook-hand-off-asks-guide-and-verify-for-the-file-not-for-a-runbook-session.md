@@ -1,5 +1,7 @@
 # The no-runbook hand-off asks guide-and-verify for the file, not for a runbook session
 
+> **Narrowed 2026-11-18 by ADR 0341.** The file-only hand-off now applies in one case: the check is asked for on a ticket whose work was done with no runbook. In the do-and-verify stage guide-and-verify runs in full and creates the runbook.
+
 ```mermaid
 flowchart TD
     Q{"the ticket has no runbook. What does the hand-off<br/>to guide-and-verify ask it for?"} -->|chosen| A["the runbook file only - in its own shape and the

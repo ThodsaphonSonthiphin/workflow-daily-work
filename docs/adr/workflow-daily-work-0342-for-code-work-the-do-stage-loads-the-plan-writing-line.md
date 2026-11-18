@@ -38,4 +38,4 @@ The rest is the agent's reading of rules already made, not a separate answer fro
 A one-line fix does not need the whole line: the person may name the check directly
 (ADR 0337).
 
-**Not yet in the skill.** It lands when the map's `do-and-verify` milestone is built.
+**In the skill since dev-workflows 0.66.0** (`plugins/dev-workflows/skills/resolve-the-ticket/SKILL.md`).

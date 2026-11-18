@@ -30,4 +30,4 @@ How the next call knows: it reads the map the way it reads the runbook
 ([ADR 0337](workflow-daily-work-0337-resolve-the-ticket-walks-four-stages-and-reads-the-runbook-to-know-which-comes-next.md)) -
 the count of open Decision tickets is the plan stage's evidence line.
 
-**Not yet in the skill.** It lands when the map's `plan-with-map` milestone is built.
+**In the skill since dev-workflows 0.66.0** (`plugins/dev-workflows/skills/resolve-the-ticket/SKILL.md`).

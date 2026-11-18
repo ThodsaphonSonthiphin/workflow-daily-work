@@ -33,4 +33,4 @@ says.
 Known limit: no record says a step was *started*, only that it *finished*. The rule above
 is what covers the gap.
 
-**Not yet in the skill.** It lands when the map's `do-and-verify` milestone is built.
+**In the skill since dev-workflows 0.66.0** (`plugins/dev-workflows/skills/resolve-the-ticket/SKILL.md`).

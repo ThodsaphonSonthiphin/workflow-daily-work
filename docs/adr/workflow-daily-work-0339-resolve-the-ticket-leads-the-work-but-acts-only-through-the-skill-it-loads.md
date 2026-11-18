@@ -34,5 +34,4 @@ This amends [ADR 0316](workflow-daily-work-0316-resolve-the-ticket-briefs-before
 in one place only: "never starts the skill it names" becomes "offers the skill and loads it
 on a yes". "Builds nothing and fixes nothing" still holds for the entry skill itself.
 
-**Not yet in the skill.** `resolve-the-ticket/SKILL.md` still names the gap skill and stops
-(its 4.5). It changes when the map's `do-and-verify` milestone is built.
+**In the skill since dev-workflows 0.66.0** (`plugins/dev-workflows/skills/resolve-the-ticket/SKILL.md`).

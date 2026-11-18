@@ -1,5 +1,7 @@
 # resolve-the-ticket briefs before the work and checks before the resolve, and builds nothing
 
+> **Amended 2026-11-18 by ADR 0339.** The skill still builds nothing itself, but it no longer "never starts the skill it names": it offers the skill and loads it on the person's yes. It now has four stages, not two moments (ADR 0337).
+
 ```mermaid
 flowchart TD
     Q{"the user asked for a skill named Resolve the Ticket:<br/>read the ticket, its parent and its children; read the<br/>runbook and related files; check the Acceptance Criteria<br/>and the logic - do the tests pass?<br/>What is the skill's job, and when is it run?"} -->|chosen| A["two moments, one skill: a BRIEFING before the work

@@ -1,5 +1,7 @@
 # resolve-the-ticket - design
 
+> **Superseded in part (2026-11-18).** The skill is now the one entry for a ticket with four stages - briefing, plan, do and verify, check - and loads the skill of each stage (ADRs 0337-0352, map docs/decision-map/one-entry-for-a-ticket/). This document still holds for the check's rows, marks and verdict. The committed SKILL.md is authoritative.
+
 ```mermaid
 flowchart TD
     U(["user: resolve the ticket"]) --> ASK{"briefing or check?<br/>+ the ticket URL"}

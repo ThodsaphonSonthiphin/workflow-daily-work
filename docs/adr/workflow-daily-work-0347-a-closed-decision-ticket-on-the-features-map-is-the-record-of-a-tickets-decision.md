@@ -30,4 +30,4 @@ This widens [ADR 0324](workflow-daily-work-0324-a-difference-from-the-ticket-pas
 `pass - differs by decision <id>` may now cite a Decision ticket by its key and path. An
 **open** or **claimed** Decision ticket is not a decision; only a closed one counts.
 
-**Not yet in the skill.** It lands when the map's `plan-with-map` milestone is built.
+**In the skill since dev-workflows 0.66.0** (`plugins/dev-workflows/skills/resolve-the-ticket/SKILL.md`).

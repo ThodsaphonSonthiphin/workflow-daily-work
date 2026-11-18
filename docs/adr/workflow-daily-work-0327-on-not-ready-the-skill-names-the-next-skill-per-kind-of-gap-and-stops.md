@@ -1,5 +1,7 @@
 # On NOT READY the skill names the next skill per kind of gap, and stops
 
+> **Amended 2026-11-18 by ADR 0339.** After NOT READY the skill now offers the skill for each gap and loads it on the person's yes.
+
 ```mermaid
 flowchart TD
     Q{"the check says NOT READY. What does the skill do<br/>with the gaps?"} -->|chosen| A["one line per kind of gap, naming every row of that

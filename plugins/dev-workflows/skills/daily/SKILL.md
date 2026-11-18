@@ -134,7 +134,7 @@ Ask ONE question — "What's happening?" — with these options, then hand off:
 | auditing names / labels / mappings | `naming-audit` (or `fit-gap-analysis` for as-is vs to-be) |
 | explaining a complex problem | `problem-description` |
 | asking why code/a ticket exists | `ticket-trace` |
-| starting a ticket, or about to set it to Resolved | `resolve-the-ticket` — a briefing before the work, a read-only check before the resolve |
+| working a ticket, from the first read to Resolved | `resolve-the-ticket` — give it the ticket URL; it says which stage comes next (briefing, plan, do and verify, check) and loads that stage's skill on a yes |
 | wanting a second opinion | `scrutinize` (plans/local diffs) or `dual-verifier` (completed work) |
 | reviewing a GitHub pull request | `review-pr` — context, safe workspace, scrutinize, then send-back / fix-it / chat-only |
 | facing an unfamiliar legacy codebase | `drive-to-legacy` |

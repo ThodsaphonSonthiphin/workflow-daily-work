@@ -1,5 +1,7 @@
 # resolve-the-ticket asks which moment and waits for the ticket URL
 
+> **Amended 2026-11-18 by ADR 0337.** The skill still waits for the ticket's URL. It no longer asks "briefing or check": it reads the files, proposes the stage and asks for a yes.
+
 ```mermaid
 flowchart TD
     Q{"the skill has two moments - the briefing and the<br/>check. How does a run know which one, and which<br/>ticket?"} -->|chosen| A["the skill asks: briefing or check, and the ticket's

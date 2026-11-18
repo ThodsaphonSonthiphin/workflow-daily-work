@@ -36,4 +36,4 @@ agent's reading, not a separate answer from the user):
 Not measured: no install channel has a live test on record of one skill loading another
 plugin's skill by name. The first real run of the plan stage is that test.
 
-**Not yet in the skill.** It lands when the map's `plan-with-map` milestone is built.
+**In the skill since dev-workflows 0.66.0** (`plugins/dev-workflows/skills/resolve-the-ticket/SKILL.md`).

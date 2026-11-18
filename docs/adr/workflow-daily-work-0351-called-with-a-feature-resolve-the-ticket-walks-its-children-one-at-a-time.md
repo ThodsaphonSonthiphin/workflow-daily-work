@@ -39,4 +39,4 @@ agent laid out. The ticket was the map's last fog line, graduated the same day.
 The last three points are the agent's reading, said to the user with the options; the
 user's answer was the choice of the walk.
 
-**Not yet in the skill.** It lands when the map's `do-and-verify` milestone is built.
+**In the skill since dev-workflows 0.66.0** (`plugins/dev-workflows/skills/resolve-the-ticket/SKILL.md`).

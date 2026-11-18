@@ -1,5 +1,7 @@
 # A difference from the ticket passes only under a written decision
 
+> **Widened 2026-11-18 by ADR 0347.** A closed Decision ticket on the ticket's Decision map is also a written, approved decision, and is the record for new work.
+
 ```mermaid
 flowchart TD
     Q{"what was built differs from what the ticket says.<br/>How is that row judged at the check?"} -->|chosen| A["a written, approved decision that covers the
