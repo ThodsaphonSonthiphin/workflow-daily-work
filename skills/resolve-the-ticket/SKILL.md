@@ -287,14 +287,14 @@ The plan stage needs the chart-map and work-map skills, and they are not install
 Install them and call resolve-the-ticket again - or name another stage.
 ```
 
-**One call does one of three things, then the run ends** (ADR 0348). `chart-map` ends its
+**One call does one of these - the first row that fits, then the run ends** (ADR 0348). `chart-map` ends its
 session after charting and `work-map` stops after one decision; this skill ends there too.
 
 | the ticket's Decision map | this call |
 |---|---|
 | does not exist | offer `chart-map`; on a yes load it through your harness's mechanism; when it stops, end |
-| has open Decision tickets | offer `work-map` for that map; on a yes load it; when it stops, end |
 | exists, and a child's briefing has a group 1 or 2 point that is not on it | offer `work-map` for that map and hand it the new points as tickets to add through its own gate; when it stops, end (ADR 0355) |
+| has open Decision tickets | offer `work-map` for that map; on a yes load it; when it stops, end |
 | has no open Decision ticket | the plan is over - propose do and verify |
 
 Say in the offer that the run ends when that skill stops. End the run with one line: what
@@ -400,8 +400,8 @@ Write the row list before you look for any test.
 first. If the ticket's revision is the same (on GitHub: `updated <timestamp>` from
 `updatedAt` is the same), keep the rows; a row that was a pass is kept only when its proof
 is still where the block says and it is not stale now - re-check every other row. A
-**told** row is asked again: its only proof was the earlier block. If the revision changed,
-split the rows again. An earlier block is never the proof of a pass; the test result it
+**told** row is asked again: its only proof was the earlier block. If the revision changed
+because the requirement text was edited, split the rows again; a comment or a State change alone does not count (ADR 0331). An earlier block is never the proof of a pass; the test result it
 points at is.
 
 ### 4.2 The result of one row
