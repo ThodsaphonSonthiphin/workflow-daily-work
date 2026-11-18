@@ -245,6 +245,22 @@
         "Does not skip the plan stage and propose do and verify by itself",
         "Says the person may install and call again, or name another stage"
       ]
+    },
+    {
+      "id": 13,
+      "name": "code-work-loads-sp-writing-plans-with-the-row-list",
+      "prompt": "resolve the ticket https://dev.azure.com/Contoso/Ops/_workitems/edit/196 - start the work. You cannot reach the board from here, so here is what it holds. #196 User Story, Active, rev 3, parent #193 Feature, no children. Description logic: 'filter: status eq Created or status eq Partial'. Acceptance Criteria: 'Rows older than 7 days are left out.' The work is one change in src/sync/filter.ts in this repo; nothing has to be clicked in any console. docs/decision-map/ado-193-creditor-sync/ exists and every Decision ticket on it is closed. There is no runbook and no plan file for #196.",
+      "expected_output": "A proposal that names the work as code work and offers sp-writing-plans, the row list written out, and nothing loaded or edited before a yes.",
+      "files": [],
+      "assertions": [
+        "Says the ticket is code work and names sp-writing-plans as the skill it would load",
+        "Does not offer guide-and-verify for this ticket",
+        "Writes the row list before loading: one row for the AC line and two for the filter (the or term, and the codes Created / Partial together)",
+        "Says it will hand over the row list and ask that each task or test names the rows it proves",
+        "Does not ask for a before / after measurement of a live system",
+        "Edits no file in src/ itself and writes no plan file itself",
+        "Asks once and loads the skill only after the person says yes"
+      ]
     }
   ]
 }

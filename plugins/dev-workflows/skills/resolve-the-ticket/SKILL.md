@@ -310,6 +310,50 @@ as it is, and end the run.
 A **closed** Decision ticket is the record of the decision (ADR 0347). The check reads it
 (4.2).
 
+## Stage 3 - do and verify
+
+This skill does not do the work. It says what kind of work the ticket is, offers the skill
+for it, and loads that skill on a yes (ADR 0339).
+
+| the ticket's work | the skill to load | the proof it leaves for the check |
+|---|---|---|
+| a person must click in a console, a portal, a settings page | `guide-and-verify` | runbook steps and outcome lines |
+| code the agent can write | `sp-writing-plans`, which hands off to its own executing skill | tests in the repo |
+| both | each part goes to its own skill, the click part first unless the briefing's order says otherwise | both |
+
+Say the kind with the proposal, in the same question: "#195 is click work (a flow in the
+portal) - load `guide-and-verify`?" The person may correct the kind.
+
+**Before loading, write the row list** - the rows of 4.1 (`AC-1`, `L-1` …), quoted as
+written. Then hand the loaded skill three things:
+
+1. what you have already read - the ticket, its parent and children, the file list;
+2. the row list, with this request: "name on each step (or task, or test) the rows it
+   proves, for example `Step 3 - set the schedule (AC-2)`";
+3. for a call after a break, the one line of step 3: which steps have a result and which
+   is the first without one - "measure it first; do not do it again blind" (ADR 0343).
+
+A row that no step, task or test names is said aloud now - "L-4 has no step that proves
+it" - not found later at NOT READY.
+
+**`guide-and-verify`** runs in full: it measures the baseline before the first
+instruction and creates the runbook when the ticket has none (ADR 0341). Do not ask it for
+a file only here. Its own fields are what the check reads (ADR 0340):
+
+| the check needs | `guide-and-verify` writes |
+|---|---|
+| Given | the baseline |
+| When | the step's **Do** lines |
+| Then | the assertion declared before the person acts |
+| result and date | the outcome line with its measurement and time |
+
+**`sp-writing-plans`** takes the ticket's AC lines and logic rules as its requirements.
+No before / after measurement is asked of code work: a test written first, failing before
+and passing after, is its measurement (ADR 0342).
+
+When the loaded skill is done, propose the check and wait for the yes. When it stops
+part-way, say what is left in one line and end the run.
+
 ## 4. Moment two - the check
 
 ### 4.1 The rows
