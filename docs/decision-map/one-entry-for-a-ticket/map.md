@@ -22,17 +22,18 @@ Calling resolve-the-ticket with a ticket URL carries the ticket through its whol
 ## Milestones
 
 <!-- decision-map:milestones:start -->
-- `do-and-verify` one ticket walks briefing -> do and verify -> check in one call [stage-model, acting-rule, code-work-stage, gav-contract, resume-after-break, who-did-what]
+- `do-and-verify` one ticket walks briefing -> do and verify -> check in one call [stage-model, acting-rule, code-work-stage, gav-contract, resume-after-break, who-did-what, family-walk]
 - `plan-with-map` the planning stage runs on a decision map [map-trigger, which-map, decision-store, one-session-stop, plugin-missing, cross-plugin-loading, repo-data-rules]
 <!-- decision-map:milestones:end -->
 
 ## Decisions so far
 
 <!-- decision-map:decisions:start -->
-#### do-and-verify — one ticket walks briefing -> do and verify -> check in one call (6/6 closed)
+#### do-and-verify — one ticket walks briefing -> do and verify -> check in one call (7/7 closed)
 
 - [Acting - what replaces 'builds nothing'?](tickets/acting-rule.md) — It does not act itself: every act happens in the skill it loads, under that skill's rules, and it loads a skill only on the person's yes - also for a gap after NOT READY.
 - [Code-only work - what does the do stage load when no one has to click?](tickets/code-work-stage.md) — Code work loads sp-writing-plans with the ticket's AC lines as requirements, then its executing skill; the tests it leaves are the proof the check reads.
+- [Family - how do the stages walk a Feature with several child tickets?](tickets/family-walk.md) — The Feature's URL is the one address: briefing and plan once for the family, then each call proposes the next child's do and verify and check, in the briefing's order.
 - [guide-and-verify - what must it write so the check can read it?](tickets/gav-contract.md) — guide-and-verify writes nothing new: the check reads its own step fields; the entry hands it the row list, and the runbook is made when the do stage starts.
 - [Reliability - the session dies in the middle of a stage: what then?](tickets/resume-after-break.md) — The entry reads the loaded skill's own record - runbook outcome lines, or plan, ledger and git log - and a step with no result is measured before it is done again.
 - [Stages - which stages does a ticket have, and how does a run know where it is?](tickets/stage-model.md) — Four stages - briefing, plan, do and verify, check; on each call the skill reads the runbook, proposes the next stage with one line of evidence, and asks once.
@@ -52,7 +53,7 @@ Calling resolve-the-ticket with a ticket URL carries the ticket through its whol
 ## Not yet specified
 
 <!-- decision-map:fog:start -->
-- A Feature with several child tickets (like #193 with #194-#197): how does it walk this line - one run per child, or one run for the family?
+- (none)
 <!-- decision-map:fog:end -->
 
 ## Out of scope
