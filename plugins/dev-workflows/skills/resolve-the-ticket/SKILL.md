@@ -258,6 +258,58 @@ which costs nothing (ADR 0341).
 Then propose the next stage in the same turn - plan when group 1 or 2 has a point, else do
 and verify - and wait for the yes.
 
+## Stage 2 - the plan
+
+The open points of **group 1** and **group 2** of the briefing are decided on a Decision
+map (ADR 0345). Groups 3 and 4 never become Decision tickets. When both groups are empty,
+say so in one line - "Plan: skipped, nothing to decide" - and propose do and verify.
+
+**The map skills must be there.** The stage needs `chart-map` and `work-map`, which ship in
+another plugin. If either skill is not available in this session, say so, print this, and
+end the run (ADR 0349). Do not decide the points another way, and do not skip the stage:
+
+```
+The plan stage needs the chart-map and work-map skills, and they are not installed.
+- Claude Code:  /plugin install decision-map@workflow-daily-work
+- npx skills:   npx skills@latest add ThodsaphonSonthiphin/workflow-daily-work --skill chart-map
+                npx skills@latest add ThodsaphonSonthiphin/workflow-daily-work --skill work-map
+- Antigravity:  the decision-map plugin has no installer. Copy the folders skills/chart-map
+                and skills/work-map from the workflow-daily-work repo into your skills directory.
+Install them and call resolve-the-ticket again - or name another stage.
+```
+
+**One call does one of three things, then the run ends** (ADR 0348). `chart-map` ends its
+session after charting and `work-map` stops after one decision; this skill ends there too.
+
+| the ticket's Decision map | this call |
+|---|---|
+| does not exist | offer `chart-map`; on a yes load it through your harness's mechanism; when it stops, end |
+| has open Decision tickets | offer `work-map` for that map; on a yes load it; when it stops, end |
+| has no open Decision ticket | the plan is over - propose do and verify |
+
+End a run with one line: what is left, and that the next call carries on - "3 Decision
+tickets are still open on `docs/decision-map/ado-193-creditor-sync/`. Call
+resolve-the-ticket again for the next one."
+
+**What to hand `chart-map`.** One map per Feature, shared by all its children; a ticket
+with no Feature above it gets its own (ADR 0346):
+
+| thing | value |
+|---|---|
+| the map's folder | `<tracker>-<Feature id>-<short name>` - `ado-193-creditor-sync`, `gh-12-export` |
+| a group 1 point | a ticket of type `task`: the question, who must answer (or `not named`) |
+| a group 2 point | a ticket of type `grilling` |
+| a ticket's key | `<child id>-<short name>` - `195-shared-table`. A point that touches several children takes the first child's id, and its question names every ticket it touches |
+| blocking edges | read from the briefing's "what depends on what" map |
+
+`chart-map` asks for the destination and runs its own gate; do not answer its questions
+for the person. When the map already exists it only adds what is new. On a small ticket
+`chart-map` may say no map is needed and name `grill-then-plan` - say that to the person
+as it is, and end the run.
+
+A **closed** Decision ticket is the record of the decision (ADR 0347). The check reads it
+(4.2).
+
 ## 4. Moment two - the check
 
 ### 4.1 The rows

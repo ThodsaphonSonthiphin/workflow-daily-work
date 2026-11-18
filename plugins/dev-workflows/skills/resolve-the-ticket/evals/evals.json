@@ -212,6 +212,39 @@
         "After the briefing proposes do and verify as the next stage (groups 1 and 2 are empty) and waits for a yes",
         "Says in one line that the plan stage is skipped because there is nothing to decide"
       ]
+    },
+    {
+      "id": 11,
+      "name": "plan-stage-offers-chart-map-with-groups-one-and-two",
+      "prompt": "resolve the ticket https://dev.azure.com/Contoso/Ops/_workitems/edit/193 - go to the plan stage. The chart-map and work-map skills are available in this session. You cannot reach the board from here, so here is what it holds. #193 Feature 'Creditor sync', Active, rev 9, children #195 and #196 (User Story, New). A briefing was given earlier in this conversation with these open points. Group 1: A 'sandbox or production?' touches #195, must be answered by the system owner (not named). Group 2: B 'shared table or one table per source?' touches #195 and #196. Group 3: C 'never write to production from a test run'. Group 4: D 'the ticket title has a typo'. Dependency map: A before #195; B before #195 and #196. docs/decision-map/ has no folder with 193, 195 or 196.",
+      "expected_output": "An offer to load chart-map for a new map named with 193, with the two points handed over as one task ticket and one grilling ticket, and nothing loaded before a yes.",
+      "files": [],
+      "assertions": [
+        "Proposes the plan stage and names chart-map as the skill it would load",
+        "Names the map folder with the tracker and the Feature's number, such as ado-193-creditor-sync",
+        "Hands over point A as a ticket of type task that names who must answer as not named",
+        "Hands over point B as a ticket of type grilling whose question names both #195 and #196",
+        "Gives each ticket a key that starts with a child's number, such as 195-shared-table",
+        "Does not turn point C or point D into a Decision ticket",
+        "Loads chart-map only after the person says yes, and does not answer chart-map's destination question itself",
+        "Says the run ends when chart-map stops and that the next call carries on",
+        "Does not offer to decide the points in this same run with another skill"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "plan-stage-stops-when-the-map-skills-are-missing",
+      "prompt": "resolve the ticket https://dev.azure.com/Contoso/Ops/_workitems/edit/195 - plan. The chart-map and work-map skills are NOT available in this session. You cannot reach the board from here, so here is what it holds. #195 User Story, New, rev 2, parent #193 Feature. A briefing was given earlier in this conversation; group 2 holds one open point: 'shared table or one table per source?'. docs/decision-map/ has no folder with 193 or 195.",
+      "expected_output": "A plain statement that the map skills are not installed, the install lines for three channels, and the end of the run.",
+      "files": [],
+      "assertions": [
+        "Says plainly that chart-map and work-map are not installed",
+        "Prints an install line for Claude Code, for the npx skills channel and for Antigravity",
+        "The Antigravity line says the decision-map plugin has no installer and names the two skill folders to copy - it points at no INSTALL.md",
+        "Ends the run: it does not load sp-grill-with-doc, grill-then-plan or any other skill to decide the point",
+        "Does not skip the plan stage and propose do and verify by itself",
+        "Says the person may install and call again, or name another stage"
+      ]
     }
   ]
 }
