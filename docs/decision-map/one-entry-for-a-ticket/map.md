@@ -38,10 +38,11 @@ Calling resolve-the-ticket with a ticket URL carries the ticket through its whol
 - [Stages - which stages does a ticket have, and how does a run know where it is?](tickets/stage-model.md) — Four stages - briefing, plan, do and verify, check; on each call the skill reads the runbook, proposes the next stage with one line of evidence, and asks once.
 - [Identity - how is it recorded who did each step and who approved each decision?](tickets/who-did-what.md) — No gathered record is added: who did a step stays in each skill's own record, and the check table and closing comment stay as they are.
 
-#### plan-with-map — the planning stage runs on a decision map (2/7 closed)
+#### plan-with-map — the planning stage runs on a decision map (3/7 closed)
 
 - [Research - does loading a skill from another plugin work in every install?](tickets/cross-plugin-loading.md) — A skill name reaches another plugin's skill only when both are installed side by side; the tooling passes the name through untouched, and no channel has a live test on record.
 - [Planning - when does a ticket open or touch a decision map?](tickets/map-trigger.md) — Open points of group 1 (as task tickets) and group 2 (as grilling tickets) go on a Decision map through chart-map; when both are empty the plan stage is skipped, said in one line.
+- [Which map - the project's map, or one per ticket?](tickets/which-map.md) — One map per Feature, shared by all its children; a ticket with no Feature above it gets its own map; folder and ticket keys carry the tracker numbers.
 <!-- decision-map:decisions:end -->
 
 ## Not yet specified
