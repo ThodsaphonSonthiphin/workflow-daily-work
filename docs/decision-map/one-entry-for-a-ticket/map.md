@@ -29,8 +29,9 @@ Calling resolve-the-ticket with a ticket URL carries the ticket through its whol
 ## Decisions so far
 
 <!-- decision-map:decisions:start -->
-#### do-and-verify — one ticket walks briefing -> do and verify -> check in one call (1/6 closed)
+#### do-and-verify — one ticket walks briefing -> do and verify -> check in one call (2/6 closed)
 
+- [Acting - what replaces 'builds nothing'?](tickets/acting-rule.md) — It does not act itself: every act happens in the skill it loads, under that skill's rules, and it loads a skill only on the person's yes - also for a gap after NOT READY.
 - [Stages - which stages does a ticket have, and how does a run know where it is?](tickets/stage-model.md) — Four stages - briefing, plan, do and verify, check; on each call the skill reads the runbook, proposes the next stage with one line of evidence, and asks once.
 
 #### plan-with-map — the planning stage runs on a decision map (1/7 closed)
