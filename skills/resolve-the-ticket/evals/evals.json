@@ -73,7 +73,7 @@
       "id": 4,
       "name": "briefing-before-the-work",
       "prompt": "brief me on this ticket before I start: https://dev.azure.com/Contoso/Ops/_workitems/edit/155 . #155 User Story, New, rev 3, parent #152 Feature (New), no children, related #153 (Active). Acceptance Criteria: 'The agent answers only from the approved FAQ.' and 'The agent never predicts a dividend.' The repo has documents/runbook-ado-155-faq.md (baseline only, no steps yet) and docs/why/155-faq-source.md. You cannot reach the board from here; what is above is what it holds.",
-      "expected_output": "A briefing in chat: the ticket line, the family table, both AC lines quoted with locators, the file list with which to open first, open points. No check table, no verdict, no file written.",
+      "expected_output": "A briefing in chat: the ticket line, the family table, both AC lines quoted with locators, the file list with which to open first, open points. No check table, no verdict, no file written except one stage block appended to the runbook; then a proposal for the next stage.",
       "files": [],
       "assertions": [
         "States the ticket's type, title or id, State and revision in one line",
@@ -95,7 +95,7 @@
       "files": [],
       "assertions": [
         "Says plainly that no runbook was found for #297",
-        "Names guide-and-verify as the skill that creates the runbook and hands off to it",
+        "Names guide-and-verify as the skill that creates the runbook and offers the hand-off - it loads guide-and-verify only after the person says yes",
         "Passes what it already read (the ticket, its parent, the search result) as the head start",
         "Does not author a runbook file itself",
         "Does not use the parent's runbook as the place for the check",

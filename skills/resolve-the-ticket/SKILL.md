@@ -20,7 +20,9 @@ which skill comes when.
 
 - It **does no work itself.** It builds nothing and fixes nothing. The work happens inside
   the skill it loads, under that skill's own rules (ADR 0339).
-- It **never loads a skill without a yes.** It names the skill, says why, and waits.
+- It **never loads a skill that does work without a yes.** It names the skill, says why,
+  and waits. `ticket-trace` and `read-picture` are read helpers: they are loaded to read
+  the ticket and need no yes.
 - It **never writes to the tracker** - no comment, no State change, no ticked box. The
   person does those. A skill it loads follows its own rules: `guide-and-verify` records its
   readings on the ticket as it goes.
@@ -129,7 +131,8 @@ file.
 **No runbook found.** Say so in one line. What happens next depends on the stage:
 
 - **briefing or plan** - go on without one. A briefing with no runbook is chat only.
-- **do and verify** - the skill that stage loads creates it (Stage 3).
+- **do and verify** - for click work `guide-and-verify` creates it (Stage 3). Code work
+  gets none there; its check takes the route below.
 - **check** - the work was done with no runbook. Hand off to `guide-and-verify` (load it
   through your harness's mechanism, on the person's yes) and ask it for the runbook
   **file** only - in its own shape and the project's own naming, holding the title, the
@@ -265,6 +268,11 @@ The open points of **group 1** and **group 2** of the briefing are decided on a 
 map (ADR 0345). Groups 3 and 4 never become Decision tickets. When both groups are empty,
 say so in one line - "Plan: skipped, nothing to decide" - and propose do and verify.
 
+The stage works from the briefing's open points - their letters, what each touches, and
+the "what depends on what" map. If they are not in this conversation, work them out again
+from the ticket and the files and print them first; the `## Stage` block holds only the
+counts.
+
 **The map skills must be there.** The stage needs `chart-map` and `work-map`, which ship in
 another plugin. If either skill is not available in this session, say so, print this, and
 end the run (ADR 0349). Do not decide the points another way, and do not skip the stage:
@@ -288,7 +296,8 @@ session after charting and `work-map` stops after one decision; this skill ends 
 | has open Decision tickets | offer `work-map` for that map; on a yes load it; when it stops, end |
 | has no open Decision ticket | the plan is over - propose do and verify |
 
-End a run with one line: what is left, and that the next call carries on - "3 Decision
+Say in the offer that the run ends when that skill stops. End the run with one line: what
+is left, and that the next call carries on - "3 Decision
 tickets are still open on `docs/decision-map/ado-193-creditor-sync/`. Call
 resolve-the-ticket again for the next one."
 
@@ -331,7 +340,7 @@ written. Then hand the loaded skill three things:
 1. what you have already read - the ticket, its parent and children, the file list;
 2. the row list, with this request: "name on each step (or task, or test) the rows it
    proves, for example `Step 3 - set the schedule (AC-2)`";
-3. for a call after a break, the one line of step 3: which steps have a result and which
+3. for a call after a break, the evidence line of section 3: which steps have a result and which
    is the first without one - "measure it first; do not do it again blind" (ADR 0343).
 
 A row that no step, task or test names is said aloud now - "L-4 has no step that proves
@@ -554,8 +563,8 @@ Then record the check (4.6).
 
 ### 4.5 On NOT READY - record, then offer the next skill
 
-Draft no comment. Record the check first (4.6). Then print at most one line per kind of
-gap, naming every row of that kind:
+Draft no comment. Work out the gap lines - at most one per kind of gap, naming every row
+of that kind - then record the check with them (4.6), then print them all:
 
 | gap | the line offers |
 |---|---|
@@ -568,9 +577,11 @@ gap, naming every row of that kind:
 > L-4 has no test - load `generating-test-cases` for its case?
 > #297 is still New - go on to #297, or say it stays open on purpose?
 
-Offer one gap at a time, in the order of the table. On a yes, load that skill through your
-harness's mechanism and hand it the row and what you read. On a no, or no answer, stop.
-Never load one without a yes (ADR 0339).
+Then ask about them one at a time, in the order of the table. On a yes: load the named
+skill through your harness's mechanism and hand it the row and what you read; for a stale
+row, name the test step to run again - the person or the skill that owns that step runs
+it; for an open child, go on with that child as if this skill were called with its URL.
+On a no, or no answer, stop. Never load one without a yes (ADR 0339).
 
 ### 4.6 Record the check in the runbook
 
