@@ -1,0 +1,52 @@
+# Decision map - resolve-the-ticket as the one entry for working a ticket
+
+```mermaid
+graph TD
+    MAP["map (this file)"] --> T["tickets/*.md — one decision each"]
+    T --> D["Decisions so far (index below)"]
+```
+
+## Destination
+Calling resolve-the-ticket with a ticket URL carries the ticket through its whole line - briefing, planning by loading chart-map / work-map, doing and verifying by loading guide-and-verify, then the check - and each method's text stays only in its own skill, so a change is made in one place.
+
+## Notes
+
+<!-- decision-map:notes:start -->
+- No new skill and no copied text between skills: the entry skill only says which skill to load at which stage (user, 2026-11-18).
+- Another session has uncommitted edits to guide-and-verify; read its SKILL.md fresh before deciding anything about it.
+- resolve-the-ticket's current rules are ADRs 0316-0333, 0335, 0336; ADR 0316 (builds nothing) and ADR 0317 (asks briefing or check) are the two this map will most likely amend.
+- sweep 2026-11-18: none - performance, operations; ticket - stage-model, cross-plugin-loading, plugin-missing, resume-after-break, acting-rule, who-did-what, repo-data-rules; fog - functional; out of scope - scope
+<!-- decision-map:notes:end -->
+
+## Milestones
+
+<!-- decision-map:milestones:start -->
+- `do-and-verify` one ticket walks briefing -> do and verify -> check in one call [stage-model, acting-rule, code-work-stage, gav-contract, resume-after-break, who-did-what]
+- `plan-with-map` the planning stage runs on a decision map [map-trigger, which-map, decision-store, one-session-stop, plugin-missing, cross-plugin-loading, repo-data-rules]
+<!-- decision-map:milestones:end -->
+
+## Decisions so far
+
+<!-- decision-map:decisions:start -->
+#### do-and-verify — one ticket walks briefing -> do and verify -> check in one call (0/6 closed)
+
+_nothing closed yet_
+
+#### plan-with-map — the planning stage runs on a decision map (1/7 closed)
+
+- [Research - does loading a skill from another plugin work in every install?](tickets/cross-plugin-loading.md) — A skill name reaches another plugin's skill only when both are installed side by side; the tooling passes the name through untouched, and no channel has a live test on record.
+<!-- decision-map:decisions:end -->
+
+## Not yet specified
+
+<!-- decision-map:fog:start -->
+- A Feature with several child tickets (like #193 with #194-#197): how does it walk this line - one run per child, or one run for the family?
+<!-- decision-map:fog:end -->
+
+## Out of scope
+
+<!-- decision-map:scope:start -->
+- A new skill that orchestrates the three - the user ruled it out: more places to maintain.
+- Copying another skill's method text into resolve-the-ticket.
+- The skill writing to the tracker itself (comment, State, ticked AC) - ADR 0318 stands.
+<!-- decision-map:scope:end -->
