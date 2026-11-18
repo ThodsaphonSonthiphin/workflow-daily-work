@@ -81,7 +81,8 @@
         "Lists the runbook and the why file, and says which to open first",
         "Points out that the related ticket #153 is still open",
         "Prints no check table and no READY verdict",
-        "Writes no file and appends nothing to the runbook",
+        "Appends one '## Stage - <date> <time UTC> - briefing done' block to documents/runbook-ado-155-faq.md with the ticket's revision and the open-point counts of groups 1 and 2, and edits no line above it",
+        "After the briefing, proposes the next stage in one line and waits for a yes - it starts no stage and loads no skill by itself",
         "Builds nothing and proposes no implementation"
       ]
     },
@@ -102,12 +103,13 @@
     },
     {
       "id": 6,
-      "name": "opening-asks-and-refuses-unknown-tracker",
+      "name": "opening-asks-for-the-url-only",
       "prompt": "resolve the ticket 151",
-      "expected_output": "One question asking for the moment (briefing or check) and the ticket URL; nothing is read first.",
+      "expected_output": "One question that asks for the ticket's URL and nothing else.",
       "files": [],
       "assertions": [
-        "Asks, in one question, whether this is the briefing or the check and for the ticket's URL",
+        "Asks for the ticket's URL",
+        "Does not ask whether this is the briefing or the check",
         "Does not guess the organization or project from the bare number or from an environment variable",
         "Reads no ticket and searches no file before the URL is given"
       ]
@@ -161,6 +163,54 @@
         "A monospace map shows what depends on what, including #195 before #196",
         "A suggested order follows: questions sent first in one round, #196 last; it is called a suggestion",
         "Builds nothing and prints no check table or READY verdict"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "resume-proposes-do-and-verify-at-the-first-step-with-no-result",
+      "prompt": "resolve the ticket https://dev.azure.com/Contoso/Ops/_workitems/edit/195 . You cannot reach the board from here, so here is what it holds. #195 User Story, Active, rev 5, parent #193 Feature (Active), no children. Acceptance Criteria: 'The flow runs Mon-Fri 08:00.' and 'A failed run sends one email to the admin.' The repo has documents/runbook-ado-195-sync-flow.md. It holds a '## Stage - 2026-11-16 02:10 UTC - briefing done' block (group 1: 0, group 2: 0), then six steps written by guide-and-verify. Step 1 and Step 2 each have an outcome line with a measurement and a time. Steps 3 to 6 have none. There is no '## Resolve check' block and no folder under docs/decision-map/ with 193 or 195 in its name.",
+      "expected_output": "One proposal: do and verify, at step 3, with the evidence line, the warning that step 3 may have partly landed and is measured first, and one question. Nothing is loaded yet.",
+      "files": [],
+      "assertions": [
+        "Proposes the stage do and verify, and names step 3 as where it continues",
+        "The evidence line says steps 1-2 have a result and step 3 has none",
+        "Says step 3 may have partly landed and must be measured before it is done again",
+        "Names guide-and-verify as the skill it would load, and asks once whether to go on",
+        "Loads no skill and starts no step before the person answers",
+        "Does not ask 'briefing or check'",
+        "Writes no progress file of its own and does not touch daily-state.md",
+        "Prints no check table and no READY verdict"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "feature-url-proposes-one-child",
+      "prompt": "resolve the ticket https://dev.azure.com/Contoso/Ops/_workitems/edit/193 . You cannot reach the board from here, so here is what it holds. #193 Feature, Active, rev 9, no parent, children #194, #195, #196 (all User Story, Active). The repo has docs/decision-map/ado-193-creditor-sync/ with 4 Decision tickets, all closed, and the map's notes say the briefing order is #194, then #195, then #196 (#196 waits on #195). documents/runbook-ado-194-table.md ends with '## Resolve check - 2026-11-17 03:00 UTC - READY' at #194's current revision, nothing changed after it. There is no runbook and no plan file for #195 or #196.",
+      "expected_output": "A family status and one proposal: #195, do and verify from the start, with one question.",
+      "files": [],
+      "assertions": [
+        "Treats #193 as a family: it reports the state of #194, #195 and #196, each from its own files",
+        "Says #194 is READY, with the date of its Resolve check block",
+        "Proposes exactly one child, #195, and the stage do and verify",
+        "Says #196 waits on #195",
+        "Does not propose a new briefing or a plan stage for the family - the map exists and has no open Decision ticket",
+        "Asks once, and says the person may name another child or stage",
+        "Loads no skill before the person answers"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "new-ticket-with-no-runbook-gets-a-chat-only-briefing",
+      "prompt": "resolve the ticket https://dev.azure.com/Contoso/Ops/_workitems/edit/301 . Yes, go on with what you propose. You cannot reach the board from here, so here is what it holds. #301 User Story, New, rev 1, no parent, no children, no links. Acceptance Criteria: 'The export file is named by date.' You searched the project for 301: no file name, no file content and no commit message carries it, and docs/decision-map/ has no folder with 301.",
+      "expected_output": "The proposal 'briefing' with the evidence that no runbook and no map were found, then the briefing in chat, no file written, then a proposal for the next stage.",
+      "files": [],
+      "assertions": [
+        "Proposes the briefing, with the evidence that no runbook and no Decision map were found",
+        "Gives the briefing in chat: the ticket line, the family, the AC line quoted with a locator, the files, the open points in four groups",
+        "Writes no file: no runbook, no stage block, no progress file",
+        "Does not hand off to guide-and-verify for a runbook at the briefing",
+        "After the briefing proposes do and verify as the next stage (groups 1 and 2 are empty) and waits for a yes",
+        "Says in one line that the plan stage is skipped because there is nothing to decide"
       ]
     }
   ]

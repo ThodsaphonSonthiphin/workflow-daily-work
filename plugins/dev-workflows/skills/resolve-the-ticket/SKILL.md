@@ -1,67 +1,71 @@
 ---
 name: resolve-the-ticket
-description: 'Read-only helper for one ticket at two moments. BRIEFING before the work starts - what the ticket asks, its parent and children, linked tickets, the runbook and the files to open. CHECK before a person sets it to Resolved - one row per Acceptance Criteria line, logic rule and child ticket, each with its test and result (pass cited / measured / told, no test, fail, stale, differs, open), then READY or NOT READY and, on READY, a closing comment to paste. Asks which moment and waits for the ticket URL (Azure DevOps or GitHub Issues). Use for "resolve the ticket", "is this ticket ready to resolve", "check before I resolve", "brief me on this ticket", "ticket นี้ resolve ได้ยัง", "เช็คก่อน resolve", "อ่าน ticket นี้ให้หน่อย". Never changes the ticket, builds nothing. Not work-map (Decision tickets), not dual-verifier (one diff).'
+description: 'The one entry for working a ticket (Azure DevOps or GitHub Issues). Give it the ticket URL: it reads the ticket, its parent and children and the files in the repo, says which of four stages comes next - BRIEFING, PLAN, DO AND VERIFY, CHECK - and asks once. It does no work itself: at each stage it offers the skill that does (chart-map / work-map, guide-and-verify, sp-writing-plans) and loads it on a yes. CHECK: one row per Acceptance Criteria line, logic rule and child ticket, each with its test and result, then READY or NOT READY and, on READY, a closing comment to paste. Use for "resolve the ticket", "work on this ticket", "start this ticket", "what is next on this ticket", "is this ticket ready to resolve", "check before I resolve", "brief me on this ticket", "ticket นี้ resolve ได้ยัง", "เช็คก่อน resolve", "อ่าน ticket นี้ให้หน่อย", "ทำ ticket นี้ต่อ". Never writes to the tracker. Not dual-verifier (one diff).'
 effort: max
 ---
 
 # Resolve the ticket
 
 A ticket gets set to Resolved on "I think it is done". A week later it is reopened, because
-one rule in its details had no passing test on that day. This skill stands at the two
-moments where that is cheap to prevent: before the work starts, and before the State
-changes.
+one rule in its details had no passing test on that day. This skill is the one door for a
+ticket: call it with the ticket's URL at any time, and it says where the ticket is and what
+comes next.
 
 **The failure this prevents:** a ticket resolved over a rule nobody tested, a pass that is
-older than the last change, or a child task nobody did.
+older than the last change, a child task nobody did - and a person who has to remember
+which skill comes when.
 
 ## What it never does
 
-- It **builds nothing and fixes nothing.** The work between the two moments belongs to the
-  other skills.
+- It **does no work itself.** It builds nothing and fixes nothing. The work happens inside
+  the skill it loads, under that skill's own rules (ADR 0339).
+- It **never loads a skill without a yes.** It names the skill, says why, and waits.
 - It **never writes to the tracker** - no comment, no State change, no ticked box. The
-  person does those.
-- It **never writes a runbook.** A missing runbook is `guide-and-verify`'s to create.
-- It **never starts the skill it names for a gap.** It names it and stops.
+  person does those. A skill it loads follows its own rules: `guide-and-verify` records its
+  readings on the ticket as it goes.
+- It **never writes a runbook.** `guide-and-verify` creates it.
 
-Its only write is one dated block appended to the ticket's runbook.
+Its only writes are two kinds of dated block appended to the ticket's runbook: one stage
+block after a briefing (only when the runbook exists), and one block per check.
 
 ## The flow
 
 ```
  ┌──────────────────────────────────┐
- │ 0. Ask: briefing or check?       │
- │    Wait for the ticket URL       │
+ │ 0. Wait for the ticket URL       │
  └────────────────┬─────────────────┘
                   ▼
  ┌──────────────────────────────────┐
  │ 1. Read ticket, parent, children │
- │    (other links: title + State)  │
+ │ 2. Find files by ticket number   │
  └────────────────┬─────────────────┘
                   ▼
  ┌──────────────────────────────────┐
- │ 2. Find files by ticket number   │
- │    print the list, then read     │
- │    no runbook -> guide-and-verify│
- └───────┬──────────────────┬───────┘
-         ▼                  ▼
- ┌───────────────┐  ┌───────────────────┐
- │ 3. BRIEFING   │  │ 4. CHECK          │
- │    chat only  │  │    rows + verdict │
- │    stop       │  │    append to the  │
- └───────────────┘  │    runbook        │
-                    └───────────────────┘
+ │ 3. Say which stage comes next,   │
+ │    with one line of evidence.    │
+ │    Ask once. The person may name │
+ │    another stage.                │
+ └──┬─────────┬──────────┬────────┬─┘
+    ▼         ▼          ▼        ▼
+ Stage 1   Stage 2    Stage 3   Stage 4
+ BRIEFING  PLAN       DO AND    CHECK
+ chat      chart-map  VERIFY    rows +
+           work-map   guide-    verdict
+                      and-verify
+                      or sp-
+                      writing-plans
 ```
 
-## 0. Open - ask, and wait for the URL
+## 0. Open - wait for the URL
 
-Two things are needed: the **moment** (briefing or check) and the **ticket's URL**. Ask only
-for what the invocation did not give, in one question:
+One thing is needed: the **ticket's URL**. If the invocation did not give it, ask:
 
-> Briefing (before you start) or check (before you resolve)? And the ticket's URL, please.
+> The ticket's URL, please.
 
-Read nothing until you have the URL. A bare number is not enough - the URL names the
-tracker, the organization and the project in one string, so the right number is never read
-in the wrong project. Do not take the organization or project from an environment variable.
+Do not ask which stage. Read nothing until you have the URL. A bare number is not enough -
+the URL names the tracker, the organization and the project in one string, so the right
+number is never read in the wrong project. Do not take the organization or project from an
+environment variable.
 
 | URL | tracker |
 |---|---|
@@ -69,7 +73,8 @@ in the wrong project. Do not take the organization or project from an environmen
 | `github.com/<owner>/<repo>/issues/<n>` | GitHub Issues |
 | anything else | say "I cannot read this tracker." and stop |
 
-Then say one line: which moment this is, and for which ticket.
+If the person named a stage in the call ("brief me", "check", "start the work"), that is
+the stage: steps 1 and 2 still run, step 3 says one line and does not ask.
 
 ## 1. Read the ticket family
 
@@ -120,18 +125,64 @@ Files for #151 (and child #297):
 Then read the documents. A snapshot folder is listed with its file count, not read file by
 file.
 
-**No runbook found.** Say so in one line, then hand off to `guide-and-verify` (load it
-through your harness's mechanism) and ask it for the runbook **file** only - in its own
-shape and the project's own naming, holding the title, the ticket link, the file list and
-the boundary line - with no baseline measurement and nothing written to the ticket. Give it
-what you have already read - the ticket, its parent and children, the file list - as its
-head start; at the check, your block is then appended to the file it creates (4.6). Do not write a runbook yourself,
-do not use the parent's runbook, and do not go on as if there were none. Continue when the
-runbook exists.
+**No runbook found.** Say so in one line. What happens next depends on the stage:
 
-## 3. Moment one - the briefing
+- **briefing or plan** - go on without one. A briefing with no runbook is chat only.
+- **do and verify** - the skill that stage loads creates it (Stage 3).
+- **check** - the work was done with no runbook. Hand off to `guide-and-verify` (load it
+  through your harness's mechanism, on the person's yes) and ask it for the runbook
+  **file** only - in its own shape and the project's own naming, holding the title, the
+  ticket link, the file list and the boundary line - with no baseline measurement and
+  nothing written to the ticket: a baseline cannot be measured after the change. Give it
+  what you have already read as its head start; your block is then appended to the file it
+  creates (4.6). Do not write a runbook yourself, do not use the parent's runbook, and do
+  not go on as if there were none. Continue when the runbook exists.
 
-Chat only, in this order, then stop:
+## 3. Say which stage comes next
+
+A ticket has four stages. Each ends on something a file shows:
+
+| stage | what happens | ends when |
+|---|---|---|
+| 1. briefing | the ticket, its family and its files are read; the open points are shown | the person has read it and says go on |
+| 2. plan | the open points of groups 1 and 2 are decided on a Decision map | the map has no open Decision ticket (no such points: skipped) |
+| 3. do and verify | the work is done step by step, each step measured | every step has a recorded result |
+| 4. check | one row per AC line, logic rule and child; READY or NOT READY | READY, and the person resolves the ticket |
+
+Read the table below from the top. The first row that fits is the proposal:
+
+| what the files show | propose | the evidence line names |
+|---|---|---|
+| the last `## Resolve check` block says READY, the ticket's revision is the same and nothing changed after it | nothing - say it was READY on that date and the person resolves it on the board; offer a new check | the block's date |
+| the last `## Resolve check` block says NOT READY and no work is recorded after it | the gap's skill (4.5), else the check again | the block's gap lines |
+| the work record is complete - every runbook step has an outcome line, or every task of the plan file is ticked | check | the count of steps |
+| the work record is started and not complete | do and verify, at the first step with no result | which steps have a result and which is first without one |
+| the Decision map for this ticket has open Decision tickets | plan | the count of open tickets |
+| the briefing is known to be done - a `## Stage` block in the runbook, or a Decision map with no open ticket | plan when that block counts open points in group 1 or 2 and no map exists; else do and verify | the block's date or the map's path |
+| none of the above | briefing | "no runbook and no map found" |
+
+**The work record** is what the loaded skill writes, never a file of this skill
+(ADR 0343): for click work the runbook's steps and outcome lines; for code work the plan
+file under `docs/superpowers/plans/`, the executing skill's ledger and `git log`.
+
+**The Decision map for a ticket** is found like the runbook - by number, matched whole: a
+folder under `docs/decision-map/` whose name carries the Feature's number
+(`ado-193-…`, `gh-12-…`), or the ticket's own number when no Feature is above it.
+
+Say the proposal in this shape, then wait:
+
+```
+Next for #195: do and verify, at step 3.
+Steps 1-2 have a result; step 3 has none - it may have partly landed, so it is measured first.
+Go on? Or name another stage.
+```
+
+One question, once. A yes starts the stage. Another stage's name starts that stage. Never
+start a stage on silence.
+
+## Stage 1 - the briefing
+
+Chat, in this order:
 
 1. **The ticket** - one line: type, id, title, State, revision, URL. On GitHub the revision
    is `updated <timestamp>`, from `updatedAt`.
@@ -190,8 +241,22 @@ waits on, then each task as its points close, last the task that waits on the mo
 suggestion: say so in one line, and build nothing.
 
 Show a rule with logic the way the project asks for it (some projects fix a flowchart
-shape in their `CLAUDE.md` / `AGENTS.md` - follow it). Write no file. Print no check table
-and no verdict.
+shape in their `CLAUDE.md` / `AGENTS.md` - follow it). Print no check table and no verdict.
+
+**After the briefing.** When the ticket has a runbook, append one block to it, after its
+last section, and never edit a line above it:
+
+```
+## Stage - <date> <time UTC> - briefing done
+
+Ticket #<id> rev <n> (GitHub: updated <timestamp>). Open points: group 1: <count>, group 2: <count>.
+```
+
+When the ticket has no runbook, write no file: the next call proposes the briefing again,
+which costs nothing (ADR 0341).
+
+Then propose the next stage in the same turn - plan when group 1 or 2 has a point, else do
+and verify - and wait for the yes.
 
 ## 4. Moment two - the check
 
@@ -418,6 +483,33 @@ Gaps: <the lines of 4.5, or "none">
 ```
 
 One block per check, newest last. Say the runbook's path.
+
+## A Feature and its children
+
+When the URL is an Azure DevOps **Feature** or **Epic** with children, the URL is the one
+address for the whole family (ADR 0351). On GitHub, an issue with sub-issues is asked
+about once: "#12 has 4 sub-issues - walk them one at a time, or treat #12 as one ticket?"
+A User Story or Bug with child Tasks is one ticket: its Tasks stay rows of its own check.
+
+| stage | for the family |
+|---|---|
+| briefing | once, for the Feature and every child |
+| plan | once, on the Feature's map |
+| do and verify | per child, one at a time, in the order of the briefing's "what depends on what" map |
+| check | per child; when no child is left, the Feature's own check (a row per child, by State) |
+
+On every call, run step 3 for each child from its own runbook and work record, then
+propose **one** child:
+
+```
+Next for Feature #193: #195 - do and verify, from the start.
+#194 is READY (checked 2026-11-17). #196 and #197 wait on #195.
+Go on? Or name another child or stage.
+```
+
+The person may also call the skill with a child's URL. Read the parent as always; when the
+parent's map exists, the family's briefing and plan are done - propose that child's own
+next stage.
 
 ## Rules that keep it honest
 
