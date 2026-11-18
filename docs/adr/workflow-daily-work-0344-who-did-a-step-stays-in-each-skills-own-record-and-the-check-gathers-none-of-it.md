@@ -26,6 +26,6 @@ Where a reader finds it today, unchanged:
 | a step the agent made at the person's request | `guide-and-verify`'s exception line: who asked, which path, the result, the time |
 | code the agent wrote | the commits, and the plan the person agreed to |
 | who approved a decision | the ADR or Decision ticket, in the person's quoted words |
-| where a pass's proof came from | the check's mark: `cited`, `measured` or `told` (ADR 0320) |
+| where a pass's proof came from | the check's mark: `cited`, `measured` or `told` (ADR 0319) |
 
 Nothing changes in `resolve-the-ticket/SKILL.md` for this decision.
