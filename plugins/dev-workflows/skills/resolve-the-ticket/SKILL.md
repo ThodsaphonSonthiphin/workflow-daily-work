@@ -354,7 +354,7 @@ and passing after, is its measurement (ADR 0342).
 When the loaded skill is done, propose the check and wait for the yes. When it stops
 part-way, say what is left in one line and end the run.
 
-## 4. Moment two - the check
+## Stage 4 - the check
 
 ### 4.1 The rows
 
@@ -407,9 +407,11 @@ Ask these in order and stop at the first that decides:
 ```
 
 **Where a test is found.** The runbook's steps and Outcome log, a ticket comment, a test
-file in the repo, a case in a test-case suite, the register's *tested by* cell. Nothing
-found: ask the user once, naming every such row - "Rows L-1 and AC-3 - no test found in the
-runbook, the comments or the repo. Was either tested?"
+file in the repo, a case in a test-case suite, the register's *tested by* cell. A step,
+task or test that names the row (`Step 3 - set the schedule (AC-2)`) is the first place to
+look - and it is still compared part by part below; a tag never replaces that comparison
+(ADR 0340). Nothing found: ask the user once, naming every such row - "Rows L-1 and AC-3 -
+no test found in the runbook, the comments or the repo. Was either tested?"
 
 **Does the test prove the row? Given / When / Then (ADR 0335).** A test that is only
 *about* the same thing proves nothing. Break the row into three parts, break the test into
@@ -467,9 +469,11 @@ Never write to a live system. A yes is for that one query.
 **Differs.** Compare what the ticket says with what was built (the code, the flow
 definition, a snapshot, the runbook's design). Something built that the ticket does not state - an extra
 recipient, an extra condition - is a difference too. When they differ, look for a **written,
-approved decision** that covers the difference - a runbook decision, an ADR, a ticket
-comment, with who approved it. Found: `pass - differs by decision <id>`, with its locator,
-when the test passes. Not found: **differs** - a passing test of the wrong rule is not a
+approved decision** that covers the difference - a **closed** Decision ticket on the
+ticket's Decision map (the record, ADR 0347), an ADR, a runbook decision, a ticket
+comment, with who approved it. Found: `pass - differs by decision <id>`, with its locator
+(for a Decision ticket: its key and path), when the test passes. An open or claimed
+Decision ticket is not a decision. Not found: **differs** - a passing test of the wrong rule is not a
 pass. The user approving it now, in this session, closes the row as `told`.
 
 **Child rows.** A child whose State is a done State (see `references/ticket-family.md`) is
@@ -547,11 +551,12 @@ Leave out a `###` section that has no line. Then say:
 
 Then record the check (4.6).
 
-### 4.5 On NOT READY - name the next skill, and stop
+### 4.5 On NOT READY - record, then offer the next skill
 
-Draft no comment. Print at most one line per kind of gap, naming every row of that kind:
+Draft no comment. Record the check first (4.6). Then print at most one line per kind of
+gap, naming every row of that kind:
 
-| gap | the line names |
+| gap | the line offers |
 |---|---|
 | no test | `generating-test-cases` |
 | fail | `debug-mantra` |
@@ -559,10 +564,12 @@ Draft no comment. Print at most one line per kind of gap, naming every row of th
 | differs, no decision | `grill-then-plan` - the decision gets written first |
 | open child | `resolve-the-ticket` on that child |
 
-> L-4 has no test - write its case (`generating-test-cases`)?
-> #297 is still New - run `resolve-the-ticket` on it, or say it stays open on purpose?
+> L-4 has no test - load `generating-test-cases` for its case?
+> #297 is still New - go on to #297, or say it stays open on purpose?
 
-Then record the check (4.6) and stop. Do not start any of them.
+Offer one gap at a time, in the order of the table. On a yes, load that skill through your
+harness's mechanism and hand it the row and what you read. On a no, or no answer, stop.
+Never load one without a yes (ADR 0339).
 
 ### 4.6 Record the check in the runbook
 
@@ -609,7 +616,10 @@ next stage.
 
 ## Rules that keep it honest
 
-- **Read-only on the board, always.** No comment, no State, no tick.
+- **It leads; it does not act.** Every act of the work happens in a skill it loaded on a
+  yes.
+- **This skill is read-only on the board, always.** No comment, no State, no tick. A skill
+  it loaded keeps its own rules.
 - **One mark on every pass.** A pass with no mark is a row nobody can trust later.
 - **A test about the same thing is not a test of the row.** Given, When and Then all match,
   or the row has no test.
@@ -623,12 +633,13 @@ next stage.
 
 | not this | because |
 |---|---|
-| `work-map` | it resolves a **Decision ticket** on a Decision map - a different thing |
+| `work-map` | it resolves a **Decision ticket** on a Decision map; this skill loads it in the plan stage |
 | `dual-verifier` | two agents verify one finished task from its diff; no ticket, no AC rows |
 | `why-this-logic` | traces each rule to its source and teaches it; its splitting rules and marks are used here, its phases are not run |
 | `ticket-trace` | answers why one line exists; its ticket fetch is loaded here |
-| `guide-and-verify` | owns the runbook; this skill only appends its check block |
-| `generating-test-cases` | writes the test cases a `no test` row needs |
+| `guide-and-verify` | owns the runbook and the click work; loaded in do and verify |
+| `sp-writing-plans` | owns the plan for code work; loaded in do and verify |
+| `generating-test-cases` | writes the test cases a `no test` row needs; offered after NOT READY |
 
 ## Language
 
