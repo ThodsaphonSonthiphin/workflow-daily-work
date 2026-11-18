@@ -107,7 +107,7 @@ Search the project you run in for the ticket's number and each child's number:
 
 1. file and folder names (`runbook-ado-151-…`, `151-…`, `ado-151-…`)
 2. file contents (`#151`, `AB#151`, `ado-151`)
-3. commit messages (`git log --grep`)
+3. commit messages (`git log --all --grep`)
 4. every file the ticket or the runbook names
 
 Match the number whole: `151` does not match `1510`, a date or a GUID. Drop a hit that only
@@ -127,7 +127,7 @@ Files for #151 (and child #297):
 Then read the documents. A snapshot folder is listed with its file count, not read file by
 file.
 
-**No runbook found.** Say so in one line. What happens next depends on the stage:
+**No runbook found.** Say so in one line. What happens next depends on the stage that step 3 proposes or the call names:
 
 - **briefing or plan** - go on without one. A briefing with no runbook is chat only.
 - **do and verify** - for click work `guide-and-verify` creates it (Stage 3). Code work
@@ -156,17 +156,17 @@ Read the table below from the top. The first row that fits is the proposal:
 
 | what the files show | propose | the evidence line names |
 |---|---|---|
-| the last `## Resolve check` block says READY, the ticket's revision is the same and nothing changed after it | nothing - say it was READY on that date and the person resolves it on the board; offer a new check | the block's date |
+| the last `## Resolve check` block says READY and nothing that can make it stale changed after it - no commit to its files, no edit to the ticket's requirement text (a comment or a State change is not one, ADR 0331) | nothing - say it was READY on that date and the person resolves it on the board; offer a new check | the block's date |
 | the last `## Resolve check` block says NOT READY and no work is recorded after it | the gap's skill (4.5), else the check again | the block's gap lines |
-| the work record is complete - every runbook step has an outcome line, or every task of the plan file is ticked | check | the count of steps |
-| the work record is started and not complete | do and verify, at the first step with no result | which steps have a result and which is first without one |
+| the work record is complete - click work: the runbook has steps and every one has an outcome line; code work: every task of the plan has a `Task <N>: complete` line in the executing skill's ledger (no ledger left after a run: ask the person once whether the run finished). Work of both kinds: both records | check | the count of steps |
+| the work record is started and not complete | do and verify, at the first step with no result (code work: the first task with no complete line) | which steps have a result and which is first without one |
 | the Decision map for this ticket has open Decision tickets | plan | the count of open tickets |
-| the briefing is known to be done - a `## Stage` block in the runbook, or a Decision map with no open ticket | plan when that block counts open points in group 1 or 2 and no map exists; else do and verify | the block's date or the map's path |
+| the briefing is known to be done - a `## Stage` block in the runbook, or a Decision map with no open ticket | plan when that block counts open points in group 1 or 2 and no map exists; else say "Plan: skipped, nothing to decide" and propose do and verify | the block's date or the map's path |
 | none of the above | briefing | "no runbook and no map found" |
 
 **The work record** is what the loaded skill writes, never a file of this skill
 (ADR 0343): for click work the runbook's steps and outcome lines; for code work the plan
-file under `docs/superpowers/plans/`, the executing skill's ledger and `git log`.
+file under `docs/superpowers/plans/`, the executing skill's ledger and `git log --all` (the work may sit on a branch that is not merged yet).
 
 **The Decision map for a ticket** is found like the runbook - by number, matched whole: a
 folder under `docs/decision-map/` whose name carries the Feature's number
@@ -175,7 +175,7 @@ folder under `docs/decision-map/` whose name carries the Feature's number
 Say the proposal in this shape, then wait:
 
 ```
-Next for #195: do and verify, at step 3.
+Next for #195: do and verify, at step 3 - click work, with guide-and-verify.
 Steps 1-2 have a result; step 3 has none - it may have partly landed, so it is measured first.
 Go on? Or name another stage.
 ```
@@ -258,8 +258,8 @@ Ticket #<id> rev <n> (GitHub: updated <timestamp>). Open points: group 1: <count
 When the ticket has no runbook, write no file: the next call proposes the briefing again,
 which costs nothing (ADR 0341).
 
-Then propose the next stage in the same turn - plan when group 1 or 2 has a point, else do
-and verify - and wait for the yes.
+Then propose the next stage in the same turn and wait for the yes: plan when group 1 or 2
+has a point; else say "Plan: skipped, nothing to decide" and propose do and verify.
 
 ## Stage 2 - the plan
 
@@ -267,10 +267,10 @@ The open points of **group 1** and **group 2** of the briefing are decided on a 
 map (ADR 0345). Groups 3 and 4 never become Decision tickets. When both groups are empty,
 say so in one line - "Plan: skipped, nothing to decide" - and propose do and verify.
 
-The stage works from the briefing's open points - their letters, what each touches, and
-the "what depends on what" map. If they are not in this conversation, work them out again
-from the ticket and the files and print them first; the `## Stage` block holds only the
-counts.
+Offering `chart-map` needs the briefing's open points - their letters, what each touches,
+and the "what depends on what" map. If they are not in this conversation, work them out
+again from the ticket and the files and print them before the offer; the `## Stage` block
+holds only the counts. A call that offers `work-map` does not print them again.
 
 **The map skills must be there.** The stage needs `chart-map` and `work-map`, which ship in
 another plugin. If either skill is not available in this session, say so, print this, and
@@ -293,6 +293,7 @@ session after charting and `work-map` stops after one decision; this skill ends 
 |---|---|
 | does not exist | offer `chart-map`; on a yes load it through your harness's mechanism; when it stops, end |
 | has open Decision tickets | offer `work-map` for that map; on a yes load it; when it stops, end |
+| exists, and a child's briefing has a group 1 or 2 point that is not on it | offer `work-map` for that map and hand it the new points as tickets to add through its own gate; when it stops, end (ADR 0355) |
 | has no open Decision ticket | the plan is over - propose do and verify |
 
 Say in the offer that the run ends when that skill stops. End the run with one line: what
@@ -312,9 +313,10 @@ with no Feature above it gets its own (ADR 0346):
 | blocking edges | read from the briefing's "what depends on what" map |
 
 `chart-map` asks for the destination and runs its own gate; do not answer its questions
-for the person. When the map already exists it only adds what is new. On a small ticket
-`chart-map` may say no map is needed and name `grill-then-plan` - say that to the person
-as it is, and end the run.
+for the person. On a map that already exists `chart-map` runs only its own sweep; new points go through `work-map` (the table above). On a small ticket `chart-map` may say no map is needed and name `grill-then-plan` - say
+that to the person as it is, and end the run with one line: "chart-map found nothing to
+chart. The next call proposes the plan again - name do and verify then to go on."
+Nothing records that stop, so the person carries it (ADR 0354).
 
 A **closed** Decision ticket is the record of the decision (ADR 0347). The check reads it
 (4.2).
@@ -342,8 +344,9 @@ written. Then hand the loaded skill three things:
 3. for a call after a break, the evidence line of section 3: which steps have a result and which
    is the first without one - "measure it first; do not do it again blind" (ADR 0343).
 
-A row that no step, task or test names is said aloud now - "L-4 has no step that proves
-it" - not found later at NOT READY.
+Ask the loaded skill, in the same request, to say before the first step which rows no
+step (or task, or test) names - "L-4 has no step that proves it" - so the gap is seen
+before the work, not at NOT READY.
 
 **`guide-and-verify`** runs in full: it measures the baseline before the first
 instruction and creates the runbook when the ticket has none (ADR 0341). Do not ask it for
@@ -360,7 +363,12 @@ a file only here. Its own fields are what the check reads (ADR 0340):
 No before / after measurement is asked of code work: a test written first, failing before
 and passing after, is its measurement (ADR 0342).
 
-When the loaded skill is done, propose the check and wait for the yes. When it stops
+**After a break in code work** the plan file already exists: offer the executing skill
+that was running it (`sp-subagent-driven-development` or `sp-executing-plans`) on that
+plan, not `sp-writing-plans`, with the evidence line of section 3 (ADR 0343).
+
+When the loaded skill is done, propose the other part's skill when the work is of both
+kinds, else the check - and wait for the yes. When it stops
 part-way, say what is left in one line and end the run.
 
 ## Stage 4 - the check
@@ -437,6 +445,10 @@ is **no test**, and the row says which part - `no test - When differs: test says
 says "I don't agree"`. A part the test does not state is a part that differs. Do not stretch
 a test to fit: "close enough" is how a rule with no test gets resolved. A **told** row gets
 the same three questions - ask the user what state, what event and what result they tested.
+
+When what was built differs from the ticket under a written decision (**Differs**, below),
+compare the test with the row as the decision states it; when all three parts match and
+the test passes, the row is `pass - differs by decision <id>` (ADR 0324).
 
 Write one reasoning line per AC and logic row under the table (4.3), so the person can see
 why each test was paired with its row.
@@ -570,7 +582,7 @@ of that kind - then record the check with them (4.6), then print them all:
 | no test | `generating-test-cases` |
 | fail | `debug-mantra` |
 | stale | the test step to run again (or: say the change does not touch the row) |
-| differs, no decision | `grill-then-plan` - the decision gets written first |
+| differs, no decision | `work-map` when the ticket's Decision map holds an open Decision ticket for it (ADR 0355); else `grill-then-plan` - the decision gets written first |
 | open child | `resolve-the-ticket` on that child |
 
 > L-4 has no test - load `generating-test-cases` for its case?
@@ -580,7 +592,8 @@ Then ask about them one at a time, in the order of the table. On a yes: load the
 skill through your harness's mechanism and hand it the row and what you read; for a stale
 row, name the test step to run again - the person or the skill that owns that step runs
 it; for an open child, go on with that child as if this skill were called with its URL.
-On a no, or no answer, stop. Never load one without a yes (ADR 0339).
+On a no, ask about the next gap; when a loaded skill is done, ask about the next gap;
+after the last one, or on no answer, stop. Never load one without a yes (ADR 0339).
 
 ### 4.6 Record the check in the runbook
 
@@ -601,8 +614,9 @@ One block per check, newest last. Say the runbook's path.
 ## A Feature and its children
 
 When the URL is an Azure DevOps **Feature** or **Epic** with children, the URL is the one
-address for the whole family (ADR 0351). On GitHub, an issue with sub-issues is asked
-about once: "#12 has 4 sub-issues - walk them one at a time, or treat #12 as one ticket?"
+address for the whole family (ADR 0351). On GitHub, an issue with sub-issues is asked about inside the stage question - "#12 has 4
+sub-issues - walk them one at a time, or treat #12 as one ticket?" - on each call: the
+answer is kept nowhere.
 A User Story or Bug with child Tasks is one ticket: its Tasks stay rows of its own check.
 
 | stage | for the family |
@@ -612,8 +626,10 @@ A User Story or Bug with child Tasks is one ticket: its Tasks stay rows of its o
 | do and verify | per child, one at a time, in the order of the briefing's "what depends on what" map |
 | check | per child; when no child is left, the Feature's own check (a row per child, by State) |
 
-On every call, run step 3 for each child from its own runbook and work record, then
-propose **one** child:
+On every call, run step 3 for each child from its own runbook and work record. While the
+family is still at the briefing or the plan, propose that stage for the family. After
+that, propose **one** child. A child whose last check is READY, or whose State is done or
+`Removed`, is skipped; when every child is skipped, propose the Feature's own check.
 
 ```
 Next for Feature #193: #195 - do and verify, from the start.
@@ -621,9 +637,9 @@ Next for Feature #193: #195 - do and verify, from the start.
 Go on? Or name another child or stage.
 ```
 
-The person may also call the skill with a child's URL. Read the parent as always; when the
-parent's map exists, the family's briefing and plan are done - propose that child's own
-next stage.
+The person may also call the skill with a child's URL. Read the parent as always. When the
+parent's map exists and has no open Decision ticket, the family's briefing and plan are
+done - propose that child's own next stage; while it has open ones, propose the plan.
 
 ## Rules that keep it honest
 

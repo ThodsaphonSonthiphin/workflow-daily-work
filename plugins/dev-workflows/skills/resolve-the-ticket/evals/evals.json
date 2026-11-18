@@ -15,7 +15,7 @@
         "The verdict line reads READY TO RESOLVE: NO",
         "One gap line offers generating-test-cases for both filter rows, as a question",
         "No skill is loaded before the person answers, and the Resolve check block is recorded before the offer",
-        "A gap line names resolve-the-ticket on #297 for the open child",
+        "A gap line offers to go on to #297 (resolve-the-ticket on the child) or to record it as open on purpose",
         "No closing comment is drafted",
         "Nothing is written or offered to be written to Azure DevOps - no comment post, no State change",
         "The skill does not check #297's own acceptance criteria in this run",
@@ -266,14 +266,14 @@
     {
       "id": 15,
       "name": "a-closed-decision-ticket-covers-a-difference-and-an-open-one-does-not",
-      "prompt": "resolve the ticket - check - https://dev.azure.com/Contoso/Ops/_workitems/edit/195 . You cannot reach the board from here, so here is what it holds. #195 User Story, Active, rev 6, parent #193 Feature, no children. Description logic: L-1 'rows are written to the shared table' and L-2 'the cut-off is local midnight'. What was built: rows go to one table per source; the cut-off is UTC midnight. The runbook documents/runbook-ado-195-sync-flow.md has Step 4 (L-1) with outcome 'Done - 12 rows in table per source, measured 2026-11-17 04:10Z' and Step 5 (L-2) with outcome 'Done - cut-off 00:00 UTC, measured 2026-11-17 04:30Z'; each step's baseline, Do lines and assertion match what was built. Nothing changed after 2026-11-17. docs/decision-map/ado-193-creditor-sync/tickets/195-shared-table.md is CLOSED: 'one table per source', confirmed by Pon 2026-11-16. docs/decision-map/ado-193-creditor-sync/tickets/195-cutoff-zone.md is OPEN.",
+      "prompt": "resolve the ticket - check - https://dev.azure.com/Contoso/Ops/_workitems/edit/195 . You cannot reach the board from here, so here is what it holds. #195 User Story, Active, rev 6, parent #193 Feature, no children. Description logic: L-1 'rows are written to the shared table' and L-2 'the cut-off is local midnight'. What was built: rows go to one table per source; the cut-off is UTC midnight. The runbook documents/runbook-ado-195-sync-flow.md has Step 4 (L-1) with outcome 'Done - 12 rows in table per source, measured 2026-11-17 04:10Z' and Step 5 (L-2) with outcome 'Done - cut-off 00:00 UTC, measured 2026-11-17 04:30Z'; each step's baseline, Do lines and assertion match what was built (for L-1 that is also what Decision ticket 195-shared-table states). Nothing changed after 2026-11-17. docs/decision-map/ado-193-creditor-sync/tickets/195-shared-table.md is CLOSED: 'one table per source', confirmed by Pon 2026-11-16. docs/decision-map/ado-193-creditor-sync/tickets/195-cutoff-zone.md is OPEN.",
       "expected_output": "L-1 passes as differs by decision 195-shared-table; L-2 is DIFFERS; the verdict is NO; grill-then-plan is offered for L-2.",
       "files": [],
       "assertions": [
         "The L-1 row reads pass - differs by decision 195-shared-table, with the Decision ticket's path as its locator",
         "The L-2 row's result is differs - the open Decision ticket 195-cutoff-zone is not accepted as a decision",
         "The verdict line reads READY TO RESOLVE: NO",
-        "The gap line for L-2 offers grill-then-plan (or going on with the open Decision ticket) as a question, and loads nothing without a yes",
+        "The gap line for L-2 offers work-map on the open Decision ticket 195-cutoff-zone, as a question, and loads nothing without a yes",
         "No closing comment is drafted",
         "A '## Resolve check' block is appended to the runbook"
       ]

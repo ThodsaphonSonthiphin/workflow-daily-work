@@ -1,5 +1,7 @@
 # A ticket with no runbook gets one through guide-and-verify, never from this skill
 
+> **Amended 2026-11-18 by ADR 0341.** The briefing no longer hands off: with no runbook it is chat only. guide-and-verify creates the runbook when do and verify starts (click work, in full), and at the check the file only (ADR 0333).
+
 ```mermaid
 flowchart TD
     Q{"the check is written into the ticket's runbook,<br/>and the ticket has none. What then?"} -->|chosen| A["the skill says no runbook was found and hands off to
