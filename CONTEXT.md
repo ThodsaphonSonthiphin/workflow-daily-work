@@ -819,3 +819,43 @@ The check after every edit step: read the timeline back and compare it with the 
 plan set before the step, and before export render frames and audio and look at them. An
 Edits tool's own "ok" is never the check (ADR 0296).
 _Avoid_: verification (too broad), confirmation.
+
+## learn-the-business terms (dev-workflows plugin)
+
+**Business part**:
+One part of a program that has a business decision behind it - of six kinds: data, process,
+rule, people, output, connection. The unit `learn-the-business` asks about. A part the
+platform made is not one, and is skipped (ADR 0370).
+_Avoid_: component, feature, **Decision point** (that is one comparison or literal).
+
+**Backward chain**:
+The line of questions in one sitting: it starts at the Business part the person is touching,
+and each next question is the part that one reads, depends on or exists because of
+(ADR 0371).
+_Avoid_: trace (that is `why-this-logic`'s search), drill-down, path.
+
+**Business origin**:
+The end of a Backward chain - a person, money, a law or a contract, with nothing in the
+program behind it (ADR 0372).
+_Avoid_: root cause (nothing is broken), requirement.
+
+**Reveal card**:
+What the skill shows after the person answers, always in this order: the business reason,
+the technical choice it leads to, the ADR text, the Thinking trick (ADR 0369).
+_Avoid_: answer, explanation card (that is `feynman-explain`'s).
+
+**Source mark**:
+The one word on each line of a Reveal card: *cited*, *told*, *general knowledge* or
+*assumed*. Not the **Proof mark**, which has *measured* and has no word for a guess; an
+*assumed* line becomes a question for the client (ADR 0373).
+_Avoid_: confidence, evidence level.
+
+**Thinking trick**:
+A named way of thinking with three steps and a "use it again when" line, kept in the skill's
+one reference file, an open list (ADR 0374).
+_Avoid_: lens, heuristic, tip.
+
+**Business note**:
+`~/.claude/learn-the-business/<project>.md` - one row per Business part asked, plus the
+branches not yet asked and the questions for the client. Never in a repo (ADRs 0375, 0376).
+_Avoid_: profile (the **Mistake profile**), log, memory.
