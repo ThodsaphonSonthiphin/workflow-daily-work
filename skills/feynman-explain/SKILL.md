@@ -89,6 +89,8 @@ works.
   `problem-description`.
 - The question is really "how *should* this work / what should we do" → hand off to
   `study-design-verify`.
+- The user wants to be **asked** about the business behind a part of a program, not told →
+  hand off to `learn-the-business`.
 
 If the answer is requested as a **Markdown file**, it becomes a generated document:
 Rule 1 of the diagram convention applies (one overview Mermaid diagram at the top).
