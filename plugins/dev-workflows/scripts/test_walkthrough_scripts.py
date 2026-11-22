@@ -127,6 +127,8 @@ def test_engine_shows_a_focus_hint_and_controls_come_first():
         out, _ = assemble(tmp, "diagram", "demo.html")
         page = read(out)
         assert 'id="keyHint"' in page and "document.hasFocus()" in page
+        assert 'class="key-hint off"' in page and ".key-hint.off { visibility: hidden; }" in page, \
+            "the hint must keep its room, or the buttons jump under the first click (ADR 0381)"
         assert page.index('id="stepProgress"') < page.index('id="prevBtn"') < page.index('id="narration"'), \
             "order must be: step dots, controls, narration"
         assert "color-scheme: dark" in page

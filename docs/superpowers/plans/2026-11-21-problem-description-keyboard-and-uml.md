@@ -389,6 +389,8 @@ def test_engine_shows_a_focus_hint_and_controls_come_first():
         out, _ = assemble(tmp, "diagram", "demo.html")
         page = read(out)
         assert 'id="keyHint"' in page and "document.hasFocus()" in page
+        assert 'class="key-hint off"' in page and ".key-hint.off { visibility: hidden; }" in page, \
+            "the hint must keep its room, or the buttons jump under the first click (ADR 0381)"
         assert page.index('id="stepProgress"') < page.index('id="prevBtn"') < page.index('id="narration"'), \
             "order must be: step dots, controls, narration"
         assert "color-scheme: dark" in page
@@ -525,7 +527,10 @@ Replace the whole content of `plugins/dev-workflows/skills/problem-description/r
   button.tertiary { background: var(--border); color: var(--text); }
   button.tertiary:hover:not(:disabled) { background: var(--border-dim); }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
-  .key-hint { font-size: 12px; color: var(--muted-2); }
+  /* the hint keeps a row of its own and its room whether shown or not, so the buttons
+     never move under the click that gives the page focus (ADR 0381) */
+  .key-hint { flex-basis: 100%; text-align: center; font-size: 12px; color: var(--muted-2); }
+  .key-hint.off { visibility: hidden; }
 
   /* narration — the canonical NESTED shape (badge+title+body inside #narration) */
   .narration {
@@ -590,7 +595,7 @@ Replace the whole content of `plugins/dev-workflows/skills/problem-description/r
     <button id="prevBtn" class="tertiary" disabled>← ย้อนกลับ</button>
     <button id="nextBtn">ถัดไป →</button>
     <button id="resetBtn" class="tertiary">↻ เริ่มใหม่</button>
-    <span class="key-hint hidden" id="keyHint">คลิกที่หน้านี้หนึ่งครั้ง เพื่อใช้ปุ่ม ← → บนคีย์บอร์ด</span>
+    <span class="key-hint off" id="keyHint">คลิกที่หน้านี้หนึ่งครั้ง เพื่อใช้ปุ่ม ← → บนคีย์บอร์ด</span>
   </div>
 
   <div class="narration" id="narration">
@@ -702,7 +707,7 @@ document.addEventListener('keydown', (e) => {
 // The arrow keys reach this page only while it has focus. Embedded in an iframe it has
 // none until the reader clicks inside, so say so. Never call window.focus() (ADR 0357).
 function syncKeyHint() {
-  document.getElementById('keyHint').classList.toggle('hidden', document.hasFocus());
+  document.getElementById('keyHint').classList.toggle('off', document.hasFocus());
 }
 window.addEventListener('focus', syncKeyHint);
 window.addEventListener('blur', syncKeyHint);

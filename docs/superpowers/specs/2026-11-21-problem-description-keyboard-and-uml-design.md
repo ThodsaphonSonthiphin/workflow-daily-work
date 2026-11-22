@@ -86,7 +86,7 @@ names the keys. The hint is a new element inside the controls.
     <button id="prevBtn" class="tertiary" disabled>← ย้อนกลับ</button>
     <button id="nextBtn">ถัดไป →</button>
     <button id="resetBtn" class="tertiary">↻ เริ่มใหม่</button>
-    <span class="key-hint hidden" id="keyHint">คลิกที่หน้านี้หนึ่งครั้ง เพื่อใช้ปุ่ม ← → บนคีย์บอร์ด</span>
+    <span class="key-hint off" id="keyHint">คลิกที่หน้านี้หนึ่งครั้ง เพื่อใช้ปุ่ม ← → บนคีย์บอร์ด</span>
   </div>
 
   <div class="narration" id="narration"> … unchanged … </div>
@@ -149,7 +149,7 @@ sequenceDiagram
 
 ```js
 function syncKeyHint() {
-  document.getElementById('keyHint').classList.toggle('hidden', document.hasFocus());
+  document.getElementById('keyHint').classList.toggle('off', document.hasFocus());
 }
 window.addEventListener('focus', syncKeyHint);
 window.addEventListener('blur', syncKeyHint);
@@ -167,7 +167,9 @@ All use `:root` tokens only.
 - `.controls`: `margin: 0 0 14px` (was `margin-top: 16px`), `flex-wrap: wrap`,
   `align-items: center`.
 - `.step-dot`: `cursor: pointer`; `.step-dot:hover`: an accent outline.
-- `.key-hint`: small muted text.
+- `.key-hint`: small muted text on a row of its own under the buttons (`flex-basis: 100%`,
+  centred). The engine hides it with the class `off` (`visibility: hidden`), not `hidden`,
+  so the row keeps its height and the buttons never move under a click (ADR 0381).
 - Panel content: `.wt-panel table`, `.wt-panel th`, `.wt-panel td`, `.wt-panel .tbl-wrap`
   (`overflow-x: auto`), and `.wt-note` (small muted line for a source or a caveat).
 
