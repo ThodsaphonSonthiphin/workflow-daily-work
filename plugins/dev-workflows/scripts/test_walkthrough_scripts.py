@@ -157,6 +157,38 @@ def test_gate_i_fails_when_the_controls_follow_the_narration():
         assert code == 1 and "controls" in text, text
 
 
+# ---------------------------------------------------------------------------
+# Task 3 — the drawer: Esc closes it
+# ---------------------------------------------------------------------------
+
+DRAWER_BOOTSTRAP = """MODE = 'diagram';
+const { setComp, setArrow, setLabel, setText } = modeRenderers[MODE];
+const GLOSSARY = {
+  'demo-key': { term: 'demo key', short: 'the lookup key the demo DB stores its value under.', seeAlso: [], source: 'authored' },
+};
+const scenes = [
+  () => { setNarration('', 'Overview', 'The DB keeps one value under a <span class="term" data-term="demo-key">demo key</span>.'); },
+  () => { setNarration('', 'Step 1', 'The client asks.'); setComp('compClient', 'firing'); setArrow('arrCS', 'active'); setLabel('lblCS', true); },
+];
+TOTAL = scenes.length - 1;
+modeRenderers[MODE].assertRegistryComplete();
+buildProgressDots();
+render(0);
+"""
+
+
+def test_drawer_walkthrough_passes_and_closes_on_escape():
+    with tempfile.TemporaryDirectory() as tmp:
+        boot = write(os.path.join(tmp, "boot.js"), DRAWER_BOOTSTRAP)
+        out, _ = assemble(tmp, "diagram", "with-drawer.html", "--drawer", DRAWER, "--bootstrap", boot)
+        code, text = check(out)
+        assert code == 0, text
+        assert "with drawer" in text, text
+        page = read(out)
+        assert "e.key === 'Escape'" in page, "the drawer must close on Esc"
+        assert page.count("addEventListener('keydown'") == 2, "one listener in the engine, one in the drawer"
+
+
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 if __name__ == "__main__":

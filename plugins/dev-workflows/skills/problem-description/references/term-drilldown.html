@@ -153,6 +153,13 @@ document.addEventListener('click', (e) => {
 document.getElementById('drawerClose').onclick = closeDrawer;
 document.getElementById('drawerBack').onclick  = backTerm;
 
+// Esc closes an open drawer (ADR 0356). It lives here, not in the engine: the engine does
+// not know the drawer exists. The arrow keys need no code here — stepping closes the
+// drawer through RENDER_HOOKS.
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !document.getElementById('termDrawer').classList.contains('hidden')) closeDrawer();
+});
+
 // Self-register with the walkthrough engine so stepping closes the drawer
 // (Phase 2 RENDER_HOOKS model). Guarded so this file still runs standalone.
 if (typeof RENDER_HOOKS !== 'undefined' && RENDER_HOOKS.indexOf(closeDrawer) === -1) RENDER_HOOKS.push(closeDrawer);
