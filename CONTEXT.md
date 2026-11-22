@@ -128,6 +128,30 @@ mode of its own (ADRs 0016, 0018). The drawer code is kept DRY in one reference 
 walkthrough *glossary-aware*.
 _Avoid_: tooltip (narrower — can't hop), glossary popup, nested sub-walkthrough.
 
+**Mode pack**:
+One `references/mode-<name>.html` file of the `problem-description` skill: the CSS, the
+HTML and the one renderer for one kind of **Main diagram**. A walkthrough is assembled from
+the engine and exactly one mode pack (ADR 0020). The packs are `diagram`, `tables`,
+`state-machine` and `sequence` (ADR 0360).
+_Avoid_: template (the pre-engine name), mode file, plugin.
+
+**Main diagram**:
+The one diagram of a `problem-description` walkthrough that changes at every step. Its
+**Mode pack** draws it and the scenes set its states. A walkthrough has exactly one.
+_Avoid_: stage (taken: the four stages of resolve-the-ticket), canvas, the animation.
+
+**Supporting diagram**:
+A fixed UML picture inside a walkthrough panel, shown beside the **Main diagram** to answer
+one question the main diagram cannot. It has no states: a scene only shows or hides its
+panel (ADR 0362). Drawn from the **UML kit**.
+_Avoid_: side diagram, mini diagram, UML panel.
+
+**UML kit**:
+`references/uml-kit.html` in the `problem-description` skill: the CSS of the UML parts and
+the copy-ready skeletons (class diagram, activity diagram) that every **Supporting diagram**
+is drawn from (ADR 0361).
+_Avoid_: UML library, diagram templates.
+
 ## Decision-map terms (decision-map plugin)
 
 **Decision map**:
