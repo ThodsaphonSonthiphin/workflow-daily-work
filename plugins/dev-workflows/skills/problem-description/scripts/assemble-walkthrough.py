@@ -2,18 +2,20 @@
 """Assemble a self-contained problem-description walkthrough from the single-source
 references (Phase 2 mode framework).
 
-A generated walkthrough = engine § + ONE mode pack § + (optional) drawer § + a
-bootstrap (authored scenes[]+GLOSSARY, or the mode pack's DEMO-BOOTSTRAP for
-verification). This script does the deterministic splice the skill would otherwise
+A generated walkthrough = engine § + ONE mode pack § + (optional) drawer § + (optional)
+UML kit §CSS + a bootstrap (authored scenes[]+GLOSSARY, or the mode pack's DEMO-BOOTSTRAP
+for verification). This script does the deterministic splice the skill would otherwise
 hand-perform, so the output is reproducible and the post-assembly self-test
 (check-walkthrough.py) has a stable target.
 
 Usage:
   python assemble-walkthrough.py --engine ENGINE.html --mode MODE_PACK.html \
-      --out OUT.html [--drawer term-drilldown.html] [--demo | --bootstrap FILE]
+      --out OUT.html [--drawer term-drilldown.html] [--uml uml-kit.html] \
+      [--demo | --bootstrap FILE]
 
   --demo        use the mode pack's DEMO-BOOTSTRAP block as the bootstrap (verification)
   --bootstrap   a file whose content is the authored bootstrap (MODE=…; alias; scenes[]; …)
+  --uml         the UML kit; its §CSS is inlined for the supporting diagrams in the panels
 
 Section markers (mirrors term-drilldown.html / walkthrough-engine.html):
   CSS/JS:  /* ===== §NAME ... ===== */  ...  /* ===== end §NAME ===== */
@@ -46,6 +48,7 @@ def main():
     ap.add_argument('--mode', required=True)
     ap.add_argument('--out', required=True)
     ap.add_argument('--drawer')
+    ap.add_argument('--uml')
     ap.add_argument('--demo', action='store_true')
     ap.add_argument('--bootstrap')
     ap.add_argument('--title', default=None)
@@ -54,6 +57,7 @@ def main():
     eng = pathlib.Path(a.engine).read_text(encoding='utf-8')
     mode = pathlib.Path(a.mode).read_text(encoding='utf-8')
     draw = pathlib.Path(a.drawer).read_text(encoding='utf-8') if a.drawer else None
+    kit = pathlib.Path(a.uml).read_text(encoding='utf-8') if a.uml else None
 
     eng_css, eng_html, eng_js = _section(eng, 'CSS', 'css', a.engine), _section(eng, 'HTML', 'html', a.engine), _section(eng, 'JS', 'js', a.engine)
     mode_css, mode_html, mode_js = _section(mode, 'CSS', 'css', a.mode), _section(mode, 'HTML', 'html', a.mode), _section(mode, 'JS', 'js', a.mode)
@@ -62,6 +66,8 @@ def main():
         draw_css = _section(draw, 'CSS', 'css', a.drawer)
         draw_html = _section(draw, 'HTML', 'html', a.drawer)
         draw_js = _section(draw, 'JS', 'js', a.drawer)
+    # The UML kit contributes CSS only: its pictures are authored inside the panels.
+    kit_css = _section(kit, 'CSS', 'css', a.uml) if kit else ''
 
     if a.demo:
         bootstrap = _between(mode, r'/\*\s*=====\s*DEMO-BOOTSTRAP START[^\n]*?\*/', r'/\*\s*=====\s*DEMO-BOOTSTRAP END[^\n]*?\*/', a.mode, 'DEMO-BOOTSTRAP')
@@ -92,15 +98,18 @@ def main():
     js_parts.append(bootstrap)
     js = '\n\n'.join(js_parts)
 
-    css = '\n'.join([eng_css, mode_css] + ([draw_css] if draw_css else []))
+    css = '\n'.join([eng_css, mode_css] + ([draw_css] if draw_css else []) + ([kit_css] if kit_css else []))
 
+    # The viewport meta keeps a phone or a narrow embedded viewer from laying the page out
+    # at desktop width (ADR 0379).
     out = (
         '<!DOCTYPE html>\n<html lang="th"><head><meta charset="UTF-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         f'<title>{title}</title>\n<style>\n{css}\n</style></head>\n<body>\n'
         f'{html}\n<script>\n{js}\n</script>\n</body></html>\n'
     )
     pathlib.Path(a.out).write_text(out, encoding='utf-8')
-    print(f'assembled -> {a.out} (engine + {pathlib.Path(a.mode).stem}' + (' + drawer' if draw else '') + ')')
+    print(f'assembled -> {a.out} (engine + {pathlib.Path(a.mode).stem}' + (' + drawer' if draw else '') + (' + uml kit' if kit else '') + ')')
 
 
 if __name__ == '__main__':
