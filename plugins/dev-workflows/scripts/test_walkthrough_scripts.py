@@ -384,6 +384,47 @@ def test_scene_id_pass_catches_a_mistyped_lifeline_id():
         assert code == 1 and "lfTypo" in text, text
 
 
+# ---------------------------------------------------------------------------
+# Task 6 — SKILL.md says what the references now do
+# ---------------------------------------------------------------------------
+
+def flat(path):
+    """The file's text with every run of whitespace collapsed, so a rewrap cannot break a test."""
+    return " ".join(read(path).split())
+
+
+def test_skill_md_teaches_the_sequence_mode_and_the_new_tie_break():
+    s = flat(os.path.join(SKILL, "SKILL.md"))
+    assert "`references/mode-sequence.html`" in s
+    assert "**when in doubt → sequence**" in s
+    assert "when in doubt → diagram" not in s, "the old tie-break is still in SKILL.md"
+    assert "a future **timeline**" not in s
+    assert "12 messages or fewer" in s
+    assert "`setLife`/`setMsg`/`setText`" in s
+    assert "Standard skeleton (sequence mode)" in s
+
+
+def test_skill_md_teaches_supporting_diagrams_and_the_uml_rules():
+    s = flat(os.path.join(SKILL, "SKILL.md"))
+    assert "`references/uml-kit.html`" in s and "--uml references/uml-kit.html" in s
+    assert "**At most 3**" in s and "**None is a correct number**" in s
+    assert "dashed arrow = a reply" in s and "**never dashes**" in s
+    assert "`#seqLegend`" in s and "`.uml-cap`" in s
+    assert "Add no CSS of your own" in s
+    assert "Never build an id by joining strings" in s
+
+
+def test_skill_md_names_the_keys_and_keeps_its_frontmatter():
+    text = read(os.path.join(SKILL, "SKILL.md"))
+    s = " ".join(text.split())
+    assert "the `→` / `←` keys" in s and "step dot" in s
+    lines = text.splitlines()
+    assert lines[0] == "---" and lines[1] == "name: problem-description", lines[:2]
+    assert lines[2].startswith("description: Use when the user wants an interactive step-by-step HTML walkthrough")
+    assert lines[3] == "effort: max" and lines[4] == "---", lines[3:5]
+    assert "${CLAUDE_PLUGIN_ROOT}" not in text, "SKILL.md refers to its own files with skill-relative paths"
+
+
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 if __name__ == "__main__":

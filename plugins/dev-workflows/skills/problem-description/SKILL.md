@@ -11,7 +11,7 @@ effort: max
 Generate a self-contained HTML page that explains a technical problem using:
 
 - **Concrete data** — real names, real numbers, culturally appropriate context (e.g., Thai names for Thai users)
-- **Manual step-through navigation** — `Next →`, `← Previous`, `↻ Reset` buttons. Reader controls pace.
+- **Manual step-through navigation** — the `→` / `←` keys, the `Next →` / `← Previous` / `↻ Reset` buttons, or a click on a numbered step dot. Reader controls pace.
 - **Visual state changes** — at each step, the right thing highlights and the reader can point at it
 - **Color-coded narration** — info / warn / error / success / magic boxes explaining what fires + WHY
 
@@ -26,7 +26,7 @@ scratch/sandbox dir that is *different* from the user's project. Save it to:
 
 > **`<project-root>/docs/problem-description/<name>.html`** — where `<project-root>` is the
 > user's open project. Create `docs/problem-description/` if missing (`mkdir -p`). `<name>` =
-> `YYYY-MM-DD-<topic>-walkthrough` (diagram) or `<topic>-explained` (tables).
+> `YYYY-MM-DD-<topic>-walkthrough` (sequence, diagram, state-machine) or `<topic>-explained` (tables).
 
 This is the rule most often dropped on a long read, and the one harnesses get wrong:
 - **Do NOT write it to your agent scratch/sandbox/working directory** (e.g. Antigravity's
@@ -54,15 +54,21 @@ into ONE self-contained `.html` (no build, no external assets):
 walkthrough.html  =  references/walkthrough-engine.html   (§ the shared engine)
                   +  references/mode-<name>.html           (§ ONE chosen mode pack)
                   +  references/term-drilldown.html        (§ the drawer, optional)
+                  +  references/uml-kit.html               (§CSS of the UML kit, optional)
                   +  authored scenes[] + GLOSSARY          (the bootstrap)
 ```
 
-- **The engine** owns the step loop, navigation, `:root` palette tokens, the canonical
-  nested narration, the 5 SVG markerheads, `RENDER_HOOKS`, and `modeRenderers`. Never edit
-  it to add a mode.
+- **The engine** owns the step loop, navigation (the buttons, the `→` / `←` keys, the
+  clickable step dots, and a hint shown while the page has no keyboard focus), `:root`
+  palette tokens, the canonical nested narration, the styles of a panel and of a table or
+  note inside one, the 5 SVG markerheads, `RENDER_HOOKS`, and `modeRenderers`. Never edit it
+  to add a mode.
 - **A mode pack** registers exactly one renderer — `modeRenderers['<name>'] =
   {registry, clear, <setters>, assertRegistryComplete}` — plus its content DOM and state
   CSS. Each pack is verified by **assembly**, not by opening it raw.
+- **The UML kit** (`references/uml-kit.html`) holds the CSS and the two skeletons that
+  every supporting diagram in a panel is drawn from. It has no renderer: a supporting
+  diagram is a fixed picture.
 - **Assembly is a script:** `scripts/assemble-walkthrough.py` does the splice
   deterministically; `scripts/check-walkthrough.py` is the mandatory post-assembly
   self-test (the no-build safety net).
@@ -73,14 +79,57 @@ Ask **"what is the problem ABOUT?"** (one distinct noun per row) and read across
 
 | Mode | Problem is ABOUT… | NOT when → use | Pack |
 |---|---|---|---|
-| **diagram** | data flow between components (A→B→C) | rows changing state → tables | `references/mode-diagram.html` |
+| **sequence** | the ORDER of messages between actors: who sends what to whom, and when (a UML sequence diagram) | one wire fires again and again, or a value builds up in a box → diagram | `references/mode-sequence.html` |
+| **diagram** | the WIRING between components: what is connected to what, and a value that builds up in a box (counter, lock, queue) | each message happens once and the order is the story → sequence | `references/mode-diagram.html` |
 | **tables** | rows changing state under FK/cascade rules | one entity's lifecycle → state-machine | `references/mode-tables.html` |
-| **state-machine** | one entity's legal state transitions; an illegal/stuck transition | many rows mutating → tables | `references/mode-state-machine.html` |
+| **state-machine** | one entity's legal state transitions; an illegal/stuck transition (a UML state machine diagram) | many rows mutating → tables | `references/mode-state-machine.html` |
 
 Sharp disambiguators: **state-machine** = "ONE entity's status transitions" (*not* "many
-rows mutating" → tables); a future **timeline** = "WHEN it happened / ordering" (*not* "what
-connects to what" → diagram). Tie-break: **when in doubt → diagram**. Every new mode row
-must name its nearest neighbour in the "NOT when" column.
+rows mutating" → tables). **sequence** vs **diagram**, for a flow between components:
+sequence when each message happens once, the order is the story, and there are **12
+messages or fewer**; diagram when the same wire fires many times, a value builds up inside
+a box, or there are more than 12 messages. Tie-break between those two: **when in doubt →
+sequence** (ADR 0365) — it puts the order on the picture instead of leaving it to the
+narration. Every new mode row must name its nearest neighbour in the "NOT when" column.
+
+### Supporting diagrams — a UML picture in a panel
+
+The mode pack draws the **main diagram**, the one thing that changes at every step. A
+**supporting diagram** is a fixed UML picture in a `.wt-panel` beside it. Draw one only when
+a step raises a question the main diagram cannot answer, and pick the type from the
+question:
+
+| The step asks… | Supporting diagram |
+|---|---|
+| what the data looks like, which field holds it, how many to how many | **class diagram** |
+| what is checked, in what order, and where the path splits | **activity diagram** |
+
+- Write the question as one sentence first. It becomes the first sentence of the picture's
+  caption. No sentence, no picture.
+- **At most 3** in a walkthrough. **None is a correct number** — never add one to have one.
+- It has **no states**. A scene only `show()`s or `hide()`s its panel. If a box must look
+  different at a later step, that is a second panel with a second picture.
+- Draw it from `references/uml-kit.html` (copy a skeleton). Another UML type is drawn from
+  the same parts; its skeleton joins the kit when a second walkthrough needs it.
+
+### UML notation — a picture that says "UML" must be right
+
+A reader who knows UML must not be misled, and a reader who does not must not be taught it
+wrongly (ADR 0363).
+
+- **Sequence diagram:** solid arrow = a message or a call (`data-kind="call"`); dashed arrow
+  = a reply (`data-kind="reply"`); an arrow back to the same lifeline = a self-message
+  (`data-kind="self"`); a frame = an operator (`alt`, `opt`, `loop`) and a `[guard]`.
+  "Happening now" is a thicker glowing line, **never dashes**.
+- **Class diagram:** a name compartment (a stereotype in guillemets where it helps);
+  attribute lines `name : Type = value`; an association is a solid line with a multiplicity
+  at each end; a dependency is a dashed arrow with its stereotype.
+- **Activity diagram:** initial node, actions, decisions, final node. **Every** flow out of
+  a decision is a drawn arrow with its `[guard]` — never loose text beside the diamond.
+- **One stated departure:** every arrowhead is the same filled shape (the engine's five
+  markerheads, ADR 0022). The legend says so.
+- **Legend and captions are mandatory:** the sequence pack's `#seqLegend` stays in the page
+  and stays true; every supporting diagram has a `.uml-cap` caption that says how to read it.
 
 ## When to Use This Skill
 
@@ -143,8 +192,11 @@ Articulate these in one sentence each:
    beyond-prerequisite term **not** in the glossary, write a one-line definition yourself.
    A term the reader already knows is **not** made drillable — over-marking turns the
    narration into a sea of dotted underlines.
+5. **The supporting diagrams** — list the UML pictures the panels will carry: zero to
+   three, each with the one-sentence question it answers that the main diagram cannot (see
+   "Supporting diagrams" above). An empty list is a normal answer.
 
-Then pick the mode using the "How to choose" rule above. Tell the user which mode you're using in your first message.
+Then pick the mode using the "Pick the mode" table above. Tell the user which mode you're using, and which supporting diagrams you plan with the question each answers, in your first message.
 
 If you can't articulate (1) and (2) in one sentence each, **ask the user before continuing**. Vague misunderstandings produce vague walkthroughs.
 
@@ -187,6 +239,17 @@ Build a domino chain. Each step adds **one** new piece of state.
 | **M+1** | Counter-example — what would go wrong with the naive approach (e.g., "what if we used MAX()+1?"). |
 | **M+2** | Summary / resolution — why the architecture works AND its trade-offs / side-effects. |
 
+**Standard skeleton (sequence mode):**
+
+| Step | Purpose |
+|---|---|
+| **0** | Overview — every lifeline, every message drawn faint, the frames, the legend. No action. Reader sees the whole exchange and learns to read the picture. |
+| **1..N** | ONE message per step, in order: the sender `firing`, the receiver `active`, the message `active`; every earlier message `done`. Say in the narration when a message is a reply or a self-message — the reader is learning the notation. |
+| **N+1** | **The key question** (REQUIRED) — usually about a message that would NOT happen, or would differ (the frame's guard is false, the caller is not who they claim). |
+| **N+2..M** | Failure / what-if — the message in question turns `error`, messages that no longer happen are `dimmed`, a lifeline is `error` or `blocked`. A label can change through `setText` on an element that has `data-default`. |
+| **M+1** | Counter-example or the right version — often with a supporting activity or class diagram. |
+| **M+2** | Summary / resolution — why it works AND its trade-offs / side-effects. |
+
 **Standard skeleton (tables mode):**
 
 | Step | Purpose |
@@ -212,8 +275,22 @@ drawer are inlined by the assembler.
 1. **Read the chosen mode pack** (`references/mode-<name>.html`) to learn its renderer's
    setters and its content-DOM ids (e.g. state-machine: `setNode`/`setEdge` over
    `NODE_LIST`/`EDGE_LIST`; diagram: `setComp`/`setArrow`/`setLabel`/`setText`; tables:
-   `setRowClass`/`setBadge`/`setCell`/`setRule`). If the pack's built-in content DOM doesn't
-   fit your problem, edit a COPY of the pack's `§HTML` (its registry ids must match).
+   `setRowClass`/`setBadge`/`setCell`/`setRule`; sequence: `setLife`/`setMsg`/`setText`). If
+   the pack's built-in content DOM doesn't fit your problem, edit a COPY of the pack's
+   `§HTML` (its registry ids must match).
+   - **Sequence pack:** redraw the SVG on **the grid in the pack's header comment**
+     (lifeline centres, 50-unit rows, a self-message takes two rows, a frame header takes
+     one). Type **no id list** — the pack reads its registry from the markup — and **no
+     width** on a label background — the pack fits it. Every message declares
+     `data-kind="call"`, `"reply"` or `"self"`. Keep `#seqLegend` and keep it true.
+   - **Panels and supporting diagrams:** declare every `.wt-panel` in the pack copy's
+     `§HTML` with class `hidden`. For a UML picture, copy a skeleton from
+     `references/uml-kit.html`: `<svg class="uml" data-uml="<type>">` plus its `.uml-cap`.
+     A table in a panel is a plain `<table>` inside `<div class="tbl-wrap">`; a source or
+     caveat line is `<div class="wt-note">`.
+   - **Add no CSS of your own.** Everything a walkthrough needs is styled by the engine, the
+     mode pack or the kit. A style that is missing belongs in a reference — say so instead
+     of writing it into one walkthrough.
 2. **Write a bootstrap** (a `.js` snippet) with, in order:
    - `MODE = '<name>';`
    - `const { setNode, setEdge } = modeRenderers[MODE];` — alias the pack's setters to flat
@@ -224,16 +301,22 @@ drawer are inlined by the assembler.
      Mark terms in narration: `<span class="term" data-term="key">…</span>`.
    - `const scenes = [ … ];` — one function per step, each fully describing DOM state via the
      flat setters + `setNarration(cls, title, bodyHTML)` + `show()/hide()` on `.wt-panel`s.
+     Pass ids as **literals** — `setMsg('m3', 'active')`, `setMsg(['m1', 'm2'], 'done')`.
+     Never build an id by joining strings (`'m' + n`): the checker reads the literal ids to
+     prove each one exists, and a built id slips past it and fails silently in the page.
    - `TOTAL = scenes.length - 1; modeRenderers[MODE].assertRegistryComplete(); buildProgressDots(); render(0);`
      — the `assertRegistryComplete()` call makes any DOM-id-not-in-registry drift throw at load.
 3. **Assemble:**
    ```
    python scripts/assemble-walkthrough.py --engine references/walkthrough-engine.html \
      --mode references/mode-<name>.html --drawer references/term-drilldown.html \
+     --uml references/uml-kit.html \
      --title "<the walkthrough's on-screen heading>" \
      --out <project-root>/docs/problem-description/<name>.html --bootstrap your-bootstrap.js
    ```
-   Drop `--drawer` if the walkthrough has no drillable terms. `--title` fills both the
+   Drop `--drawer` if the walkthrough has no drillable terms. Drop `--uml` if no panel
+   carries a supporting diagram: the checker fails a kit that nothing uses, and a picture
+   without the kit. `--title` fills both the
    browser-tab `<title>` and the on-screen `<h1>` (it falls back to the output filename stem,
    so the placeholder never ships — but pass a real title).
 4. **Self-test (mandatory):** `python scripts/check-walkthrough.py <out>.html` — it must pass.
@@ -251,16 +334,16 @@ and toggle with `show()/hide()`. The engine runs `RENDER_HOOKS` → the mode's
 **Save the artifact INSIDE the open project, in a dedicated folder** (see the Output-location contract near the top). Resolve the project root to a real absolute path, never a placeholder. Save path, in priority order:
 
 - **The user specified a path** → use it exactly.
-- **A project/workspace is open (the normal case)** → `<project-root>/docs/problem-description/YYYY-MM-DD-<topic>-walkthrough.html` (diagram mode) or `<project-root>/docs/problem-description/<topic>-explained.html` (tables mode), where `<project-root>` is the user's open project/workspace — **not** your agent working/scratch directory, which may differ. **Create `docs/problem-description/` if it does not exist** (`mkdir -p`) so it does not mix with specs, ADRs, and plans in the `docs/` root. **Never** write it to your agent scratch/sandbox directory (e.g. `~/.gemini/antigravity/brain/<id>/scratch/`) when a project is open — that hides the file from the user.
+- **A project/workspace is open (the normal case)** → `<project-root>/docs/problem-description/YYYY-MM-DD-<topic>-walkthrough.html` (sequence, diagram or state-machine mode) or `<project-root>/docs/problem-description/<topic>-explained.html` (tables mode), where `<project-root>` is the user's open project/workspace — **not** your agent working/scratch directory, which may differ. **Create `docs/problem-description/` if it does not exist** (`mkdir -p`) so it does not mix with specs, ADRs, and plans in the `docs/` root. **Never** write it to your agent scratch/sandbox directory (e.g. `~/.gemini/antigravity/brain/<id>/scratch/`) when a project is open — that hides the file from the user.
 - **Only when there is genuinely no open project** (a throwaway question with nowhere to put it): use the session scratchpad directory and tell the user the absolute path. Do **not** default to a hard-coded personal path like `c:/Repo2/t/`. This branch is the exception, not the default — if a project is open, the bullet above wins.
 
 **Then run the verify-and-move check (mandatory)** — see the Output-location contract near the top: get the file's absolute path, confirm it is inside `<project-root>/docs/problem-description/`, and if the harness wrote it elsewhere (scratch/sandbox/temp, project root, generic name), move it there before reporting — **unless the user specified an explicit path (bullet 1), in which case honor that path**. The skill is not done until the file is in the right place.
 
 Report back:
 - The absolute path of the generated file
-- Which mode (diagram or tables)
+- Which mode (sequence, diagram, tables or state-machine), and the supporting diagrams if any
 - How many steps
-- "Open in your browser — `ถัดไป →` / `← ย้อนกลับ` / `↻ เริ่มใหม่` ปุ่มควบคุม pace"
+- "Open in your browser — กด `→` / `←` บนคีย์บอร์ด, ปุ่ม `ถัดไป →` / `← ย้อนกลับ` / `↻ เริ่มใหม่`, หรือคลิกจุด step เพื่อกระโดด (ถ้าหน้าถูกฝังอยู่ใน viewer ให้คลิกในหน้าหนึ่งครั้งก่อนใช้ลูกศร)"
 
 ### Phase 5 — Verify before declaring done
 
@@ -286,8 +369,19 @@ Run the self-test checklist:
       `closeDrawer`); `Next`/`Prev`/`Reset` close the drawer and leave no residue
 - [ ] **See-also hops:** clicking a see-also chip swaps the drawer; `← back` restores the
       prior term; with no `CONTEXT.md`, drillable terms still work via `authored` defs
+- [ ] **Keys and dots:** `→` and `←` step the page and a click on a step dot jumps to it
+      (open the file and try — the checker only proves the listener is there)
+- [ ] **UML is right (sequence mode):** every reply is `data-kind="reply"` (dashed) and
+      every call is `data-kind="call"` (solid); nothing uses dashes to mean "now"; a frame
+      has its operator and `[guard]`; `#seqLegend` is present and still describes this page
+- [ ] **Supporting diagrams earn their place:** each has its one-sentence question as the
+      first sentence of its `.uml-cap`, a `data-uml` type, and no states; at most 3
+- [ ] **Activity diagrams:** every flow out of a decision is a drawn arrow with a `[guard]`
+- [ ] **No authored CSS, no built ids:** no CSS written for this walkthrough; every setter
+      id is a literal string
 - [ ] **Post-assembly self-test passes:** `python scripts/check-walkthrough.py <out>.html`
-      reports OK (self-contained, `MODE`+renderer ok, `RENDER_HOOKS`-first, scenes clean, order ok)
+      reports OK (self-contained, `MODE`+renderer ok, `RENDER_HOOKS`-first, scenes clean,
+      order ok, arrow-key listener, controls first, UML kit, sequence legend and kinds)
 
 If any item fails — fix before reporting done.
 
@@ -304,7 +398,7 @@ introduce a new hex. The semantic core: `--accent #5fb4ff` (info/active),
 
 ```js
 modeRenderers['<name>'] = {
-  registry: { /* one+ flat id-arrays */ },
+  registry: { /* one+ flat id-arrays — typed by hand, or filled from the markup (sequence) */ },
   clear(reg) { /* reset every registry id to idle; hide .wt-panel; restore [data-default] */ },
   /* replace-only setters, e.g. setNode(id,state) */
   assertRegistryComplete() { /* throw if a DOM id is absent from the registry */ },
@@ -315,8 +409,9 @@ modeRenderers['<name>'] = {
 - `references/mode-diagram.html` — `setComp`/`setArrow`/`setLabel`/`setText`; comp states `active/firing/locked/blocked/done/error/dimmed`; arrow states `active/magic/done/error/dimmed`.
 - `references/mode-tables.html` — `setRowClass`/`setBadge`/`setCell`/`setRule`; row states `target-delete/target-setnull/target-conflict/fixed/deleted`; badges `delete/setnull/conflict`.
 - `references/mode-state-machine.html` — `setNode`/`setEdge`; node states `current/passed/illegal/stuck/key/dimmed`; the illegal/stuck transition IS the conflict step.
+- `references/mode-sequence.html` — `setLife`/`setMsg`/`setText`; lifeline states `active/firing/locked/blocked/done/error/dimmed`; message states `active/done/error/magic/dimmed`; frames and notes have no states. Its registry is read from the markup (ADR 0366), so there is no id list to keep in step.
 
-## Idempotent Scenes — The One Rule (both modes)
+## Idempotent Scenes — The One Rule (every mode)
 
 **Every scene function must fully describe DOM state from scratch. Never build cumulatively.**
 
@@ -343,7 +438,7 @@ If you need to "add" a panel mid-walkthrough, declare it once in the initial HTM
 
 | Mistake | Fix |
 |---|---|
-| Wrong mode picked — tables for a flow problem | Use the flat selection table. Flow → diagram. Row state → tables. One entity's transitions → state-machine. |
+| Wrong mode picked — tables for a flow problem | Use the flat selection table. Order of messages → sequence. Wiring, or a value that builds up → diagram. Row state → tables. One entity's transitions → state-machine. |
 | Auto-playing animation that races past the reader | Manual `Next →` only. Reader controls pace. |
 | Abstract names (`A`, `B`, `Table1`, `Customer1`) | Real, domain-flavored, culturally appropriate names. |
 | IDs collide with output sequence numbers (`cargo-1` vs booking `00001`) | Use letter IDs (`cargo-A`) or source-tagged labels (`cargo (Portal)`). |
@@ -355,7 +450,7 @@ If you need to "add" a panel mid-walkthrough, declare it once in the initial HTM
 | 300+ lines of HTML for a 2-step problem | This skill is for problems with 4+ chained effects. Smaller problems → just chat or use a single mermaid diagram. |
 | `← Previous` leaves stale state | Scene functions must fully describe state, not deltas. |
 | Same element never highlighted in the conflict step | Pick concrete data so at least one element is hit by every problematic path. |
-| Flying-label rect too small / clipped text | Measure your label text length; widen the `<rect>` to fit comfortably. |
+| Flying-label rect too small / clipped text (diagram mode) | Measure your label text length; widen the `<rect>` to fit comfortably. The sequence pack fits its own labels. |
 | Invented term definitions instead of CONTEXT.md | Source from the project glossary; author a fallback only when the term is absent (ADR 0017). |
 | A helper builds `data-term` dynamically (string-concatenating the key into the attribute) | `check-walkthrough.py` scans for the literal attribute, so the run fails — and a helper defeats the referential-integrity guarantee anyway. Keep spans literal; for DRY use one const per term holding the COMPLETE span. |
 | Over-marking — every other word is drillable | Mark only terms *beyond* the reader's stated prerequisites. |
@@ -366,13 +461,24 @@ If you need to "add" a panel mid-walkthrough, declare it once in the initial HTM
 | Hand-splicing the assembled `.html` | Use `scripts/assemble-walkthrough.py`, then `scripts/check-walkthrough.py` — a bad manual splice yields a self-contained-but-broken file. |
 | Introducing a new color hex | Reuse `:root` tokens / the 5 markerheads; the checker + review reject new tokens (ADR 0022). |
 | Apostrophe inside a single-quoted GLOSSARY string breaks the bootstrap JS | Use double-quotes or reword; `check-walkthrough.py` now `node --check`s the assembled `<script>`. |
+| A reply drawn as a solid arrow (`data-kind="call"` on a response) | A reply is `data-kind="reply"` — dashed. The reader learns the notation from your picture (ADR 0363). |
+| Dashes used to mean "happening now" | In UML a dashed arrow is a reply. "Now" is the `active` state: thicker and glowing. Never add `stroke-dasharray` to a state. |
+| A UML picture in a panel because the page "should have UML" | A supporting diagram answers one question the main diagram cannot. No question, no picture; none is a correct number (ADR 0364). |
+| More than 3 supporting diagrams | The panels turn into a gallery. Keep the 3 that answer the hardest questions. |
+| A decision's "no" branch written as text beside the diamond | Every flow out of a decision is a drawn arrow with its `[guard]`. |
+| The sequence legend deleted, or left describing the demo | `#seqLegend` is mandatory and must describe THIS diagram (its frame operator, its colours). |
+| An id built by joining strings (`setMsg('m' + n, …)`, a helper that adds a prefix) | Pass literal ids. The checker proves literals exist; a built id slips past it and silently does nothing. |
+| CSS written for one walkthrough (a `<style>` block, new classes) | Add no CSS. The engine styles panels, tables and notes; the pack styles the main diagram; the kit styles UML pictures. A missing style belongs in a reference. |
+| A width typed on a sequence label background, or an id list typed into the sequence registry | The sequence pack fits its labels and reads its registry from the markup. Typing either one re-creates the bug it removed (ADR 0366). |
+| More than 12 messages in a sequence diagram | It no longer fits a window. That problem is the diagram mode's (ADR 0365). |
 
 ## Reference files (the always-present scaffolds)
 
 Build every walkthrough from these bundled files in this skill's folder:
 
 - `references/walkthrough-engine.html` — the shared engine (also a standalone runnable demo).
-- `references/mode-diagram.html` · `references/mode-tables.html` · `references/mode-state-machine.html` — the mode packs (each runs its own demo via assembly).
+- `references/mode-sequence.html` · `references/mode-diagram.html` · `references/mode-tables.html` · `references/mode-state-machine.html` — the mode packs (each runs its own demo via assembly; the sequence demo needs `--uml`).
+- `references/uml-kit.html` — the UML kit: the CSS and the class and activity skeletons for supporting diagrams.
 - `references/term-drilldown.html` — the term drill-down drawer.
 - `scripts/assemble-walkthrough.py` — the deterministic generation splice.
 - `scripts/check-walkthrough.py` — the mandatory post-assembly self-test.
