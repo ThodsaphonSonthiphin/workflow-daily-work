@@ -21,7 +21,7 @@ keeps every id in the file, where the checker's scene-id pass reads it. The pack
 the two things that went wrong:
 
 - **The registry comes from the markup.** When the pack registers, it collects the ids of
-  the lifelines, messages and frames it finds, and the default text of every live value.
+  the lifelines and messages it finds, and the default text of every live value (a frame has no state, so it is not in the registry).
   The author types no id list, so the list cannot disagree with the picture.
   `assertRegistryComplete()` keeps its name and its place in the bootstrap; it now checks
   what a list could not get wrong by construction but markup still can: an element without

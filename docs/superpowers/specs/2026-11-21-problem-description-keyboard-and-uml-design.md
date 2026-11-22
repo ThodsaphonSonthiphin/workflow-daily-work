@@ -1,5 +1,11 @@
 # Design — problem-description: arrow keys, a sequence mode, and UML supporting diagrams
 
+> **Changed during implementation (2026-11-22).** The task reviews found defects in what
+> this spec prescribed. This file has been edited to say what is true now; the decisions
+> are ADR 0381 (the hint keeps its own row), 0382 (a kit picture is never enlarged), 0383
+> (activity branches meet at a merge node), 0384 (self-message geometry), 0385 (one column
+> below 1340px) and 0386 (only a picture with rules and a legend is called UML).
+
 Two requests, made about a walkthrough published on 2026-11-20: the arrow keys do not step it, and its use of UML should become what the skill
 does. This design adds keyboard stepping and three other navigation changes to the shared
 engine, adds a fourth mode pack that draws a UML sequence diagram, and adds a UML kit for
@@ -336,7 +342,7 @@ them and the pack's demo follows them.
 | Row *k* | `y = 118 + 50 × (k − 1)` |
 | Message, left to right | `M (xFrom + 4) y L (xTo − 6) y`. Label at `x = (xFrom + xTo) / 2`, `y − 11`, anchored in the middle |
 | Message, right to left | `M (xFrom − 4) y L (xTo + 6) y`. Label as above |
-| Self-message | takes two rows. At row *k*: `M (x + 4) y L (x + 72) y L (x + 72) (y + 28) L (x + 10) (y + 28)`. Label at `x + 80`, `y + 19`, anchored at the start. The next message is at row *k + 2* |
+| Self-message | takes two rows. At row *k*: `M (x + 4) y L (x + 52) y L (x + 52) (y + 28) L (x + 10) (y + 28)`. Label at `x + 68`, `y + 19`, anchored at the start, with about `1000/N - 85` units before the next lifeline (ADR 0384). The next message is at row *k + 2* |
 | Frame | its header takes one row *h* with no message. Box: `x = 18`, `y = yH − 26`, width 964, height `(yLast − yH) + 44`. Tab: `M 18 (yH − 26) h 46 v 16 l -10 10 H 18 Z`. Operator text at `x = 26`, guard text at `x = 74`, both at `y = yH − 8` |
 | Height | `H = yLastRow + 46` |
 | Size limit | 12 messages or fewer (ADR 0365) |
@@ -352,9 +358,9 @@ Worked example, the pack's demo (4 lifelines, 8 rows):
 
 ### 3.6 Layout and legend
 
-- `.seq-layout` is a grid: `minmax(0, 1.55fr) minmax(0, 1fr)`. Below 1300px it is one
+- `.seq-layout` is a grid: `minmax(0, 1.55fr) minmax(0, 1fr)`. Below 1340px it is one
   column, the diagram first. The breakpoint is where the diagram column would become
-  narrower than the diagram's minimum: at 1300px the column is 756px. (Measured on the
+  narrower than the diagram's minimum plus the wrap's padding and border (740 + 26): two columns fit from 1320px, and a page scrollbar takes 15px more (ADR 0385). (Measured on the
   prototype, 2026-11-22: with a 1100px breakpoint a 1280px page showed a scrollbar inside
   the diagram box and hid the fourth lifeline.)
 - `.seq-wrap` has `overflow-x: auto` and `svg.seq` has `min-width: 740px`, so a narrow page
@@ -394,14 +400,14 @@ All colours are `:root` tokens; arrows use the engine's `#arrowhead` markerhead.
 
 | Class | Is |
 |---|---|
-| `svg.uml` | a supporting diagram: full panel width, height from the view box |
+| `svg.uml` | a supporting diagram: the panel's width up to 540px, never enlarged past its 540-unit view box (ADR 0382); height from the view box |
 | `.uml-box`, with `.hot`, `.bad`, `.good` | a class box or an object box; the variants are fixed emphasis |
 | `.uml-t`, with `.b`, `.dim`, `.amb`, `.err`, `.ok`, `.mono` | text |
 | `.uml-line` | an association, or the line between compartments |
 | `.uml-dep` | a dependency: dashed, with an arrowhead |
 | `.uml-flow` | an activity flow: solid, with an arrowhead |
 | `.uml-start`, `.uml-end`, `.uml-end-ring` | the initial node and the final node |
-| `.uml-dia` | a decision |
+| `.uml-dia` | a decision, or a merge (ADR 0383) |
 | `.uml-act`, with `.good`, `.bad` | an action |
 | `.uml-cap` | the caption under a picture |
 
@@ -411,7 +417,7 @@ All colours are `:root` tokens; arrows use the engine's `#arrowhead` markerhead.
   lines in the form `name : Type = value`; one association with a multiplicity at each end;
   one dependency with its stereotype.
 - **Activity diagram**: initial node, one action, one decision whose two outgoing flows are
-  drawn arrows with a `[guard]` each, one action on each branch, final node.
+  drawn arrows with a `[guard]` each, one action on each branch, a merge node where the branches meet (ADR 0383), one action after it, final node.
 
 Each skeleton is a complete `.wt-panel`:
 
@@ -540,7 +546,7 @@ changed by this work.
    background is narrower than its text.
 3. **Browser, embedded.** The same page inside a sandboxed iframe on another origin: before
    a click the hint shows and the keys do not reach the page; after one click the hint is
-   gone and the keys step; when focus returns to the host page the hint shows again.
+   invisible (its row stays, nothing moves) and the keys step; when focus returns to the host page the hint shows again.
 4. **The real viewer.** The sequence demo is published as a new private artifact. The owner
    checks the three points of item 3 there and the result is recorded (ADR 0367).
 5. **The old packs.** The three existing demos still assemble and pass the checker with the
@@ -564,7 +570,7 @@ changed by this work.
 | No keyboard handling exists | search for `keydown`, `keyup`, `keypress`, `ArrowLeft`, `ArrowRight` in all three copies of the skill and in the published walkthrough | no match |
 | The Right arrow does nothing today; a click works | assembled diagram demo in a browser | `Step 0 / 3` after the key, `Step 1 / 3` after the click |
 | A `document` `keydown` listener with the guards of §1.2 behaves as designed | the same demo with the §1.2 and §1.3 code added | Right → step 1; with Next focused, Right → step 2 (one step); Alt+Right and Shift+Right → no change; Left → step 1 |
-| An embedded page gets no keys until it is clicked, and `document.hasFocus()` tracks that | that page in an `allow-scripts` iframe on another port, the host's input focused | before a click: step 0, `hasFocus` false, hint shown. After one click: `hasFocus` true, hint hidden, Right → step 1. Focus back to the host: hint shown again |
+| An embedded page gets no keys until it is clicked, and `document.hasFocus()` tracks that | that page in an `allow-scripts` iframe on another port, the host's input focused | before a click: step 0, `hasFocus` false, hint shown. After one click: `hasFocus` true, hint invisible, no button moved, Right → step 1. A first click on Next itself steps (ADR 0381). Focus back to the host: hint shown again |
 | `getBBox()` measures a label that is not visible yet | a diagram-pack label at opacity 0 | width 26, not 0 |
 | The assembler and checker work today on all three packs | assembled each demo and ran the checker | three times `OK` |
 | Every existing mode's `clear()` hides `.wt-panel` | read the three packs | true for all three |

@@ -28,7 +28,7 @@ with its stereotype.
 
 **Activity diagram (the kit).** An initial node, actions, decisions, a final node. Every
 flow out of a decision is a drawn arrow with its guard in square brackets; a branch is not
-written as loose text beside the diamond.
+written as loose text beside the diamond. Since ADR 0383 the subset also has the merge node: branches that come back together meet at a diamond with one flow out, not at an action.
 
 **The stated departure.** Every arrow has the same filled head, in one of the engine's five
 colours. UML's open head for an asynchronous message and for a reply is not drawn. The

@@ -98,7 +98,8 @@ def main(path):
         #     (catches a typo'd id that would silently no-op). setRowClass/setBadge take a
         #     logical id that maps to row<ID>/badge<ID>; all other setters use the literal id.
         #     The first argument is a string, or an array literal of strings (setMsg takes
-        #     both); an id built by joining strings cannot be read here, so do not build one.
+        #     both). A built id is not read correctly here: 'm' + n is read as the id "m"
+        #     (and fails), a template string or a variable is not read at all. Do not build one.
         dom_ids = set(re.findall(r'\bid="([^"]+)"', src))
         prefix = {'setRowClass': 'row', 'setBadge': 'badge'}
         id_setters = r"(setNode|setEdge|setComp|setArrow|setLabel|setText|setRowClass|setBadge|setCell|setRule|setLife|setMsg|show|hide)"
@@ -169,7 +170,7 @@ def main(path):
     if mm and mm.group(1) == 'sequence':
         if 'id="seqLegend"' not in src:
             errs.append('sequence mode: no id="seqLegend" legend')
-        for _tag in re.findall(r'<g\b[^>]*\bclass="seq-msg"[^>]*>', src):
+        for _tag in re.findall(r'<g\b[^>]*\bclass="(?:[^"]*\s)?seq-msg(?:\s[^"]*)?"[^>]*>', src):
             if not re.search(r'\bdata-kind="(call|reply|self)"', _tag):
                 _mid = re.search(r'\bid="([^"]+)"', _tag)
                 errs.append('sequence mode: message ' + (_mid.group(1) if _mid else '(no id)')

@@ -25,7 +25,7 @@
     arrow back to the same lifeline           data-kind="self"
     frame        = operator (alt | opt | loop) + [guard]
   "Happening now" is a thicker glowing line, NEVER dashes: a reply is dashed in
-  every state and nothing else is dashed in any state. One stated departure from
+  every state and no other message is dashed in any state. One stated departure from
   UML: every arrowhead is the same filled shape (the engine's five markerheads,
   ADR 0022). The legend (#seqLegend) says all of this to the reader — keep it.
 
@@ -40,12 +40,19 @@
                 right to left:  M (xFrom - 4) y L (xTo + 6) y
                 label text at x = (xFrom + xTo) / 2, y - 11, text-anchor="middle"
     self        takes TWO rows. At row k:
-                M (x + 4) y L (x + 72) y L (x + 72) (y + 28) L (x + 10) (y + 28)
-                label text at x + 80, y + 19, text-anchor="start". Next message: row k + 2
-    frame       its header takes ONE row h with no message.
+                M (x + 4) y L (x + 52) y L (x + 52) (y + 28) L (x + 10) (y + 28)
+                label text at x + 68, y + 19, text-anchor="start". Next message: row k + 2
+                (the label starts clear of the loop and must end before the next
+                lifeline: about 1000/N - 85 units of text, ADR 0384)
+    frame       its header takes ONE row h with no message. yLast = the row of the last
+                message inside (for a self-message, its SECOND row).
                 box: x = 18, y = yH - 26, width 964, height = (yLast - yH) + 44
                 tab: M 18 (yH - 26) h 46 v 16 l -10 10 H 18 Z
                 operator text x = 26, guard text x = 74, both at y = yH - 8
+                alt: each further part starts on a row e with no message: a
+                .seq-frag-sep line from x 18 to 982 at y = e - 26, its [guard] text
+                (.seq-frag-guard) at x = 26, y = e - 8
+    note        a .seq-note-text line, placed clear of every lifeline and label
     height      H = yLastRow + 46
     size        12 messages or fewer. More than that is the diagram mode's job (ADR 0365).
   Colours: engine :root tokens, plus the state hexes the diagram pack already uses
@@ -57,14 +64,16 @@
   /* ===== §CSS  (copy into the walkthrough's <style>, after the engine §CSS) ===== */
   .seq-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
                 gap: 16px; align-items: start; margin-bottom: 16px; }
-  /* Two columns only when the diagram column is at least as wide as the diagram's minimum
-     (1300px page -> a 756px column). Below that: one column, the diagram first. */
-  @media (max-width: 1300px) { .seq-layout { grid-template-columns: minmax(0, 1fr); } }
+  /* Two columns only when the diagram column holds the diagram's minimum width plus the
+     wrap's padding and border (740 + 26) with a page scrollbar showing. Measured: it fits
+     from 1320px without a scrollbar, so the switch is at 1340px (ADR 0385). */
+  @media (max-width: 1340px) { .seq-layout { grid-template-columns: minmax(0, 1fr); } }
   .seq-wrap { background: var(--surface-2); border: 1px solid var(--panel); border-radius: 8px;
               padding: 12px; overflow-x: auto; }
   svg.seq { width: 100%; min-width: 740px; height: auto; display: block; }
   .seq-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
   .seq-side .wt-panel { margin-bottom: 0; }
+  .seq-side .wt-panel ol { margin: 8px 0 0 18px; padding: 0; }
 
   /* lifeline = a head box over a dashed vertical line */
   .seq-line { stroke: var(--border-dim); stroke-width: 1.5; stroke-dasharray: 5 6; }
@@ -186,9 +195,9 @@
   </g>
   <!-- row 4 is the frame header. Row 5 is a self-message, so it also takes row 6. -->
   <g class="seq-msg" id="m4" data-kind="self">
-    <path class="seq-arrow" d="M 379 318 L 447 318 L 447 346 L 385 346" marker-end="url(#arrowhead)"/>
+    <path class="seq-arrow" d="M 379 318 L 427 318 L 427 346 L 385 346" marker-end="url(#arrowhead)"/>
     <g class="seq-label"><rect class="seq-label-bg" rx="5"/>
-      <text class="seq-label-text" x="455" y="337" text-anchor="start">4: make token, valid 15 min</text></g>
+      <text class="seq-label-text" x="443" y="337" text-anchor="start">4: make a 15-min token</text></g>
   </g>
   <g class="seq-msg" id="m5" data-kind="call">
     <path class="seq-arrow" d="M 379 418 L 869 418" marker-end="url(#arrowhead)"/>
@@ -236,7 +245,7 @@
   <div class="wt-panel question hidden" id="pnlQuestion">
     <div class="wt-panel-title">คำถามสำคัญ: ลองตอบในใจก่อนกด →</div>
     <div>คนแปลกหน้าส่ง <code>nobody@example.com</code> ซึ่งไม่มีใน DB</div>
-    <ol style="margin:8px 0 0 18px; padding:0">
+    <ol>
       <li>ข้อ 4 และข้อ 5 ยังเกิดไหม?</li>
       <li>ข้อ 6 ควรตอบ <code>200</code> หรือ <code>404</code>?</li>
       <li>ถ้าตอบต่างกัน คนแปลกหน้าได้รู้อะไรเพิ่ม?</li>
@@ -255,7 +264,7 @@
 
   <div class="wt-panel hidden" id="pnlActivity">
     <div class="wt-panel-title">UML activity diagram: API เช็คอะไรก่อนตอบ</div>
-    <svg class="uml" data-uml="activity" viewBox="0 0 540 318" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="activity diagram: find the user, decide, both branches end in the same answer">
+    <svg class="uml" data-uml="activity" viewBox="0 0 540 354" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="activity diagram: find the user, decide, an action on each branch, the branches merge, one answer">
       <circle class="uml-start" cx="150" cy="14" r="8"/>
       <path class="uml-flow" d="M 150 22 L 150 40" marker-end="url(#arrowhead-active)"/>
       <rect class="uml-act" x="40" y="42" width="220" height="32" rx="14"/>
@@ -267,18 +276,21 @@
       <text class="uml-t dim" x="158" y="148">[yes]</text>
       <rect class="uml-act" x="40" y="160" width="220" height="32" rx="14"/>
       <text class="uml-t" x="150" y="181" text-anchor="middle">Make a token, send the link</text>
-      <path class="uml-flow" d="M 150 192 L 150 230" marker-end="url(#arrowhead-active)"/>
-      <path class="uml-flow" d="M 168 112 L 400 112 L 400 248 L 262 248" marker-end="url(#arrowhead-active)"/>
+      <path class="uml-flow" d="M 150 192 L 150 214" marker-end="url(#arrowhead-active)"/>
+      <path class="uml-flow" d="M 168 112 L 400 112 L 400 158" marker-end="url(#arrowhead-active)"/>
       <text class="uml-t dim" x="180" y="104">[no]</text>
-      <text class="uml-t dim" x="410" y="176">nothing made,</text>
-      <text class="uml-t dim" x="410" y="194">nothing sent</text>
-      <rect class="uml-act good" x="40" y="232" width="220" height="32" rx="14"/>
-      <text class="uml-t ok" x="150" y="253" text-anchor="middle">Answer 200 OK</text>
-      <path class="uml-flow" d="M 150 264 L 150 290" marker-end="url(#arrowhead-active)"/>
-      <circle class="uml-end-ring" cx="150" cy="302" r="9"/>
-      <circle class="uml-end" cx="150" cy="302" r="5"/>
+      <rect class="uml-act" x="300" y="160" width="200" height="32" rx="14"/>
+      <text class="uml-t" x="400" y="181" text-anchor="middle">Make nothing, send nothing</text>
+      <polygon class="uml-dia" points="150,216 168,232 150,248 132,232"/>
+      <path class="uml-flow" d="M 400 192 L 400 232 L 170 232" marker-end="url(#arrowhead-active)"/>
+      <path class="uml-flow" d="M 150 248 L 150 268" marker-end="url(#arrowhead-active)"/>
+      <rect class="uml-act good" x="40" y="270" width="220" height="32" rx="14"/>
+      <text class="uml-t ok" x="150" y="291" text-anchor="middle">Answer 200 OK</text>
+      <path class="uml-flow" d="M 150 302 L 150 326" marker-end="url(#arrowhead-active)"/>
+      <circle class="uml-end-ring" cx="150" cy="338" r="9"/>
+      <circle class="uml-end" cx="150" cy="338" r="5"/>
     </svg>
-    <div class="uml-cap">ตอบคำถาม: API เช็คอะไร และสองทางจบต่างกันไหม? วิธีอ่าน: จุดทึบ = เริ่ม · กล่องมน = การกระทำ · รูปเพชร = จุดตัดสินใจ เงื่อนไขของแต่ละทางอยู่ใน [ ] · วงกลมซ้อน = จบ</div>
+    <div class="uml-cap">ตอบคำถาม: API เช็คอะไร และสองทางจบต่างกันไหม? วิธีอ่าน: จุดทึบ = เริ่ม · กล่องมน = การกระทำ · รูปเพชรที่มีลูกศรออกสองเส้น = จุดตัดสินใจ เงื่อนไขของแต่ละทางอยู่ใน [ ] · รูปเพชรที่มีลูกศรเข้าสองเส้น = สองทางกลับมารวมกัน · วงกลมซ้อน = จบ</div>
   </div>
 
   <div class="wt-panel summary hidden" id="pnlSummary">
@@ -297,7 +309,8 @@
     <span class="seq-sw"></span>ลูกศรเส้นทึบ = ส่งข้อความหรือเรียก<br/>
     <span class="seq-sw reply"></span>ลูกศรเส้นประ = ข้อความตอบกลับ<br/>
     เลขหน้าข้อความ = ลำดับ · กรอบ <b>opt [เงื่อนไข]</b> = ทำเฉพาะเมื่อเงื่อนไขเป็นจริง<br/>
-    <span class="seq-sw now"></span>กำลังเกิด · <span class="seq-sw done"></span>เกิดไปแล้ว · <span class="seq-sw bad"></span>มีปัญหา<br/>
+    <span class="seq-sw now"></span>กำลังเกิด · <span class="seq-sw done"></span>เกิดไปแล้ว · <span class="seq-sw bad"></span>มีปัญหา · ลูกศรจาง = ไม่เกิดในกรณีนี้<br/>
+    กล่องผู้เล่น: ขอบเหลือง = ฝ่ายที่กำลังทำงาน · ขอบฟ้า = อีกฝ่ายของข้อความ · ขอบม่วง = จุดที่กำลังตั้งคำถาม · ขอบเขียว = เสร็จ · ขอบแดง = มีปัญหา<br/>
     ต่างจาก UML หนึ่งจุด: หัวลูกศรทุกเส้นเป็นแบบทึบแบบเดียว (UML ใช้หัวโปร่งกับข้อความตอบกลับและข้อความ async)
   </div>
 </div>
@@ -448,7 +461,7 @@ const scenes = [
     setNarration('magic', 'คำถามสำคัญ: ถ้าอีเมลนั้นไม่มีใน DB ล่ะ?',
       'ข้อ 3 ไม่เจอ user กรอบ opt จึงไม่ทำงาน แล้วข้อ 6 ควรตอบว่าอะไร? ลองตอบ 3 ข้อในกล่องด้านข้างก่อน แล้วค่อยกด →');
     setMsg(['m1', 'm2', 'm3', 'm4', 'm5', 'm6'], 'done');
-    setLife('lfUser', 'locked');
+    setLife('lfUser', 'locked'); setText('apiVal', 'token: 15 min');
     show('pnlQuestion');
   },
   // 8 — the failure: the naive answer
@@ -465,7 +478,7 @@ const scenes = [
   // 9 — the resolution
   () => {
     setNarration('success', 'คำตอบที่ถูก: สองทางจบด้วยคำตอบเดียวกัน',
-      'API ตอบ <code>200 OK</code> ด้วยข้อความเดียวกันทั้งสองกรณี ดู activity diagram ด้านข้าง: ทาง [yes] กับทาง [no] มาบรรจบที่การกระทำเดียวกัน คนเรียกจึงแยกสองกรณีไม่ออก');
+      'API ตอบ <code>200 OK</code> ด้วยข้อความเดียวกันทั้งสองกรณี ดู activity diagram ด้านข้าง: ทาง [yes] กับทาง [no] กลับมารวมกันก่อนถึงคำตอบเดียวกัน คนเรียกจึงแยกสองกรณีไม่ออก');
     setMsg(['m1', 'm2', 'm3'], 'done');
     setMsg(['m4', 'm5'], 'dimmed');
     setMsg('m6', 'done');
@@ -477,7 +490,7 @@ const scenes = [
     setNarration('success', 'สรุป: ลำดับ เงื่อนไข และข้อแลกเปลี่ยน',
       'คำตอบเดียวกันทุกครั้งปิดช่องให้เดาว่าใครมีบัญชี <b>ข้อแลกเปลี่ยน:</b> คนที่พิมพ์อีเมลผิดจะไม่รู้ว่าพิมพ์ผิด และเวลาตอบของสองทางต้องใกล้กันด้วย ไม่อย่างนั้นคนเรียกยังเดาได้จากความเร็ว');
     setMsg(['m1', 'm2', 'm3', 'm4', 'm5', 'm6'], 'done');
-    setLife('lfApi', 'done');
+    setLife('lfApi', 'done'); setText('apiVal', 'token: 15 min');
     show('pnlSummary');
   },
 ];

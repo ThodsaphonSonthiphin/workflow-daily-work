@@ -8,6 +8,25 @@
 
 **Tech Stack:** Python 3.10+ (standard library only), hand-written HTML / CSS / SVG / JavaScript with no build step and no library, Node (optional — the checker's syntax gate uses `node --check` when Node is on the PATH).
 
+> **Changed after this plan was written (2026-11-22).** The task reviews found six defects
+> that this plan's own code mandated. The fixes are on the branch and recorded as ADRs; the
+> code blocks below are the plan as executed for Tasks 1-7 and do **not** carry them, except
+> the hint (ADR 0381), which was edited in place in Task 2.
+>
+> | This plan says | What is true now | Decision |
+> |---|---|---|
+> | the hint sits beside the buttons and is removed when the page has focus (Task 9 wording: "gone", "hidden") | it has a row of its own under the buttons and turns invisible; nothing moves | ADR 0381 |
+> | `svg.uml { width: 100% }` | plus `max-width: 540px`; kit pictures use a view box 540 units wide | ADR 0382 |
+> | activity skeleton: `[no]` runs straight into "Answer 200 OK", with loose text beside it; view box `0 0 540 318` | each branch has an action, the branches meet at a merge diamond; view box `0 0 540 354` | ADR 0383 |
+> | self-message loop out to `x + 72`, label at `x + 80`; demo label "4: make token, valid 15 min" | loop out to `x + 52`, label at `x + 68`; demo label "4: make a 15-min token" | ADR 0384 |
+> | one column below 1300px | below 1340px | ADR 0385 |
+> | SKILL.md calls the state-machine mode "a UML state machine diagram"; "a built id slips past" the checker | no UML label on that mode; `'m' + n` is misread as the id `m`, a template string slips past | ADR 0386 |
+>
+> Also changed: scenes 7 and 10 of the sequence demo set `apiVal` again; the legend names
+> the lifeline colours and the faint arrow; gate K sees a message whose class carries a
+> state; the suite has 32 tests, not 31. Do not re-run a task from this file without
+> applying these.
+
 **Spec:** `docs/superpowers/specs/2026-11-21-problem-description-keyboard-and-uml-design.md` — read it with this plan. Decisions: ADRs `workflow-daily-work-0356` to `0367` and `0378` to `0380` in `docs/adr/`.
 
 ```mermaid

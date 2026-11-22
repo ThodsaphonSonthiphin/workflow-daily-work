@@ -127,6 +127,7 @@ def test_engine_shows_a_focus_hint_and_controls_come_first():
         out, _ = assemble(tmp, "diagram", "demo.html")
         page = read(out)
         assert 'id="keyHint"' in page and "document.hasFocus()" in page
+        assert "classList.toggle('off', document.hasFocus())" in page, "the hint is toggled with .off, never .hidden"
         assert 'class="key-hint off"' in page and ".key-hint.off { visibility: hidden; }" in page, \
             "the hint must keep its room, or the buttons jump under the first click (ADR 0381)"
         assert page.index('id="stepProgress"') < page.index('id="prevBtn"') < page.index('id="narration"'), \
@@ -219,6 +220,13 @@ def test_uml_kit_has_a_css_section_and_two_captioned_skeletons():
     assert kit.count('<svg class="uml"') == 2 and kit.count('class="uml-cap"') == 2
     # every flow out of the decision is a drawn arrow with its guard
     assert "[yes]" in kit and "[no]" in kit
+    # a picture is never enlarged past its 540-unit design width (ADR 0382)
+    assert re.search(r"svg\.uml\s*\{[^}]*max-width:\s*540px", css), "svg.uml needs max-width: 540px"
+    assert all(v == "540" for v in re.findall(r'<svg class="uml"[^>]*viewBox="0 0 (\d+) ', kit))
+    # the activity skeleton: two diamonds (decision, merge), and no action with two flows in (ADR 0383)
+    act = kit[kit.index('data-uml="activity"'):]
+    assert act.count('class="uml-dia"') == 2, "the branches must meet at a merge node"
+    assert "nothing made," not in kit, "a branch is an action, not loose text"
 
 
 def test_gate_j_fails_on_a_picture_without_the_kit():
@@ -289,10 +297,10 @@ def test_sequence_pack_dashes_only_a_reply():
     css = css_section(pack("sequence"))
     assert re.search(r'\.seq-msg\[data-kind="reply"\]\s+\.seq-arrow\s*\{[^}]*stroke-dasharray', css), \
         "a reply must be dashed"
-    for rule in re.findall(r"(\.seq-msg\.[a-z]+[^{]*)\{([^}]*)\}", css):
-        assert "stroke-dasharray" not in rule[1], "a message state must not add dashes: " + rule[0].strip()
-    plain = re.search(r"(?m)^\s*\.seq-arrow\s*\{([^}]*)\}", css)
-    assert plain and "stroke-dasharray" not in plain.group(1), "a plain message must be solid"
+    # any rule that reaches an arrow and dashes it must be the reply rule
+    for sel, body in re.findall(r"([^{}]*\.seq-arrow[^{}]*)\{([^}]*)\}", css):
+        if "stroke-dasharray" in body:
+            assert 'data-kind="reply"' in sel, "only a reply is dashed, not: " + sel.strip()
 
 
 def test_sequence_pack_adds_no_new_hex_colour():
@@ -319,6 +327,14 @@ def test_sequence_demo_follows_the_grid():
     assert height == max(ys) + 46, "H = last row + 46, got %d for last row %d" % (height, max(ys))
     ends = set(int(y) for y in re.findall(r'<line class="seq-line" [^>]*y2="(\d+)"', html))
     assert ends == {height - 14}, ends
+    # a self-message: out 48, down 28, back; its label starts 16 clear of the loop (ADR 0384)
+    for x, y, lx in re.findall(r'data-kind="self">\s*<path class="seq-arrow" d="M (\d+) (\d+) [^"]*"[^>]*/>\s*'
+                               r'<g class="seq-label"><rect class="seq-label-bg" rx="5"/>\s*<text class="seq-label-text" x="(\d+)"', html):
+        x0, y0 = int(x) - 4, int(y)
+        assert x0 in xs, "a self-message starts 4 right of its lifeline"
+        assert 'd="M %d %d L %d %d L %d %d L %d %d"' % (x0 + 4, y0, x0 + 52, y0, x0 + 52, y0 + 28, x0 + 10, y0 + 28) in html
+        assert int(lx) == x0 + 68, "self label at x + 68, got %s" % lx
+    assert 'data-kind="self">' in html
     # the frame: header row h, box from yH - 26, height (yLast - yH) + 44
     box = re.search(r'<rect class="seq-frag-box" x="18" y="(\d+)" width="964" height="(\d+)"', html)
     y_box, h_box = int(box.group(1)), int(box.group(2))
@@ -354,6 +370,13 @@ def test_gate_k_fails_on_a_message_without_a_kind():
         bad = broken(tmp, sequence_demo(tmp), "no-kind.html", '<g class="seq-msg" id="m1" data-kind="call">', '<g class="seq-msg" id="m1">')
         code, text = check(bad)
         assert code == 1 and "sequence mode" in text and "m1" in text and "data-kind" in text, text
+
+
+def test_gate_k_sees_a_message_that_carries_a_state_class():
+    with tempfile.TemporaryDirectory() as tmp:
+        bad = broken(tmp, sequence_demo(tmp), "state-no-kind.html", '<g class="seq-msg" id="m2" data-kind="call">', '<g class="seq-msg done" id="m2">')
+        code, text = check(bad)
+        assert code == 1 and "m2" in text and "data-kind" in text, text
 
 
 def test_gate_k_fails_on_an_unknown_kind():
@@ -411,7 +434,9 @@ def test_skill_md_teaches_supporting_diagrams_and_the_uml_rules():
     assert "dashed arrow = a reply" in s and "**never dashes**" in s
     assert "`#seqLegend`" in s and "`.uml-cap`" in s
     assert "Add no CSS of your own" in s
-    assert "Never build an id by joining strings" in s
+    assert "Never build an id (" in s
+    assert "meet at a **merge**" in s and "540 units wide" in s
+    assert "UML state machine" not in s, "no pack is called UML without a rule set and a legend (ADR 0386)"
 
 
 def test_skill_md_names_the_keys_and_keeps_its_frontmatter():

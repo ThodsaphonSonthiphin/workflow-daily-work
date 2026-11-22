@@ -18,14 +18,19 @@
 
   RULES (check-walkthrough.py gate J tests the form; you check the meaning):
     - The <svg> has class="uml" (exactly) and data-uml="<type>" (class, activity, ...).
+    - Draw in a view box 540 units wide. The picture is shown at that size or smaller,
+      never enlarged, so 13px text stays 13px (ADR 0382).
     - Every picture has a .uml-cap caption: first the question it answers, then how
       to read it (ADR 0364).
     - At most 3 pictures in a walkthrough. None is a correct number.
     - Class diagram: name compartment (stereotype in guillemets where it helps),
       attribute lines "name : Type = value", an association is a solid line with a
       multiplicity at each end, a dependency is a dashed arrow with its stereotype.
-    - Activity diagram: initial node, actions, decisions, final node. EVERY flow out
-      of a decision is a drawn arrow with its [guard] — never loose text (ADR 0363).
+    - Activity diagram: initial node, actions, decisions, merges, final node. EVERY
+      flow out of a decision is a drawn arrow with its [guard] — never loose text
+      (ADR 0363). Branches that come back together meet at a MERGE (a diamond with
+      one flow out and no guard), never straight into an action: an action with two
+      flows in waits for both (ADR 0383).
     - Colours are engine :root tokens only; arrows use the engine's markerheads
       (arrowhead-active for a flow or a dependency). No new hex, no new marker.
     - Another UML type is drawn from these same parts. Add its skeleton here when a
@@ -53,7 +58,8 @@
   .wt-panel .wt-panel-title { font-weight: 700; margin-bottom: 6px; }
 
   /* ===== §CSS  (the assembler inlines this with the uml flag, after the drawer §CSS) ===== */
-  svg.uml { width: 100%; height: auto; display: block; margin: 6px 0; }
+  /* never drawn larger than it was designed: a skeleton is 540 units wide (ADR 0382) */
+  svg.uml { width: 100%; max-width: 540px; height: auto; display: block; margin: 6px 0; }
   .uml-box { fill: var(--surface); stroke: var(--border-dim); stroke-width: 1.5; }
   .uml-box.hot  { stroke: var(--amber);   stroke-width: 2.5; }
   .uml-box.bad  { stroke: var(--error);   stroke-width: 2.5; }
@@ -119,7 +125,7 @@
 <!-- ===== SKELETON 2 — activity diagram. Copy the whole .wt-panel, add class "hidden". ===== -->
 <div class="wt-panel" id="pnlActivitySkeleton">
   <div class="wt-panel-title">UML activity diagram: API เช็คอะไรก่อนตอบ</div>
-  <svg class="uml" data-uml="activity" viewBox="0 0 540 318" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="activity diagram: find the user, decide, both branches end in the same answer">
+  <svg class="uml" data-uml="activity" viewBox="0 0 540 354" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="activity diagram: find the user, decide, an action on each branch, the branches merge, one answer">
     <circle class="uml-start" cx="150" cy="14" r="8"/>
     <path class="uml-flow" d="M 150 22 L 150 40" marker-end="url(#arrowhead-active)"/>
     <rect class="uml-act" x="40" y="42" width="220" height="32" rx="14"/>
@@ -134,20 +140,24 @@
     <text class="uml-t dim" x="158" y="148">[yes]</text>
     <rect class="uml-act" x="40" y="160" width="220" height="32" rx="14"/>
     <text class="uml-t" x="150" y="181" text-anchor="middle">Make a token, send the link</text>
-    <path class="uml-flow" d="M 150 192 L 150 230" marker-end="url(#arrowhead-active)"/>
+    <path class="uml-flow" d="M 150 192 L 150 214" marker-end="url(#arrowhead-active)"/>
 
-    <path class="uml-flow" d="M 168 112 L 400 112 L 400 248 L 262 248" marker-end="url(#arrowhead-active)"/>
+    <path class="uml-flow" d="M 168 112 L 400 112 L 400 158" marker-end="url(#arrowhead-active)"/>
     <text class="uml-t dim" x="180" y="104">[no]</text>
-    <text class="uml-t dim" x="410" y="176">nothing made,</text>
-    <text class="uml-t dim" x="410" y="194">nothing sent</text>
+    <rect class="uml-act" x="300" y="160" width="200" height="32" rx="14"/>
+    <text class="uml-t" x="400" y="181" text-anchor="middle">Make nothing, send nothing</text>
 
-    <rect class="uml-act good" x="40" y="232" width="220" height="32" rx="14"/>
-    <text class="uml-t ok" x="150" y="253" text-anchor="middle">Answer 200 OK</text>
-    <path class="uml-flow" d="M 150 264 L 150 290" marker-end="url(#arrowhead-active)"/>
-    <circle class="uml-end-ring" cx="150" cy="302" r="9"/>
-    <circle class="uml-end" cx="150" cy="302" r="5"/>
+    <!-- merge: two flows in, ONE flow out, no guard. Branches never join straight into an action -->
+    <polygon class="uml-dia" points="150,216 168,232 150,248 132,232"/>
+    <path class="uml-flow" d="M 400 192 L 400 232 L 170 232" marker-end="url(#arrowhead-active)"/>
+    <path class="uml-flow" d="M 150 248 L 150 268" marker-end="url(#arrowhead-active)"/>
+    <rect class="uml-act good" x="40" y="270" width="220" height="32" rx="14"/>
+    <text class="uml-t ok" x="150" y="291" text-anchor="middle">Answer 200 OK</text>
+    <path class="uml-flow" d="M 150 302 L 150 326" marker-end="url(#arrowhead-active)"/>
+    <circle class="uml-end-ring" cx="150" cy="338" r="9"/>
+    <circle class="uml-end" cx="150" cy="338" r="5"/>
   </svg>
-  <div class="uml-cap">ตอบคำถาม: API เช็คอะไร และสองทางจบต่างกันไหม? วิธีอ่าน: จุดทึบ = เริ่ม · กล่องมน = การกระทำ · รูปเพชร = จุดตัดสินใจ เงื่อนไขของแต่ละทางอยู่ใน [ ] · วงกลมซ้อน = จบ</div>
+  <div class="uml-cap">ตอบคำถาม: API เช็คอะไร และสองทางจบต่างกันไหม? วิธีอ่าน: จุดทึบ = เริ่ม · กล่องมน = การกระทำ · รูปเพชรที่มีลูกศรออกสองเส้น = จุดตัดสินใจ เงื่อนไขของแต่ละทางอยู่ใน [ ] · รูปเพชรที่มีลูกศรเข้าสองเส้น = สองทางกลับมารวมกัน · วงกลมซ้อน = จบ</div>
 </div>
 
 </div>

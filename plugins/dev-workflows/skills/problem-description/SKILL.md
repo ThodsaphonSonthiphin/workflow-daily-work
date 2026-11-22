@@ -82,12 +82,12 @@ Ask **"what is the problem ABOUT?"** (one distinct noun per row) and read across
 | **sequence** | the ORDER of messages between actors: who sends what to whom, and when (a UML sequence diagram) | one wire fires again and again, or a value builds up in a box → diagram | `references/mode-sequence.html` |
 | **diagram** | the WIRING between components: what is connected to what, and a value that builds up in a box (counter, lock, queue) | each message happens once and the order is the story → sequence | `references/mode-diagram.html` |
 | **tables** | rows changing state under FK/cascade rules | one entity's lifecycle → state-machine | `references/mode-tables.html` |
-| **state-machine** | one entity's legal state transitions; an illegal/stuck transition (a UML state machine diagram) | many rows mutating → tables | `references/mode-state-machine.html` |
+| **state-machine** | one entity's legal state transitions; an illegal/stuck transition | many rows mutating → tables | `references/mode-state-machine.html` |
 
 Sharp disambiguators: **state-machine** = "ONE entity's status transitions" (*not* "many
 rows mutating" → tables). **sequence** vs **diagram**, for a flow between components:
 sequence when each message happens once, the order is the story, and there are **12
-messages or fewer**; diagram when the same wire fires many times, a value builds up inside
+messages or fewer** between **2 to 5 lifelines**; diagram when the same wire fires many times, a value builds up inside
 a box, or there are more than 12 messages. Tie-break between those two: **when in doubt →
 sequence** (ADR 0365) — it puts the order on the picture instead of leaving it to the
 narration. Every new mode row must name its nearest neighbour in the "NOT when" column.
@@ -109,7 +109,8 @@ question:
 - **At most 3** in a walkthrough. **None is a correct number** — never add one to have one.
 - It has **no states**. A scene only `show()`s or `hide()`s its panel. If a box must look
   different at a later step, that is a second panel with a second picture.
-- Draw it from `references/uml-kit.html` (copy a skeleton). Another UML type is drawn from
+- Draw it from `references/uml-kit.html` (copy a skeleton), in a view box 540 units wide:
+  the page shows it at that size or smaller, never enlarged (ADR 0382). Another UML type is drawn from
   the same parts; its skeleton joins the kit when a second walkthrough needs it.
 
 ### UML notation — a picture that says "UML" must be right
@@ -124,8 +125,11 @@ wrongly (ADR 0363).
 - **Class diagram:** a name compartment (a stereotype in guillemets where it helps);
   attribute lines `name : Type = value`; an association is a solid line with a multiplicity
   at each end; a dependency is a dashed arrow with its stereotype.
-- **Activity diagram:** initial node, actions, decisions, final node. **Every** flow out of
-  a decision is a drawn arrow with its `[guard]` — never loose text beside the diamond.
+- **Activity diagram:** initial node, actions, decisions, merges, final node. **Every** flow
+  out of a decision is a drawn arrow with its `[guard]` — never loose text beside the
+  diamond. Branches that come back together meet at a **merge** (a diamond with one flow
+  out and no guard), never straight into an action: an action with two flows in waits for
+  both (ADR 0383).
 - **One stated departure:** every arrowhead is the same filled shape (the engine's five
   markerheads, ADR 0022). The legend says so.
 - **Legend and captions are mandatory:** the sequence pack's `#seqLegend` stays in the page
@@ -302,8 +306,10 @@ drawer are inlined by the assembler.
    - `const scenes = [ … ];` — one function per step, each fully describing DOM state via the
      flat setters + `setNarration(cls, title, bodyHTML)` + `show()/hide()` on `.wt-panel`s.
      Pass ids as **literals** — `setMsg('m3', 'active')`, `setMsg(['m1', 'm2'], 'done')`.
-     Never build an id by joining strings (`'m' + n`): the checker reads the literal ids to
-     prove each one exists, and a built id slips past it and fails silently in the page.
+     Never build an id (`'m' + n`, a template string, a helper): the checker reads the
+     literal ids to prove each one exists. It misreads `'m' + n` as the id `m` and fails,
+     and it cannot see a template string or a variable at all, so a wrong one fails
+     silently in the page.
    - `TOTAL = scenes.length - 1; modeRenderers[MODE].assertRegistryComplete(); buildProgressDots(); render(0);`
      — the `assertRegistryComplete()` call makes any DOM-id-not-in-registry drift throw at load.
 3. **Assemble:**
@@ -376,7 +382,8 @@ Run the self-test checklist:
       has its operator and `[guard]`; `#seqLegend` is present and still describes this page
 - [ ] **Supporting diagrams earn their place:** each has its one-sentence question as the
       first sentence of its `.uml-cap`, a `data-uml` type, and no states; at most 3
-- [ ] **Activity diagrams:** every flow out of a decision is a drawn arrow with a `[guard]`
+- [ ] **Activity diagrams:** every flow out of a decision is a drawn arrow with a `[guard]`;
+      branches that rejoin meet at a merge diamond, not at an action
 - [ ] **No authored CSS, no built ids:** no CSS written for this walkthrough; every setter
       id is a literal string
 - [ ] **Post-assembly self-test passes:** `python scripts/check-walkthrough.py <out>.html`
@@ -467,7 +474,7 @@ If you need to "add" a panel mid-walkthrough, declare it once in the initial HTM
 | More than 3 supporting diagrams | The panels turn into a gallery. Keep the 3 that answer the hardest questions. |
 | A decision's "no" branch written as text beside the diamond | Every flow out of a decision is a drawn arrow with its `[guard]`. |
 | The sequence legend deleted, or left describing the demo | `#seqLegend` is mandatory and must describe THIS diagram (its frame operator, its colours). |
-| An id built by joining strings (`setMsg('m' + n, …)`, a helper that adds a prefix) | Pass literal ids. The checker proves literals exist; a built id slips past it and silently does nothing. |
+| An id built by joining strings (`setMsg('m' + n, …)`, a helper that adds a prefix) | Pass literal ids. The checker proves literals exist; it misreads `'m' + n` as the id `m`, and a template string or a variable slips past it and silently does nothing. |
 | CSS written for one walkthrough (a `<style>` block, new classes) | Add no CSS. The engine styles panels, tables and notes; the pack styles the main diagram; the kit styles UML pictures. A missing style belongs in a reference. |
 | A width typed on a sequence label background, or an id list typed into the sequence registry | The sequence pack fits its labels and reads its registry from the markup. Typing either one re-creates the bug it removed (ADR 0366). |
 | More than 12 messages in a sequence diagram | It no longer fits a window. That problem is the diagram mode's (ADR 0365). |
