@@ -342,7 +342,7 @@ them and the pack's demo follows them.
 | Row *k* | `y = 118 + 50 × (k − 1)` |
 | Message, left to right | `M (xFrom + 4) y L (xTo − 6) y`. Label at `x = (xFrom + xTo) / 2`, `y − 11`, anchored in the middle |
 | Message, right to left | `M (xFrom − 4) y L (xTo + 6) y`. Label as above |
-| Self-message | takes two rows. At row *k*: `M (x + 4) y L (x + 52) y L (x + 52) (y + 28) L (x + 10) (y + 28)`. Label at `x + 68`, `y + 19`, anchored at the start, with about `1000/N - 85` units before the next lifeline (ADR 0384). The next message is at row *k + 2* |
+| Self-message | takes two rows. At row *k*: `M (x + 4) y L (x + 52) y L (x + 52) (y + 28) L (x + 10) (y + 28)`. Label at `x + 68`, `y + 19`, anchored at the start, with about `1000/N - 85` units before the next lifeline (ADR 0384). On the last lifeline the loop is mirrored to the left: `L (x - 52)`, label at `x - 68`, anchored at the end. The next message is at row *k + 2* |
 | Frame | its header takes one row *h* with no message. Box: `x = 18`, `y = yH − 26`, width 964, height `(yLast − yH) + 44`. Tab: `M 18 (yH − 26) h 46 v 16 l -10 10 H 18 Z`. Operator text at `x = 26`, guard text at `x = 74`, both at `y = yH − 8` |
 | Height | `H = yLastRow + 46` |
 | Size limit | 12 messages or fewer (ADR 0365) |
@@ -396,7 +396,7 @@ inlines only the `§CSS`. The skeletons are for copying into a panel.
 
 ### 4.2 Parts (§CSS)
 
-All colours are `:root` tokens; arrows use the engine's `#arrowhead` markerhead.
+All colours are `:root` tokens; arrows use the engine's `#arrowhead-active` markerhead.
 
 | Class | Is |
 |---|---|

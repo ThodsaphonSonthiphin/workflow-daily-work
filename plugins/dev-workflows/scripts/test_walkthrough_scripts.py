@@ -387,6 +387,30 @@ def test_gate_k_fails_on_an_unknown_kind():
         assert code == 1 and "m3" in text and "data-kind" in text, text
 
 
+def test_scene_pass_catches_an_unknown_state_name():
+    with tempfile.TemporaryDirectory() as tmp:
+        # 'firing' is a lifeline state; on a message it would leave the arrow unlit
+        bad = broken(tmp, sequence_demo(tmp), "bad-state.html", "setMsg('m1', 'active')", "setMsg('m1', 'firing')")
+        code, text = check(bad)
+        assert code == 1 and "unknown state" in text and "firing" in text, text
+        bad = broken(tmp, sequence_demo(tmp), "bad-state-2.html", "setLife('lfUser', 'locked')", "setLife('lfUser', 'lokced')")
+        code, text = check(bad)
+        assert code == 1 and "lokced" in text, text
+
+
+def test_sequence_setters_take_one_id_or_an_array():
+    html = read(pack("sequence"))
+    assert html.count("[].concat(ids).forEach") == 2, "setLife and setMsg both loop over [].concat(ids)"
+    # the two kit pictures in the demo are the kit's own skeletons, mark for mark
+    kit = read(KIT)
+    for kind in ("class", "activity"):
+        def marks(text):
+            body = text[text.index('data-uml="%s"' % kind):]
+            body = body[:body.index("</svg>")]
+            return [l.strip() for l in body.splitlines()[1:] if l.strip() and not l.strip().startswith("<!--")]
+        assert marks(html) == marks(kit), "the demo's %s picture has drifted from the kit skeleton" % kind
+
+
 def test_scene_id_pass_catches_a_mistyped_message_id():
     with tempfile.TemporaryDirectory() as tmp:
         bad = broken(tmp, sequence_demo(tmp), "typo-msg.html", "setMsg('m1', 'active')", "setMsg('mTypo', 'active')")

@@ -210,7 +210,7 @@ Replace abstract entities with realistic, culturally appropriate data.
 
 **Data Quality Checklist:**
 
-- [ ] ≤ 4 entities (boxes or tables) of any one kind — more is noise
+- [ ] ≤ 4 entities (boxes or tables) of any one kind — more is noise (sequence mode: 2 to 5 lifelines)
 - [ ] Names read aloud naturally ("BMW Group", "ครอบครัวสมศรี" not "Customer A", "Family A")
 - [ ] Numbers small enough to mental-math (`5`, `42`, `80฿` — not `47,392.18฿`)
 - [ ] **Identifiers must not look like sequence numbers** — if a sequence appears in the output (e.g., booking numbers 00001, 00002), avoid IDs like `cargo-1`/`cargo-2` that the reader will confuse for those. Prefer letter IDs (`cargo-A`, `cargo-B`) or source-tagged labels (`cargo (Portal)`).
@@ -305,7 +305,10 @@ drawer are inlined by the assembler.
      Mark terms in narration: `<span class="term" data-term="key">…</span>`.
    - `const scenes = [ … ];` — one function per step, each fully describing DOM state via the
      flat setters + `setNarration(cls, title, bodyHTML)` + `show()/hide()` on `.wt-panel`s.
-     Pass ids as **literals** — `setMsg('m3', 'active')`, `setMsg(['m1', 'm2'], 'done')`.
+     Pass ids as **literals** — `setMsg('m3', 'active')`, `setMsg(['m1', 'm2'], 'done')`
+     (`setMsg` and `setLife` take one id or an array of ids; every other setter takes one id).
+     A lifeline and a message have different state names (the pack header lists both); the
+     checker fails a name the pack does not style.
      Never build an id (`'m' + n`, a template string, a helper): the checker reads the
      literal ids to prove each one exists. It misreads `'m' + n` as the id `m` and fails,
      and it cannot see a template string or a variable at all, so a wrong one fails

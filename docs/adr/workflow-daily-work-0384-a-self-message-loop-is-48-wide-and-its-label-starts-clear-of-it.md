@@ -19,3 +19,11 @@ A self-message at row y on a lifeline at x is now
 `x + 68, y + 19`. The demo's label is shortened to "4: make a 15-min token". Measured
 after: loop edge at 427, label background from 433.8 to 594.9, next lifeline at 625. The
 grid test now checks the self-message path and label position.
+
+On the last lifeline there is no next lifeline, only the edge of the view box (found by
+the whole-branch review: a self-message put on the fourth lifeline by the formula above
+had its label background run from 933.8 to 1094.9 in a view box 1000 wide). There the
+loop is mirrored to the left: `M (x - 4) y L (x - 52) y L (x - 52) (y + 28) L (x - 10)
+(y + 28)`, label text at `x - 68`, `text-anchor="end"`. Measured by the reviewer on the
+same demo: background 653.9 to 815.0, clear of the loop edge at 823 and of the lifeline
+at 625. The demo has no such message, so no test covers the mirrored form.

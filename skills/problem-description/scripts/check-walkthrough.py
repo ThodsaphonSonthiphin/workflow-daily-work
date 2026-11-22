@@ -111,6 +111,15 @@ def main(path):
             if want not in dom_ids:
                 errs.append(f"scene {setter}('{sid}') targets id \"{want}\" with no matching id=\"\" in the DOM (silent no-op)")
 
+        # F3. sequence setters: the state must be one the pack styles. A mistyped state, or a
+        #     lifeline state given to a message, leaves it unlit with no error in the page.
+        seq_states = {'setLife': {'', 'active', 'firing', 'locked', 'blocked', 'done', 'error', 'dimmed'},
+                      'setMsg': {'', 'active', 'done', 'error', 'magic', 'dimmed'}}
+        for setter, state in re.findall(r"""\b(setLife|setMsg)\s*\(\s*(?:\[[^\]]*\]|['"][^'"]*['"])\s*,\s*['"]([^'"]*)['"]""", scenes_body):
+            if state not in seq_states[setter]:
+                errs.append(f"scene {setter}(…, '{state}'): unknown state — use '' or one of "
+                            + ', '.join(sorted(s for s in seq_states[setter] if s)))
+
     # F. source order
     decl = src.find('const modeRenderers')
     regm = re.search(r"modeRenderers\[\s*'[\w-]+'\s*\]\s*=", src)

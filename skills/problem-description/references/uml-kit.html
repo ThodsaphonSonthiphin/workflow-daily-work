@@ -11,7 +11,8 @@
 
   TO USE IT IN A WALKTHROUGH:
     1. Copy a skeleton below (a whole .wt-panel) into the mode pack copy's §HTML,
-       give the panel its own id, keep class "hidden", and redraw the picture.
+       give the panel its own id, add class "hidden", and redraw the picture
+       (rewrite its aria-label too: it describes the picture).
     2. Assemble with the assembler's uml option pointing at this file (SKILL.md,
        Phase 4). The assembler inlines ONLY the §CSS of this file.
     3. show('<panel id>') from the scene that needs it.
@@ -119,7 +120,7 @@
     <text class="uml-t dim" x="435" y="203" text-anchor="middle">«system»</text>
     <text class="uml-t b" x="435" y="220" text-anchor="middle">Mail service</text>
   </svg>
-  <div class="uml-cap">ตอบคำถาม: token เก็บไว้ที่ตารางไหน และ user หนึ่งคนมีได้กี่ token? วิธีอ่าน: กล่อง = ตาราง · บรรทัดในกล่อง = <code>ชื่อ : ชนิด</code> · เส้นทึบ = ความสัมพันธ์ เลขที่ปลายบอกจำนวน (1 user มีได้ 0 ถึงหลาย token) · ลูกศรเส้นประ = ฝั่งต้นลูกศรต้องใช้ฝั่งปลายลูกศร</div>
+  <div class="uml-cap">ตอบคำถาม: token เก็บไว้ที่ตารางไหน และ user หนึ่งคนมีได้กี่ token? วิธีอ่าน: กล่อง = ตาราง · บรรทัดในกล่อง = <code>ชื่อ : ชนิด</code> · เส้นทึบ = ความสัมพันธ์ เลขที่ปลายบอกจำนวน (1 user มีได้ 0 ถึงหลาย token) · ลูกศรเส้นประ = ฝั่งต้นลูกศรต้องใช้ฝั่งปลายลูกศร (หัวลูกศรเป็นแบบทึบ UML ใช้หัวโปร่ง)</div>
 </div>
 
 <!-- ===== SKELETON 2 — activity diagram. Copy the whole .wt-panel, add class "hidden". ===== -->
@@ -157,7 +158,7 @@
     <circle class="uml-end-ring" cx="150" cy="338" r="9"/>
     <circle class="uml-end" cx="150" cy="338" r="5"/>
   </svg>
-  <div class="uml-cap">ตอบคำถาม: API เช็คอะไร และสองทางจบต่างกันไหม? วิธีอ่าน: จุดทึบ = เริ่ม · กล่องมน = การกระทำ · รูปเพชรที่มีลูกศรออกสองเส้น = จุดตัดสินใจ เงื่อนไขของแต่ละทางอยู่ใน [ ] · รูปเพชรที่มีลูกศรเข้าสองเส้น = สองทางกลับมารวมกัน · วงกลมซ้อน = จบ</div>
+  <div class="uml-cap">ตอบคำถาม: API เช็คอะไร และสองทางจบต่างกันไหม? วิธีอ่าน: จุดทึบ = เริ่ม · กล่องมน = การกระทำ · รูปเพชรที่มีลูกศรออกสองเส้น = จุดตัดสินใจ เงื่อนไขของแต่ละทางอยู่ใน [ ] · รูปเพชรที่มีลูกศรเข้าสองเส้น = สองทางกลับมารวมกัน · วงกลมซ้อน = จบ · หัวลูกศรเป็นแบบทึบทุกเส้น (UML ใช้หัวโปร่ง)</div>
 </div>
 
 </div>

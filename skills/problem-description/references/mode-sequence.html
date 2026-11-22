@@ -8,7 +8,8 @@
   (scripts/assemble-walkthrough.py, SKILL.md Phase 4).
 
   Registers exactly one renderer: modeRenderers['sequence'].
-    setLife(id, state)   lifeline: '' | active | firing | locked | blocked | done | error | dimmed
+    setLife(ids, state)  lifeline (one id, or an array of ids):
+                         '' | active | firing | locked | blocked | done | error | dimmed
     setMsg(ids, state)   message (one id, or an array of ids):
                          '' | active | done | error | magic | dimmed
                          ('' and dimmed hide the label; the other four show it)
@@ -44,6 +45,9 @@
                 label text at x + 68, y + 19, text-anchor="start". Next message: row k + 2
                 (the label starts clear of the loop and must end before the next
                 lifeline: about 1000/N - 85 units of text, ADR 0384)
+                On the LAST lifeline there is no room to the right. Mirror it:
+                M (x - 4) y L (x - 52) y L (x - 52) (y + 28) L (x - 10) (y + 28)
+                label text at x - 68, y + 19, text-anchor="end"
     frame       its header takes ONE row h with no message. yLast = the row of the last
                 message inside (for a self-message, its SECOND row).
                 box: x = 18, y = yH - 26, width 964, height = (yLast - yH) + 44
@@ -239,7 +243,7 @@
       <text class="uml-t dim" x="435" y="203" text-anchor="middle">«system»</text>
       <text class="uml-t b" x="435" y="220" text-anchor="middle">Mail service</text>
     </svg>
-    <div class="uml-cap">ตอบคำถาม: token เก็บไว้ที่ตารางไหน และ user หนึ่งคนมีได้กี่ token? วิธีอ่าน: กล่อง = ตาราง · บรรทัดในกล่อง = <code>ชื่อ : ชนิด</code> · เส้นทึบ = ความสัมพันธ์ เลขที่ปลายบอกจำนวน (1 user มีได้ 0 ถึงหลาย token) · ลูกศรเส้นประ = ฝั่งต้นลูกศรต้องใช้ฝั่งปลายลูกศร</div>
+    <div class="uml-cap">ตอบคำถาม: token เก็บไว้ที่ตารางไหน และ user หนึ่งคนมีได้กี่ token? วิธีอ่าน: กล่อง = ตาราง · บรรทัดในกล่อง = <code>ชื่อ : ชนิด</code> · เส้นทึบ = ความสัมพันธ์ เลขที่ปลายบอกจำนวน (1 user มีได้ 0 ถึงหลาย token) · ลูกศรเส้นประ = ฝั่งต้นลูกศรต้องใช้ฝั่งปลายลูกศร (หัวลูกศรเป็นแบบทึบ UML ใช้หัวโปร่ง)</div>
   </div>
 
   <div class="wt-panel question hidden" id="pnlQuestion">
@@ -290,7 +294,7 @@
       <circle class="uml-end-ring" cx="150" cy="338" r="9"/>
       <circle class="uml-end" cx="150" cy="338" r="5"/>
     </svg>
-    <div class="uml-cap">ตอบคำถาม: API เช็คอะไร และสองทางจบต่างกันไหม? วิธีอ่าน: จุดทึบ = เริ่ม · กล่องมน = การกระทำ · รูปเพชรที่มีลูกศรออกสองเส้น = จุดตัดสินใจ เงื่อนไขของแต่ละทางอยู่ใน [ ] · รูปเพชรที่มีลูกศรเข้าสองเส้น = สองทางกลับมารวมกัน · วงกลมซ้อน = จบ</div>
+    <div class="uml-cap">ตอบคำถาม: API เช็คอะไร และสองทางจบต่างกันไหม? วิธีอ่าน: จุดทึบ = เริ่ม · กล่องมน = การกระทำ · รูปเพชรที่มีลูกศรออกสองเส้น = จุดตัดสินใจ เงื่อนไขของแต่ละทางอยู่ใน [ ] · รูปเพชรที่มีลูกศรเข้าสองเส้น = สองทางกลับมารวมกัน · วงกลมซ้อน = จบ · หัวลูกศรเป็นแบบทึบทุกเส้น (UML ใช้หัวโปร่ง)</div>
   </div>
 
   <div class="wt-panel summary hidden" id="pnlSummary">
@@ -309,7 +313,7 @@
     <span class="seq-sw"></span>ลูกศรเส้นทึบ = ส่งข้อความหรือเรียก<br/>
     <span class="seq-sw reply"></span>ลูกศรเส้นประ = ข้อความตอบกลับ<br/>
     เลขหน้าข้อความ = ลำดับ · กรอบ <b>opt [เงื่อนไข]</b> = ทำเฉพาะเมื่อเงื่อนไขเป็นจริง<br/>
-    <span class="seq-sw now"></span>กำลังเกิด · <span class="seq-sw done"></span>เกิดไปแล้ว · <span class="seq-sw bad"></span>มีปัญหา · ลูกศรจาง = ไม่เกิดในกรณีนี้<br/>
+    <span class="seq-sw now"></span>กำลังเกิด · <span class="seq-sw done"></span>เกิดไปแล้ว · <span class="seq-sw bad"></span>มีปัญหา · ลูกศรเทา = ยังไม่ถึง · ลูกศรจางมาก = ไม่เกิดในกรณีนี้<br/>
     กล่องผู้เล่น: ขอบเหลือง = ฝ่ายที่กำลังทำงาน · ขอบฟ้า = อีกฝ่ายของข้อความ · ขอบม่วง = จุดที่กำลังตั้งคำถาม · ขอบเขียว = เสร็จ · ขอบแดง = มีปัญหา<br/>
     ต่างจาก UML หนึ่งจุด: หัวลูกศรทุกเส้นเป็นแบบทึบแบบเดียว (UML ใช้หัวโปร่งกับข้อความตอบกลับและข้อความ async)
   </div>
@@ -355,7 +359,12 @@ modeRenderers['sequence'] = {
     R.fitQueued = true;
     Promise.resolve().then(() => { R.fitQueued = false; R.fitLabels(); });
   },
-  setLife(id, state) { const el = document.getElementById(id); if (el) el.setAttribute('class', 'seq-life' + (state ? ' ' + state : '')); },
+  setLife(ids, state) {
+    [].concat(ids).forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('class', 'seq-life' + (state ? ' ' + state : ''));
+    });
+  },
   setMsg(ids, state) {
     const heads = { '': 'url(#arrowhead)', dimmed: 'url(#arrowhead)', active: 'url(#arrowhead-active)',
                     done: 'url(#arrowhead-done)', error: 'url(#arrowhead-error)', magic: 'url(#arrowhead-magic)' };
