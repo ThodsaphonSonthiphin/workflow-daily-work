@@ -14,6 +14,12 @@ Checks:
   E. Scenes are clean — no createElement/appendChild and no drawer refs inside scenes[]
      (idempotency + orthogonality).
   F. Source order — engine modeRenderers declaration < pack registration < MODE assignment.
+  G. JS syntax — node --check the assembled <script> (skipped when node is absent).
+  H. Keyboard — the engine's keydown listener for ArrowRight/ArrowLeft is present (ADR 0356).
+  I. Controls first — the buttons come before the narration (ADR 0358).
+  J. UML kit — a kit picture needs the kit CSS and the kit CSS needs a picture; every
+     picture declares its type and has a caption; at most 3 pictures (ADRs 0361, 0363, 0364).
+  K. Sequence mode — the legend exists and every message declares its kind (ADR 0363).
 
 Usage: python check-walkthrough.py ASSEMBLED.html
 """
@@ -91,10 +97,16 @@ def main(path):
         # F2. every id a scene setter targets must resolve to an id="" in the assembled DOM
         #     (catches a typo'd id that would silently no-op). setRowClass/setBadge take a
         #     logical id that maps to row<ID>/badge<ID>; all other setters use the literal id.
+        #     The first argument is a string, or an array literal of strings (setMsg takes
+        #     both). A built id is not read correctly here: 'm' + n is read as the id "m"
+        #     (and fails), a template string or a variable is not read at all. Do not build one.
         dom_ids = set(re.findall(r'\bid="([^"]+)"', src))
         prefix = {'setRowClass': 'row', 'setBadge': 'badge'}
-        id_setters = r"(setNode|setEdge|setComp|setArrow|setLabel|setText|setRowClass|setBadge|setCell|setRule|show|hide)"
-        for setter, sid in re.findall(id_setters + r"""\s*\(\s*['"]([^'"]+)['"]""", scenes_body):
+        id_setters = r"(setNode|setEdge|setComp|setArrow|setLabel|setText|setRowClass|setBadge|setCell|setRule|setLife|setMsg|show|hide)"
+        targets = re.findall(id_setters + r"""\s*\(\s*['"]([^'"]+)['"]""", scenes_body)
+        for setter, arr in re.findall(id_setters + r"\s*\(\s*\[([^\]]*)\]", scenes_body):
+            targets += [(setter, sid) for sid in re.findall(r"""['"]([^'"]+)['"]""", arr)]
+        for setter, sid in targets:
             want = prefix.get(setter, '') + sid
             if want not in dom_ids:
                 errs.append(f"scene {setter}('{sid}') targets id \"{want}\" with no matching id=\"\" in the DOM (silent no-op)")
@@ -125,13 +137,53 @@ def main(path):
             _tail = _r.stderr.strip().splitlines()
             errs.append('JS syntax error in <script> (node --check): ' + (_tail[-1] if _tail else 'see node'))
 
+    # H. keyboard -- the engine's arrow-key listener is present (ADR 0356). A walkthrough
+    #    assembled from an engine copy that predates it has no way to step from the keyboard.
+    if (not re.search(r"addEventListener\(\s*['\"]keydown['\"]", src)
+            or not re.search(r"\.key\s*===\s*'ArrowRight'", src)
+            or not re.search(r"\.key\s*===\s*'ArrowLeft'", src)):
+        errs.append('engine keydown listener for ArrowRight/ArrowLeft is missing — assembled from a stale engine?')
+
+    # I. controls first -- the buttons come before the narration (ADR 0358)
+    _pb, _nb = src.find('id="prevBtn"'), src.find('id="narration"')
+    if _pb == -1 or _nb == -1 or _pb > _nb:
+        errs.append('controls are not above the narration (id="prevBtn" must come before id="narration") — stale engine?')
+
+    # J. UML kit composition (ADRs 0361, 0363, 0364)
+    _style = ''.join(re.findall(r'<style>(.*?)</style>', src, re.S))
+    kit_present = 'svg.uml' in _style
+    _pics = re.findall(r'<svg\b[^>]*\bclass="uml"[^>]*>', src)
+    if _pics and not kit_present:
+        errs.append('uml picture present but the UML kit CSS is not assembled — pass --uml')
+    if kit_present and not _pics:
+        errs.append('UML kit assembled but no <svg class="uml"> picture uses it — drop --uml')
+    for _tag in _pics:
+        if not re.search(r'\bdata-uml="[\w-]+"', _tag):
+            errs.append('a <svg class="uml"> picture has no data-uml="<type>" attribute')
+    _caps = len(re.findall(r'class="uml-cap"', src))
+    if _caps < len(_pics):
+        errs.append(f'{len(_pics)} uml picture(s) but only {_caps} uml-cap caption(s) — every picture needs its caption')
+    if len(_pics) > 3:
+        errs.append(f'{len(_pics)} uml pictures — a walkthrough has at most 3 supporting diagrams')
+
+    # K. sequence mode (ADR 0363): the legend exists and every message declares its kind
+    if mm and mm.group(1) == 'sequence':
+        if 'id="seqLegend"' not in src:
+            errs.append('sequence mode: no id="seqLegend" legend')
+        for _tag in re.findall(r'<g\b[^>]*\bclass="(?:[^"]*\s)?seq-msg(?:\s[^"]*)?"[^>]*>', src):
+            if not re.search(r'\bdata-kind="(call|reply|self)"', _tag):
+                _mid = re.search(r'\bid="([^"]+)"', _tag)
+                errs.append('sequence mode: message ' + (_mid.group(1) if _mid else '(no id)')
+                            + ' has no data-kind of call, reply or self')
+
     if errs:
         for e in errs:
             print('FAIL:', e)
         sys.exit(1)
     mode = mm.group(1) if mm else '?'
     drawer = 'with drawer' if 'id="termDrawer"' in src else 'no drawer'
-    print(f'OK: {pathlib.Path(path).name} — mode={mode} ({drawer}); self-contained, RENDER_HOOKS-first, scenes clean, order ok')
+    uml = ', uml kit' if kit_present else ''
+    print(f'OK: {pathlib.Path(path).name} — mode={mode} ({drawer}{uml}); self-contained, RENDER_HOOKS-first, scenes clean, order ok')
 
 
 if __name__ == '__main__':

@@ -8,6 +8,7 @@
   A generated walkthrough is assembled at generation time as ONE self-contained
   .html = engine § + ONE chosen mode pack § (references/mode-<name>.html)
             + drawer § (references/term-drilldown.html)
+            + UML kit §CSS (references/uml-kit.html, optional)
             + authored scenes[] + GLOSSARY.
   See SKILL.md "How a walkthrough is assembled".
 
@@ -26,12 +27,19 @@
   modeRenderers={}; the drawer self-registers RENDER_HOOKS.push(closeDrawer); each
   mode self-registers modeRenderers['<name>']={…}. Only ordering rule: engine §JS
   precedes the drawer/mode §JS.
+
+  NAVIGATION (ADRs 0356-0359): one function, go(step), with four ways in — the
+  Previous/Next buttons, the Left/Right arrow keys, and a click on a step dot. The
+  controls sit ABOVE the narration so they never move. The engine never takes focus;
+  while the document has no focus (an embedded page before its first click) it shows
+  #keyHint, because the arrow keys cannot reach it yet.
   =============================================================================
 -->
 <html lang="th"><head><meta charset="UTF-8"><title>walkthrough engine — source + demo</title>
 <style>
   /* ===== §CSS  (copy into the generated walkthrough's <style>) ===== */
   :root {
+    color-scheme: dark;
     --bg:#0a0e14; --panel:#1a2330; --surface:#0f1722; --surface-2:#0f1419;
     --border:#2a3441; --border-dim:#3d4a5f; --surface-active:#233040;
     --text:#e0e6ed; --text-dim:#b8c4cf; --muted:#6b7785; --muted-2:#8a96a3;
@@ -53,15 +61,32 @@
   code { background: var(--panel); padding: 1px 5px; border-radius: 3px;
          font-family: 'Consolas', monospace; color: var(--amber); font-size: 0.9em; }
 
-  /* progress dots */
+  /* progress dots — a click on a dot goes to that step (ADR 0359) */
   .step-progress { display: flex; gap: 4px; justify-content: center;
                    margin: 12px 0 14px; flex-wrap: wrap; }
   .step-dot { width: 22px; height: 22px; border-radius: 50%;
               background: var(--panel); color: var(--muted);
               display: flex; align-items: center; justify-content: center;
-              font-size: 10px; font-weight: 700; transition: all 0.3s; }
+              font-size: 10px; font-weight: 700; transition: all 0.3s; cursor: pointer; }
+  .step-dot:hover   { outline: 2px solid var(--accent); outline-offset: 1px; }
   .step-dot.done    { background: #1a3a5f; color: var(--accent); }
   .step-dot.current { background: var(--accent); color: var(--bg); transform: scale(1.2); }
+
+  /* controls — above the narration, so they never move (ADR 0358) */
+  .controls { display: flex; gap: 10px; justify-content: center; align-items: center;
+              flex-wrap: wrap; margin: 0 0 14px; }
+  button { background: var(--accent); color: var(--bg); border: none;
+           padding: 10px 22px; border-radius: 6px; font-size: 14px; font-weight: 700;
+           cursor: pointer; transition: background 0.2s, transform 0.1s; }
+  button:hover:not(:disabled)  { background: var(--accent-bright); }
+  button:active:not(:disabled) { transform: scale(0.97); }
+  button.tertiary { background: var(--border); color: var(--text); }
+  button.tertiary:hover:not(:disabled) { background: var(--border-dim); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  /* the hint keeps a row of its own and its room whether shown or not, so the buttons
+     never move under the click that gives the page focus (ADR 0381) */
+  .key-hint { flex-basis: 100%; text-align: center; font-size: 12px; color: var(--muted-2); }
+  .key-hint.off { visibility: hidden; }
 
   /* narration — the canonical NESTED shape (badge+title+body inside #narration) */
   .narration {
@@ -94,16 +119,14 @@
   .wt-panel.summary  { background: #182a1f; border: 2px solid var(--success); }
   .wt-panel.summary .wt-panel-title { color: var(--success-text); }
 
-  /* controls */
-  .controls { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
-  button { background: var(--accent); color: var(--bg); border: none;
-           padding: 10px 22px; border-radius: 6px; font-size: 14px; font-weight: 700;
-           cursor: pointer; transition: background 0.2s, transform 0.1s; }
-  button:hover:not(:disabled)  { background: var(--accent-bright); }
-  button:active:not(:disabled) { transform: scale(0.97); }
-  button.tertiary { background: var(--border); color: var(--text); }
-  button.tertiary:hover:not(:disabled) { background: var(--border-dim); }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  /* panel content: a small table and a note line (ADR 0378) */
+  .wt-panel .tbl-wrap { overflow-x: auto; }
+  .wt-panel table { width: 100%; border-collapse: collapse; font-family: inherit; font-size: 13px; }
+  .wt-panel th, .wt-panel td { border-bottom: 1px solid var(--border); padding: 5px 6px;
+                               text-align: left; vertical-align: top; }
+  .wt-panel th { background: none; color: var(--muted-2); font-weight: 600; font-size: 12px;
+                 text-transform: none; }
+  .wt-note { color: var(--muted-2); font-size: 12px; margin-top: 6px; }
 
   .hidden { display: none !important; }
   /* ===== end §CSS ===== */
@@ -120,9 +143,16 @@
 <!-- ===== §HTML  (copy the container shell + markers into the generated walkthrough) ===== -->
 <div class="container">
   <h1>[INSERT: walkthrough title]</h1>
-  <h2>กด <strong>ถัดไป →</strong> เพื่อดูทีละ step</h2>
+  <h2>กด <strong>→</strong> หรือ <strong>←</strong> บนคีย์บอร์ด หรือกดปุ่มด้านล่าง เพื่อดูทีละ step</h2>
 
   <div class="step-progress" id="stepProgress"></div>
+
+  <div class="controls">
+    <button id="prevBtn" class="tertiary" disabled>← ย้อนกลับ</button>
+    <button id="nextBtn">ถัดไป →</button>
+    <button id="resetBtn" class="tertiary">↻ เริ่มใหม่</button>
+    <span class="key-hint off" id="keyHint">คลิกที่หน้านี้หนึ่งครั้ง เพื่อใช้ปุ่ม ← → บนคีย์บอร์ด</span>
+  </div>
 
   <div class="narration" id="narration">
     <span class="step-badge" id="stepBadge">Step 0 / 0</span>
@@ -138,12 +168,6 @@
     <div class="demo-box" id="dboxC">C</div>
   </div>
   <!-- end DEMO ONLY -->
-
-  <div class="controls">
-    <button id="prevBtn" class="tertiary" disabled>← ย้อนกลับ</button>
-    <button id="nextBtn">ถัดไป →</button>
-    <button id="resetBtn" class="tertiary">↻ เริ่มใหม่</button>
-  </div>
 
   <!-- term drill-down drawer §HTML inlined here at generation -->
 </div>
@@ -185,6 +209,7 @@ function buildProgressDots() {
   for (let i = 0; i <= TOTAL; i++) {
     const d = document.createElement('div');
     d.className = 'step-dot'; d.textContent = i; d.id = 'dot' + i;
+    d.dataset.step = i; d.title = 'ไป step ' + i;
     p.appendChild(d);
   }
 }
@@ -206,9 +231,43 @@ function render(step) {
   document.getElementById('nextBtn').disabled = step === TOTAL;
 }
 
-document.getElementById('prevBtn').onclick  = () => { if (currentStep > 0)     { currentStep--; render(currentStep); } };
-document.getElementById('nextBtn').onclick  = () => { if (currentStep < TOTAL) { currentStep++; render(currentStep); } };
+// One way to change step. Jumping is safe because every scene describes the whole state
+// and render() clears the mode before it runs a scene.
+function go(step) {
+  if (step < 0 || step > TOTAL || step === currentStep) return;
+  currentStep = step;
+  render(step);
+}
+
+document.getElementById('prevBtn').onclick  = () => go(currentStep - 1);
+document.getElementById('nextBtn').onclick  = () => go(currentStep + 1);
 document.getElementById('resetBtn').onclick = () => { currentStep = 0; render(0); };
+
+// a click on a step dot goes to that step (ADR 0359)
+document.getElementById('stepProgress').addEventListener('click', (e) => {
+  const dot = e.target.closest('.step-dot');
+  if (dot) go(Number(dot.dataset.step));
+});
+
+// Right arrow = next, Left arrow = previous (ADR 0356). A key held with a modifier is
+// left alone (Alt+Left is the browser's Back; Shift+arrow extends a selection), and so is
+// a key typed into a form field.
+document.addEventListener('keydown', (e) => {
+  if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  const t = e.target;
+  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  if (e.key === 'ArrowRight')     { e.preventDefault(); go(currentStep + 1); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); go(currentStep - 1); }
+});
+
+// The arrow keys reach this page only while it has focus. Embedded in an iframe it has
+// none until the reader clicks inside, so say so. Never call window.focus() (ADR 0357).
+function syncKeyHint() {
+  document.getElementById('keyHint').classList.toggle('off', document.hasFocus());
+}
+window.addEventListener('focus', syncKeyHint);
+window.addEventListener('blur', syncKeyHint);
+syncKeyHint();
 /* ===== end §JS ===== */
 
 /* DEMO ONLY — standalone engine harness: a built-in _demo mode + bootstrap. Do not copy. */
@@ -222,7 +281,7 @@ MODE = '_demo';
 const _R = modeRenderers[MODE];
 const setBox = _R.setBox;
 const scenes = [
-  () => { setNarration('', 'เริ่มต้น — engine demo', 'นี่คือ <code>walkthrough-engine.html</code> รันเดี่ยว. กด ถัดไป → เพื่อดู render loop ทำงาน. แทนที่ด้วย mode pack + scenes จริงตอน generate.'); },
+  () => { setNarration('', 'เริ่มต้น — engine demo', 'นี่คือ <code>walkthrough-engine.html</code> รันเดี่ยว. กด → หรือปุ่ม ถัดไป เพื่อดู render loop ทำงาน. แทนที่ด้วย mode pack + scenes จริงตอน generate.'); },
   () => { setNarration('warn', 'Step 1 — box A active', 'engine เรียก renderer ของ mode ผ่าน modeRenderers[MODE].'); setBox('dboxA', 'active'); },
   () => { setNarration('success', 'Step 2 — A done, B active', 'RENDER_HOOKS รันก่อน แล้ว R.clear() แล้ว scenes[step]().'); setBox('dboxA', 'done'); setBox('dboxB', 'active'); },
 ];
