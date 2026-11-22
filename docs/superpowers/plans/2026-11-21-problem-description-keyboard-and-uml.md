@@ -27,7 +27,7 @@ Do the tasks in number order. Each one leaves the test file green.
 
 ## Global Constraints
 
-- **Work only in the worktree this plan was handed to you in.** Never read from or write to `c:\Repo\workflow-daily-work` — another session is working there.
+- **Work only in the worktree this plan was handed to you in** (the folder your dispatch names as your working directory). Never read from or write to the main checkout — the files of `c:\Repo\workflow-daily-work` that are outside your worktree's own folder. Another session is working there. Never run `git stash`, `git checkout <branch>`, `git reset --hard` or `git clean`.
 - All paths are relative to the repository root. `SKILL_DIR` below means `plugins/dev-workflows/skills/problem-description`.
 - **Transcribe the code exactly.** Every file and every edit in this plan was assembled, run (31 of 31 tests) and opened in a browser before the plan was written, and each task's "expected" output was recorded from a real run. If what you see differs from what a step expects, stop and report it; do not invent a fix.
 - **Never edit:** `SKILL_DIR/references/mode-diagram.html`, `mode-tables.html`, `mode-state-machine.html`; anything under `skills/` (it is generated — only Task 8 regenerates it, by script); anything under `.agents/`; `docs/problem-description/*.html`; the `name`, `description` and `effort` lines at the top of `SKILL_DIR/SKILL.md`.
