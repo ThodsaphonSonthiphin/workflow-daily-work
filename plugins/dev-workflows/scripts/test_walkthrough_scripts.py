@@ -334,7 +334,8 @@ def test_sequence_demo_follows_the_grid():
         assert x0 in xs, "a self-message starts 4 right of its lifeline"
         assert 'd="M %d %d L %d %d L %d %d L %d %d"' % (x0 + 4, y0, x0 + 52, y0, x0 + 52, y0 + 28, x0 + 10, y0 + 28) in html
         assert int(lx) == x0 + 68, "self label at x + 68, got %s" % lx
-    assert 'data-kind="self">' in html
+    assert html.count('data-kind="self">') == len(re.findall(r'data-kind="self">\s*<path class="seq-arrow" d="M \d+ \d+ [^"]*"[^>]*/>\s*<g class="seq-label"><rect class="seq-label-bg" rx="5"/>\s*<text class="seq-label-text" x="\d+"', html)) >= 1, \
+        "every self-message must have the shape the check above reads"
     # the frame: header row h, box from yH - 26, height (yLast - yH) + 44
     box = re.search(r'<rect class="seq-frag-box" x="18" y="(\d+)" width="964" height="(\d+)"', html)
     y_box, h_box = int(box.group(1)), int(box.group(2))

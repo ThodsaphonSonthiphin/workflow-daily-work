@@ -87,7 +87,7 @@ Ask **"what is the problem ABOUT?"** (one distinct noun per row) and read across
 Sharp disambiguators: **state-machine** = "ONE entity's status transitions" (*not* "many
 rows mutating" → tables). **sequence** vs **diagram**, for a flow between components:
 sequence when each message happens once, the order is the story, and there are **12
-messages or fewer** between **2 to 5 lifelines**; diagram when the same wire fires many times, a value builds up inside
+messages or fewer** between **2 and 5 lifelines**; diagram when the same wire fires many times, a value builds up inside
 a box, or there are more than 12 messages. Tie-break between those two: **when in doubt →
 sequence** (ADR 0365) — it puts the order on the picture instead of leaving it to the
 narration. Every new mode row must name its nearest neighbour in the "NOT when" column.
