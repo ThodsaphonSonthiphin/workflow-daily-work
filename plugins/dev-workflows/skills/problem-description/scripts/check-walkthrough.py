@@ -19,6 +19,7 @@ Checks:
   I. Controls first — the buttons come before the narration (ADR 0358).
   J. UML kit — a kit picture needs the kit CSS and the kit CSS needs a picture; every
      picture declares its type and has a caption; at most 3 pictures (ADRs 0361, 0363, 0364).
+  K. Sequence mode — the legend exists and every message declares its kind (ADR 0363).
 
 Usage: python check-walkthrough.py ASSEMBLED.html
 """
@@ -96,10 +97,15 @@ def main(path):
         # F2. every id a scene setter targets must resolve to an id="" in the assembled DOM
         #     (catches a typo'd id that would silently no-op). setRowClass/setBadge take a
         #     logical id that maps to row<ID>/badge<ID>; all other setters use the literal id.
+        #     The first argument is a string, or an array literal of strings (setMsg takes
+        #     both); an id built by joining strings cannot be read here, so do not build one.
         dom_ids = set(re.findall(r'\bid="([^"]+)"', src))
         prefix = {'setRowClass': 'row', 'setBadge': 'badge'}
-        id_setters = r"(setNode|setEdge|setComp|setArrow|setLabel|setText|setRowClass|setBadge|setCell|setRule|show|hide)"
-        for setter, sid in re.findall(id_setters + r"""\s*\(\s*['"]([^'"]+)['"]""", scenes_body):
+        id_setters = r"(setNode|setEdge|setComp|setArrow|setLabel|setText|setRowClass|setBadge|setCell|setRule|setLife|setMsg|show|hide)"
+        targets = re.findall(id_setters + r"""\s*\(\s*['"]([^'"]+)['"]""", scenes_body)
+        for setter, arr in re.findall(id_setters + r"\s*\(\s*\[([^\]]*)\]", scenes_body):
+            targets += [(setter, sid) for sid in re.findall(r"""['"]([^'"]+)['"]""", arr)]
+        for setter, sid in targets:
             want = prefix.get(setter, '') + sid
             if want not in dom_ids:
                 errs.append(f"scene {setter}('{sid}') targets id \"{want}\" with no matching id=\"\" in the DOM (silent no-op)")
@@ -158,6 +164,16 @@ def main(path):
         errs.append(f'{len(_pics)} uml picture(s) but only {_caps} uml-cap caption(s) — every picture needs its caption')
     if len(_pics) > 3:
         errs.append(f'{len(_pics)} uml pictures — a walkthrough has at most 3 supporting diagrams')
+
+    # K. sequence mode (ADR 0363): the legend exists and every message declares its kind
+    if mm and mm.group(1) == 'sequence':
+        if 'id="seqLegend"' not in src:
+            errs.append('sequence mode: no id="seqLegend" legend')
+        for _tag in re.findall(r'<g\b[^>]*\bclass="seq-msg"[^>]*>', src):
+            if not re.search(r'\bdata-kind="(call|reply|self)"', _tag):
+                _mid = re.search(r'\bid="([^"]+)"', _tag)
+                errs.append('sequence mode: message ' + (_mid.group(1) if _mid else '(no id)')
+                            + ' has no data-kind of call, reply or self')
 
     if errs:
         for e in errs:

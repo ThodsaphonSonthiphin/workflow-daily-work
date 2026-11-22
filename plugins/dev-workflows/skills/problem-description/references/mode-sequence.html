@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<!--
+  =============================================================================
+  MODE PACK — sequence. A UML sequence diagram: who sends what to whom, in what
+  order. One message lights per step (ADR 0360).
+  NOT standalone — verified by ASSEMBLY with walkthrough-engine.html. The demo's
+  panels draw from the UML kit, so assemble the demo with the uml option too
+  (scripts/assemble-walkthrough.py, SKILL.md Phase 4).
+
+  Registers exactly one renderer: modeRenderers['sequence'].
+    setLife(id, state)   lifeline: '' | active | firing | locked | blocked | done | error | dimmed
+    setMsg(ids, state)   message (one id, or an array of ids):
+                         '' | active | done | error | magic | dimmed
+                         ('' and dimmed hide the label; the other four show it)
+    setText(id, text)    a live value; clear() restores every [data-default]
+  Frames and notes are fixed decoration: no states, no setter.
+
+  THE REGISTRY COMES FROM THE MARKUP (ADR 0366). Do not type an id list: at
+  registration the pack collects every .seq-life and .seq-msg id. It also sizes
+  every message label's background to its text, so write NO width on .seq-label-bg.
+
+  NOTATION (ADR 0363) — a picture that says UML must be right:
+    solid arrow  = a message or a call        data-kind="call"
+    dashed arrow = a reply                    data-kind="reply"
+    arrow back to the same lifeline           data-kind="self"
+    frame        = operator (alt | opt | loop) + [guard]
+  "Happening now" is a thicker glowing line, NEVER dashes: a reply is dashed in
+  every state and nothing else is dashed in any state. One stated departure from
+  UML: every arrowhead is the same filled shape (the engine's five markerheads,
+  ADR 0022). The legend (#seqLegend) says all of this to the reader — keep it.
+
+  THE GRID — view box 1000 wide. Follow it; the demo below does.
+    lifelines   2 to 5. Centre of lifeline i of N:  x = 1000 * (2i - 1) / (2N), rounded
+                (N=2: 250 750 · N=3: 167 500 833 · N=4: 125 375 625 875 · N=5: 100 300 500 700 900)
+    head box    width w = min(180, 1000/N - 20); x - w/2, y = 12, height 70
+                title y = 36 · subtitle y = 55 · live value y = 73
+    lifeline    line from y = 82 to y = H - 14
+    row k       y = 118 + 50 * (k - 1)        (118 168 218 268 318 368 418 468 518 568 618 668)
+    message     left to right:  M (xFrom + 4) y L (xTo - 6) y
+                right to left:  M (xFrom - 4) y L (xTo + 6) y
+                label text at x = (xFrom + xTo) / 2, y - 11, text-anchor="middle"
+    self        takes TWO rows. At row k:
+                M (x + 4) y L (x + 72) y L (x + 72) (y + 28) L (x + 10) (y + 28)
+                label text at x + 80, y + 19, text-anchor="start". Next message: row k + 2
+    frame       its header takes ONE row h with no message.
+                box: x = 18, y = yH - 26, width 964, height = (yLast - yH) + 44
+                tab: M 18 (yH - 26) h 46 v 16 l -10 10 H 18 Z
+                operator text x = 26, guard text x = 74, both at y = yH - 8
+    height      H = yLastRow + 46
+    size        12 messages or fewer. More than that is the diagram mode's job (ADR 0365).
+  Colours: engine :root tokens, plus the state hexes the diagram pack already uses
+  for the same state. No new hex, no new <marker>.
+  =============================================================================
+-->
+<html lang="th"><head><meta charset="UTF-8"><title>mode pack — sequence</title>
+<style>
+  /* ===== §CSS  (copy into the walkthrough's <style>, after the engine §CSS) ===== */
+  .seq-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+                gap: 16px; align-items: start; margin-bottom: 16px; }
+  /* Two columns only when the diagram column is at least as wide as the diagram's minimum
+     (1300px page -> a 756px column). Below that: one column, the diagram first. */
+  @media (max-width: 1300px) { .seq-layout { grid-template-columns: minmax(0, 1fr); } }
+  .seq-wrap { background: var(--surface-2); border: 1px solid var(--panel); border-radius: 8px;
+              padding: 12px; overflow-x: auto; }
+  svg.seq { width: 100%; min-width: 740px; height: auto; display: block; }
+  .seq-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .seq-side .wt-panel { margin-bottom: 0; }
+
+  /* lifeline = a head box over a dashed vertical line */
+  .seq-line { stroke: var(--border-dim); stroke-width: 1.5; stroke-dasharray: 5 6; }
+  .seq-head { fill: var(--panel); stroke: var(--border); stroke-width: 2; transition: all 0.4s; }
+  .seq-title { font-family: 'Segoe UI', 'Tahoma', sans-serif; font-size: 15px; font-weight: 700; fill: var(--text-dim); transition: fill 0.4s; }
+  .seq-sub { font-family: 'Segoe UI', 'Tahoma', sans-serif; font-size: 12px; fill: var(--muted); transition: fill 0.4s; }
+  .seq-val { font-family: 'Consolas', 'Tahoma', monospace; font-size: 12.5px; fill: var(--amber); transition: fill 0.4s; }
+  .seq-life.active .seq-head { fill: #1a3a5f; stroke: var(--accent); stroke-width: 3; filter: drop-shadow(0 0 8px #5fb4ff88); }
+  .seq-life.active .seq-title { fill: var(--accent-bright); }
+  .seq-life.active .seq-sub { fill: var(--text-dim); }
+  .seq-life.firing .seq-head { fill: #2a2818; stroke: var(--amber); stroke-width: 3; filter: drop-shadow(0 0 8px #ffd47988); animation: seq-pulse 1.2s ease-in-out infinite; }
+  .seq-life.firing .seq-title { fill: var(--amber); }
+  @keyframes seq-pulse { 0%, 100% { filter: drop-shadow(0 0 8px #ffd47988); } 50% { filter: drop-shadow(0 0 16px #ffd479dd); } }
+  .seq-life.locked .seq-head { fill: var(--magic-bg); stroke: var(--magic); stroke-width: 3; filter: drop-shadow(0 0 10px #b070ff88); }
+  .seq-life.locked .seq-title, .seq-life.locked .seq-val { fill: var(--magic-text); }
+  .seq-life.blocked .seq-head { fill: #2a1f10; stroke: var(--warn); stroke-width: 2; animation: seq-blink 1s ease-in-out infinite alternate; }
+  .seq-life.blocked .seq-title { fill: var(--warn-text); }
+  @keyframes seq-blink { from { opacity: 0.55; } to { opacity: 0.9; } }
+  .seq-life.done .seq-head { fill: #18301f; stroke: var(--success); stroke-width: 2; }
+  .seq-life.done .seq-title, .seq-life.done .seq-val { fill: var(--success-text); }
+  .seq-life.error .seq-head { fill: #2a1818; stroke: var(--error); stroke-width: 3; filter: drop-shadow(0 0 10px #ff575788); }
+  .seq-life.error .seq-title { fill: var(--error-text); }
+  .seq-life.dimmed { opacity: 0.35; }
+
+  /* message = an arrow + its label. A reply is dashed in EVERY state; no state adds dashes. */
+  .seq-arrow { fill: none; stroke: var(--border-dim); stroke-width: 2; transition: stroke 0.3s, stroke-width 0.3s; }
+  .seq-msg[data-kind="reply"] .seq-arrow { stroke-dasharray: 7 5; }
+  .seq-label { opacity: 0; transition: opacity 0.3s; }
+  .seq-label-bg { fill: #2a2818; stroke: var(--amber); stroke-width: 1.5; }
+  .seq-label-text { fill: var(--amber); font-family: 'Segoe UI', 'Tahoma', sans-serif; font-size: 13px; font-weight: 700; pointer-events: none; }
+  .seq-msg.active .seq-arrow { stroke: var(--accent); stroke-width: 3.5; filter: drop-shadow(0 0 5px var(--accent)); }
+  .seq-msg.done .seq-arrow { stroke: var(--success); stroke-width: 2.5; }
+  .seq-msg.error .seq-arrow { stroke: var(--error); stroke-width: 3; }
+  .seq-msg.magic .seq-arrow { stroke: var(--magic); stroke-width: 3.5; filter: drop-shadow(0 0 4px var(--magic)); }
+  .seq-msg.dimmed .seq-arrow { opacity: 0.2; }
+  .seq-msg.active .seq-label, .seq-msg.done .seq-label, .seq-msg.error .seq-label, .seq-msg.magic .seq-label { opacity: 1; }
+  .seq-msg.done .seq-label-text { fill: var(--text-dim); font-weight: 400; }
+  .seq-msg.done .seq-label-bg { fill: var(--surface-2); stroke: var(--border-dim); }
+  .seq-msg.error .seq-label-text { fill: var(--error-text); }
+  .seq-msg.error .seq-label-bg { fill: #2a1818; stroke: var(--error); }
+  .seq-msg.magic .seq-label-text { fill: var(--magic-text); }
+  .seq-msg.magic .seq-label-bg { fill: #1f1830; stroke: var(--magic); }
+
+  /* frame (alt / opt / loop) and note: fixed decoration, no states */
+  .seq-frag-box { fill: none; stroke: var(--magic); stroke-width: 1.2; opacity: 0.7; }
+  .seq-frag-tab { fill: var(--magic-bg); stroke: var(--magic); stroke-width: 1.2; }
+  .seq-frag-op { fill: var(--magic-text); font-family: 'Consolas', 'Tahoma', monospace; font-size: 13px; font-weight: 700; }
+  .seq-frag-guard { fill: var(--magic-text); font-family: 'Segoe UI', 'Tahoma', sans-serif; font-size: 13px; }
+  .seq-frag-sep { stroke: var(--magic); stroke-width: 1.2; stroke-dasharray: 6 5; opacity: 0.7; }
+  .seq-note-text { fill: var(--muted-2); font-family: 'Segoe UI', 'Tahoma', sans-serif; font-size: 12.5px; font-style: italic; }
+
+  /* legend: always visible. It is NOT a .wt-panel, so clear() never hides it. */
+  .seq-legend { background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+                padding: 10px 14px; font-size: 12.5px; line-height: 1.6; color: var(--text-dim); }
+  .seq-legend b { color: var(--text); }
+  .seq-sw { display: inline-block; width: 22px; height: 0; border-top: 3px solid var(--border-dim);
+            vertical-align: middle; margin-right: 6px; }
+  .seq-sw.reply { border-top-style: dashed; }
+  .seq-sw.now   { border-color: var(--accent); }
+  .seq-sw.done  { border-color: var(--success); }
+  .seq-sw.bad   { border-color: var(--error); }
+  /* ===== end §CSS ===== */
+</style></head>
+<body>
+<!-- ===== §HTML  (assembly inserts this at the engine's MODE CONTENT slot) ===== -->
+<div class="seq-layout">
+<div class="seq-wrap">
+<svg class="seq" viewBox="0 0 1000 514" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="UML sequence diagram: a password reset request">
+  <!-- frame first, so it paints behind. Header = row 4 (y 268); last message inside = row 7 (y 418). -->
+  <g class="seq-frag" data-op="opt">
+    <rect class="seq-frag-box" x="18" y="242" width="964" height="194"/>
+    <path class="seq-frag-tab" d="M 18 242 h 46 v 16 l -10 10 H 18 Z"/>
+    <text class="seq-frag-op" x="26" y="260">opt</text>
+    <text class="seq-frag-guard" x="74" y="260">[user row found]</text>
+  </g>
+
+  <!-- lifelines: N = 4, centres 125 / 375 / 625 / 875 -->
+  <g class="seq-life" id="lfUser">
+    <line class="seq-line" x1="125" y1="82" x2="125" y2="500"/>
+    <rect class="seq-head" x="35" y="12" width="180" height="70" rx="8"/>
+    <text class="seq-title" x="125" y="36" text-anchor="middle" id="userTitle" data-default="👤 Demo User">👤 Demo User</text>
+    <text class="seq-sub" x="125" y="55" text-anchor="middle">browser</text>
+  </g>
+  <g class="seq-life" id="lfApi">
+    <line class="seq-line" x1="375" y1="82" x2="375" y2="500"/>
+    <rect class="seq-head" x="285" y="12" width="180" height="70" rx="8"/>
+    <text class="seq-title" x="375" y="36" text-anchor="middle">⚙️ Demo API</text>
+    <text class="seq-sub" x="375" y="55" text-anchor="middle">reset handler</text>
+    <text class="seq-val" x="375" y="73" text-anchor="middle" id="apiVal" data-default="token: none">token: none</text>
+  </g>
+  <g class="seq-life" id="lfDb">
+    <line class="seq-line" x1="625" y1="82" x2="625" y2="500"/>
+    <rect class="seq-head" x="535" y="12" width="180" height="70" rx="8"/>
+    <text class="seq-title" x="625" y="36" text-anchor="middle">🗄️ Demo DB</text>
+    <text class="seq-sub" x="625" y="55" text-anchor="middle">User, ResetToken</text>
+  </g>
+  <g class="seq-life" id="lfMail">
+    <line class="seq-line" x1="875" y1="82" x2="875" y2="500"/>
+    <rect class="seq-head" x="785" y="12" width="180" height="70" rx="8"/>
+    <text class="seq-title" x="875" y="36" text-anchor="middle">✉️ Mail service</text>
+    <text class="seq-sub" x="875" y="55" text-anchor="middle">outbound email</text>
+  </g>
+
+  <!-- messages: one group = the arrow and its label. The label background has no size: the pack fits it. -->
+  <g class="seq-msg" id="m1" data-kind="call">
+    <path class="seq-arrow" d="M 129 118 L 369 118" marker-end="url(#arrowhead)"/>
+    <g class="seq-label"><rect class="seq-label-bg" rx="5"/>
+      <text class="seq-label-text" x="250" y="107" text-anchor="middle">1: POST /reset (email)</text></g>
+  </g>
+  <g class="seq-msg" id="m2" data-kind="call">
+    <path class="seq-arrow" d="M 379 168 L 619 168" marker-end="url(#arrowhead)"/>
+    <g class="seq-label"><rect class="seq-label-bg" rx="5"/>
+      <text class="seq-label-text" x="500" y="157" text-anchor="middle">2: find user by email</text></g>
+  </g>
+  <g class="seq-msg" id="m3" data-kind="reply">
+    <path class="seq-arrow" d="M 621 218 L 381 218" marker-end="url(#arrowhead)"/>
+    <g class="seq-label"><rect class="seq-label-bg" rx="5"/>
+      <text class="seq-label-text" x="500" y="207" text-anchor="middle">3: user row</text></g>
+  </g>
+  <!-- row 4 is the frame header. Row 5 is a self-message, so it also takes row 6. -->
+  <g class="seq-msg" id="m4" data-kind="self">
+    <path class="seq-arrow" d="M 379 318 L 447 318 L 447 346 L 385 346" marker-end="url(#arrowhead)"/>
+    <g class="seq-label"><rect class="seq-label-bg" rx="5"/>
+      <text class="seq-label-text" x="455" y="337" text-anchor="start">4: make token, valid 15 min</text></g>
+  </g>
+  <g class="seq-msg" id="m5" data-kind="call">
+    <path class="seq-arrow" d="M 379 418 L 869 418" marker-end="url(#arrowhead)"/>
+    <g class="seq-label"><rect class="seq-label-bg" rx="5"/>
+      <text class="seq-label-text" x="625" y="407" text-anchor="middle">5: send the reset link</text></g>
+  </g>
+  <g class="seq-msg" id="m6" data-kind="reply">
+    <path class="seq-arrow" d="M 371 468 L 131 468" marker-end="url(#arrowhead)"/>
+    <g class="seq-label"><rect class="seq-label-bg" rx="5"/>
+      <text class="seq-label-text" x="250" y="457" text-anchor="middle" id="m6Text" data-default="6: 200 OK">6: 200 OK</text></g>
+  </g>
+</svg>
+</div>
+
+<div class="seq-side">
+  <!-- every panel is declared up front and hidden; a scene only show()s it -->
+  <div class="wt-panel hidden" id="pnlClass">
+    <div class="wt-panel-title">UML class diagram: token อยู่ที่ไหน</div>
+    <svg class="uml" data-uml="class" viewBox="0 0 540 236" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="class diagram: User 1 to 0..* ResetToken, Mail service reads ResetToken">
+      <rect class="uml-box" x="10" y="16" width="190" height="96" rx="4"/>
+      <text class="uml-t dim" x="105" y="33" text-anchor="middle">«table»</text>
+      <text class="uml-t b" x="105" y="50" text-anchor="middle">User</text>
+      <line class="uml-line" x1="10" y1="58" x2="200" y2="58"/>
+      <text class="uml-t mono" x="22" y="80">id : Guid</text>
+      <text class="uml-t mono" x="22" y="100">email : Text</text>
+      <line class="uml-line" x1="200" y1="70" x2="340" y2="70"/>
+      <text class="uml-t" x="208" y="63">1</text>
+      <text class="uml-t" x="326" y="63" text-anchor="end">0..*</text>
+      <rect class="uml-box hot" x="340" y="16" width="190" height="116" rx="4"/>
+      <text class="uml-t dim" x="435" y="33" text-anchor="middle">«table»</text>
+      <text class="uml-t b" x="435" y="50" text-anchor="middle">ResetToken</text>
+      <line class="uml-line" x1="340" y1="58" x2="530" y2="58"/>
+      <text class="uml-t mono" x="352" y="80">userId : Guid</text>
+      <text class="uml-t mono amb" x="352" y="100">tokenHash : Text</text>
+      <text class="uml-t mono" x="352" y="120">expiresAt : DateTime</text>
+      <path class="uml-dep" d="M 435 186 L 435 135" marker-end="url(#arrowhead-active)"/>
+      <text class="uml-t dim" x="443" y="165">«reads»</text>
+      <rect class="uml-box" x="340" y="186" width="190" height="42" rx="4"/>
+      <text class="uml-t dim" x="435" y="203" text-anchor="middle">«system»</text>
+      <text class="uml-t b" x="435" y="220" text-anchor="middle">Mail service</text>
+    </svg>
+    <div class="uml-cap">ตอบคำถาม: token เก็บไว้ที่ตารางไหน และ user หนึ่งคนมีได้กี่ token? วิธีอ่าน: กล่อง = ตาราง · บรรทัดในกล่อง = <code>ชื่อ : ชนิด</code> · เส้นทึบ = ความสัมพันธ์ เลขที่ปลายบอกจำนวน (1 user มีได้ 0 ถึงหลาย token) · ลูกศรเส้นประ = ฝั่งต้นลูกศรต้องใช้ฝั่งปลายลูกศร</div>
+  </div>
+
+  <div class="wt-panel question hidden" id="pnlQuestion">
+    <div class="wt-panel-title">คำถามสำคัญ: ลองตอบในใจก่อนกด →</div>
+    <div>คนแปลกหน้าส่ง <code>nobody@example.com</code> ซึ่งไม่มีใน DB</div>
+    <ol style="margin:8px 0 0 18px; padding:0">
+      <li>ข้อ 4 และข้อ 5 ยังเกิดไหม?</li>
+      <li>ข้อ 6 ควรตอบ <code>200</code> หรือ <code>404</code>?</li>
+      <li>ถ้าตอบต่างกัน คนแปลกหน้าได้รู้อะไรเพิ่ม?</li>
+    </ol>
+  </div>
+
+  <div class="wt-panel race hidden" id="pnlNaive">
+    <div class="wt-panel-title">สิ่งที่คนแปลกหน้าเห็น ถ้า API ตอบต่างกัน</div>
+    <div class="tbl-wrap"><table>
+      <tr><th>อีเมลที่ส่ง</th><th>API ตอบ</th><th>คนแปลกหน้ารู้ว่า</th></tr>
+      <tr><td><code>somsri@example.com</code></td><td>200 OK</td><td>มีบัญชีนี้</td></tr>
+      <tr><td><code>nobody@example.com</code></td><td>404 Not Found</td><td>ไม่มีบัญชีนี้</td></tr>
+    </table></div>
+    <div class="wt-note">ข้อมูลสมมติทั้งหมด · เทคนิคนี้เรียกว่า user enumeration</div>
+  </div>
+
+  <div class="wt-panel hidden" id="pnlActivity">
+    <div class="wt-panel-title">UML activity diagram: API เช็คอะไรก่อนตอบ</div>
+    <svg class="uml" data-uml="activity" viewBox="0 0 540 318" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="activity diagram: find the user, decide, both branches end in the same answer">
+      <circle class="uml-start" cx="150" cy="14" r="8"/>
+      <path class="uml-flow" d="M 150 22 L 150 40" marker-end="url(#arrowhead-active)"/>
+      <rect class="uml-act" x="40" y="42" width="220" height="32" rx="14"/>
+      <text class="uml-t" x="150" y="63" text-anchor="middle">Find the user by email</text>
+      <path class="uml-flow" d="M 150 74 L 150 94" marker-end="url(#arrowhead-active)"/>
+      <polygon class="uml-dia" points="150,96 168,112 150,128 132,112"/>
+      <text class="uml-t" x="124" y="116" text-anchor="end">user row found?</text>
+      <path class="uml-flow" d="M 150 128 L 150 158" marker-end="url(#arrowhead-active)"/>
+      <text class="uml-t dim" x="158" y="148">[yes]</text>
+      <rect class="uml-act" x="40" y="160" width="220" height="32" rx="14"/>
+      <text class="uml-t" x="150" y="181" text-anchor="middle">Make a token, send the link</text>
+      <path class="uml-flow" d="M 150 192 L 150 230" marker-end="url(#arrowhead-active)"/>
+      <path class="uml-flow" d="M 168 112 L 400 112 L 400 248 L 262 248" marker-end="url(#arrowhead-active)"/>
+      <text class="uml-t dim" x="180" y="104">[no]</text>
+      <text class="uml-t dim" x="410" y="176">nothing made,</text>
+      <text class="uml-t dim" x="410" y="194">nothing sent</text>
+      <rect class="uml-act good" x="40" y="232" width="220" height="32" rx="14"/>
+      <text class="uml-t ok" x="150" y="253" text-anchor="middle">Answer 200 OK</text>
+      <path class="uml-flow" d="M 150 264 L 150 290" marker-end="url(#arrowhead-active)"/>
+      <circle class="uml-end-ring" cx="150" cy="302" r="9"/>
+      <circle class="uml-end" cx="150" cy="302" r="5"/>
+    </svg>
+    <div class="uml-cap">ตอบคำถาม: API เช็คอะไร และสองทางจบต่างกันไหม? วิธีอ่าน: จุดทึบ = เริ่ม · กล่องมน = การกระทำ · รูปเพชร = จุดตัดสินใจ เงื่อนไขของแต่ละทางอยู่ใน [ ] · วงกลมซ้อน = จบ</div>
+  </div>
+
+  <div class="wt-panel summary hidden" id="pnlSummary">
+    <div class="wt-panel-title">สรุป</div>
+    <div class="tbl-wrap"><table>
+      <tr><th>เรื่อง</th><th>คำตอบ</th></tr>
+      <tr><td>ลำดับ</td><td>ขอ → หา user → (ถ้าเจอ) สร้าง token และส่งลิงก์ → ตอบ</td></tr>
+      <tr><td>คำตอบของ API</td><td><code>200 OK</code> ข้อความเดียวกันทั้งสองกรณี</td></tr>
+      <tr><td>ข้อแลกเปลี่ยน</td><td>คนที่พิมพ์อีเมลผิดจะไม่รู้ว่าพิมพ์ผิด</td></tr>
+    </table></div>
+  </div>
+
+  <div class="seq-legend" id="seqLegend">
+    <b>อ่าน UML sequence diagram นี้ยังไง</b><br/>
+    กล่องด้านบน = ผู้เล่น (lifeline) · เส้นประแนวตั้ง = เวลา เดินจากบนลงล่าง<br/>
+    <span class="seq-sw"></span>ลูกศรเส้นทึบ = ส่งข้อความหรือเรียก<br/>
+    <span class="seq-sw reply"></span>ลูกศรเส้นประ = ข้อความตอบกลับ<br/>
+    เลขหน้าข้อความ = ลำดับ · กรอบ <b>opt [เงื่อนไข]</b> = ทำเฉพาะเมื่อเงื่อนไขเป็นจริง<br/>
+    <span class="seq-sw now"></span>กำลังเกิด · <span class="seq-sw done"></span>เกิดไปแล้ว · <span class="seq-sw bad"></span>มีปัญหา<br/>
+    ต่างจาก UML หนึ่งจุด: หัวลูกศรทุกเส้นเป็นแบบทึบแบบเดียว (UML ใช้หัวโปร่งกับข้อความตอบกลับและข้อความ async)
+  </div>
+</div>
+</div>
+<!-- ===== end §HTML ===== -->
+
+<script>
+/* ===== §JS  (copy into the walkthrough's <script>, after the engine §JS) ===== */
+modeRenderers['sequence'] = {
+  registry: { LIFELINES: [], MESSAGES: [] },   // filled from the markup by collect() (ADR 0366)
+  clear(reg) {
+    reg.LIFELINES.forEach(id => this.setLife(id, ''));
+    this.setMsg(reg.MESSAGES, '');
+    document.querySelectorAll('.seq-layout [data-default]').forEach(el => { el.textContent = el.dataset.default; });
+    document.querySelectorAll('.wt-panel').forEach(p => p.classList.add('hidden'));
+    this.queueFit();                               // a restored label text may have a different width
+  },
+  collect() {
+    this.registry.LIFELINES = [].map.call(document.querySelectorAll('.seq-life'), e => e.id);
+    this.registry.MESSAGES  = [].map.call(document.querySelectorAll('.seq-msg'),  e => e.id);
+  },
+  fitLabels() {
+    [].forEach.call(document.querySelectorAll('.seq-msg'), (m) => {
+      const text = m.querySelector('.seq-label-text'), bg = m.querySelector('.seq-label-bg');
+      if (!text || !bg) return;
+      try {
+        const b = text.getBBox();
+        if (!b.width) return;                      // not rendered yet: leave the background as it is
+        bg.setAttribute('x', b.x - 8);
+        bg.setAttribute('y', b.y - 3);
+        bg.setAttribute('width', b.width + 16);
+        bg.setAttribute('height', b.height + 6);
+      } catch (e) { /* getBBox can throw on an element that is not displayed */ }
+    });
+  },
+  // Fit once the current step's code has finished. Measuring forces a layout; doing it
+  // between clear() and the scene would restart every transition and animation.
+  fitQueued: false,
+  queueFit() {
+    const R = modeRenderers['sequence'];
+    if (R.fitQueued) return;
+    R.fitQueued = true;
+    Promise.resolve().then(() => { R.fitQueued = false; R.fitLabels(); });
+  },
+  setLife(id, state) { const el = document.getElementById(id); if (el) el.setAttribute('class', 'seq-life' + (state ? ' ' + state : '')); },
+  setMsg(ids, state) {
+    const heads = { '': 'url(#arrowhead)', dimmed: 'url(#arrowhead)', active: 'url(#arrowhead-active)',
+                    done: 'url(#arrowhead-done)', error: 'url(#arrowhead-error)', magic: 'url(#arrowhead-magic)' };
+    [].concat(ids).forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.setAttribute('class', 'seq-msg' + (state ? ' ' + state : ''));
+      const arrow = el.querySelector('.seq-arrow');
+      if (arrow) arrow.setAttribute('marker-end', heads[state] || 'url(#arrowhead)');
+    });
+  },
+  // The setters are aliased to bare names by the bootstrap, so they must not use `this`.
+  setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+    modeRenderers['sequence'].queueFit();          // the text may be a message label
+  },
+  assertRegistryComplete() {
+    this.collect();
+    const bad = [], seen = {}, kinds = ['call', 'reply', 'self'];
+    [].forEach.call(document.querySelectorAll('.seq-life, .seq-msg'), (el) => {
+      const isMsg = /(^|\s)seq-msg(\s|$)/.test(el.getAttribute('class') || '');
+      const what = isMsg ? 'message' : 'lifeline';
+      if (!el.id) { bad.push('a ' + what + ' has no id'); return; }
+      if (seen[el.id]) bad.push('duplicate id ' + el.id);
+      seen[el.id] = true;
+      if (isMsg) {
+        if (kinds.indexOf(el.getAttribute('data-kind')) === -1) bad.push(el.id + ': data-kind must be call, reply or self');
+        if (!el.querySelector('.seq-arrow')) bad.push(el.id + ': no .seq-arrow');
+        if (!el.querySelector('.seq-label-text')) bad.push(el.id + ': no .seq-label-text');
+      }
+    });
+    if (!this.registry.LIFELINES.length) bad.push('no lifeline');
+    if (!this.registry.MESSAGES.length) bad.push('no message');
+    if (!document.getElementById('seqLegend')) bad.push('no #seqLegend');
+    if (bad.length) throw new Error('sequence markup: ' + bad.join('; '));
+    return true;
+  },
+};
+modeRenderers['sequence'].collect();
+modeRenderers['sequence'].fitLabels();
+/* ===== end §JS ===== */
+
+/* ===== DEMO-BOOTSTRAP START — the assembler uses this as the authored bootstrap for verification ===== */
+MODE = 'sequence';
+const { setLife, setMsg, setText } = modeRenderers[MODE];
+const scenes = [
+  // 0 — overview: every message is drawn faint, so the reader sees the whole exchange
+  () => {
+    setNarration('', 'ภาพรวม: ขอรีเซ็ตรหัสผ่าน มีผู้เล่น 4 ตัว',
+      'ด้านล่างคือ UML sequence diagram ของการขอรีเซ็ตรหัสผ่าน อ่านจากบนลงล่าง ข้อความ 1–6 จะสว่างทีละข้อ กรอบ <b>opt</b> คือส่วนที่ทำเฉพาะเมื่อเจอ user ดู legend ด้านข้างก่อน แล้วกด →');
+  },
+  // 1
+  () => {
+    setNarration('warn', 'ข้อ 1 — ผู้ใช้ส่งอีเมลมาขอรีเซ็ต',
+      'ผู้ใช้กรอก <code>somsri@example.com</code> แล้วกดส่ง browser เรียก <code>POST /reset</code><br/><b>ทำไมสำคัญ:</b> ทุกคนเรียก endpoint นี้ได้ รวมถึงคนที่ไม่ใช่เจ้าของอีเมล');
+    setLife('lfUser', 'firing'); setLife('lfApi', 'active');
+    setMsg('m1', 'active');
+  },
+  // 2
+  () => {
+    setNarration('', 'ข้อ 2 — API ถาม DB ว่ามีอีเมลนี้ไหม',
+      'API ค้นตาราง <code>User</code> ด้วยอีเมล ลูกศรเส้นทึบ = การเรียก (call)');
+    setMsg(['m1'], 'done');
+    setLife('lfApi', 'firing'); setLife('lfDb', 'active');
+    setMsg('m2', 'active');
+  },
+  // 3
+  () => {
+    setNarration('', 'ข้อ 3 — DB ตอบกลับ',
+      'DB คืนแถวของ user สังเกตว่า<b>ลูกศรเส้นประ</b> = ข้อความตอบกลับ (reply) ของข้อ 2 ไม่ใช่การเรียกครั้งใหม่');
+    setMsg(['m1', 'm2'], 'done');
+    setLife('lfDb', 'firing'); setLife('lfApi', 'active');
+    setMsg('m3', 'active');
+  },
+  // 4
+  () => {
+    setNarration('warn', 'ข้อ 4 — API สร้าง token อายุ 15 นาที',
+      'ลูกศรที่วนกลับหาตัวเอง = API ทำงานภายในตัวเอง (self-message) token ถูกเก็บเป็น hash ในตาราง <code>ResetToken</code> ดู class diagram ด้านข้าง<br/>ข้อ 4–5 อยู่ในกรอบ <b>opt [user row found]</b> จึงเกิดเฉพาะเมื่อข้อ 3 เจอ user');
+    setMsg(['m1', 'm2', 'm3'], 'done');
+    setLife('lfApi', 'firing'); setText('apiVal', 'token: 15 min');
+    setMsg('m4', 'active');
+    show('pnlClass');
+  },
+  // 5
+  () => {
+    setNarration('', 'ข้อ 5 — ส่งลิงก์รีเซ็ตทางอีเมล',
+      'API สั่ง Mail service ส่งลิงก์ที่มี token ไปที่อีเมลของ user<br/><b>ทำไมส่งทางอีเมล:</b> คนที่เปิดกล่องอีเมลนั้นได้เท่านั้นจึงจะได้ลิงก์');
+    setMsg(['m1', 'm2', 'm3', 'm4'], 'done');
+    setLife('lfApi', 'firing'); setLife('lfMail', 'active'); setText('apiVal', 'token: 15 min');
+    setMsg('m5', 'active');
+  },
+  // 6
+  () => {
+    setNarration('success', 'ข้อ 6 — API ตอบ 200 OK',
+      'browser ได้ <code>200 OK</code> พร้อมข้อความ “ถ้ามีบัญชีนี้ เราส่งลิงก์ให้แล้ว”<br/>ถึงตรงนี้ทุกอย่างดูเรียบร้อย แต่ยังมีคำถามหนึ่งข้อ');
+    setMsg(['m1', 'm2', 'm3', 'm4', 'm5'], 'done');
+    setLife('lfApi', 'firing'); setLife('lfUser', 'active'); setText('apiVal', 'token: 15 min');
+    setMsg('m6', 'active');
+  },
+  // 7 — the key question
+  () => {
+    setNarration('magic', 'คำถามสำคัญ: ถ้าอีเมลนั้นไม่มีใน DB ล่ะ?',
+      'ข้อ 3 ไม่เจอ user กรอบ opt จึงไม่ทำงาน แล้วข้อ 6 ควรตอบว่าอะไร? ลองตอบ 3 ข้อในกล่องด้านข้างก่อน แล้วค่อยกด →');
+    setMsg(['m1', 'm2', 'm3', 'm4', 'm5', 'm6'], 'done');
+    setLife('lfUser', 'locked');
+    show('pnlQuestion');
+  },
+  // 8 — the failure: the naive answer
+  () => {
+    setNarration('error', 'คำตอบที่ผิด: ตอบ 404 เมื่อไม่เจออีเมล',
+      'ถ้า API ตอบ <code>404 Not Found</code> คนแปลกหน้าจะลองส่งอีเมลทีละอัน แล้วดูว่าอันไหนได้ 200 อันไหนได้ 404<br/>เขาจะรู้ว่า<b>ใครมีบัญชี</b> โดยไม่ต้องเจาะระบบเลย');
+    setMsg(['m1', 'm2', 'm3'], 'done');
+    setMsg(['m4', 'm5'], 'dimmed');
+    setMsg('m6', 'error'); setText('m6Text', '6: 404 Not Found');
+    setText('userTitle', '🕵️ คนแปลกหน้า');
+    setLife('lfUser', 'error'); setLife('lfApi', 'active');
+    show('pnlNaive');
+  },
+  // 9 — the resolution
+  () => {
+    setNarration('success', 'คำตอบที่ถูก: สองทางจบด้วยคำตอบเดียวกัน',
+      'API ตอบ <code>200 OK</code> ด้วยข้อความเดียวกันทั้งสองกรณี ดู activity diagram ด้านข้าง: ทาง [yes] กับทาง [no] มาบรรจบที่การกระทำเดียวกัน คนเรียกจึงแยกสองกรณีไม่ออก');
+    setMsg(['m1', 'm2', 'm3'], 'done');
+    setMsg(['m4', 'm5'], 'dimmed');
+    setMsg('m6', 'done');
+    setLife('lfApi', 'done'); setLife('lfUser', 'active');
+    show('pnlActivity');
+  },
+  // 10 — summary, with the trade-off named
+  () => {
+    setNarration('success', 'สรุป: ลำดับ เงื่อนไข และข้อแลกเปลี่ยน',
+      'คำตอบเดียวกันทุกครั้งปิดช่องให้เดาว่าใครมีบัญชี <b>ข้อแลกเปลี่ยน:</b> คนที่พิมพ์อีเมลผิดจะไม่รู้ว่าพิมพ์ผิด และเวลาตอบของสองทางต้องใกล้กันด้วย ไม่อย่างนั้นคนเรียกยังเดาได้จากความเร็ว');
+    setMsg(['m1', 'm2', 'm3', 'm4', 'm5', 'm6'], 'done');
+    setLife('lfApi', 'done');
+    show('pnlSummary');
+  },
+];
+TOTAL = scenes.length - 1;
+modeRenderers[MODE].assertRegistryComplete();   // markup self-check: ids, kinds, legend
+buildProgressDots();
+render(0);
+/* ===== DEMO-BOOTSTRAP END ===== */
+</script>
+</body></html>

@@ -269,6 +269,121 @@ def test_gate_j_fails_on_more_than_three_pictures():
         assert code == 1 and "at most 3" in text, text
 
 
+# ---------------------------------------------------------------------------
+# Task 5 — the sequence pack, gate K, and the scene-id pass for its setters
+# ---------------------------------------------------------------------------
+
+def sequence_demo(tmp, name="seq.html"):
+    out, _ = assemble(tmp, "sequence", name, "--uml", KIT)
+    return out
+
+
+def test_sequence_demo_assembles_and_passes_the_checker():
+    with tempfile.TemporaryDirectory() as tmp:
+        code, text = check(sequence_demo(tmp))
+        assert code == 0, text
+        assert "mode=sequence" in text and "uml kit" in text, text
+
+
+def test_sequence_pack_dashes_only_a_reply():
+    css = css_section(pack("sequence"))
+    assert re.search(r'\.seq-msg\[data-kind="reply"\]\s+\.seq-arrow\s*\{[^}]*stroke-dasharray', css), \
+        "a reply must be dashed"
+    for rule in re.findall(r"(\.seq-msg\.[a-z]+[^{]*)\{([^}]*)\}", css):
+        assert "stroke-dasharray" not in rule[1], "a message state must not add dashes: " + rule[0].strip()
+    plain = re.search(r"(?m)^\s*\.seq-arrow\s*\{([^}]*)\}", css)
+    assert plain and "stroke-dasharray" not in plain.group(1), "a plain message must be solid"
+
+
+def test_sequence_pack_adds_no_new_hex_colour():
+    known = set(h.lower() for h in re.findall(r"#[0-9a-fA-F]{3,8}\b", css_section(ENGINE) + css_section(pack("diagram"))))
+    used = set(h.lower() for h in re.findall(r"#[0-9a-fA-F]{3,8}\b", css_section(pack("sequence"))))
+    assert used <= known, "new hex colour(s) in the sequence pack: %s" % sorted(used - known)
+
+
+def test_sequence_demo_follows_the_grid():
+    html = read(pack("sequence"))
+    xs = [int(x) for x in re.findall(r'<line class="seq-line" x1="(\d+)"', html)]
+    n = len(xs)
+    assert 2 <= n <= 5, "2 to 5 lifelines, found %d" % n
+    assert xs == [round(1000 * (2 * i - 1) / (2 * n)) for i in range(1, n + 1)], xs
+    width = min(180, 1000 / n - 20)
+    heads = [(int(x), int(w)) for x, w in re.findall(r'<rect class="seq-head" x="(\d+)" y="12" width="(\d+)" height="70"', html)]
+    assert heads == [(round(x - width / 2), round(width)) for x in xs], heads
+    rows = [118 + 50 * k for k in range(12)]
+    ys = [int(y) for y in re.findall(r'<path class="seq-arrow" d="M \d+ (\d+) ', html)]
+    assert ys and all(y in rows for y in ys), "every message starts on a row: %s" % ys
+    assert ys == sorted(ys), "messages are in row order"
+    assert len(ys) <= 12, "12 messages or fewer"
+    height = int(re.search(r'<svg class="seq" viewBox="0 0 1000 (\d+)"', html).group(1))
+    assert height == max(ys) + 46, "H = last row + 46, got %d for last row %d" % (height, max(ys))
+    ends = set(int(y) for y in re.findall(r'<line class="seq-line" [^>]*y2="(\d+)"', html))
+    assert ends == {height - 14}, ends
+    # the frame: header row h, box from yH - 26, height (yLast - yH) + 44
+    box = re.search(r'<rect class="seq-frag-box" x="18" y="(\d+)" width="964" height="(\d+)"', html)
+    y_box, h_box = int(box.group(1)), int(box.group(2))
+    y_header = y_box + 26
+    assert y_header in rows and y_header not in ys, "the frame header takes a row with no message"
+    inside = [y for y in ys if y_header < y < y_box + h_box]
+    assert h_box == (max(inside) - y_header) + 44, (h_box, inside)
+
+
+def test_sequence_demo_exercises_what_the_pack_offers():
+    html = read(pack("sequence"))
+    for kind in ("call", "reply", "self"):
+        assert 'data-kind="%s"' % kind in html, "the demo has no %s message" % kind
+    assert 'class="seq-frag" data-op="opt"' in html
+    assert 'data-default="' in html and 'id="seqLegend"' in html
+    assert 'data-uml="class"' in html and 'data-uml="activity"' in html
+    assert "class=\"wt-panel question hidden\"" in html
+    assert "setMsg('m6', 'error')" in html, "the demo shows an error message"
+    # no width typed on a label background, no id list typed in the registry
+    assert not re.search(r'<rect class="seq-label-bg"[^>]*\bwidth=', html)
+    assert "registry: { LIFELINES: [], MESSAGES: [] }" in html
+
+
+def test_gate_k_fails_without_the_legend():
+    with tempfile.TemporaryDirectory() as tmp:
+        bad = broken(tmp, sequence_demo(tmp), "no-legend.html", 'id="seqLegend"', 'id="legendX"')
+        code, text = check(bad)
+        assert code == 1 and "sequence mode" in text and "seqLegend" in text, text
+
+
+def test_gate_k_fails_on_a_message_without_a_kind():
+    with tempfile.TemporaryDirectory() as tmp:
+        bad = broken(tmp, sequence_demo(tmp), "no-kind.html", '<g class="seq-msg" id="m1" data-kind="call">', '<g class="seq-msg" id="m1">')
+        code, text = check(bad)
+        assert code == 1 and "sequence mode" in text and "m1" in text and "data-kind" in text, text
+
+
+def test_gate_k_fails_on_an_unknown_kind():
+    with tempfile.TemporaryDirectory() as tmp:
+        bad = broken(tmp, sequence_demo(tmp), "bad-kind.html", 'id="m3" data-kind="reply"', 'id="m3" data-kind="return"')
+        code, text = check(bad)
+        assert code == 1 and "m3" in text and "data-kind" in text, text
+
+
+def test_scene_id_pass_catches_a_mistyped_message_id():
+    with tempfile.TemporaryDirectory() as tmp:
+        bad = broken(tmp, sequence_demo(tmp), "typo-msg.html", "setMsg('m1', 'active')", "setMsg('mTypo', 'active')")
+        code, text = check(bad)
+        assert code == 1 and "mTypo" in text, text
+
+
+def test_scene_id_pass_catches_a_mistyped_id_inside_an_array():
+    with tempfile.TemporaryDirectory() as tmp:
+        bad = broken(tmp, sequence_demo(tmp), "typo-array.html", "setMsg(['m1', 'm2'], 'done')", "setMsg(['m1', 'mTypo'], 'done')")
+        code, text = check(bad)
+        assert code == 1 and "mTypo" in text, text
+
+
+def test_scene_id_pass_catches_a_mistyped_lifeline_id():
+    with tempfile.TemporaryDirectory() as tmp:
+        bad = broken(tmp, sequence_demo(tmp), "typo-life.html", "setLife('lfUser', 'firing')", "setLife('lfTypo', 'firing')")
+        code, text = check(bad)
+        assert code == 1 and "lfTypo" in text, text
+
+
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 if __name__ == "__main__":
