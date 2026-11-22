@@ -17,6 +17,8 @@ Checks:
   G. JS syntax — node --check the assembled <script> (skipped when node is absent).
   H. Keyboard — the engine's keydown listener for ArrowRight/ArrowLeft is present (ADR 0356).
   I. Controls first — the buttons come before the narration (ADR 0358).
+  J. UML kit — a kit picture needs the kit CSS and the kit CSS needs a picture; every
+     picture declares its type and has a caption; at most 3 pictures (ADRs 0361, 0363, 0364).
 
 Usage: python check-walkthrough.py ASSEMBLED.html
 """
@@ -140,13 +142,31 @@ def main(path):
     if _pb == -1 or _nb == -1 or _pb > _nb:
         errs.append('controls are not above the narration (id="prevBtn" must come before id="narration") — stale engine?')
 
+    # J. UML kit composition (ADRs 0361, 0363, 0364)
+    _style = ''.join(re.findall(r'<style>(.*?)</style>', src, re.S))
+    kit_present = 'svg.uml' in _style
+    _pics = re.findall(r'<svg\b[^>]*\bclass="uml"[^>]*>', src)
+    if _pics and not kit_present:
+        errs.append('uml picture present but the UML kit CSS is not assembled — pass --uml')
+    if kit_present and not _pics:
+        errs.append('UML kit assembled but no <svg class="uml"> picture uses it — drop --uml')
+    for _tag in _pics:
+        if not re.search(r'\bdata-uml="[\w-]+"', _tag):
+            errs.append('a <svg class="uml"> picture has no data-uml="<type>" attribute')
+    _caps = len(re.findall(r'class="uml-cap"', src))
+    if _caps < len(_pics):
+        errs.append(f'{len(_pics)} uml picture(s) but only {_caps} uml-cap caption(s) — every picture needs its caption')
+    if len(_pics) > 3:
+        errs.append(f'{len(_pics)} uml pictures — a walkthrough has at most 3 supporting diagrams')
+
     if errs:
         for e in errs:
             print('FAIL:', e)
         sys.exit(1)
     mode = mm.group(1) if mm else '?'
     drawer = 'with drawer' if 'id="termDrawer"' in src else 'no drawer'
-    print(f'OK: {pathlib.Path(path).name} — mode={mode} ({drawer}); self-contained, RENDER_HOOKS-first, scenes clean, order ok')
+    uml = ', uml kit' if kit_present else ''
+    print(f'OK: {pathlib.Path(path).name} — mode={mode} ({drawer}{uml}); self-contained, RENDER_HOOKS-first, scenes clean, order ok')
 
 
 if __name__ == '__main__':

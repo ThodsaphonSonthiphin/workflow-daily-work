@@ -189,6 +189,84 @@ def test_drawer_walkthrough_passes_and_closes_on_escape():
         assert page.count("addEventListener('keydown'") == 2, "one listener in the engine, one in the drawer"
 
 
+# ---------------------------------------------------------------------------
+# Task 4 — the UML kit and gate J
+# ---------------------------------------------------------------------------
+
+def panel(n, with_type=True, with_caption=True):
+    """One supporting-diagram panel, for breaking gate J in controlled ways."""
+    return ('<div class="wt-panel hidden" id="pnlT%d"><svg class="uml"%s viewBox="0 0 10 10"></svg>%s</div>\n'
+            % (n, ' data-uml="class"' if with_type else "",
+               '<div class="uml-cap">Answers: a test question.</div>' if with_caption else ""))
+
+
+def with_panels(tmp, src_path, name, html):
+    return broken(tmp, src_path, name, '<div class="narration" id="narration">',
+                  html + '<div class="narration" id="narration">')
+
+
+def test_uml_kit_has_a_css_section_and_two_captioned_skeletons():
+    kit = read(KIT)
+    css = css_section(KIT)
+    assert "svg.uml" in css
+    for cls in (".uml-box", ".uml-t", ".uml-line", ".uml-dep", ".uml-flow", ".uml-start",
+                ".uml-end", ".uml-end-ring", ".uml-dia", ".uml-act", ".uml-cap"):
+        assert cls in css, "kit CSS lacks " + cls
+    assert not re.search(r"#[0-9a-fA-F]{3,8}\b", css), "kit CSS must use :root tokens only, no hex colour"
+    assert 'data-uml="class"' in kit and 'data-uml="activity"' in kit
+    assert kit.count('<svg class="uml"') == 2 and kit.count('class="uml-cap"') == 2
+    # every flow out of the decision is a drawn arrow with its guard
+    assert "[yes]" in kit and "[no]" in kit
+
+
+def test_gate_j_fails_on_a_picture_without_the_kit():
+    with tempfile.TemporaryDirectory() as tmp:
+        out, _ = assemble(tmp, "diagram", "demo.html")
+        bad = with_panels(tmp, out, "pic-no-kit.html", panel(1))
+        code, text = check(bad)
+        assert code == 1 and "pass --uml" in text, text
+
+
+def test_gate_j_fails_on_the_kit_without_a_picture():
+    with tempfile.TemporaryDirectory() as tmp:
+        out, _ = assemble(tmp, "diagram", "kit-no-pic.html", "--uml", KIT)
+        code, text = check(out)
+        assert code == 1 and "drop --uml" in text, text
+
+
+def test_gate_j_passes_with_the_kit_and_a_captioned_typed_picture():
+    with tempfile.TemporaryDirectory() as tmp:
+        out, _ = assemble(tmp, "diagram", "demo.html", "--uml", KIT)
+        good = with_panels(tmp, out, "kit-and-pic.html", panel(1))
+        code, text = check(good)
+        assert code == 0, text
+        assert "uml kit" in text, text
+
+
+def test_gate_j_fails_on_a_picture_without_a_type():
+    with tempfile.TemporaryDirectory() as tmp:
+        out, _ = assemble(tmp, "diagram", "demo.html", "--uml", KIT)
+        bad = with_panels(tmp, out, "no-type.html", panel(1, with_type=False))
+        code, text = check(bad)
+        assert code == 1 and "data-uml" in text, text
+
+
+def test_gate_j_fails_on_a_picture_without_a_caption():
+    with tempfile.TemporaryDirectory() as tmp:
+        out, _ = assemble(tmp, "diagram", "demo.html", "--uml", KIT)
+        bad = with_panels(tmp, out, "no-caption.html", panel(1, with_caption=False))
+        code, text = check(bad)
+        assert code == 1 and "caption" in text, text
+
+
+def test_gate_j_fails_on_more_than_three_pictures():
+    with tempfile.TemporaryDirectory() as tmp:
+        out, _ = assemble(tmp, "diagram", "demo.html", "--uml", KIT)
+        bad = with_panels(tmp, out, "four-pics.html", panel(1) + panel(2) + panel(3) + panel(4))
+        code, text = check(bad)
+        assert code == 1 and "at most 3" in text, text
+
+
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 if __name__ == "__main__":
