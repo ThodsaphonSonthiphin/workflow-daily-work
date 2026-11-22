@@ -105,6 +105,58 @@ def test_uml_option_inlines_only_the_kit_css():
         assert "+ uml kit" in said, said
 
 
+# ---------------------------------------------------------------------------
+# Task 2 — the engine: keys, dots, controls above the narration; gates H and I
+# ---------------------------------------------------------------------------
+
+def test_engine_steps_on_the_arrow_keys_and_the_dots():
+    with tempfile.TemporaryDirectory() as tmp:
+        out, _ = assemble(tmp, "diagram", "demo.html")
+        page = read(out)
+        assert "function go(step)" in page
+        assert "addEventListener('keydown'" in page
+        assert "e.key === 'ArrowRight'" in page and "e.key === 'ArrowLeft'" in page
+        assert "e.altKey || e.ctrlKey || e.metaKey || e.shiftKey" in page, "modifier keys must be left alone"
+        assert "d.dataset.step = i" in page, "a step dot must carry its step number"
+        assert "window.focus()" not in page.split("<script>")[1].replace("Never call window.focus()", ""), \
+            "the engine must never take focus"
+
+
+def test_engine_shows_a_focus_hint_and_controls_come_first():
+    with tempfile.TemporaryDirectory() as tmp:
+        out, _ = assemble(tmp, "diagram", "demo.html")
+        page = read(out)
+        assert 'id="keyHint"' in page and "document.hasFocus()" in page
+        assert page.index('id="stepProgress"') < page.index('id="prevBtn"') < page.index('id="narration"'), \
+            "order must be: step dots, controls, narration"
+        assert "color-scheme: dark" in page
+
+
+def test_engine_styles_a_table_and_a_note_inside_a_panel():
+    css = css_section(ENGINE)
+    assert ".wt-panel table" in css and ".wt-panel .tbl-wrap" in css and ".wt-note" in css
+
+
+def test_gate_h_fails_without_the_arrow_key_listener():
+    with tempfile.TemporaryDirectory() as tmp:
+        out, _ = assemble(tmp, "diagram", "demo.html")
+        bad = broken(tmp, out, "no-keys.html", "e.key === 'ArrowRight'", "e.key === 'x'")
+        code, text = check(bad)
+        assert code == 1 and "keydown" in text, text
+
+
+def test_gate_i_fails_when_the_controls_follow_the_narration():
+    with tempfile.TemporaryDirectory() as tmp:
+        out, _ = assemble(tmp, "diagram", "demo.html")
+        page = read(out)
+        m = re.search(r'<div class="controls">.*?</div>\s*', page, re.S)
+        assert m, "controls block not found"
+        moved = page.replace(m.group(0), "", 1).replace("<!-- ===== MODE CONTENT", m.group(0) + "<!-- ===== MODE CONTENT", 1)
+        bad = write(os.path.join(tmp, "controls-last.html"), moved)
+        code, text = check(bad)
+        assert code == 1 and "controls" in text, text
+
+
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 if __name__ == "__main__":

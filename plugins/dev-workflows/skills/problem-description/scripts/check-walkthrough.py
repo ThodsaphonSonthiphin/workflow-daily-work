@@ -14,6 +14,9 @@ Checks:
   E. Scenes are clean — no createElement/appendChild and no drawer refs inside scenes[]
      (idempotency + orthogonality).
   F. Source order — engine modeRenderers declaration < pack registration < MODE assignment.
+  G. JS syntax — node --check the assembled <script> (skipped when node is absent).
+  H. Keyboard — the engine's keydown listener for ArrowRight/ArrowLeft is present (ADR 0356).
+  I. Controls first — the buttons come before the narration (ADR 0358).
 
 Usage: python check-walkthrough.py ASSEMBLED.html
 """
@@ -124,6 +127,18 @@ def main(path):
         if _r.returncode != 0:
             _tail = _r.stderr.strip().splitlines()
             errs.append('JS syntax error in <script> (node --check): ' + (_tail[-1] if _tail else 'see node'))
+
+    # H. keyboard -- the engine's arrow-key listener is present (ADR 0356). A walkthrough
+    #    assembled from an engine copy that predates it has no way to step from the keyboard.
+    if (not re.search(r"addEventListener\(\s*['\"]keydown['\"]", src)
+            or not re.search(r"\.key\s*===\s*'ArrowRight'", src)
+            or not re.search(r"\.key\s*===\s*'ArrowLeft'", src)):
+        errs.append('engine keydown listener for ArrowRight/ArrowLeft is missing — assembled from a stale engine?')
+
+    # I. controls first -- the buttons come before the narration (ADR 0358)
+    _pb, _nb = src.find('id="prevBtn"'), src.find('id="narration"')
+    if _pb == -1 or _nb == -1 or _pb > _nb:
+        errs.append('controls are not above the narration (id="prevBtn" must come before id="narration") — stale engine?')
 
     if errs:
         for e in errs:
