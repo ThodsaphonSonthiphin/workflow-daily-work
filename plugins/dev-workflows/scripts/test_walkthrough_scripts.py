@@ -425,6 +425,19 @@ def test_skill_md_names_the_keys_and_keeps_its_frontmatter():
     assert "${CLAUDE_PLUGIN_ROOT}" not in text, "SKILL.md refers to its own files with skill-relative paths"
 
 
+# ---------------------------------------------------------------------------
+# Task 7 — the plugin README
+# ---------------------------------------------------------------------------
+
+def test_plugin_readme_lists_four_modes_the_kit_and_the_keys():
+    r = flat(os.path.normpath(os.path.join(HERE, "..", "README.md")))
+    assert "- **sequence**: a UML sequence diagram" in r
+    assert "**diagram** (default)" not in r, "diagram is no longer the default"
+    assert "A tie between sequence and diagram goes to sequence." in r
+    assert "`references/uml-kit.html`" in r
+    assert "the `→` / `←` keys" in r
+
+
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 if __name__ == "__main__":

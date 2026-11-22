@@ -1,5 +1,16 @@
 # Design — problem-description mode framework + state-machine mode (Phase 2)
 
+> ⚠️ **SUPERSEDED IN PART — historical design record, not the current behaviour.** This is
+> the spec as approved on 2026-06-27. The engine / mode pack / assembly architecture it
+> describes still stands. Three things it says have since changed; the current design is
+> [2026-11-21-problem-description-keyboard-and-uml-design.md](2026-11-21-problem-description-keyboard-and-uml-design.md).
+>
+> | This spec says | Actually |
+> |---|---|
+> | "Tie-break stays 'when in doubt → diagram'" | **A tie between the diagram and sequence modes goes to sequence** ([ADR 0365](../../adr/workflow-daily-work-0365-between-the-diagram-and-sequence-modes-a-tie-goes-to-sequence.md)) |
+> | three mode packs: diagram, tables, state-machine; a time-ordered mode is only dry-sketched | **There is a fourth pack, `mode-sequence.html`**, a UML sequence diagram. It needed no engine layout hook ([ADR 0360](../../adr/workflow-daily-work-0360-sequence-is-a-fourth-mode-pack-and-the-diagram-pack-stays.md)) |
+> | the engine's navigation is the three buttons | **The engine also steps on the arrow keys and on a click on a step dot, and its controls sit above the narration** ([ADR 0356](../../adr/workflow-daily-work-0356-the-walkthrough-engine-steps-on-the-left-and-right-arrow-keys-only.md), [ADR 0358](../../adr/workflow-daily-work-0358-the-walkthrough-controls-sit-above-the-narration.md), [ADR 0359](../../adr/workflow-daily-work-0359-a-click-on-a-step-dot-goes-to-that-step.md)) |
+
 Turns the `problem-description` skill's two hard-coded visualization modes into a
 **plug-in mode framework**: a single inlined-at-generation **engine reference** owns the
 step loop, navigation, palette, narration contract, and cross-cutting render hooks; each

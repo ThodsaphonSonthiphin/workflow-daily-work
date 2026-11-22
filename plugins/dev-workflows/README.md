@@ -68,20 +68,29 @@ explore context → grill one question at a time → capture terms/ADRs inline
 ## problem-description
 
 Use when an interactive artifact would explain a problem better than prose — the reader
-controls the pace (`Next →` / `← Previous` / `↻ Reset`) and can point at any element and
-understand why it is in its current state.
+controls the pace (the `→` / `←` keys, the `Next →` / `← Previous` / `↻ Reset` buttons, or
+a click on a step dot) and can point at any element and understand why it is in its
+current state.
 
-- **diagram** (default): components positioned spatially, arrows fire between them with
-  flying value labels. Best for architecture, data flow, concurrency, locking.
+- **sequence**: a UML sequence diagram — lifelines, numbered messages, `alt`/`opt`/`loop`
+  frames; one message lights per step. Best when the order of messages between actors is
+  the story. A tie between sequence and diagram goes to sequence.
+- **diagram**: components positioned spatially, arrows fire between them with flying value
+  labels. Best when the wiring is the story, or a value builds up in a box (concurrency,
+  locking, counters).
 - **tables**: a grid whose cells change state per step. Best for row/record-level problems,
   query results, FK cascades.
 - **state-machine**: one entity's legal state transitions, where an illegal/stuck transition
   is the conflict. Best for lifecycles (D365 statecode/statuscode, BPF stages).
 
+A panel beside the main diagram can carry a **supporting diagram** — a fixed UML class or
+activity diagram drawn from `references/uml-kit.html` — when a step raises a question the
+main diagram cannot answer. At most three; none is normal.
+
 A walkthrough is assembled from single-source references — one shared engine
 ([`skills/problem-description/references/walkthrough-engine.html`](skills/problem-description/references/walkthrough-engine.html))
-plus one mode pack (`references/mode-<name>.html`) plus the drill-down drawer — into one
-self-contained file via [`scripts/assemble-walkthrough.py`](skills/problem-description/scripts/assemble-walkthrough.py),
+plus one mode pack (`references/mode-<name>.html`), plus the drill-down drawer and the UML
+kit when they are used — into one self-contained file via [`scripts/assemble-walkthrough.py`](skills/problem-description/scripts/assemble-walkthrough.py),
 validated by `scripts/check-walkthrough.py`. Adding a mode is a new pack — zero engine edits.
 
 ## management-talk
