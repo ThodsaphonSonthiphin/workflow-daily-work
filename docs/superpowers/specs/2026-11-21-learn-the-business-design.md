@@ -1,5 +1,13 @@
 # learn-the-business - design
 
+> **Superseded in part 2026-11-23 by ADRs 0389-0391.** This spec says the skill goes from the
+> ground search straight to the first question, with at most three lines of evidence, and
+> gives recall questions as examples. Now true: a SHOW step sits between GROUND and ASK and
+> puts the Business flow on the screen (ADR 0389), as three to seven plain lines of person,
+> action and handoff with no reason on them (ADR 0390); and a question takes its facts from
+> that flow and asks for what the flow does not say (ADR 0391). The diagram below and
+> sections 3 and 4 lack that step. The skill's `SKILL.md` is current.
+
 ```mermaid
 flowchart TD
     CALL(["/dev-workflows:learn-the-business [argument]"]) --> START["Pick the start:<br/>argument, or what the person is touching"]

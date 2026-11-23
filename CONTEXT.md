@@ -852,6 +852,14 @@ rule, people, output, connection. The unit `learn-the-business` asks about. A pa
 platform made is not one, and is skipped (ADR 0370).
 _Avoid_: component, feature, **Decision point** (that is one comparison or literal).
 
+**Business flow**:
+The work as it runs today around a Business part, shown before the first question of a
+sitting: three to seven plain lines, each a person, one action and whom the work goes to,
+each with a Source mark, the part's own line marked "you are here". It says what happens and
+never why (ADRs 0389, 0390). A question takes its facts from it (ADR 0391).
+_Avoid_: process map, diagram (it is text lines), as-is model, the flow (that is a program's
+flow, a Business part of kind process).
+
 **Backward chain**:
 The line of questions in one sitting: it starts at the Business part the person is touching,
 and each next question is the part that one reads, depends on or exists because of
@@ -869,7 +877,7 @@ the technical choice it leads to, the ADR text, the Thinking trick (ADR 0369).
 _Avoid_: answer, explanation card (that is `feynman-explain`'s).
 
 **Source mark**:
-The one word on each line of a Reveal card: *cited*, *told*, *general knowledge* or
+The one word on each line of a Reveal card and of a Business flow: *cited*, *told*, *general knowledge* or
 *assumed*. Not the **Proof mark**, which has *measured* and has no word for a guess; an
 *assumed* line becomes a question for the client (ADR 0373).
 _Avoid_: confidence, evidence level.

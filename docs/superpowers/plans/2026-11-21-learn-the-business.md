@@ -1,5 +1,10 @@
 # learn-the-business Implementation Plan
 
+> **Superseded in part 2026-11-23 by ADRs 0389-0391.** This plan was carried out. The skill
+> text it gives has no SHOW step and no rule for the question's facts; both were added after
+> (the Business flow, ADRs 0389-0391). Do not generate requirements from this file - read
+> the skill's `SKILL.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use sp-subagent-driven-development (recommended) or sp-executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add the `learn-the-business` skill to the `dev-workflows` plugin: it asks one business question at a time about the part of a program the person is touching, walks backward to the business origin, reveals business -> technical -> ADR -> thinking trick, and keeps a note outside git.
