@@ -43,6 +43,8 @@ CHART A DECISION MAP — one session, then stop
   ② DESTINATION  (HITL — the human answers)
   │   what does arriving look like?
   │   one or two sentences, one line, first
+  │   every message opens with the FRAME LINE
+  │   #196 AC-4 · briefing point C · question 3 of 4
   ▼
   ③ FRONTIER — breadth-first, never deep
   │   HITL too: you ask, the human answers
@@ -175,6 +177,32 @@ The line is *who supplies the answer*, not who does the work:
 
 If the human is not available to answer, stop and say so rather than charting
 alone.
+
+**The Frame line** (ADRs 0392, 0397). Every message this skill sends the person — the
+destination question, each frontier question, the sweep's batched question, the gate, the
+report — opens with one fixed line, before any heading, table or prose. Its parts, joined
+by ` · `, in this order; leave out a part you do not have:
+
+| part | value |
+|---|---|
+| tracker ticket + AC line | the locator the caller gave the point (`#196 AC-4`); on the destination, the sweep and the gate, the Feature or ticket the map is for (`#193`) |
+| point | `briefing point C` — the letter the caller gave; `briefing` on the destination question, `sweep` on the sweep, `gate` on the dry run |
+| map | `chart map <slug>` |
+| question number | `question 3 of 4` — M is the points handed in plus one for the destination, plus one more when the sweep is asked; `question N` when the count is not known |
+| stage | what the caller named (`plan (2/4)` from `resolve-the-ticket`); `chart-map` on a direct call |
+
+```
+destination  #193 · briefing · chart map ado-193-ips-api-feed · question 1 of 4 · plan (2/4)
+a point      #196 AC-4 · briefing point C · chart map ado-193-ips-api-feed · question 4 of 4 · plan (2/4)
+sweep        #193 · sweep · chart map ado-193-ips-api-feed · question 5 of 5 · plan (2/4)
+gate         #193 · chart map ado-193-ips-api-feed · gate · plan (2/4)
+direct call  chart map billing-migration · briefing · question 1 · chart-map
+```
+
+A direct call with no briefing behind it has no letters and no locators: the line is the
+map, the step and the question number. The locator a point carries is also what the
+ticket's Question names in its closing `Touches` sentence (ADR 0346) — write both from the
+same value, so `work-map` later reads the same `#196 AC-4` back from the ticket.
 
 ## Step 2 — Map the frontier, breadth-first
 
