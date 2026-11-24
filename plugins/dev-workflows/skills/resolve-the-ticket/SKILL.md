@@ -296,8 +296,7 @@ session after charting and `work-map` stops after one decision; this skill ends 
 | has open Decision tickets | offer `work-map` for that map; on a yes load it; when it stops, end |
 | has no open Decision ticket | the plan is over - propose do and verify |
 
-Say in the offer that the run ends when that skill stops. End the run with one line: what
-is left, and that the next call carries on - "#196: 3 Decision
+Say in the offer that the run ends when that skill stops. End the run with one line: the tracker ticket's own open Decision tickets (the ones whose `Touches` sentence names it, as `work-map`'s close report counts them), and that the next call carries on - "#196: 3 Decision
 tickets are still open on `docs/decision-map/ado-193-creditor-sync/`. Call
 resolve-the-ticket again for the next one."
 
@@ -308,7 +307,7 @@ own Decision tickets first; it can do neither without these:
 
 | thing | value |
 |---|---|
-| the tracker ticket | `for #196` - the ticket this call is for; on a Feature call during the family walk, the child the walk is on |
+| the tracker ticket | `for #196` - the ticket this call is for; on a Feature's URL at the plan stage, the Feature itself; on a child's URL, that child |
 | the row list | the rows of 4.1, quoted as written: `rows: AC-1 "…", AC-2 "…", L-1 "…"` - so the AC line in the Frame line means the same thing as in the check |
 | the stage | `stage: plan (2/4)` |
 | the ask | "open every message with the Frame line, and show the tickets for #196 first" |
@@ -326,8 +325,8 @@ with no Feature above it gets its own (ADR 0346):
 | the map's folder | `<tracker>-<Feature id>-<short name>` - `ado-193-creditor-sync`, `gh-12-export` |
 | a group 1 point | a ticket of type `task`: the question, who must answer (or `not named`) |
 | a group 2 point | a ticket of type `grilling` |
-| every point | its letter and its locator, as one line: `C · #196 AC-4 · <the question> · <who must answer>`. `chart-map` opens each question with its **Frame line** from these (`#196 AC-4 · briefing point C · chart map ado-193-… · question 3 of 4 · plan (2/4)`, ADR 0397) and writes the locator into the ticket's `Touches` sentence |
-| a ticket's key | `<child id>-<short name>` - `195-shared-table`. A point that touches several children takes the first child's id, and its question names every ticket it touches - the `Touches` sentence, last in the Question: `Touches #195 AC-2 and #196.` (ADRs 0346, 0395) |
+| every point | its letter and its locator, as one line: `C · #196 AC-4 · <the question> · <who must answer>` (`not named` for a group 2 point). `chart-map` opens each question with its **Frame line** from these (`#196 AC-4 · briefing point C · chart map ado-193-… · question 3 of 4 · plan (2/4)`, ADR 0397) and keeps the `Touches` sentence this skill ends each question with (next row) |
+| a ticket's key | `<child id>-<short name>` - `195-shared-table`. A point that touches several children takes the first child's id, and its question names every ticket it touches - the `Touches` sentence, last in the Question: `Touches #195 AC-2 and #196.` (ADRs 0346, 0395) - this skill writes it from the point's locator, which is everything the point touches (`#195 AC-2, #196`); `chart-map` appends one only when a question lacks it |
 | the stage | `stage: plan (2/4)` |
 | blocking edges | read from the briefing's "what depends on what" map |
 
@@ -601,7 +600,7 @@ of that kind - then record the check with them (4.6), then print them all:
 | no test | `generating-test-cases` |
 | fail | `debug-mantra` |
 | stale | the test step to run again (or: say the change does not touch the row) |
-| differs, no decision | `work-map` when the ticket's Decision map holds an open Decision ticket for it (ADR 0355); else `grill-then-plan` - the decision gets written first |
+| differs, no decision | `work-map` when the ticket's Decision map holds an open Decision ticket for it (ADR 0355), handed `for #<ticket>`, the row list and `stage: check (4/4)` as in Stage 2; else `grill-then-plan` - the decision gets written first |
 | open child | `resolve-the-ticket` on that child |
 
 > L-4 has no test - load `generating-test-cases` for its case?
