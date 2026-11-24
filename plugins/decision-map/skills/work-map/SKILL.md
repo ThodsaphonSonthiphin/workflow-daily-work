@@ -286,12 +286,13 @@ from that ticket's side, before the milestone view above:
 Tickets for #196 - 9 of 11 open:
   196-status-rule (grilling, AC-3) · 196-match-key (grilling, AC-2) · 196-retry-shape (grilling, AC-4)
   196-staff-source (task) · 196-portal-login-source (task) · 196-alert-recipients (task)
-  196-vnet-path (task) · 196-schema-in-staging (task, Brad answers) · 195-ip-loss-recovery (task, AC-1 of #195)
+  196-vnet-path (task) · 196-schema-in-staging (task, Brad answers) · 195-ip-loss-recovery (task)
 Other tickets on this map: 1 for #197 (197-counts-and-owner).
 ```
 
 A ticket is in the group when the `Touches` sentence of its Question names the tracker
-ticket; a ticket that touches several tracker tickets is in each group — accepted. The
+ticket; a ticket that touches several tracker tickets is in each group — accepted. Each entry shows
+its type and, when the sentence names one, the AC line of the caller's ticket. The
 count is open tickets of the group over all tickets of the group. Blocked and claimed
 tickets of the group are collapsed to one line each, as the milestone view does. The rest
 of the map is one line, counted per tracker ticket: name the ticket when a tracker ticket
