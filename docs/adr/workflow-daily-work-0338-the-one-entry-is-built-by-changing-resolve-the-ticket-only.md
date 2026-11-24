@@ -27,3 +27,13 @@ What follows for the open tickets of that map:
   The entry skill ends its own run at those stops.
 - `plugin-missing`, `code-work-stage` - any fallback or stage rule is written in
   resolve-the-ticket.
+
+## Amendment — 2026-11-24: a rule on how a loaded skill speaks to the person is allowed
+
+[ADR 0393](workflow-daily-work-0393-work-map-writes-the-frame-line-on-every-question-it-asks.md)
+adds one rule to `work-map`: every question it asks opens with the Frame line (ADR 0392).
+The user (Pon) chose it on 2026-11-24 over a resolve-the-ticket-only request, because a
+direct `/work-map` call would otherwise have no line. The ruling above stays for new
+**modes** (a file-only mode, a return-to-caller mode): none is added. A one-line rule on
+how a loaded skill talks to the person is not a mode, and the reason for the ruling -
+fewer places to maintain - is kept: the line is written in one skill, not in each caller.

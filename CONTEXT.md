@@ -809,6 +809,13 @@ until the test is run again or the user says the change does not touch that row
 (ADR 0320).
 _Avoid_: old result, outdated test.
 
+**Frame line**:
+The fixed first line of every question the plan stage asks the person: the tracker ticket
+and the AC line the Decision ticket touches, the Decision ticket's key, question N (of M
+when known) and the stage - `#196 AC-2 · 196-match-key · question 1 of 2 · plan (2/4)`.
+It says what the answer fixes, before the question is read (ADR 0392).
+_Avoid_: header, context line, breadcrumb.
+
 ## Video-editing terms (media-workflows plugin)
 
 `cut-vlog` cuts a day's footage into a vlog in Meta's Edits app on a Mac, through the
