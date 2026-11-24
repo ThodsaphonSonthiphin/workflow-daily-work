@@ -37,6 +37,8 @@ WORK A DECISION MAP — one decision, then stop
   ② FRONTIER
   │   read the map, then list the frontier
   │   BY NAME — never a wall of bare ids
+  │   called for one tracker ticket? its
+  │   tickets first (ADR 0394)
   │
   │   nothing open, no fog, no empty
   │   milestone? ■ the map is done
@@ -47,6 +49,8 @@ WORK A DECISION MAP — one decision, then stop
   ▼
   ④ RESOLVE by type
   │   grilling · prototype · research · task
+  │   every message opens with the FRAME LINE
+  │   #196 AC-2 · 196-match-key · question 1 of 2
   ▼
   ⑤ RECORD
   │   repo doc? gist + link
@@ -61,6 +65,41 @@ WORK A DECISION MAP — one decision, then stop
   ■ STOP — one HITL ticket per session
      wanting "just one more" = the edge
 ```
+
+## The Frame line — the first line of every message to the person (ADRs 0392, 0393, 0396)
+
+A person answering a question could not tell which tracker ticket, which acceptance
+criterion and which Decision ticket it served (measured 2026-11-24: three `/wait-what`
+calls in one hour, every re-pitch that landed opened with the line the question lacked).
+So **every message this skill sends the person — the frontier, the dry-run gate, each
+question, the close report — opens with one fixed line, before any heading, table or
+prose.** Its parts, joined by ` · `, in this order; leave out a part you do not have:
+
+| part | value | present |
+|---|---|---|
+| tracker ticket + AC line | `#196 AC-2` — from the sentence of the ticket's `## Question` that starts `Touches` (`Touches #195 AC-2 and #196.` becomes `#195 AC-2, #196`); when the sentence names no AC line, the ticket alone; when there is no sentence, the tracker ticket the caller named; when neither, nothing | when known |
+| Decision ticket | the key — `196-match-key`; `196-match-key closed` on the close report; `196-retry-shape (new)` on a gate that creates it | always |
+| question number | `question 1 of 2`; `question 1` when you do not know how many there will be | on a question only |
+| stage | what the caller named — `plan (2/4)` from resolve-the-ticket; `work-map` on a direct call | always |
+
+```
+frontier     #196 · map ado-193-ips-api-feed · plan (2/4)
+dry-run gate #196 AC-4 · 196-retry-shape (new) · plan (2/4)
+question     #196 AC-2 · 196-match-key · question 1 of 2 · plan (2/4)
+close report #196 AC-2 · 196-match-key closed · plan (2/4): #196 has 7 open
+direct call  #196 AC-4 · 196-retry-shape · question 1 · work-map
+```
+
+The frontier message has no one ticket yet, so its line is the tracker ticket (when
+named), `map <slug>` and the stage. The `Touches` sentence is **not** in `read` or
+`frontier` output — open the ticket document (`docs/decision-map/<slug>/tickets/<key>.md`
+on local, the issue body on GitHub) and read it, as Step 1 already opens the map document
+for the fog region. An AC line the sentence names that is not in the caller's row list is
+written as the sentence has it, followed by `(not in the row list)`, so a mismatch is seen.
+Identifiers stay in English whatever language the rest of the message is in. The line is
+written by this skill on every message, including the questions a loaded grilling skill
+asks: hand the grilling skill the line and ask it to open every question with it, counting
+the question number.
 
 ## Step 0 — Preflight: name the backend before you work
 
@@ -235,6 +274,31 @@ If the frontier is empty, go to Step 6 — the answer is either "the map is
 done", "everything left is blocked or claimed", or "that was the wrong slug",
 and Step 6 tells them apart.
 
+### Called for one tracker ticket: its tickets first (ADR 0394)
+
+When the caller named a tracker ticket — `resolve-the-ticket` does on its yes: "for #196",
+with the row list and the stage — a map shared by a Feature's children (ADR 0346) is shown
+from that ticket's side, before the milestone view above:
+
+```
+#196 · map ado-193-ips-api-feed · plan (2/4)
+
+Tickets for #196 - 8 of 10 open:
+  196-status-rule (grilling, AC-3) · 196-match-key (grilling, AC-2) · 196-retry-shape (grilling, AC-4)
+  196-staff-source (task) · 196-portal-login-source (task) · 196-alert-recipients (task)
+  196-vnet-path (task) · 196-schema-in-staging (task, Brad answers)
+Other tickets on this map: 1 for #195 (195-ip-loss-recovery), 1 for #197.
+```
+
+A ticket is in the group when the `Touches` sentence of its Question names the tracker
+ticket; a ticket that touches several tracker tickets is in each group — accepted. The
+count is open tickets of the group over all tickets of the group. Blocked and claimed
+tickets of the group are collapsed to one line each, as the milestone view does. The rest
+of the map is one line, counted per tracker ticket. **Step 2's recommendation picks inside
+the group**, by the existing heuristic (the ticket that unblocks the most); the two-level
+milestone rule is applied inside the group only. With no tracker ticket named (a direct
+call) there is no group, and the milestone view above is the whole presentation.
+
 ### Offer milestones once, only on a big unmilestoned map (ADR 0100)
 
 If `frontier.json`'s `milestones` is empty and more than five tickets came
@@ -342,14 +406,16 @@ to the user, one at a time. Your own recommended answer is a recommendation,
 never an accepted answer — do not resolve a ticket on it. Silence is not
 acceptance, and neither is a plausible-sounding default.
 
-**Frame every question in the user's terms, whatever the ticket's `type`** — name the
-screen, what they press, what they would observe. Restate where the session has got to
-*immediately before* asking: a frame set at session open goes stale across a long
-technical middle. And when a plan, ADR or standing rule already names a route, say so
-and justify any deviation rather than offering a neutral menu. This is not grilling-only
-— a `task` ticket's blocking question (which branch, which environment) fails the same
-way. An answer that comes back as a question is a framing failure: re-pose it, do not
-explain it at greater length.
+**Open every question with the Frame line, then frame it in the user's terms, whatever
+the ticket's `type`** — the line first (`#196 AC-2 · 196-match-key · question 1 of 2 ·
+plan (2/4)`, see *The Frame line* above), then the screen, what they press, what they
+would observe. A restatement of where the session has got to, set once at session open,
+goes stale across a long technical middle; the line is that restatement, on every
+message. And when a plan, ADR or standing rule already names a route, say so and justify
+any deviation rather than offering a neutral menu. This is not grilling-only — a `task`
+ticket's blocking question (which branch, which environment) fails the same way. An
+answer that comes back as a question is a framing failure: re-pose it, do not explain it
+at greater length.
 
 If the human is not available to answer, stop and say so rather than resolving
 alone. A decision recorded without them is worse than an open ticket: the map
@@ -725,7 +791,9 @@ appended any new fog lines and your hand edit removed the graduated one.
 Reporting the Step 1 copy tells the user the map still asks a question they just
 answered.
 
-Report, in this order:
+Report, opening with the Frame line in its closed form — `#196 AC-2 · 196-match-key
+closed · plan (2/4): #196 has 7 open`, the count being the tracker ticket's open tickets
+when the caller named one, else the map's — then in this order:
 
 - **any `lint` finding**, errors first — and say explicitly when it came back
   clean, so the user knows the check ran;

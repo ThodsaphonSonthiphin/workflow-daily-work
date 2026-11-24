@@ -1,0 +1,35 @@
+{
+  "skill_name": "work-map",
+  "evals": [
+    {
+      "id": 0,
+      "name": "called-for-one-tracker-ticket-every-message-opens-with-the-frame-line",
+      "prompt": "work the decision map docs/decision-map/ado-193-ips-api-feed/ for #196, stage plan (2/4). Rows of #196: AC-1 \"Initial full seed populates all active and pre-appointment IPS cases\", AC-2 \"Daily delta sync updates modified cases idempotently by mgw_casecode\", AC-3 \"Every synced case record includes resolved emails and the appointment status\", AC-4 \"Transient network or API errors are logged with structured retry handling\". The map is local. Its open tickets and the Touches sentence of each Question: 196-match-key (grilling) 'Touches #144, #196 AC-2.'; 196-retry-shape (grilling) 'Touches #196 AC-4.'; 196-staff-source (task) 'Touches #196.'; 195-ip-loss-recovery (task) 'Touches #195 AC-1 and #196.'; 197-counts-and-owner (task) 'Touches #197 AC.'. Milestones: decide-now [195-ip-loss-recovery], sync-ready [196-match-key, 196-retry-shape, 196-staff-source], timesheet-ready [197-counts-and-owner]. Nothing is claimed or blocked. I pick 196-match-key; it has two questions. After both answers, close it.",
+      "expected_output": "Every message to the person opens with the Frame line. The frontier lists the tickets for #196 first under a heading with their count, then one line for the rest of the map, and recommends inside the #196 group. Each grilling question opens '#196 AC-2 · 196-match-key · question N of 2 · plan (2/4)'. The close report opens '#196 AC-2 · 196-match-key closed · plan (2/4): #196 has 3 open'.",
+      "files": [],
+      "assertions": [
+        "The first line of the frontier message is '#196 · map ado-193-ips-api-feed · plan (2/4)' and nothing comes before it",
+        "The frontier shows a heading 'Tickets for #196' with the count '4 of 4 open' (196-match-key, 196-retry-shape, 196-staff-source and 195-ip-loss-recovery, which touches #196 too), each with its type and the AC line its Touches sentence names",
+        "After the group, one line says 'Other tickets on this map: 1 for #197' and names 197-counts-and-owner",
+        "The recommendation is a ticket inside the #196 group, not 197-counts-and-owner, and it does not say the two-level milestone rule chose it from the whole map",
+        "The first question opens with the line '#196 AC-2 · 196-match-key · question 1 of 2 · plan (2/4)' before any context or question text",
+        "The second question opens with '#196 AC-2 · 196-match-key · question 2 of 2 · plan (2/4)'",
+        "The close report opens with '#196 AC-2 · 196-match-key closed · plan (2/4): #196 has 3 open'",
+        "No message to the person in the run opens with a heading, a table or prose before the Frame line",
+        "The Touches sentence of the ticket is read from the ticket file, not from read or frontier output"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "a-direct-call-still-opens-every-question-with-the-frame-line",
+      "prompt": "continue the map docs/decision-map/ado-193-ips-api-feed/ (local). No tracker ticket was named. Open tickets: 196-retry-shape (grilling) whose Question ends 'Touches #196 AC-4.'; 197-counts-and-owner (task) whose Question ends 'Touches #197 AC.'. Milestones: sync-ready [196-retry-shape], timesheet-ready [197-counts-and-owner]. I pick 196-retry-shape. It needs one question; I do not know how many more.",
+      "expected_output": "The frontier is shown by milestone as before (no tracker group, because none was named). The question opens '#196 AC-4 · 196-retry-shape · question 1 · work-map'.",
+      "files": [],
+      "assertions": [
+        "The frontier is grouped by milestone and has no 'Tickets for #' heading",
+        "The first question opens with '#196 AC-4 · 196-retry-shape · question 1 · work-map' - the tracker part comes from the ticket's Touches sentence, there is no 'of M' and the stage part is 'work-map'",
+        "The frontier message's first line is 'map ado-193-ips-api-feed · work-map'"
+      ]
+    }
+  ]
+}
