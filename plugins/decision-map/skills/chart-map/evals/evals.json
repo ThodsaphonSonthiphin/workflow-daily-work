@@ -27,7 +27,7 @@
         "The first message to the person opens with '#193 · briefing · chart map ado-193-ips-api-feed · question 1 of 4 · plan (2/4)' and asks the destination",
         "The question about point C opens with '#196 AC-4 · briefing point C · chart map ado-193-ips-api-feed · question 4 of 4 · plan (2/4)' or the same line with its own position in the count",
         "The sweep's one batched question opens with '#193 · sweep · chart map ado-193-ips-api-feed · question 5 of 5 · plan (2/4)' (the count grows by one for the sweep)",
-        "The dry-run gate message opens with '#193 · chart map ado-193-ips-api-feed · gate · plan (2/4)'",
+        "The dry-run gate message opens with '#193 · gate · chart map ado-193-ips-api-feed · plan (2/4)'",
         "Every created ticket's Question still ends with a sentence that starts 'Touches' and names the point's locator, e.g. 'Touches #196 AC-4.'",
         "No message to the person opens with a heading, a table or prose before the Frame line"
       ]

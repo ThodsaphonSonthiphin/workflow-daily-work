@@ -44,7 +44,7 @@ CHART A DECISION MAP — one session, then stop
   │   what does arriving look like?
   │   one or two sentences, one line, first
   │   every message opens with the FRAME LINE
-  │   #196 AC-4 · briefing point C · question 3 of 4
+  │   #196 AC-4 · briefing point C · question 4 of 4
   ▼
   ③ FRONTIER — breadth-first, never deep
   │   HITL too: you ask, the human answers
@@ -195,14 +195,14 @@ by ` · `, in this order; leave out a part you do not have:
 destination  #193 · briefing · chart map ado-193-ips-api-feed · question 1 of 4 · plan (2/4)
 a point      #196 AC-4 · briefing point C · chart map ado-193-ips-api-feed · question 4 of 4 · plan (2/4)
 sweep        #193 · sweep · chart map ado-193-ips-api-feed · question 5 of 5 · plan (2/4)
-gate         #193 · chart map ado-193-ips-api-feed · gate · plan (2/4)
-direct call  chart map billing-migration · briefing · question 1 · chart-map
+gate         #193 · gate · chart map ado-193-ips-api-feed · plan (2/4)
+direct call  destination · chart map billing-migration · question 1 · chart-map
 ```
 
+Only the destination question, the point questions and the sweep's one batched question carry `question N of M`. Every other message — the backend ask, the milestone questions, a dig-in question of the sweep, the gate, the report — opens with the same line with the step word in the point slot and no number: `#193 · backend · chart map <slug> · plan (2/4)`, `#193 · milestones · …`, `#193 · sweep · …`, `#193 · report · …`. On a re-chart no destination is asked, so the sweep's question is `question N` with no M.
+
 A direct call with no briefing behind it has no letters and no locators: the line is the
-map, the step and the question number. The locator a point carries is also what the
-ticket's Question names in its closing `Touches` sentence (ADR 0346) — write both from the
-same value, so `work-map` later reads the same `#196 AC-4` back from the ticket.
+map, the step and the question number (the step word (`destination`, `frontier`, `sweep`) takes the point slot). The question handed in for a point ends with its `Touches` sentence — `Touches #196 AC-4.` — written by the caller from the same locator (ADRs 0346, 0395); keep it as the last sentence of the ticket's Question, and append `Touches <locator>.` only when a handed question lacks it, so `work-map` later reads the same `#196 AC-4` back from the ticket.
 
 ## Step 2 — Map the frontier, breadth-first
 
