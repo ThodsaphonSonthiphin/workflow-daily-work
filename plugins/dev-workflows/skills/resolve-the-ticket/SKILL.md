@@ -297,9 +297,26 @@ session after charting and `work-map` stops after one decision; this skill ends 
 | has no open Decision ticket | the plan is over - propose do and verify |
 
 Say in the offer that the run ends when that skill stops. End the run with one line: what
-is left, and that the next call carries on - "3 Decision
+is left, and that the next call carries on - "#196: 3 Decision
 tickets are still open on `docs/decision-map/ado-193-creditor-sync/`. Call
 resolve-the-ticket again for the next one."
+
+**What to hand `work-map`** on the yes, in the same request that loads it (ADRs 0392-0394,
+0396). `work-map` opens every message to the person with its **Frame line** -
+`#196 AC-2 · 196-match-key · question 1 of 2 · plan (2/4)` - and lists the tracker ticket's
+own Decision tickets first; it can do neither without these:
+
+| thing | value |
+|---|---|
+| the tracker ticket | `for #196` - the ticket this call is for; on a Feature call during the family walk, the child the walk is on |
+| the row list | the rows of 4.1, quoted as written: `rows: AC-1 "…", AC-2 "…", L-1 "…"` - so the AC line in the Frame line means the same thing as in the check |
+| the stage | `stage: plan (2/4)` |
+| the ask | "open every message with the Frame line, and show the tickets for #196 first" |
+
+The line itself is `work-map`'s to write on its own messages; this skill writes none for
+it. A new point handed over as a ticket to add (the row above, ADR 0355) carries its letter
+and its locator the way the `chart-map` table below has them, so the ticket's Question gets
+its `Touches` sentence.
 
 **What to hand `chart-map`.** One map per Feature, shared by all its children; a ticket
 with no Feature above it gets its own (ADR 0346):
@@ -309,7 +326,9 @@ with no Feature above it gets its own (ADR 0346):
 | the map's folder | `<tracker>-<Feature id>-<short name>` - `ado-193-creditor-sync`, `gh-12-export` |
 | a group 1 point | a ticket of type `task`: the question, who must answer (or `not named`) |
 | a group 2 point | a ticket of type `grilling` |
-| a ticket's key | `<child id>-<short name>` - `195-shared-table`. A point that touches several children takes the first child's id, and its question names every ticket it touches |
+| every point | its letter and its locator, as one line: `C · #196 AC-4 · <the question> · <who must answer>`. `chart-map` opens each question with its **Frame line** from these (`#196 AC-4 · briefing point C · chart map ado-193-… · question 3 of 4 · plan (2/4)`, ADR 0397) and writes the locator into the ticket's `Touches` sentence |
+| a ticket's key | `<child id>-<short name>` - `195-shared-table`. A point that touches several children takes the first child's id, and its question names every ticket it touches - the `Touches` sentence, last in the Question: `Touches #195 AC-2 and #196.` (ADRs 0346, 0395) |
+| the stage | `stage: plan (2/4)` |
 | blocking edges | read from the briefing's "what depends on what" map |
 
 `chart-map` asks for the destination and runs its own gate; do not answer its questions

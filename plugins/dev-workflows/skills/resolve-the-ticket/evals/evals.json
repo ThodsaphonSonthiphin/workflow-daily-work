@@ -277,6 +277,22 @@
         "No closing comment is drafted",
         "A '## Resolve check' block is appended to the runbook"
       ]
+    },
+    {
+      "id": 17,
+      "name": "the-plan-stage-hands-work-map-the-ticket-number-the-rows-and-the-stage",
+      "prompt": "resolve the ticket https://dev.azure.com/Contoso/Ops/_workitems/edit/196 . You cannot reach the board from here, so here is what it holds. #196 User Story, Active, rev 8, parent #193 Feature (Active), children #394 Task (New) and #395 Task (Closed). Acceptance Criteria: 'Initial full seed populates all active cases.' and 'Transient network or API errors are logged with structured retry handling.' No description logic. docs/decision-map/ado-193-ips-api-feed/ exists; its tickets 196-match-key and 196-retry-shape are open and 195-sync-host is closed. The runbook documents/runbook-ado-193-ips-api-feed.md has a '## Stage - 2026-11-19 03:29 UTC - briefing done' block. I say yes to the stage you propose.",
+      "expected_output": "The proposal is the plan stage with work-map, with the count of open Decision tickets as evidence. On the yes, the hand-off to work-map names the ticket (for #196), the row list (AC-1 and AC-2 quoted as written), the stage count plan (2/4), and asks work-map to open every message with the Frame line and to list the tickets for #196 first. The skill writes no Frame line of its own for work-map's messages.",
+      "files": [],
+      "assertions": [
+        "Proposes the plan stage and names work-map, with '2 open Decision tickets' (or the same count in other words) as the evidence line",
+        "On the yes, the hand-off says 'for #196' (the tracker ticket the map session is for)",
+        "The hand-off carries the row list: AC-1 'Initial full seed populates all active cases.' and AC-2 'Transient network or API errors are logged with structured retry handling.', quoted as written",
+        "The hand-off carries the stage count 'plan (2/4)'",
+        "The hand-off asks work-map to open every message with the Frame line and to show the tickets for #196 first",
+        "Does not load work-map before the yes, and does not resolve a Decision ticket itself",
+        "The end-of-run line, when work-map stops, names the tracker ticket: '#196: N Decision tickets still open on docs/decision-map/ado-193-ips-api-feed/. Call resolve-the-ticket again for the next one.'"
+      ]
     }
   ]
 }
