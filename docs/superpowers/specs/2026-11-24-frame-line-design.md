@@ -174,12 +174,13 @@ sequenceDiagram
 |---|---|
 | direct `/work-map` call, ticket has a "Touches" sentence | `#196 AC-4 · 196-retry-shape · question 1 · work-map` |
 | direct call, ticket has no "Touches" sentence (a map not charted through the entry) | `196-retry-shape · question 1 · work-map` |
-| ticket touches several tracker tickets | on a direct call `#195 AC-2, #196 · 195-signin-code · …`; when the caller named a tracker ticket, that ticket and its AC line only (`#196 · 195-signin-code · …` for a `for #196` call); listed in both groups |
-| ticket has no "Touches" sentence, caller named a tracker ticket | counted in the Other line as `N with no Touches sentence`; an empty group falls back to the milestone view with one line saying why |
+| ticket touches several tracker tickets | `#195 AC-2, #196 · 195-signin-code · …` as the sentence has them, on every call; listed in both groups |
+| ticket has no "Touches" sentence, caller named a tracker ticket | the line carries the caller's ticket; the ticket is counted in the Other line as `N with no Touches sentence`; an empty group falls back to the milestone view with one line saying why |
 | the "Touches" sentence names an AC line the row list does not have | the line keeps the sentence's words and adds `(not in the row list)`, so the mismatch is seen, not hidden |
 | GitHub backend | the sentence is read from the issue body; the line is the same |
 | Feature call during the family walk | the tracker part is the child the walk is on, named by resolve-the-ticket |
 | M not known (a grilling that opens new branches) | `question 3` with no "of" |
+| Feature's URL at the plan stage | resolve-the-ticket hands the stage only; the line writes each ticket's own sentence; the frontier is the milestone view; the end-of-run count is the map's |
 
 ## What does not change
 

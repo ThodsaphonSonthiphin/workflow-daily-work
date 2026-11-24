@@ -180,7 +180,7 @@ alone.
 
 **The Frame line** (ADRs 0392, 0397). Every message this skill sends the person — the
 destination question, each frontier question, the sweep's batched question, the gate, the
-report — opens with one fixed line, before any heading, table or prose. Its parts, joined
+report — opens with one fixed line, before any heading, table or prose. On the first message too, the line comes first — above the run diagram this skill emits at the start, and above the backend ask of Step 0, which carries its own `backend` line after it. Its parts, joined
 by ` · `, in this order; leave out a part you do not have:
 
 | part | value |
@@ -188,7 +188,7 @@ by ` · `, in this order; leave out a part you do not have:
 | tracker ticket + AC line | the locator the caller gave the point (`#196 AC-4`); on the destination, the sweep and the gate, the Feature or ticket the map is for (`#193`) |
 | point | `briefing point C` — the letter the caller gave; `briefing` on the destination question, `sweep` on the sweep, `gate` on the dry run |
 | map | `chart map <slug>` |
-| question number | `question 3 of 4` — M is the points handed in plus one for the destination, plus one more when the sweep is asked; `question N` when the count is not known |
+| question number | `question 3 of 4` — M is the points handed in — ask one confirming question per handed point, in the order the caller gave them — plus one for the destination, plus one more when the sweep is asked; `question N` when the count is not known |
 | stage | what the caller named (`plan (2/4)` from `resolve-the-ticket`); `chart-map` on a direct call |
 
 ```
@@ -202,7 +202,7 @@ direct call  destination · chart map billing-migration · question 1 · chart-m
 Only the destination question, the point questions and the sweep's one batched question carry `question N of M`. Every other message — the backend ask, the milestone questions, a dig-in question of the sweep, the gate, the report — opens with the same line with the step word in the point slot and no number: `#193 · backend · chart map <slug> · plan (2/4)`, `#193 · milestones · …`, `#193 · sweep · …`, `#193 · report · …`. On a re-chart no destination is asked, so the sweep's question is `question N` with no M.
 
 A direct call with no briefing behind it has no letters and no locators: the line is the
-map, the step and the question number (the step word (`destination`, `frontier`, `sweep`) takes the point slot). The question handed in for a point ends with its `Touches` sentence — `Touches #196 AC-4.` — written by the caller from the same locator (ADRs 0346, 0395); keep it as the last sentence of the ticket's Question, and append `Touches <locator>.` only when a handed question lacks it, so `work-map` later reads the same `#196 AC-4` back from the ticket.
+map, the step and the question number (the step word (`destination`, `frontier`, `sweep`) takes the point slot). The question handed in for a point ends with its `Touches` sentence — `Touches #196 AC-4.` — written by the caller from the same locator (ADRs 0346, 0395); keep it as the last sentence of the ticket's Question, and append `Touches <locator>.` only when a handed question lacks it, so `work-map` later reads the same `#196 AC-4` back from the ticket. When the destination question is asked through a loaded grilling skill (Step 1), hand it the line and ask it to open the question with it, as `work-map` does.
 
 ## Step 2 — Map the frontier, breadth-first
 
