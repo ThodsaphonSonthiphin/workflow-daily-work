@@ -77,7 +77,7 @@ prose.** Its parts, joined by ` · `, in this order; leave out a part you do not
 
 | part | value | present |
 |---|---|---|
-| tracker ticket + AC line | `#196 AC-2` — from the sentence of the ticket's `## Question` that starts `Touches` (`Touches #195 AC-2 and #196.` becomes `#195 AC-2, #196`); when the sentence names no AC line, the ticket alone; when there is no sentence, the tracker ticket the caller named; when neither, nothing | when known |
+| tracker ticket + AC line | `#196 AC-2` — from the sentence of the ticket's `## Question` that starts `Touches` (`Touches #195 AC-2 and #196.` becomes `#195 AC-2, #196`); when the sentence names no AC line, the ticket alone; when there is no sentence, the tracker ticket the caller named; when neither, nothing. When the caller named a tracker ticket, the line carries that ticket and its AC line only — another tracker ticket the sentence names is left out; on a direct call keep every ticket the sentence names, as it has them | when known |
 | Decision ticket | the key — `196-match-key`; `196-match-key closed` on the close report; `196-retry-shape (new)` on a gate that creates it | always |
 | question number | `question 1 of 2`; `question 1` when you do not know how many there will be | on a question only |
 | stage | what the caller named — `plan (2/4)` from resolve-the-ticket; `work-map` on a direct call | always |
@@ -283,18 +283,22 @@ from that ticket's side, before the milestone view above:
 ```
 #196 · map ado-193-ips-api-feed · plan (2/4)
 
-Tickets for #196 - 8 of 10 open:
+Tickets for #196 - 9 of 11 open:
   196-status-rule (grilling, AC-3) · 196-match-key (grilling, AC-2) · 196-retry-shape (grilling, AC-4)
   196-staff-source (task) · 196-portal-login-source (task) · 196-alert-recipients (task)
-  196-vnet-path (task) · 196-schema-in-staging (task, Brad answers)
-Other tickets on this map: 1 for #195 (195-ip-loss-recovery), 1 for #197.
+  196-vnet-path (task) · 196-schema-in-staging (task, Brad answers) · 195-ip-loss-recovery (task, AC-1 of #195)
+Other tickets on this map: 1 for #197 (197-counts-and-owner).
 ```
 
 A ticket is in the group when the `Touches` sentence of its Question names the tracker
 ticket; a ticket that touches several tracker tickets is in each group — accepted. The
 count is open tickets of the group over all tickets of the group. Blocked and claimed
 tickets of the group are collapsed to one line each, as the milestone view does. The rest
-of the map is one line, counted per tracker ticket. **Step 2's recommendation picks inside
+of the map is one line, counted per tracker ticket: name the ticket when a tracker ticket
+has exactly one open ticket outside the group; a ticket already in the group is never
+counted in the Other line. A ticket with no `Touches` sentence is counted in the Other
+line as `N with no Touches sentence`. When the group comes out empty, show the milestone
+view instead and say in one line why (`no ticket on this map names #196`). **Step 2's recommendation picks inside
 the group**, by the existing heuristic (the ticket that unblocks the most); the two-level
 milestone rule is applied inside the group only. With no tracker ticket named (a direct
 call) there is no group, and the milestone view above is the whole presentation.
@@ -793,7 +797,8 @@ answered.
 
 Report, opening with the Frame line in its closed form — `#196 AC-2 · 196-match-key
 closed · plan (2/4): #196 has 7 open`, the count being the tracker ticket's open tickets
-when the caller named one, else the map's — then in this order:
+when the caller named one, else the map's (direct call: `196-retry-shape closed ·
+work-map: map ado-193-ips-api-feed has 7 open`) — then in this order:
 
 - **any `lint` finding**, errors first — and say explicitly when it came back
   clean, so the user knows the check ran;
