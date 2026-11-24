@@ -74,11 +74,11 @@ criterion and which Decision ticket it served (measured 2026-11-24: three `/wait
 calls in one hour, every re-pitch that landed opened with the line the question lacked).
 So **every message this skill sends the person — the frontier, the dry-run gate, each
 question, the close report — opens with one fixed line, before any heading, table or
-prose.** Its parts, joined by ` · `, in this order; leave out a part you do not have:
+prose.** On the first message too, the line comes first — above the run diagram this skill emits at the start. Its parts, joined by ` · `, in this order; leave out a part you do not have:
 
 | part | value | present |
 |---|---|---|
-| tracker ticket + AC line | `#196 AC-2` — from the sentence of the ticket's `## Question` that starts `Touches` (`Touches #195 AC-2 and #196.` becomes `#195 AC-2, #196`); when the sentence names no AC line, the ticket alone; when there is no sentence, the tracker ticket the caller named; when neither, nothing. When the caller named a tracker ticket, the line carries that ticket and its AC line only — another tracker ticket the sentence names is left out; on a direct call keep every ticket the sentence names, as it has them | when known |
+| tracker ticket + AC line | `#196 AC-2` — from the sentence of the ticket's `## Question` that starts `Touches` (`Touches #195 AC-2 and #196.` becomes `#195 AC-2, #196`); when the sentence names no AC line, the ticket alone; when there is no sentence, the tracker ticket the caller named; when neither, nothing. The line always writes what the sentence names, as it has them; the ticket the caller named drives only the group and the counts (Step 1), never the line. | when known |
 | Decision ticket | the key — `196-match-key`; `196-match-key closed` on the close report; `196-retry-shape (new)` on a gate that creates it | always |
 | question number | `question 1 of 2`; `question 1` when you do not know how many there will be | on a question only |
 | stage | what the caller named — `plan (2/4)` from resolve-the-ticket; `work-map` on a direct call | always |
@@ -87,7 +87,7 @@ prose.** Its parts, joined by ` · `, in this order; leave out a part you do not
 frontier     #196 · map ado-193-ips-api-feed · plan (2/4)
 dry-run gate #196 AC-4 · 196-retry-shape (new) · plan (2/4)
 question     #196 AC-2 · 196-match-key · question 1 of 2 · plan (2/4)
-close report #196 AC-2 · 196-match-key closed · plan (2/4): #196 has 7 open
+close report #196 AC-2 · 196-match-key closed · plan (2/4): #196 has 8 open
 direct call  #196 AC-4 · 196-retry-shape · question 1 · work-map
 ```
 
@@ -279,7 +279,7 @@ and Step 6 tells them apart.
 
 When the caller named a tracker ticket — `resolve-the-ticket` does on its yes: "for #196",
 with the row list and the stage — a map shared by a Feature's children (ADR 0346) is shown
-from that ticket's side, before the milestone view above:
+from that ticket's side **instead of** the milestone view above, in this order: the Frame line, the destination line, decisions so far (one gist each), the group, the Other line — no milestone-grouped list follows:
 
 ```
 #196 · map ado-193-ips-api-feed · plan (2/4)
@@ -287,12 +287,12 @@ from that ticket's side, before the milestone view above:
 Tickets for #196 - 9 of 11 open:
   196-status-rule (grilling, AC-3) · 196-match-key (grilling, AC-2) · 196-retry-shape (grilling, AC-4)
   196-staff-source (task) · 196-portal-login-source (task) · 196-alert-recipients (task)
-  196-vnet-path (task) · 196-schema-in-staging (task, Brad answers) · 195-ip-loss-recovery (task)
+  196-vnet-path (task) · 196-schema-in-staging (task) · 195-ip-loss-recovery (task)
 Other tickets on this map: 1 for #197 (197-counts-and-owner).
 ```
 
 A ticket is in the group when the `Touches` sentence of its Question names the tracker
-ticket; a ticket that touches several tracker tickets is in each group — accepted. Each entry shows
+ticket; a ticket that touches several tracker tickets is in each group — accepted. Read every ticket's document for its `Touches` sentence — closed ones too, they count in the group's total. Each entry shows
 its type and, when the sentence names one, the AC line of the caller's ticket. The
 count is open tickets of the group over all tickets of the group. Blocked and claimed
 tickets of the group are collapsed to one line each, as the milestone view does. The rest
@@ -642,6 +642,7 @@ edge onto a ticket that already exists, that edge in the new ticket's `blocks`:
   validation error, and the run exits `2` naming the ticket and the bad target.
 - Keys are lowercase-kebab, must match `[A-Za-z0-9][A-Za-z0-9_-]*`, and **must
   not contain `--`**.
+- End each new ticket's `question` with its `Touches` sentence — the tracker tickets and AC lines it touches, taken from the ticket whose answer cleared it (ADR 0395) — or the group of Step 1 will never list it.
 
 ### The create-class gate (never skip it)
 
@@ -798,7 +799,7 @@ Reporting the Step 1 copy tells the user the map still asks a question they just
 answered.
 
 Report, opening with the Frame line in its closed form — `#196 AC-2 · 196-match-key
-closed · plan (2/4): #196 has 7 open`, the count being the tracker ticket's open tickets
+closed · plan (2/4): #196 has 8 open`, the count being the tracker ticket's open tickets
 when the caller named one, else the map's (direct call: `196-retry-shape closed ·
 work-map: map ado-193-ips-api-feed has 7 open`) — then in this order:
 

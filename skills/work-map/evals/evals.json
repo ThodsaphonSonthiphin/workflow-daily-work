@@ -5,18 +5,19 @@
       "id": 0,
       "name": "called-for-one-tracker-ticket-every-message-opens-with-the-frame-line",
       "prompt": "work the decision map docs/decision-map/ado-193-ips-api-feed/ for #196, stage plan (2/4). Rows of #196: AC-1 \"Initial full seed populates all active and pre-appointment IPS cases\", AC-2 \"Daily delta sync updates modified cases idempotently by mgw_casecode\", AC-3 \"Every synced case record includes resolved emails and the appointment status\", AC-4 \"Transient network or API errors are logged with structured retry handling\". The map is local. Its open tickets and the Touches sentence of each Question: 196-match-key (grilling) 'Touches #144, #196 AC-2.'; 196-retry-shape (grilling) 'Touches #196 AC-4.'; 196-staff-source (task) 'Touches #196.'; 195-ip-loss-recovery (task) 'Touches #195 AC-1 and #196.'; 197-counts-and-owner (task) 'Touches #197 AC.'. Milestones, in map order: sync-ready [196-match-key, 196-retry-shape, 196-staff-source], decide-now [195-ip-loss-recovery], timesheet-ready [197-counts-and-owner]. 196-retry-shape is blocked by 196-match-key; nothing is claimed. I ask which one you recommend, then accept it (\"yes, that one\"); the ticket you recommend has two questions. After both answers, close it.",
-      "expected_output": "Every message to the person opens with the Frame line. The frontier lists the tickets for #196 first under a heading with their count, then one line for the rest of the map, and recommends inside the #196 group. Each grilling question opens '#196 AC-2 · 196-match-key · question N of 2 · plan (2/4)'. The close report opens '#196 AC-2 · 196-match-key closed · plan (2/4): #196 has 3 open'.",
+      "expected_output": "Every message to the person opens with the Frame line. The frontier lists the tickets for #196 first under a heading with their count, then one line for the rest of the map, and recommends inside the #196 group. Each grilling question opens '#144, #196 AC-2 · 196-match-key · question N of 2 · plan (2/4)'. The close report opens '#144, #196 AC-2 · 196-match-key closed · plan (2/4): #196 has 3 open'.",
       "files": [],
       "assertions": [
         "The first line of the frontier message is '#196 · map ado-193-ips-api-feed · plan (2/4)' and nothing comes before it",
-        "The frontier shows a heading 'Tickets for #196' with the count '4 of 4 open' (196-match-key, 196-retry-shape, 196-staff-source and 195-ip-loss-recovery, which touches #196 too), each with its type and, when its Touches sentence names one, the AC line of #196 (195-ip-loss-recovery shows no AC line, because its sentence names #195 AC-1 and #196 only)",
+        "The frontier shows a heading 'Tickets for #196' with the count '4 of 4 open' (196-match-key, 196-retry-shape, 196-staff-source and 195-ip-loss-recovery, which touches #196 too), each with its type and, when its Touches sentence names one, the AC line of #196 (195-ip-loss-recovery shows no AC line, because its sentence names #196 with no AC line)",
         "After the group, one line says 'Other tickets on this map: 1 for #197' and names 197-counts-and-owner",
         "The recommendation is 196-match-key, chosen inside the #196 group (the earliest incomplete milestone with a takeable ticket, then the ticket that unblocks the most), not 197-counts-and-owner",
-        "The first question opens with the line '#196 AC-2 · 196-match-key · question 1 of 2 · plan (2/4)' before any context or question text",
-        "The second question opens with '#196 AC-2 · 196-match-key · question 2 of 2 · plan (2/4)'",
-        "The close report opens with '#196 AC-2 · 196-match-key closed · plan (2/4): #196 has 3 open'",
+        "The first question opens with the line '#144, #196 AC-2 · 196-match-key · question 1 of 2 · plan (2/4)' before any context or question text",
+        "The second question opens with '#144, #196 AC-2 · 196-match-key · question 2 of 2 · plan (2/4)'",
+        "The close report opens with '#144, #196 AC-2 · 196-match-key closed · plan (2/4): #196 has 3 open'",
         "No message to the person in the run opens with a heading, a table or prose before the Frame line",
-        "The Touches sentence of the ticket is read from the ticket file, not from read or frontier output"
+        "The Touches sentence of the ticket is read from the ticket file, not from read or frontier output",
+        "After the Other line, no milestone-grouped list follows; the destination line and decisions so far come between the Frame line and the group"
       ]
     },
     {
