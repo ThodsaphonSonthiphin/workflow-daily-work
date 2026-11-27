@@ -898,3 +898,13 @@ _Avoid_: lens, heuristic, tip.
 `~/.claude/learn-the-business/<project>.md` - one row per Business part asked, plus the
 branches not yet asked and the questions for the client. Never in a repo (ADRs 0375, 0376).
 _Avoid_: profile (the **Mistake profile**), log, memory.
+
+## ER diagram skill terms (dev-workflows plugin)
+
+**ER model**:
+The one JSON data block the agent writes for a tiered ER page: its tiers, tables, columns (type,
+key, short description), the row meaning and purpose of each table, and every relationship.
+The skill's script draws, lays out and checks the page from it; the agent never writes
+coordinates. It is kept inside the published page itself, so the page and its model are one
+copy (ADRs 0398, 0399).
+_Avoid_: schema file (the database's own schema), spec, layout file.
